@@ -48,7 +48,7 @@ lr_decay_epoch <- 20
 lr_min <- 1e-5
 lambda <- 0.00028
 # lambda <- 0.00013
-num_epochs <- 3
+num_epochs <- 360
 validation_metrics <- TRUE
 test_metrics <- TRUE
 custom_scale <- 1.04349
@@ -1462,7 +1462,6 @@ if(train) {
       # TEST EVAL (per-slot, per-seed)
       # ============================
       if (isTRUE(test)) {
-        SAVE_PREDICTIONS_COLUMN_IN_RDS <- FALSE
         
         for (k in seq_len(max(1L, as.integer(num_networks)))) {
           env_name <- sprintf("Ensemble_Main_0_model_%d_metadata", as.integer(k))
@@ -1494,7 +1493,6 @@ if(train) {
               OUT_DIR_ASSERT = RUN_DIR,              #explicit assertion to prove folder is passed
               SAVE_METRICS_RDS = TRUE,
               METRICS_PREFIX   = "metrics_test",
-              SAVE_PREDICTIONS_COLUMN_IN_RDS = SAVE_PREDICTIONS_COLUMN_IN_RDS,
               AGG_PREDICTIONS_FILE = agg_pred_file,    # absolute path under RUN_DIR
               AGG_METRICS_FILE     = agg_metrics_file, # absolute path under RUN_DIR
               MODEL_SLOT           = k
@@ -1513,17 +1511,99 @@ if(train) {
         if (file.exists(agg_metrics_file)) {
           df <- try(readRDS(agg_metrics_file), silent = TRUE)
           if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
+            
             nms <- names(df)
-            # Build a named, atomic "dummy vector" and reuse the canonical filter to decide columns to KEEP
-            keep_map  <- setNames(as.list(rep(TRUE, length(nms))), nms)
-            kept_list <- .filter_flat_metric_names(keep_map)
-            keep_nms  <- names(kept_list)
-            # Subset to kept columns; preserve NA columns; then strip perf/relevance prefixes
-            df <- df[, intersect(keep_nms, names(df)), drop = FALSE]
+            
+            # IDs you may have (support both model_slot casings)
+            id_cols <- c("run_index","seed","model_slot","MODEL_SLOT","split","mode","K","ts","ts_stamp")
+            
+            # Flat metrics seen in your sample (clustering + regression + clf + misc)
+            flat_names <- c(
+              # clustering / SOM-style
+              "quantization_error","topographic_error","clustering_quality_db",
+              # regression
+              "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+              # base classification
+              "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
+              "specificity","sensitivity","auc","logloss","brier",
+              # counts (sometimes appear top-level)
+              "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+              # misc
+              "generalization_ability","speed","speed_learn1","speed_learn2",
+              "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
+            )
+            
+            # Tuned family and tuned confusion counts + allow perf/relevance prefixed flats
+            keep_regexes <- c(
+              # tuned scalar metrics
+              "^accuracy_precision_recall_f1_tuned\\.(accuracy|precision|recall|f1)$",
+              # tuned confusion counts
+              "^accuracy_precision_recall_f1_tuned\\.confusion_matrix\\.(TP|FP|TN|FN)$",
+              # perf/relevance prefixed scalars (classification + regression)
+              "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE)$",
+              # prefixed clustering/misc
+              "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness|hit_rate|ndcg|diversity|serendipity)$"
+            )
+            
+            # Drop obvious non-scalars (curves/tables) and list columns
+            drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
+            is_scalar_col <- vapply(df, function(x) !is.list(x) && is.atomic(x), logical(1))
+            
+            keep_mask <-
+              (nms %in% id_cols) |
+              (nms %in% flat_names) |
+              Reduce(`|`, lapply(keep_regexes, function(rx) grepl(rx, nms, perl = TRUE)))
+            
+            keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
+            keep_nms <- intersect(keep_nms, names(df))  # only columns that actually exist
+            df <- df[, keep_nms, drop = FALSE]
+            
+            # Strip only perf/relevance prefixes (leave tuned prefix intact)
             names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
+            
+            # ---- Type normalization on EXISTING columns only (no new cols created) ----
+            # Numeric metrics (intersect with existing to avoid creating)
+            numeric_maybe <- c(
+              "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+              "accuracy","precision","recall","f1","f1_score",
+              "balanced_accuracy","specificity","sensitivity","auc","logloss","brier",
+              "quantization_error","topographic_error","clustering_quality_db",
+              "generalization_ability","speed","speed_learn1","speed_learn2",
+              "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity",
+              "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+              "accuracy_precision_recall_f1_tuned.accuracy",
+              "accuracy_precision_recall_f1_tuned.precision",
+              "accuracy_precision_recall_f1_tuned.recall",
+              "accuracy_precision_recall_f1_tuned.f1",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.TP",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.FP",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.TN",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.FN"
+            )
+            to_num <- intersect(numeric_maybe, names(df))
+            for (nm in to_num) df[[nm]] <- suppressWarnings(as.numeric(df[[nm]]))
+            
+            # IDs (normalize types only if present)
+            if ("run_index" %in% names(df))  df$run_index  <- suppressWarnings(as.integer(df$run_index))
+            if ("seed" %in% names(df))       df$seed       <- suppressWarnings(as.integer(df$seed))
+            # Prefer lowercase model_slot if only MODEL_SLOT exists
+            if ("MODEL_SLOT" %in% names(df) && !("model_slot" %in% names(df))) {
+              names(df)[names(df) == "MODEL_SLOT"] <- "model_slot"
+            }
+            if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
+            if ("split" %in% names(df))      df$split      <- as.character(df$split)
+            
+            # Reorder (IDs first if present), but ONLY among existing columns
+            id_order <- intersect(c("run_index","seed","model_slot","split"), names(df))
+            other    <- setdiff(names(df), id_order)
+            df <- df[, c(id_order, other), drop = FALSE]
+            
             saveRDS(df, agg_metrics_file)
           }
         }
+        
+        
+        
       }
     }
     
@@ -1742,49 +1822,71 @@ if(train) {
                    as.integer(slot), paste(cand, collapse = ", ")))
     }
     
-    ## ========= FIX for fusion: ensure AGG file layout matches what the fuser expects =========
-    assign("SAVE_PREDICTIONS_COLUMN_IN_RDS", TRUE, envir = .GlobalEnv)
-    
-    .fix_agg_layout_for_fuser <- function(path, run_index = NULL, seed = NULL,
-                                          split = "test", mode = "binary") {
+
+    .fix_agg_layout_for_fuser <- function(
+    path,
+    run_index = NULL,
+    seed = NULL,
+    split = "test",
+    classification_mode = "binary"   # prefer CLASSIFICATION_MODE only
+    ) {
       if (!file.exists(path)) return(invisible(FALSE))
-      df <- readRDS(path)
-      if (!is.data.frame(df) || !NROW(df)) return(invisible(FALSE))
+      df <- try(readRDS(path), silent = TRUE)
+      if (inherits(df, "try-error") || !is.data.frame(df) || !NROW(df)) return(invisible(FALSE))
       
-      # Uppercase aliases many fusers subset on
-      if (!"RUN_INDEX"   %in% names(df) && "run_index" %in% names(df)) df$RUN_INDEX    <- as.integer(df$run_index)
-      if (!"SEED"        %in% names(df) && "seed"      %in% names(df)) df$SEED         <- as.integer(df$seed)
-      if (!"MODEL_SLOT"  %in% names(df) && "model_slot"%in% names(df)) df$MODEL_SLOT   <- as.integer(df$model_slot)
+      # ---- coerce types safely ----
+      as_int <- function(x) suppressWarnings(as.integer(x))
+      as_num <- function(x) suppressWarnings(as.numeric(x))
+      as_chr <- function(x) suppressWarnings(as.character(x))
       
-      # SPLIT / CLASSIFICATION_MODE
-      if (!"SPLIT" %in% names(df)) df$SPLIT <- toupper(if ("split" %in% names(df)) df$split else split)
-      if (!"split" %in% names(df)) df$split <- tolower(df$SPLIT)
+      # Canonical ids (keep both lower + UPPER for compatibility)
+      if (!"run_index" %in% names(df) && "RUN_INDEX" %in% names(df)) df$run_index <- as_int(df$RUN_INDEX)
+      if (!"RUN_INDEX" %in% names(df) && "run_index" %in% names(df)) df$RUN_INDEX <- as_int(df$run_index)
+      
+      if (!"seed" %in% names(df) && "SEED" %in% names(df)) df$seed <- as_int(df$SEED)
+      if (!"SEED" %in% names(df) && "seed" %in% names(df)) df$SEED <- as_int(df$seed)
+      
+      if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- as_int(df$MODEL_SLOT)
+      if (!"MODEL_SLOT" %in% names(df) && "model_slot" %in% names(df)) df$MODEL_SLOT <- as_int(df$model_slot)
+      
+      # Split (keep lowercase 'split'; also write legacy 'SPLIT')
+      if (!"split" %in% names(df)) {
+        if ("SPLIT" %in% names(df)) df$split <- tolower(as_chr(df$SPLIT)) else df$split <- tolower(split)
+      } else {
+        df$split <- tolower(as_chr(df$split))
+      }
+      df$SPLIT <- toupper(df$split)
+      
+      # Classification mode (keep CLASSIFICATION_MODE only; uppercase stored, lowercase used by code)
       if (!"CLASSIFICATION_MODE" %in% names(df)) {
-        df$CLASSIFICATION_MODE <- toupper(if ("mode" %in% names(df)) df$mode else mode)
+        df$CLASSIFICATION_MODE <- toupper(classification_mode)
+      } else {
+        df$CLASSIFICATION_MODE <- toupper(as_chr(df$CLASSIFICATION_MODE))
       }
       
-      # prediction columns: provide legacy aliases
-      if (!"y_pred" %in% names(df) && "y_prob" %in% names(df)) df$y_pred <- as.numeric(df$y_prob)
+      # Prediction cols: we now standardize on y_prob (numeric), no y_pred_full synthesis
+      if (!"y_prob" %in% names(df) && "y_pred" %in% names(df)) df$y_prob <- as_num(df$y_pred)
+      if ("y_prob" %in% names(df)) df$y_prob <- as_num(df$y_prob)
+      if ("y_true" %in% names(df)) df$y_true <- as_num(df$y_true)
       
-      # ensure full preds is a list-column (some fusers check this)
-      if ("y_prob_full" %in% names(df)) {
-        ypf <- df$y_prob_full
-        if (!is.list(ypf)) {
-          # make it a list of length-1 numeric vectors
-          ypf <- lapply(as.numeric(df$y_prob), function(z) c(z))
-        }
-        df$y_pred_full <- I(ypf)
-      } else if (!"y_pred_full" %in% names(df) && "y_prob" %in% names(df)) {
-        df$y_pred_full <- I(lapply(as.numeric(df$y_prob), function(z) c(z)))
+      # (Optional) keep legacy y_pred as mirror of y_prob if some readers expect it
+      if (!"y_pred" %in% names(df) && "y_prob" %in% names(df)) df$y_pred <- df$y_prob
+      
+      # Do NOT create/synthesize y_pred_full / y_prob_full anymore
+      # If old files already have them, leave as-is; no conversion needed.
+      
+      # Optional narrowing to avoid accidental empty subsets later
+      if (!is.null(run_index) && "RUN_INDEX" %in% names(df)) {
+        df <- df[df$RUN_INDEX == as_int(run_index), , drop = FALSE]
       }
-      
-      # optionally narrow to the run/seed being fused (prevents accidental empty subset)
-      if (!is.null(run_index)) df <- df[df$RUN_INDEX == as.integer(run_index), , drop = FALSE]
-      if (!is.null(seed) && "SEED" %in% names(df)) df <- df[df$SEED == as.integer(seed), , drop = FALSE]
+      if (!is.null(seed) && "SEED" %in% names(df)) {
+        df <- df[df$SEED == as_int(seed), , drop = FALSE]
+      }
       
       saveRDS(df, path)
       invisible(TRUE)
     }
+    
     ## ========= END FIX helpers =========
     
     ## -------------------------
@@ -1932,27 +2034,94 @@ if(train) {
             LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "test",
             CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
             OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE, METRICS_PREFIX = "metrics_test",
-            SAVE_PREDICTIONS_COLUMN_IN_RDS = TRUE,    ## needed for fusion
             AGG_PREDICTIONS_FILE = agg_pred_file, AGG_METRICS_FILE = agg_metrics_file,
             MODEL_SLOT = k
           )
         }
         ## >>> FIX: normalize agg file so fuser never sees "no entries"
-        .fix_agg_layout_for_fuser(agg_pred_file, run_index = i, seed = s, split = "test", mode = CLASSIFICATION_MODE)
+        .fix_agg_layout_for_fuser(agg_pred_file, run_index = i, seed = s, split = "test", classification_mode = CLASSIFICATION_MODE)
         
         ## >>> NEW: post-filter ensemble TEST agg metrics (uses .filter_flat_metric_names)
         if (file.exists(agg_metrics_file)) {
           df <- try(readRDS(agg_metrics_file), silent = TRUE)
           if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
             nms <- names(df)
-            keep_map  <- setNames(as.list(rep(TRUE, length(nms))), nms)
-            kept_list <- .filter_flat_metric_names(keep_map)
-            keep_nms  <- names(kept_list)
+            
+            # IDs (support both casings)
+            id_cols <- c("run_index","seed","model_slot","MODEL_SLOT","split","mode","K","ts","ts_stamp")
+            
+            # Flat metrics (unprefixed names)
+            flat_names <- c(
+              "quantization_error","topographic_error","clustering_quality_db",
+              "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+              "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
+              "specificity","sensitivity","auc","logloss","brier",
+              "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+              "generalization_ability","speed","speed_learn1","speed_learn2",
+              "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
+            )
+            
+            # Regex families to KEEP (include both performance_metric.* and relevance_metric.*)
+            keep_regexes <- c(
+              "^accuracy_precision_recall_f1_tuned\\.(accuracy|precision|recall|f1)$",
+              "^accuracy_precision_recall_f1_tuned\\.confusion_matrix\\.(TP|FP|TN|FN)$",
+              # scalar perf/relevance metrics (prefixed)
+              "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE|hit_rate|ndcg|diversity|serendipity)$",
+              # clustering/misc (prefixed)
+              "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness)$"
+            )
+            
+            # Drop obvious non-scalars
+            drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
+            is_scalar_col <- vapply(df, function(x) !is.list(x), logical(1))
+            
+            keep_mask <-
+              (nms %in% id_cols) |
+              (nms %in% flat_names) |
+              Reduce(`|`, lapply(keep_regexes, function(rx) grepl(rx, nms, perl = TRUE)))
+            
+            keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
             df <- df[, intersect(keep_nms, names(df)), drop = FALSE]
+            
+            # Normalize ID casings (keep originals too if present; you said no dedupe)
+            if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- as.integer(df$RUN_INDEX)
+            if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- as.integer(df$SEED)
+            if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- as.integer(df$MODEL_SLOT)
+            
+            # Strip prefixes (this can create duplicate names; we leave them)
             names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
+            
+            # Preferred column order (IDs first, then your classic metrics; rest appended)
+            id_order <- c("run_index","seed","model_slot","split","mode","K","ts","ts_stamp")
+            metric_order <- c(
+              "quantization_error","topographic_error","clustering_quality_db",
+              "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+              "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
+              "specificity","sensitivity","auc","logloss","brier",
+              "accuracy_precision_recall_f1_tuned.accuracy",
+              "accuracy_precision_recall_f1_tuned.precision",
+              "accuracy_precision_recall_f1_tuned.recall",
+              "accuracy_precision_recall_f1_tuned.f1",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.TP",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.FP",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.TN",
+              "accuracy_precision_recall_f1_tuned.confusion_matrix.FN",
+              "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+              "generalization_ability","speed","speed_learn1","speed_learn2",
+              "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
+            )
+            
+            prefer <- c(id_order, metric_order)
+            have_pref <- intersect(prefer, names(df))
+            rest <- setdiff(names(df), have_pref)
+            df <- df[, c(have_pref, rest), drop = FALSE]
+            
             saveRDS(df, agg_metrics_file)
           }
         }
+        
+        
+        
         
         if (num_networks > 1L) {
           yi <- get0("y_test", inherits=TRUE, ifnotfound=NULL); stopifnot(!is.null(yi))
@@ -2131,7 +2300,6 @@ if(train) {
               LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "test",
               CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
               OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE, METRICS_PREFIX = "metrics_test",
-              SAVE_PREDICTIONS_COLUMN_IN_RDS = TRUE,   ## needed for fusion
               AGG_PREDICTIONS_FILE = agg_pred_file, AGG_METRICS_FILE = agg_metrics_file,
               MODEL_SLOT = k
             )
@@ -2144,14 +2312,58 @@ if(train) {
             df <- try(readRDS(agg_metrics_file), silent = TRUE)
             if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
               nms <- names(df)
-              keep_map  <- setNames(as.list(rep(TRUE, length(nms))), nms)
-              kept_list <- .filter_flat_metric_names(keep_map)
-              keep_nms  <- names(kept_list)
+              
+              # IDs (both casings supported)
+              id_cols <- c("run_index","seed","model_slot","MODEL_SLOT","split","mode","K","ts","ts_stamp")
+              
+              # Flat metric names to keep (clustering, regression, classification, misc)
+              flat_names <- c(
+                "quantization_error","topographic_error","clustering_quality_db",
+                "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+                "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
+                "specificity","sensitivity","auc","logloss","brier",
+                "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+                "generalization_ability","speed","speed_learn1","speed_learn2",
+                "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
+              )
+              
+              # Regex families to include (tuned + perf/relevance-prefixed scalars)
+              keep_regexes <- c(
+                "^accuracy_precision_recall_f1_tuned\\.(accuracy|precision|recall|f1)$",
+                "^accuracy_precision_recall_f1_tuned\\.confusion_matrix\\.(TP|FP|TN|FN)$",
+                # classification + regression scalars under performance_metric|relevance_metric
+                "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE)$",
+                # clustering/misc under perf/relevance
+                "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness|hit_rate|ndcg|diversity|serendipity)$"
+              )
+              
+              keep_mask <-
+                (nms %in% id_cols) |
+                (nms %in% flat_names) |
+                Reduce(`|`, lapply(keep_regexes, function(rx) grepl(rx, nms, perl = TRUE)))
+              
+              # Drop obvious non-scalars if present + drop list columns
+              drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
+              is_scalar_col <- vapply(df, function(x) !is.list(x), logical(1))
+              
+              keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
+              
               df <- df[, intersect(keep_nms, names(df)), drop = FALSE]
+              
+              # Normalize ID casings if missing lower-case
+              if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- as.integer(df$RUN_INDEX)
+              if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- as.integer(df$SEED)
+              if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- as.integer(df$MODEL_SLOT)
+              
+              # Strip perf/relevance prefixes (leave tuned prefix intact). Duplicates are allowed.
               names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
+              
               saveRDS(df, agg_metrics_file)
             }
           }
+          
+          
+          
           
           if (num_networks > 1L) {
             yi <- get0("y_test", inherits=TRUE, ifnotfound=NULL); stopifnot(!is.null(yi))
