@@ -2438,7 +2438,6 @@ DDESONN_predict_eval <- function(
   mark("tuned_ok")
   
   ## ---------- FULL TEST METRICS (performance + relevance) ----------
-  # Pull optional fields (only for computing; not added to table)
   run_id            <- tryCatch(meta$run_index,        error=function(e) NULL)
   threshold_val     <- as.numeric(get0("CLASS_THRESHOLD", inherits=TRUE, ifnotfound=0.5))
   cluster_assign    <- tryCatch(meta$cluster_assignments, error=function(e) NULL)
@@ -2537,12 +2536,7 @@ DDESONN_predict_eval <- function(
     row_df <- safe_df(base_cols, "row_df")
     row_df$model_slot <- as.integer(MODEL_SLOT)
     row_df$split      <- tolower(split_used)
-    row_df$SPLIT      <- toupper(split_used)
-    row_df$.__split__ <- tolower(split_used)
-    row_df$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
-    row_df$RUN_INDEX  <- as.integer(RUN_INDEX)
-    row_df$SEED       <- as.integer(SEED)
-    row_df$MODEL_SLOT <- as.integer(MODEL_SLOT)
+    row_df$CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
     mark("flatten_ok")
   }, error=function(e) fail("flatten_metrics", e))
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
@@ -2579,16 +2573,16 @@ DDESONN_predict_eval <- function(
       y <- row_df
       if (file.exists(AGG_METRICS_FILE)) {
         x <- readRDS(AGG_METRICS_FILE); if (!is.data.frame(x)) x <- as.data.frame(x, stringsAsFactors=FALSE)
-        id_cols_all <- c("run_index","seed","model_slot","split","SPLIT",".__split__","RUN_INDEX","SEED","MODEL_SLOT","CLASSIFICATION_MODE")
-        for (nm in setdiff(id_cols_all, names(x))) x[[nm]] <- NA
-        for (nm in setdiff(id_cols_all, names(y))) y[[nm]] <- NA
+        id_cols <- c("run_index","seed","model_slot","split","CLASSIFICATION_MODE")
+        for (nm in setdiff(id_cols, names(x))) x[[nm]] <- NA
+        for (nm in setdiff(id_cols, names(y))) y[[nm]] <- NA
         for (m in setdiff(names(y), names(x))) x[[m]] <- NA
         for (m in setdiff(names(x), names(y))) y[[m]] <- NA
         ord <- union(names(x), names(y)); x <- x[, ord, drop=FALSE]; y <- y[, ord, drop=FALSE]
-        for (nm in c("run_index","RUN_INDEX","seed","SEED","model_slot","MODEL_SLOT")) { x[[nm]] <- suppressWarnings(as.integer(x[[nm]])); y[[nm]] <- suppressWarnings(as.integer(y[[nm]])) }
-        for (nm in c("split",".__split__")) { x[[nm]] <- tolower(as.character(x[[nm]])); y[[nm]] <- tolower(as.character(y[[nm]])) }
-        if ("SPLIT" %in% names(x)) { x$SPLIT <- toupper(as.character(x$SPLIT)); y$SPLIT <- toupper(as.character(y$SPLIT)) }
-        if ("CLASSIFICATION_MODE" %in% names(x)) { x$CLASSIFICATION_MODE <- toupper(as.character(x$CLASSIFICATION_MODE)); y$CLASSIFICATION_MODE <- toupper(as.character(y$CLASSIFICATION_MODE)) }
+        for (nm in c("run_index","seed","model_slot")) { x[[nm]] <- suppressWarnings(as.integer(x[[nm]])); y[[nm]] <- suppressWarnings(as.integer(y[[nm]])) }
+        x$split <- tolower(as.character(x$split)); y$split <- tolower(as.character(y$split))
+        if ("CLASSIFICATION_MODE" %in% names(x)) { x$CLASSIFICATION_MODE <- tolower(as.character(x$CLASSIFICATION_MODE)) }
+        y$CLASSIFICATION_MODE <- tolower(as.character(y$CLASSIFICATION_MODE))
         metric_cols <- c("MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE","accuracy","precision","recall","f1","f1_score","balanced_accuracy","specificity","sensitivity","auc","logloss","brier")
         metric_cols <- intersect(metric_cols, ord); for (nm in metric_cols) { x[[nm]] <- suppressWarnings(as.numeric(x[[nm]])); y[[nm]] <- suppressWarnings(as.numeric(y[[nm]])) }
         agg_tbl <- rbind(x, y)
@@ -2638,31 +2632,28 @@ DDESONN_predict_eval <- function(
       
       n <- nrow(pred_df)
       pred_df$split               <- rep_len(tolower(split_used), n)
-      pred_df$SPLIT               <- rep_len(toupper(split_used), n)
-      pred_df$.__split__          <- rep_len(tolower(split_used), n)
-      pred_df$CLASSIFICATION_MODE <- rep_len(toupper(CLASSIFICATION_MODE), n)
-      pred_df$RUN_INDEX           <- rep_len(as.integer(RUN_INDEX),  n)
-      pred_df$SEED                <- rep_len(as.integer(SEED),       n)
-      pred_df$MODEL_SLOT          <- rep_len(as.integer(MODEL_SLOT), n)
+      pred_df$CLASSIFICATION_MODE <- rep_len(tolower(CLASSIFICATION_MODE), n)
       
       if (file.exists(AGG_PREDICTIONS_FILE)) {
         old <- readRDS(AGG_PREDICTIONS_FILE); if (!is.data.frame(old)) old <- as.data.frame(old, stringsAsFactors=FALSE)
-        add_missing  <- setdiff(names(old), names(pred_df)); for (nm in add_missing)  pred_df[[nm]] <- NA
-        extra_in_new <- setdiff(names(pred_df), names(old)); for (nm in extra_in_new) old[[nm]]     <- NA
-        pred_df <- pred_df[, names(old), drop=FALSE]
-        
-        for (nm in c("run_index","seed","model_slot","RUN_INDEX","SEED","MODEL_SLOT")) {
-          if (nm %in% names(old)) { old[[nm]] <- suppressWarnings(as.integer(old[[nm]])); pred_df[[nm]] <- suppressWarnings(as.integer(pred_df[[nm]])) }
+        allowed <- c("run_index","seed","model_slot","y_true","y_prob","y_pred","y_prob_full","split","CLASSIFICATION_MODE")
+        for (nm in setdiff(allowed, names(old)))     old[[nm]]    <- NA
+        for (nm in setdiff(allowed, names(pred_df))) pred_df[[nm]] <- NA
+        old     <- old[,     intersect(allowed, names(old)),     drop=FALSE]
+        pred_df <- pred_df[, intersect(allowed, names(pred_df)), drop=FALSE]
+        # coerce IDs/mode consistently
+        for (nm in c("run_index","seed","model_slot")) {
+          old[[nm]]     <- suppressWarnings(as.integer(old[[nm]]))
+          pred_df[[nm]] <- suppressWarnings(as.integer(pred_df[[nm]]))
         }
-        for (nm in c("split",".__split__")) {
-          if (nm %in% names(old)) { old[[nm]] <- tolower(as.character(old[[nm]])); pred_df[[nm]] <- tolower(as.character(pred_df[[nm]])) }
-        }
-        if ("SPLIT" %in% names(old)) { old$SPLIT <- toupper(as.character(old$SPLIT)); pred_df$SPLIT <- toupper(as.character(pred_df$SPLIT)) }
-        if ("CLASSIFICATION_MODE" %in% names(old)) { old$CLASSIFICATION_MODE <- toupper(as.character(old$CLASSIFICATION_MODE)); pred_df$CLASSIFICATION_MODE <- toupper(as.character(pred_df$CLASSIFICATION_MODE)) }
-        
+        old$split <- tolower(as.character(old$split)); pred_df$split <- tolower(as.character(pred_df$split))
+        old$CLASSIFICATION_MODE <- tolower(as.character(old$CLASSIFICATION_MODE))
+        pred_df$CLASSIFICATION_MODE <- tolower(as.character(pred_df$CLASSIFICATION_MODE))
         agg_pred <- rbind(old, pred_df)
       } else {
-        agg_pred <- pred_df
+        allowed <- c("run_index","seed","model_slot","y_true","y_prob","y_pred","y_prob_full","split","CLASSIFICATION_MODE")
+        for (nm in setdiff(allowed, names(pred_df))) pred_df[[nm]] <- NA
+        agg_pred <- pred_df[, allowed, drop=FALSE]
       }
       
       saveRDS(agg_pred, AGG_PREDICTIONS_FILE)
@@ -2687,6 +2678,7 @@ DDESONN_predict_eval <- function(
     n_rows          = base_n
   ))
 }
+
 
 
 

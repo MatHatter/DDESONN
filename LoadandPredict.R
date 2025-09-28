@@ -35,16 +35,26 @@ LoadandPredict <- function(
     if (file.exists(agg_metrics_file))     unlink(agg_metrics_file,     force = TRUE)
   }
   
+  # ========================
   # ENV path (no disk scan)
+  # ========================
   if (identical(source, "env")) {
     if (is.null(env_meta_name) || !nzchar(env_meta_name)) {
-      candidates <- c(
-        sprintf("Ensemble_Main_0_model_%d_metadata", 1:64),
-        as.vector(outer(1:8, 1:64, function(e,k) sprintf("Ensemble_Temp_%d_model_%d_metadata", e, k)))
-      )
-      hits <- candidates[sapply(candidates, function(nm) exists(nm, envir = .GlobalEnv))]
+      # Dynamically discover any in-memory metadata objects:
+      #   Ensemble_Main_<E>_model_<K>_metadata
+      #   Ensemble_Temp_<E>_model_<K>_metadata
+      all_names <- ls(envir = .GlobalEnv)
+      pat <- "^Ensemble_(Main|Temp)_[0-9]+_model_[0-9]+_metadata$"
+      hits <- grep(pat, all_names, value = TRUE)
       if (!length(hits)) stop("No canonical metadata object found in .GlobalEnv.")
-      env_meta_name <- hits[1]
+      
+      # Prefer Main over Temp; within each kind, sort by ensemble then model (both desc)
+      kind     <- sub("^Ensemble_([^_]+)_.*$", "\\1", hits)
+      ensemble <- suppressWarnings(as.integer(sub("^Ensemble_(?:Main|Temp)_([0-9]+)_model_([0-9]+)_metadata$", "\\1", hits)))
+      model    <- suppressWarnings(as.integer(sub("^Ensemble_(?:Main|Temp)_[0-9]+_model_([0-9]+)_metadata$", "\\1", hits)))
+      kind_rank <- ifelse(kind == "Main", 0L, 1L)
+      ord <- order(kind_rank, -ensemble, -model, hits, na.last = TRUE)
+      env_meta_name <- hits[ord][1L]
     } else if (!exists(env_meta_name, envir = .GlobalEnv)) {
       stop(sprintf("env_meta_name not found in .GlobalEnv: %s", env_meta_name))
     }
@@ -164,7 +174,7 @@ LoadandPredict <- function(
 # ---- Example (fresh, 4 rows expected) ----
 LoadandPredict(
   source="EnsembleRuns",
-  folder="20250928_102703",   # or NULL for latest
+  folder=NULL,   # or NULL for latest
   predict_split="test",
   CLASSIFICATION_MODE="BINARY",
   run_index=1L,
