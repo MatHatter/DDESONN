@@ -1292,6 +1292,11 @@ if(train) {
     
     cat(sprintf("[SINGLE] RUN_DIR = %s\n", RUN_DIR))
     
+    # models/main directory for SingleRun <<<
+    MODELS_DIR_MAIN <- file.path(RUN_DIR, "models", "main")
+    dir.create(MODELS_DIR_MAIN, recursive = TRUE, showWarnings = FALSE)
+    
+    
     # Filenames (inside RUN_DIR)
     s_chr <- as.character(length(seeds))
     agg_pred_file    <- file.path(RUN_DIR, sprintf("SingleRun_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts_stamp))
@@ -1370,6 +1375,13 @@ if(train) {
         
         assign(mvar, md, envir = .GlobalEnv)
         cat(sprintf("[STAMPED][SINGLE MAIN_0] slot=%d best_val_acc=%s\n", k, as.character(md$best_val_acc)))
+        
+        # save the stamped metadata for this seed/slot <<<
+        saveRDS(md, file.path(
+          MODELS_DIR_MAIN,
+          sprintf("%s_%s_seed%s.rds", mvar, ts_stamp, as.character(s))
+        ))
+        
       }
       
       ## Ensure the trained slot carries its metadata
@@ -1936,6 +1948,11 @@ if(train) {
     log_dir <- file.path(RUN_DIR, "logs")
     dir.create(log_dir, recursive = TRUE, showWarnings = FALSE)
     
+    # models/main directory
+    MODELS_DIR_MAIN <- file.path(RUN_DIR, "models", "main")
+    dir.create(MODELS_DIR_MAIN, recursive = TRUE, showWarnings = FALSE)
+    
+    
     TARGET_METRIC <- get0("metric_name", ifnotfound = get0("TARGET_METRIC", ifnotfound = "accuracy", inherits = TRUE), inherits = TRUE)
     num_temp_iterations <- as.integer(num_temp_iterations %||% 0L)
     
@@ -2024,6 +2041,9 @@ if(train) {
         
         assign(mvar, md, envir = .GlobalEnv)
         cat(sprintf("[STAMPED][MAIN] slot=%d best_val_acc=%s\n", k, as.character(md$best_val_acc)))
+        
+        # persist MAIN metadata (seed-tagged) <<<
+        saveRDS(md, file.path(MODELS_DIR_MAIN, sprintf("%s_%s_seed%s.rds", mvar, ts_stamp, as.character(s))))
       }
       
       ## === MAIN snapshot for Scenario C (no prune/add) → persist ONLY main_log ===
@@ -2260,6 +2280,11 @@ if(train) {
             train=train, viewTables=viewTables, verbose=verbose
           ))
           
+          #  models/temp_eXX directory for this iteration
+          MODELS_DIR_TEMP <- file.path(RUN_DIR, "models", sprintf("temp_e%02d", j + 1L))
+          dir.create(MODELS_DIR_TEMP, recursive = TRUE, showWarnings = FALSE)
+          
+          
           ## MAIN snapshot BEFORE prune/add → main_log
           ts_iter <- Sys.time()
           main_before <- snapshot_main_serials_meta()
@@ -2309,6 +2334,9 @@ if(train) {
             tmd$best_val_prediction_time <- .scalar_num(tmd$best_val_prediction_time %||% best_val_pred_time_tmp, idx = k)
             assign(tvar, tmd, envir = .GlobalEnv)
             cat(sprintf("[STAMPED][TEMP e=%d] slot=%d best_val_acc=%s\n", j+1L, k, as.character(tmd$best_val_acc)))
+            
+            saveRDS(tmd, file.path( MODELS_DIR_TEMP, sprintf("%s_%s_seed%s.rds", tvar, ts_stamp, as.character(s))))
+            
           }
           
           pruned <- prune_network_from_ensemble(
