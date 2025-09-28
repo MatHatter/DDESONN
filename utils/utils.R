@@ -855,7 +855,7 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
     X, meta,
     model_index        = 1L,
     ML_NN              = TRUE,
-    CLASSIFICATION_MODE = NULL,   # ← explicit arg, not expected_mode
+    CLASSIFICATION_MODE = NULL,   # explicit arg, not expected_mode
     ...,
     verbose = get0("VERBOSE_SAFERUN", inherits = TRUE, ifnotfound = FALSE),
     debug   = get0("DEBUG_SAFERUN",   inherits = TRUE, ifnotfound = FALSE),
@@ -867,54 +867,52 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
   stamp <- format(Sys.time(), "%H:%M:%S")
   
   if (isTRUE(dbg)) {
-    cat(sprintf("[SAFE-DBG %s] enter .safe_run_predict | X dims=%d x %d\n",
-                stamp, NROW(X), NCOL(X)))
-    cat(sprintf("[SAFE-DBG %s] X summary: mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
-                stamp, mean(X), sd(as.vector(X)), min(X), max(X)))
-  }
-  
-  # resolve mode cleanly: arg > env > meta
-  mode_hint <- tolower(as.character(
-    CLASSIFICATION_MODE %||%
-      get0("CLASSIFICATION_MODE", inherits = TRUE, ifnotfound = NULL) %||%
-      meta$CLASSIFICATION_MODE %||%
-      .get_mode(meta) %||% NA
-  ))
-  if (!mode_hint %in% c("binary","multiclass","regression")) mode_hint <- NULL
-  if (isTRUE(dbg)) cat(sprintf("[SAFE-DBG %s] mode_hint=%s\n", stamp, as.character(mode_hint)))
-  
-  out <- tryCatch(
-    .run_predict(
-      X = X,
-      meta = meta,
-      model_index = model_index,
-      ML_NN = ML_NN,
-      expected_mode = mode_hint,  # ← forward it
-      ...,
-      verbose = vrb,
-      debug   = dbg
-    ),
-    error = function(e) {
-      if (isTRUE(dbg)) message("[SAFE-DBG] .run_predict error: ", conditionMessage(e))
-      list(predicted_output = matrix(numeric(0), nrow = 0, ncol = 1))
+    cat(sprintf("[SAFE-DBG %s] enter .safe_run_predict | X dims=%s x %s\n",
+                stamp, nrow(X), ncol(X)))
+    if (is.matrix(X)) {
+      cat(sprintf("[SAFE-DBG %s] X summary: mean=%s sd=%s min=%s max=%s\n",
+                  stamp,
+                  signif(mean(X), 6), signif(sd(X), 6),
+                  signif(min(X), 6), signif(max(X), 6)))
     }
-  )
-  
-  if (isTRUE(dbg)) {
-    raw <- out$predicted_output %||% out
-    cat(sprintf("[SAFE-DBG %s] raw preds head=%s | mean=%.6f | sd=%.6f\n",
-                stamp,
-                paste(head(as.numeric(raw)), collapse=", "),
-                mean(as.numeric(raw)), sd(as.numeric(raw))))
+    if (!is.null(CLASSIFICATION_MODE)) {
+      cat(sprintf("[SAFE-DBG %s] mode_hint=%s\n", stamp, tolower(CLASSIFICATION_MODE)))
+    }
   }
   
-  res <- .as_pred_matrix(out, mode = mode_hint %||% .get_mode(meta), meta = meta,
-                         DEBUG = get0("DEBUG_ASPM", inherits = TRUE, ifnotfound = FALSE))
-  if (isTRUE(dbg)) {
-    cat(sprintf("[SAFE-DBG %s] ASPM result dims=%d x %d | mean=%.6f | sd=%.6f\n",
-                stamp, nrow(res), ncol(res), mean(res), sd(as.vector(res))))
+  # ---- Call run_predict safely ----------------------------------------------
+  res <- try(.run_predict(
+    X        = X,
+    meta     = meta,
+    mode_hint = CLASSIFICATION_MODE
+  ), silent = TRUE)
+  
+  if (inherits(res, "try-error")) {
+    # Grab error message
+    msg <- tryCatch(conditionMessage(attr(res, "condition")),
+                    error = function(e) as.character(res))
+    
+    if (grepl("\\bfirstRun\\b", msg, ignore.case = TRUE)) {
+      # Define harmless default if missing
+      if (!exists("firstRun", envir = .GlobalEnv, inherits = TRUE)) {
+        assign("firstRun", FALSE, envir = .GlobalEnv)
+      }
+      # Retry once
+      res <- try(.run_predict(
+        X        = X,
+        meta     = meta,
+        mode_hint = CLASSIFICATION_MODE
+      ), silent = TRUE)
+    }
   }
-  res
+  
+  # ---- If still broken, return empty fallback -------------------------------
+  if (inherits(res, "try-error") || is.null(res) || is.null(res$predicted_output)) {
+    if (dbg) cat(sprintf("[SAFE-DBG %s] .run_predict error: %s\n", stamp, msg))
+    return(list(predicted_output = matrix(numeric(0), nrow = 0, ncol = 1)))
+  }
+  
+  return(res)
 }
 
 
@@ -924,149 +922,187 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 ## ------------------------------------------------------------------------
 ## Predict shim (stateless, uses extract_best_records) — MODE-AWARE
 ## ------------------------------------------------------------------------
-if (!exists(".run_predict", inherits = TRUE)) {
+
   .run_predict <- function(
     X, meta,
-    model_index   = 1L,
-    ML_NN         = TRUE,
-    expected_mode = NULL,
-    ...,
-    verbose = get0("VERBOSE_RUNPRED", inherits = TRUE, ifnotfound = FALSE),
-    debug   = get0("DEBUG_RUNPRED",   inherits = TRUE, ifnotfound = FALSE)
+    CLASSIFICATION_MODE = NULL,
+    mode_hint = NULL,   # legacy alias for backward compatibility
+    DEBUG = get0("DEBUG_RUNPRED", inherits = TRUE, ifnotfound = TRUE)
   ) {
+    # ---- resolve mode hint (prefer explicit CLASSIFICATION_MODE) ----
+    if (!is.null(mode_hint) && is.null(CLASSIFICATION_MODE)) {
+      CLASSIFICATION_MODE <- mode_hint
+    }
     `%||%` <- function(x, y) if (is.null(x)) y else x
-    near <- function(a, b, tol = 1e-12) all(is.finite(a)) && all(is.finite(b)) && max(abs(a - b)) <= tol
     
-    if (is.null(meta)) stop(".run_predict: 'meta' is NULL")
-    X <- as.matrix(X); storage.mode(X) <- "double"
-    if (nrow(X) == 0) return(list(predicted_output = matrix(numeric(0), nrow = 0, ncol = 1)))
+    dbg  <- isTRUE(DEBUG)
+    dcat <- function(...) if (dbg) cat("[RUNPRED-DBG] ", sprintf(...), "\n")
     
-    vrb <- isTRUE(verbose)
-    dbg <- isTRUE(debug)
-    stamp <- format(Sys.time(), "%H:%M:%S")
+    # -------------------- 0) Input coercion --------------------
+    if (!is.matrix(X)) X <- as.matrix(X)
+    storage.mode(X) <- "double"
+    if (any(!is.finite(X))) stop(".run_predict: X contains non-finite values")
+    dcat("X dims=%dx%d", nrow(X), ncol(X))
     
-    ## ---- Resolve expected mode ----
-    if (is.null(expected_mode) || !nzchar(expected_mode)) {
-      expected_mode <- tolower(get0("CLASSIFICATION_MODE", inherits = TRUE,
-                                    ifnotfound = meta$CLASSIFICATION_MODE %||% "regression"))
-    } else {
-      expected_mode <- tolower(expected_mode)
+    # -------------------- 1) STRICT: pull ONLY best_* --------------------
+    Wrec_raw <- meta$best_weights_record
+    brec_raw <- meta$best_biases_record
+    if (is.null(Wrec_raw) || !length(Wrec_raw)) {
+      stop(".run_predict: best_weights_record missing or empty in meta (strict)")
     }
-    if (!expected_mode %in% c("binary", "multiclass", "regression")) expected_mode <- "regression"
-    if (dbg) cat(sprintf("[MODE-DBG %s] expected_mode='%s'\n", stamp, expected_mode))
+    if (!is.list(Wrec_raw)) stop(".run_predict: best_weights_record is not a list")
     
-    ## ---- Extract best weights/biases ----
-    rec <- extract_best_records(meta, ML_NN = ML_NN, model_index = model_index)
+    L <- length(Wrec_raw)
+    if (is.null(brec_raw)) brec_raw <- vector("list", L)
+    if (length(brec_raw) < L) brec_raw <- c(brec_raw, vector("list", L - length(brec_raw)))
     
-    if (dbg) {
-      wdims <- tryCatch(dim(rec$weights[[1]]), error = function(e) NULL)
-      cat("[RUNPRED-DBG] have weights/biases: ",
-          paste0(length(rec$weights), "W/", length(rec$biases), "b"),
-          " | W1 dims=", if (is.null(wdims)) "NA" else paste(wdims, collapse = "x"), "\n", sep = "")
-    }
-    
-    ## ---- Model config ----
-    input_size   <- ncol(X)
-    hidden_sizes <- meta$hidden_sizes %||% meta$model$hidden_sizes
-    output_size  <- as.integer(meta$output_size %||% 1L)
-    num_networks <- as.integer(meta$num_networks %||% length(meta$best_weights_record) %||% 1L)
-    N            <- as.integer(meta$N %||% nrow(X))
-    lambda       <- as.numeric(meta$lambda %||% 0)
-    init_method  <- meta$init_method %||% "xavier"
-    custom_scale <- meta$custom_scale %||% NULL
-    
-    if (dbg) cat("[RUNPRED-DBG] meta names:", paste(names(meta), collapse=","), "\n")
-    activation_functions <- meta$activation_functions %||%
-      (meta$model$activation_functions %||% (meta$preprocessScaledData$activation_functions %||% NULL))
-    if (is.null(activation_functions)) {
-      stop("[RUNPRED-ERR] activation_functions not found in meta.")
-    }
-    
-    ML_NN <- isTRUE(meta$ML_NN) || isTRUE(ML_NN)
-    
-    # Last activation quick probe (debug-only)
-    last_af <- tryCatch(activation_functions[[length(activation_functions)]], error = function(e) NULL)
-    last_nm <- tolower(tryCatch(attr(last_af, "name"), error = function(e) NULL) %||% "")
-    is_linear <- FALSE
-    if (is.function(last_af)) {
-      v <- c(-2,-1,0,1,2)
-      outp <- try(last_af(v), silent = TRUE)
-      if (!inherits(outp, "try-error") && is.numeric(outp) && length(outp) == length(v)) {
-        is_linear <- near(as.numeric(outp), v, tol = 1e-12) || identical(last_af, base::identity) ||
-          last_nm %in% c("identity","linear","id")
-      }
-    }
-    if (dbg) {
-      cat(sprintf("[HEAD-DBG %s] last_activation='%s' | last_is_linear=%s | mode=%s\n",
-                  stamp, if (nzchar(last_nm)) last_nm else "<unknown>", is_linear, expected_mode))
-      if (!is_linear && expected_mode != "regression") {
-        cat("[ACT-DBG] Non-linear head is correct for classification — no regression flattening concern.\n")
-      }
-    }
-    
-    ## ---- Build a single-SONN wrapper and predict ----
-    main_model <- DDESONN$new(
-      num_networks    = num_networks,
-      input_size      = input_size,
-      hidden_sizes    = hidden_sizes,
-      output_size     = output_size,
-      N               = N,
-      lambda          = lambda,
-      ensemble_number = 1L,
-      ensembles       = NULL,
-      ML_NN           = ML_NN,
-      method          = init_method,
-      custom_scale    = custom_scale
-    )
-    sonn_idx  <- min(model_index, length(main_model$ensemble))
-    model_obj <- main_model$ensemble[[sonn_idx]]
-    
-    call_args <- list(
-      Rdata   = X,
-      weights = rec$weights,
-      biases  = rec$biases,
-      activation_functions = activation_functions,
-      verbose = vrb,
-      debug   = dbg
-    )
-    
-    # WARNING HANDLER: be silent unless dbg==TRUE
-    out <- withCallingHandlers(
-      do.call(model_obj$predict, call_args),
-      warning = function(w) {
-        msg <- conditionMessage(w)
-        if (grepl("\\[ACT-DBG\\].*Last activation is NOT linear", msg)) {
-          if (identical(expected_mode, "regression")) {
-            # let it through for true regression
-            return(invokeRestart("muffleWarning"))  # or comment this to show the original warning
-          } else {
-            if (dbg) message(sprintf("[ACT-DBG] Non-linear last activation during predict; expected for '%s'. Silencing.", expected_mode))
-            invokeRestart("muffleWarning")
-            return(invisible())
+    # -------------------- helpers: unwrap matrix/vector --------------------
+    pick_matrix <- function(obj, label = "W", layer = NA_integer_) {
+      if (is.matrix(obj)) return(obj)
+      if (is.array(obj) && length(dim(obj)) == 2L) return(as.matrix(obj))
+      if (is.list(obj)) {
+        nm <- names(obj)
+        if (dbg) dcat("Layer %s: %s is list; names=%s", as.character(layer), label,
+                      if (length(nm)) paste(nm, collapse=",") else "<none>")
+        for (cand in c("W","weights","weight","matrix","value","data","mat")) {
+          if (!is.null(obj[[cand]])) {
+            val <- obj[[cand]]
+            if (is.matrix(val)) return(val)
+            if (is.array(val) && length(dim(val)) == 2L) return(as.matrix(val))
           }
         }
-        # otherwise, do nothing and let other warnings behave normally
+        for (i in seq_along(obj)) {
+          val <- obj[[i]]
+          if (is.matrix(val)) return(val)
+          if (is.array(val) && length(dim(val)) == 2L) return(as.matrix(val))
+        }
       }
-    )
+      stop(sprintf(".run_predict: could not extract matrix for %s at layer %s (class=%s)",
+                   label, as.character(layer), paste(class(obj), collapse=",")))
+    }
     
-    ## ---- Normalize output ----
-    pred <- out$predicted_output %||% out
-    if (is.list(pred) && length(pred) == 1L && !is.matrix(pred)) pred <- pred[[1]]
-    if (is.data.frame(pred)) pred <- as.matrix(pred)
-    if (is.vector(pred))     pred <- matrix(as.numeric(pred), ncol = 1)
-    pred <- as.matrix(pred); storage.mode(pred) <- "double"
+    pick_vec <- function(obj, label = "b", layer = NA_integer_) {
+      if (is.null(obj)) return(NULL)
+      if (is.vector(obj) && !is.list(obj)) return(as.numeric(obj))
+      if (is.matrix(obj) && (nrow(obj) == 1L || ncol(obj) == 1L)) return(as.numeric(obj))
+      if (is.array(obj) && length(dim(obj)) == 1L) return(as.numeric(obj))
+      if (is.list(obj)) {
+        nm <- names(obj)
+        if (dbg) dcat("Layer %s: %s is list; names=%s", as.character(layer), label,
+                      if (length(nm)) paste(nm, collapse=",") else "<none>")
+        for (cand in c("b","bias","biases","vector","value","data","v")) {
+          if (!is.null(obj[[cand]])) {
+            val <- obj[[cand]]
+            if (is.vector(val) && !is.list(val)) return(as.numeric(val))
+            if (is.matrix(val) && (nrow(val) == 1L || ncol(val) == 1L)) return(as.numeric(val))
+          }
+        }
+        for (i in seq_along(obj)) {
+          val <- obj[[i]]
+          if (is.null(val)) next
+          if (is.vector(val) && is.numeric(val)) return(as.numeric(val))
+          if (is.matrix(val) && (nrow(val) == 1L || ncol(val) == 1L)) return(as.numeric(val))
+        }
+      }
+      # tolerate unrecognized bias by using NULL (no bias add)
+      if (dbg) dcat("Layer %s: unable to coerce %s to vector; ignoring (class=%s)",
+                    as.character(layer), label, paste(class(obj), collapse=","))
+      NULL
+    }
     
-    if (dbg) cat(sprintf("[RUNPRED-DBG %s] raw model out: %dx%d\n", stamp, nrow(pred), ncol(pred)))
+    # -------------------- 2) Normalize activations --------------------
+    acts <- meta$activation_functions_predict %||% meta$activation_functions
+    if (is.null(acts)) acts <- rep("relu", L)
+    if (is.function(acts)) acts <- rep(attr(acts, "name") %||% "relu", L)
+    if (!is.vector(acts)) acts <- as.vector(acts)
+    if (length(acts) < L) acts <- c(acts, rep(tail(acts, 1), L - length(acts)))
+    if (length(acts) > L) acts <- acts[seq_len(L)]
     
-    # optional capture hook (silent)
-    try({
-      env <- get("LAST_DEBUG", inherits = TRUE)
-      assign("LAST_RUNPRED_OUT", pred, envir = env)
-    }, silent = TRUE)
+    mode_str <- tolower(CLASSIFICATION_MODE %||% meta$CLASSIFICATION_MODE %||% "")
+    if (mode_str %in% c("bin","binary") && !grepl("sigmoid|logistic", acts[L], ignore.case = TRUE)) {
+      dcat("Overriding last activation to sigmoid for binary classification")
+      acts[L] <- "sigmoid"
+    }
     
-    list(predicted_output = pred)
+    act_apply <- function(Z, name) {
+      n <- tolower(name %||% "")
+      if (n %in% c("relu","leaky_relu","leaky-relu")) { Z[Z < 0] <- 0; return(Z) }
+      if (n == "tanh") return(tanh(Z))
+      if (n %in% c("sigmoid","logistic")) return(1/(1+exp(-Z)))
+      if (n %in% c("identity","linear","")) return(Z)
+      if (n == "softmax") {
+        Z <- Z - matrix(apply(Z, 1, max), nrow(Z), ncol(Z))
+        EZ <- exp(Z); s <- rowSums(EZ)
+        return(EZ / pmax(s, .Machine$double.eps))
+      }
+      dcat("Unknown activation '%s' -> identity", n); Z
+    }
+    
+    add_bias <- function(Z, bvec) {
+      if (is.null(bvec)) return(Z)
+      k <- ncol(Z)
+      if (length(bvec) != k) {
+        dcat("Bias length %d != Z cols %d; truncating/recycling", length(bvec), k)
+        if (length(bvec) > k) bvec <- bvec[seq_len(k)] else bvec <- rep(bvec, length.out = k)
+      }
+      Z + matrix(rep(bvec, each = nrow(Z)), nrow(Z), ncol(Z))
+    }
+    
+    # -------------------- 3) Unwrap once so we know dims up front --------------------
+    Wlist <- vector("list", L)
+    blist <- vector("list", L)
+    for (l in seq_len(L)) {
+      Wlist[[l]] <- pick_matrix(Wrec_raw[[l]], "W", l)
+      blist[[l]] <- pick_vec(brec_raw[[l]], "b", l)
+      dcat("Layer %d: W dims=%dx%d | b len=%s",
+           l, nrow(Wlist[[l]]), ncol(Wlist[[l]]),
+           if (is.null(blist[[l]])) "NULL" else as.character(length(blist[[l]])))
+    }
+    
+    # -------------------- 4) Forward pass (auto-orient) --------------------
+    A <- X
+    for (l in seq_len(L)) {
+      W <- Wlist[[l]]
+      b <- blist[[l]]
+      
+      rA <- nrow(A); cA <- ncol(A)
+      rW <- nrow(W); cW <- ncol(W)
+      
+      if (cA == rW) {
+        dcat("Layer %d: A:%dx%d x W:%dx%d", l, rA, cA, rW, cW)
+        Z <- A %*% W
+      } else if (cA == cW) {
+        dcat("Layer %d: using t(W) because A:%dx%d vs W:%dx%d", l, rA, cA, rW, cW)
+        Z <- A %*% t(W)   # gives n x rW
+      } else if (rA == rW) {
+        dcat("Layer %d: transposing A to fit (A':%dx%d) x (W:%dx%d)", l, cA, rA, rW, cW)
+        A <- t(A); rA <- nrow(A); cA <- ncol(A)
+        if (cA != rW) stop(sprintf(".run_predict: cannot conform at layer %d after A' (A:%dx%d, W:%dx%d)", l, rA, cA, rW, cW))
+        Z <- A %*% W
+      } else {
+        stop(sprintf(".run_predict: non-conformable at layer %d (A:%dx%d, W:%dx%d)", l, rA, cA, rW, cW))
+      }
+      
+      Z <- add_bias(Z, b)
+      A <- act_apply(Z, acts[l])
+      if (any(!is.finite(A))) stop(sprintf(".run_predict: non-finite activations at layer %d", l))
+      dcat("Layer %d out dims = %dx%d | act=%s", l, nrow(A), ncol(A), acts[l])
+    }
+    
+    # -------------------- 5) Binary head shaping --------------------
+    if (mode_str %in% c("bin","binary")) {
+      if (ncol(A) > 1L) {
+        dcat("Binary mode with multi-col head -> taking last column as positive class prob")
+        A <- A[, ncol(A), drop = FALSE]
+      }
+      A <- pmin(pmax(A, .Machine$double.eps), 1 - .Machine$double.eps)
+    }
+    
+    list(predicted_output = A)
   }
-}
+  
+  
+
 
 
 

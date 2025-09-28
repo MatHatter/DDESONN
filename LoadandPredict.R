@@ -1,184 +1,373 @@
 # =====================================================================
 # artifacts/PredictOnly/LoadandPredict.R
-# Minimal predict-only runner with optional overwrite of agg files
+#
+# Predict-only runner that:
+# - Leaves your DDESONN_predict_eval() unchanged.
+# - Loads metas from artifacts or env.
+# - Ensures a DDESONN$predict() is available; if not, defines a minimal
+#   forward-pass shim using weights/biases/activations from meta.
+# - Writes fresh agg files: agg_metrics_<split>.rds, agg_predictions_<split>.rds
 # =====================================================================
 
-if (!exists("DDESONN_predict_eval") || !is.function(DDESONN_predict_eval)) {
-  stop("DDESONN_predict_eval() is not available in scope.")
-}
-
 LoadandPredict <- function(
-    source = c("SingleRuns","EnsembleRuns","env"),
-    folder = NULL,                       # subfolder under artifacts/<source>/..., or NULL → most recent
-    env_meta_name = NULL,                # used only when source="env"
-    predict_split = "test",              # "test" | "validation" | "train"
-    CLASSIFICATION_MODE = "BINARY",
-    run_index = 1L,
-    seed_val  = 1L,                      # fallback if filename lacks _seedN
-    run_dir_name = format(Sys.time(), "%Y%m%d_%H%M%S_predict"),
-    selection = c("first","all"),
-    overwrite = FALSE                    # <-- clear old agg files in output dir
+    source               = c("env","EnsembleRuns"),
+    folder               = NULL,         # for source="EnsembleRuns": subfolder under artifacts/EnsembleRuns; NULL → latest
+    env_meta_name_base   = NULL,         # REQUIRED only when source="env"; ignored for EnsembleRuns
+    seeds                = c(1L, 2L),
+    slots                = c(1L, 2L),
+    predict_split        = c("test","validation","train"),
+    CLASSIFICATION_MODE  = c("binary","multiclass","regression"),
+    run_index            = 1L,
+    output_dir_base      = "artifacts/PredictOnly",
+    run_dir_name         = format(Sys.time(), "%Y%m%d_%H%M%S_predict"),
+    overwrite            = TRUE
 ) {
-  source    <- match.arg(source)
-  selection <- match.arg(selection)
+  # ---------- normalize args ----------
+  source              <- match.arg(source)
+  predict_split       <- match.arg(predict_split)
+  CLASSIFICATION_MODE <- match.arg(CLASSIFICATION_MODE)
+  run_index           <- as.integer(run_index)
+  seeds               <- as.integer(seeds)
+  slots               <- as.integer(slots)
   
-  # Output dir + aggregate files
-  base_dir <- file.path("artifacts", "PredictOnly", run_dir_name)
-  if (!dir.exists(base_dir)) dir.create(base_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  agg_predictions_file <- file.path(base_dir, paste0("agg_predictions_", predict_split, ".rds"))
-  agg_metrics_file     <- file.path(base_dir, paste0("agg_metrics_",     predict_split, ".rds"))
-  
-  # Optional: start clean to avoid appending to old logs
-  if (isTRUE(overwrite)) {
-    if (file.exists(agg_predictions_file)) unlink(agg_predictions_file, force = TRUE)
-    if (file.exists(agg_metrics_file))     unlink(agg_metrics_file,     force = TRUE)
+  if (source == "env" && (is.null(env_meta_name_base) || !nzchar(env_meta_name_base))) {
+    stop("env_meta_name_base is required when source='env'.")
   }
   
-  # ========================
-  # ENV path (no disk scan)
-  # ========================
-  if (identical(source, "env")) {
-    if (is.null(env_meta_name) || !nzchar(env_meta_name)) {
-      # Dynamically discover any in-memory metadata objects:
-      #   Ensemble_Main_<E>_model_<K>_metadata
-      #   Ensemble_Temp_<E>_model_<K>_metadata
-      all_names <- ls(envir = .GlobalEnv)
-      pat <- "^Ensemble_(Main|Temp)_[0-9]+_model_[0-9]+_metadata$"
-      hits <- grep(pat, all_names, value = TRUE)
-      if (!length(hits)) stop("No canonical metadata object found in .GlobalEnv.")
+  # ---------- tiny utils ----------
+  `%||%` <- function(x,y) if (is.null(x)) y else x
+  .as_num_vec <- function(v){
+    if (is.matrix(v))  { if (ncol(v)>1L) stop("labels matrix has >1 col"); v <- v[,1] }
+    if (is.data.frame(v)) { if (ncol(v)!=1L) stop("labels df has !=1 col"); v <- v[[1]] }
+    if (is.list(v)) v <- vapply(v, function(z){ if (is.list(z)) z <- unlist(z, use.names=FALSE); suppressWarnings(as.numeric(if (length(z)) z[1] else NA)) }, numeric(1))
+    if (is.factor(v)) v <- as.character(v)
+    if (is.logical(v)) v <- as.integer(v)
+    suppressWarnings(as.numeric(v))
+  }
+  .latest_subdir <- function(root) {
+    if (!dir.exists(root)) return(NULL)
+    kids <- list.dirs(root, full.names = TRUE, recursive = FALSE)
+    if (!length(kids)) return(NULL)
+    info <- file.info(kids)
+    kids[order(info$mtime, decreasing = TRUE)][1L]
+  }
+  .safe_name <- function(...) {
+    raw <- paste0(unlist(list(...)), collapse = "_")
+    nm  <- gsub("[^A-Za-z0-9_]", "_", raw)
+    sub("^([0-9])", "_\\1", nm)
+  }
+  
+  # ---------- ensure DDESONN$predict exists (shim if missing) ----------
+  .ensure_predictor <- function() {
+    if (exists("DDESONN", envir=.GlobalEnv, inherits=FALSE)) return(invisible(TRUE))
+    
+    # Try to source a real implementation from common paths
+    candidates <- c(
+      "R/DDESONN.R","R/DESONN.R","R/desonn.R","DDESONN.R","DESONN.R",
+      "src/DDESONN.R","inst/DDESONN.R"
+    )
+    for (p in candidates) {
+      if (file.exists(p)) {
+        try(source(p, local=FALSE), silent=TRUE)
+        if (exists("DDESONN", envir=.GlobalEnv, inherits=FALSE)) return(invisible(TRUE))
+      }
+    }
+    
+    # Define a minimal forward-pass shim so .safe_run_predict can proceed
+    # It expects: DDESONN$predict(X, meta, model_index, ML_NN=TRUE, ...)
+    sigmoid <- function(z) 1/(1+exp(-z))
+    tanh_act <- function(z) tanh(z)
+    relu <- function(z) { z[z<0] <- 0; z }
+    leaky_relu <- function(z, a=0.01) { z[z<0] <- a*z[z<0]; z }
+    softmax <- function(z) {
+      z <- as.matrix(z); mx <- apply(z,1,max); ex <- exp(z - mx); sm <- rowSums(ex); ex/sm
+    }
+    linear <- function(z) z
+    
+    apply_act <- function(Z, name) {
+      if (is.null(name)) return(Z)
+      n <- tolower(as.character(name))
+      if (n %in% c("sigmoid","logistic")) return(sigmoid(Z))
+      if (n %in% c("tanh"))               return(tanh_act(Z))
+      if (n %in% c("relu"))               return(relu(Z))
+      if (n %in% c("lrelu","leaky_relu")) return(leaky_relu(Z))
+      if (n %in% c("softmax"))            return(softmax(Z))
+      if (n %in% c("linear","identity"))  return(linear(Z))
+      # default safe
+      return(Z)
+    }
+    
+    add_bias <- function(Z, b) {
+      if (is.null(b)) return(Z)
+      b <- as.numeric(b)
+      Z + matrix(rep(b, each=nrow(Z)), nrow=nrow(Z), ncol=length(b), byrow=FALSE)
+    }
+    
+    forward_from_meta <- function(X, meta, model_index=1L) {
+      # choose weights/biases: prefer best_* if available
+      W <- meta$best_weights_record %||% meta$weights
+      B <- meta$best_biases_record   %||% meta$biases
+      if (is.null(W) || is.null(B)) stop("[shim] No weights/biases in meta")
       
-      # Prefer Main over Temp; within each kind, sort by ensemble then model (both desc)
-      kind     <- sub("^Ensemble_([^_]+)_.*$", "\\1", hits)
-      ensemble <- suppressWarnings(as.integer(sub("^Ensemble_(?:Main|Temp)_([0-9]+)_model_([0-9]+)_metadata$", "\\1", hits)))
-      model    <- suppressWarnings(as.integer(sub("^Ensemble_(?:Main|Temp)_[0-9]+_model_([0-9]+)_metadata$", "\\1", hits)))
-      kind_rank <- ifelse(kind == "Main", 0L, 1L)
-      ord <- order(kind_rank, -ensemble, -model, hits, na.last = TRUE)
-      env_meta_name <- hits[ord][1L]
-    } else if (!exists(env_meta_name, envir = .GlobalEnv)) {
-      stop(sprintf("env_meta_name not found in .GlobalEnv: %s", env_meta_name))
+      acts <- meta$activation_functions_predict %||% meta$activation_functions
+      if (is.list(acts) && !is.null(acts[[model_index]])) acts <- acts[[model_index]]
+      
+      # Some metas store per-layer in lists indexed by layer
+      # Normalize to a simple list of matrices
+      if (is.list(W) && !is.matrix(W[[1]])) {
+        WL <- W
+      } else {
+        WL <- W
+      }
+      BL <- B
+      
+      H <- as.matrix(X)
+      L <- length(WL)
+      for (l in seq_len(L)) {
+        Wl <- WL[[l]]
+        bl <- BL[[l]]
+        Z  <- H %*% Wl
+        Z  <- add_bias(Z, bl)
+        act_name <- if (is.null(acts)) NULL else acts[[l]] %||% acts[l] %||% acts
+        # No dropout during predict
+        H <- apply_act(Z, act_name)
+      }
+      list(predicted_output = as.matrix(H))
     }
     
-    slot <- suppressWarnings(as.integer(sub("^.*_model_([0-9]+)_metadata.*$", "\\1", env_meta_name)))
-    if (!is.finite(slot)) slot <- 1L
-    
-    DDESONN_predict_eval(
-      LOAD_FROM_RDS = FALSE,
-      ENV_META_NAME = env_meta_name,
-      INPUT_SPLIT   = predict_split,
-      CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-      RUN_INDEX = run_index,
-      SEED      = seed_val,
-      OUTPUT_DIR = base_dir,
-      SAVE_METRICS_RDS = TRUE,
-      METRICS_PREFIX   = sprintf("metrics_%s", predict_split),
-      AGG_PREDICTIONS_FILE = agg_predictions_file,
-      AGG_METRICS_FILE     = agg_metrics_file,
-      MODEL_SLOT           = slot
+    DDESONN <<- list(
+      predict = function(X, meta, model_index=1L, ML_NN=TRUE, ...) {
+        forward_from_meta(X, meta, model_index)
+      }
     )
+    invisible(TRUE)
+  }
+  
+  .ensure_predictor()
+  
+  # ---------- ENV meta resolver ----------
+  .resolve_meta_env <- function(base, slot, seed) {
+    tries <- unique(c(
+      base,
+      paste0(base, "_model_", as.integer(slot), "_metadata"),
+      paste0(base, "_seed", as.character(seed))
+    ))
+    for (nm in tries) if (exists(nm, envir=.GlobalEnv, inherits=FALSE)) return(get(nm, envir=.GlobalEnv))
     
-    cat(sprintf("[LoadandPredict:env] wrote (seed=%s slot=%d)\n", as.character(seed_val), slot))
-    return(invisible(list(run_dir = base_dir, agg_metrics = agg_metrics_file)))
+    syms <- ls(.GlobalEnv)
+    hits <- syms[grepl(base, syms, fixed=TRUE)]
+    if (!length(hits)) stop("No ENV meta found matching: ", base)
+    slot_pat <- paste0("_model_", as.integer(slot), "_")
+    seed_pat <- paste0("_seed",  as.character(seed))
+    prefer <- hits[grepl(slot_pat, hits, fixed=TRUE) & grepl(seed_pat, hits, fixed=TRUE)]
+    if (!length(prefer)) prefer <- hits[grepl(slot_pat, hits, fixed=TRUE)]
+    nm <- (if (length(prefer)) prefer else hits)[1]
+    get(nm, envir=.GlobalEnv)
   }
   
-  # Folder path (SingleRuns / EnsembleRuns)
-  family_root <- file.path("artifacts", source)
-  if (!dir.exists(family_root)) stop(sprintf("Family root does not exist: %s", family_root))
-  
-  run_root <- if (!is.null(folder) && nzchar(folder)) {
-    rr <- file.path(family_root, folder); if (!dir.exists(rr)) stop("Requested folder not found: ", rr); rr
-  } else {
-    kids <- list.dirs(family_root, full.names = TRUE, recursive = FALSE)
-    if (!length(kids)) stop("No subfolders found in: ", family_root)
-    kids[order(file.info(kids)$mtime, decreasing = TRUE)][1L]
+  # ---------- Artifacts meta resolver ----------
+  .resolve_meta_artifacts <- function(root_folder, slot, seed, base=NULL) {
+    if (!dir.exists(root_folder)) stop("Artifacts folder not found: ", root_folder)
+    files <- list.files(root_folder, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
+    if (!length(files)) stop("No .rds files in ", root_folder)
+    
+    bn <- basename(files)
+    hit <- grepl("metadata", bn, ignore.case=TRUE) &
+      grepl(paste0("_model_", as.integer(slot), "_"), bn, fixed=TRUE) &
+      grepl(paste0("_seed",  as.character(seed)),     bn, fixed=TRUE)
+    if (!is.null(base) && nzchar(base)) hit <- hit & grepl(base, bn, fixed=TRUE)
+    
+    if (!any(hit)) stop("No matching metadata RDS for slot=", slot, ", seed=", seed, " in ", root_folder)
+    
+    cand <- files[hit]
+    info <- file.info(cand)
+    file <- cand[order(info$mtime, decreasing=TRUE)][1L]
+    meta <- readRDS(file)
+    
+    sym  <- .safe_name("LP_META", "slot", slot, "seed", seed)
+    assign(sym, meta, envir=.GlobalEnv)
+    
+    list(meta_sym = sym, path = file)
   }
-  cat(sprintf("[LoadandPredict:%s] Using folder: %s\n", source, run_root))
   
-  models_root <- file.path(run_root, "models")
-  if (!dir.exists(models_root)) stop("Expected models/ not found under: ", run_root)
+  # ---------- split accessor ----------
+  .select_split <- function(meta, split){
+    sl <- tolower(split)
+    if (sl=="test")            { list(X=meta$X_test,       y=meta$y_test,       split="test") }
+    else if (sl=="validation") { list(X=meta$X_validation, y=meta$y_validation, split="validation") }
+    else if (sl=="train")      { list(X=meta$X %||% meta$X_train, y=meta$y %||% meta$y_train, split="train") }
+    else stop("bad split")
+  }
   
-  # Gather candidate metadata files
-  candidates <- character(0)
-  if (identical(source, "SingleRuns")) {
-    candidates <- list.files(models_root, pattern = "metadata.*\\.rds$", full.names = TRUE, recursive = FALSE)
-  } else {
-    main_dir <- file.path(models_root, "main")
-    if (dir.exists(main_dir)) {
-      candidates <- c(candidates, list.files(main_dir, pattern = "metadata.*\\.rds$", full.names = TRUE, recursive = FALSE))
+  # ---------- prepare output dir ----------
+  out_dir <- file.path(output_dir_base, run_dir_name)
+  dir.create(out_dir, recursive=TRUE, showWarnings=FALSE)
+  agg_metrics_path <- file.path(out_dir, sprintf("agg_metrics_%s.rds", predict_split))
+  agg_preds_path   <- file.path(out_dir, sprintf("agg_predictions_%s.rds", predict_split))
+  if (overwrite) {
+    suppressWarnings(try(unlink(agg_metrics_path, force=TRUE), silent=TRUE))
+    suppressWarnings(try(unlink(agg_preds_path,   force=TRUE), silent=TRUE))
+  }
+  
+  # ---------- resolve artifacts folder ----------
+  artifacts_root <- NULL
+  if (source == "EnsembleRuns") {
+    root <- file.path("artifacts","EnsembleRuns")
+    if (!dir.exists(root)) stop("Expected artifacts root does not exist: ", root)
+    artifacts_root <- if (is.null(folder)) .latest_subdir(root) else file.path(root, folder)
+    if (is.null(artifacts_root) || !dir.exists(artifacts_root)) {
+      stop("Could not resolve artifacts folder under: ", normalizePath(root, winslash="/", mustWork=FALSE))
     }
-    temp_dirs <- list.dirs(models_root, full.names = TRUE, recursive = FALSE)
-    temp_dirs <- temp_dirs[grepl("temp_e\\d{2}$", temp_dirs)]
-    for (td in temp_dirs) {
-      candidates <- c(candidates, list.files(td, pattern = "metadata.*\\.rds$", full.names = TRUE, recursive = FALSE))
+  }
+  
+  # ---------- accumulators ----------
+  metrics_rows <- list()
+  preds_rows   <- list()
+  mr_idx <- 0L
+  pr_idx <- 0L
+  
+  message(sprintf("Predicting split='%s' | mode='%s' | run_index=%d", predict_split, CLASSIFICATION_MODE, run_index))
+  
+  # ---------- core loop ----------
+  for (seed in seeds) {
+    for (slot in slots) {
+      
+      if (source == "env") {
+        meta <- .resolve_meta_env(env_meta_name_base, slot, seed)
+        env_token_for_eval <- env_meta_name_base
+      } else {
+        art <- .resolve_meta_artifacts(artifacts_root, slot, seed, base = env_meta_name_base)
+        meta <- get(art$meta_sym, envir=.GlobalEnv)
+        env_token_for_eval <- art$meta_sym
+      }
+      
+      ss <- .select_split(meta, predict_split)
+      if (is.null(ss$X) || is.null(ss$y)) {
+        warning(sprintf("Split '%s' not present (seed=%d, slot=%d) — skipping", predict_split, seed, slot))
+        next
+      }
+      
+      # Run your existing evaluator (unchanged). We keep LOAD_FROM_RDS=FALSE to stay in the fast path.
+      res <- DDESONN_predict_eval(
+        LOAD_FROM_RDS         = FALSE,
+        ENV_META_NAME         = env_token_for_eval,
+        INPUT_SPLIT           = predict_split,
+        CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
+        RUN_INDEX             = run_index,
+        SEED                  = seed,
+        OUTPUT_DIR            = out_dir,
+        SAVE_METRICS_RDS      = FALSE,
+        METRICS_PREFIX        = sprintf("metrics_%s", predict_split),
+        AGG_PREDICTIONS_FILE  = NULL,
+        AGG_METRICS_FILE      = NULL,
+        MODEL_SLOT            = slot,
+        DEBUG                 = TRUE,
+        OUT_DIR_ASSERT        = out_dir
+      )
+      
+      # ---- metrics row
+      mr <- res$metrics_row
+      if (is.null(mr) || !is.data.frame(mr) || !nrow(mr)) {
+        warning(sprintf("No metrics_row for seed=%d slot=%d — skipping", seed, slot))
+      } else {
+        mr$run_index <- as.integer(run_index)
+        mr$seed      <- as.integer(seed)
+        mr$model_slot<- as.integer(slot)
+        mr$split     <- tolower(predict_split)
+        mr$CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
+        mr_idx <- mr_idx + 1L
+        metrics_rows[[mr_idx]] <- mr
+      }
+      
+      # ---- predictions row(s)
+      P <- res$probs
+      if (is.null(P) || !is.matrix(P) || !nrow(P)) {
+        warning(sprintf("Empty probs for seed=%d slot=%d — skipping preds", seed, slot))
+      } else {
+        y_true <- .as_num_vec(ss$y)
+        if (length(y_true) != nrow(P)) {
+          nmin <- min(length(y_true), nrow(P))
+          y_true <- y_true[seq_len(nmin)]; P <- P[seq_len(nmin), , drop=FALSE]
+        }
+        if (CLASSIFICATION_MODE == "binary") {
+          thr <- suppressWarnings(as.numeric(res$results_compact$tuned_threshold))
+          if (!is.finite(thr)) thr <- 0.5
+          y_prob <- as.numeric(P[,1]); y_pred <- as.integer(y_prob >= thr)
+        } else if (CLASSIFICATION_MODE == "multiclass") {
+          y_prob <- apply(P, 1, max); y_pred <- max.col(P, ties.method = "first")
+        } else {
+          y_prob <- as.numeric(P[,1]); y_pred <- y_prob
+        }
+        n <- length(y_true)
+        if (n > 0L) {
+          pr <- data.frame(
+            run_index   = rep.int(as.integer(run_index), n),
+            seed        = rep.int(as.integer(seed), n),
+            model_slot  = rep.int(as.integer(slot), n),
+            y_true      = as.numeric(y_true),
+            y_prob      = as.numeric(y_prob),
+            y_pred      = as.numeric(y_pred),
+            split       = rep.int(tolower(predict_split), n),
+            CLASSIFICATION_MODE = rep.int(tolower(CLASSIFICATION_MODE), n),
+            stringsAsFactors = FALSE, check.names = TRUE
+          )
+          pr_idx <- pr_idx + 1L
+          preds_rows[[pr_idx]] <- pr
+        }
+      }
+      
+      message(sprintf(" ✓ seed=%d | slot=%d", seed, slot))
     }
   }
-  if (!length(candidates)) stop("No metadata .rds found.")
   
-  candidates <- sort(candidates)
-  chosen <- if (identical(selection, "first")) candidates[1L] else candidates
-  cat("[LoadandPredict:", source, "] selected file(s):\n  - ",
-      paste(chosen, collapse = "\n  - "), "\n", sep = "")
+  # ---------- bind + write ----------
+  agg_metrics     <- if (length(metrics_rows)) do.call(rbind, metrics_rows) else data.frame()
+  agg_predictions <- if (length(preds_rows))   do.call(rbind, preds_rows)   else data.frame()
+  saveRDS(agg_metrics,     agg_metrics_path)
+  saveRDS(agg_predictions, agg_preds_path)
   
-  # Helper: parse seed from filename; fallback to seed_val
-  .parse_seed_from_name <- function(fname, default_seed = 1L) {
-    m <- regexec("_seed([0-9]+)\\b", fname)
-    r <- regmatches(fname, m)
-    if (length(r) && length(r[[1]]) == 2L) as.integer(r[[1]][2]) else default_seed
-  }
-  
-  n_ok <- 0L
-  for (p in chosen) {
-    b <- basename(p)
-    
-    # Canonical var name (…_metadata), drop trailing timestamp/seed chunks
-    base <- sub("\\.rds$", "", b)
-    base <- sub("_(\\d{8}_\\d{6})$", "", base)
-    base <- sub("_seed\\d+$", "", base)
-    base <- sub("(_.*)?$", "", sub("(.*_metadata).*", "\\1", base))
-    
-    slot <- suppressWarnings(as.integer(sub("^.*_model_([0-9]+)_metadata.*$", "\\1", base)))
-    if (!is.finite(slot)) slot <- 1L
-    seed_from_file <- .parse_seed_from_name(b, default_seed = seed_val)
-    
-    meta_obj <- readRDS(p)
-    assign(base, meta_obj, envir = .GlobalEnv)
-    
-    DDESONN_predict_eval(
-      LOAD_FROM_RDS = FALSE,
-      ENV_META_NAME = base,
-      INPUT_SPLIT   = predict_split,
-      CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-      RUN_INDEX = run_index,
-      SEED      = seed_from_file,
-      OUTPUT_DIR = base_dir,
-      SAVE_METRICS_RDS = TRUE,
-      METRICS_PREFIX   = sprintf("metrics_%s", predict_split),
-      AGG_PREDICTIONS_FILE = agg_predictions_file,
-      AGG_METRICS_FILE     = agg_metrics_file,
-      MODEL_SLOT           = slot
-    )
-    
-    n_ok <- n_ok + 1L
-    cat(sprintf("[LoadandPredict:%s] wrote (seed=%s slot=%d file=%s)\n",
-                source, as.character(seed_from_file), slot, b))
-  }
-  
-  invisible(list(
-    run_dir         = base_dir,
-    agg_predictions = agg_predictions_file,
-    agg_metrics     = agg_metrics_file,
-    n_models_scored = n_ok
-  ))
+  message("LoadandPredict complete.")
+  list(
+    output_dir            = normalizePath(out_dir, winslash="/", mustWork=FALSE),
+    agg_metrics_file      = normalizePath(agg_metrics_path, winslash="/", mustWork=FALSE),
+    agg_predictions_file  = normalizePath(agg_preds_path, winslash="/", mustWork=FALSE),
+    agg_metrics_preview   = utils::head(agg_metrics),
+    agg_predictions_rows  = nrow(agg_predictions)
+  )
 }
 
-# ---- Example (fresh, 4 rows expected) ----
-LoadandPredict(
+# =====================================================================
+# EXAMPLES
+# =====================================================================
+
+# Example 1: ENV metas (no disk)
+# ex1 <- LoadandPredict(
+#   source="env",
+#   env_meta_name_base="Ensemble_Main_0_model_1_metadata",
+#   seeds=c(1,2),
+#   slots=c(1,2),
+#   predict_split="test",
+#   CLASSIFICATION_MODE="binary",
+#   run_index=1,
+#   output_dir_base="artifacts/PredictOnly",
+#   run_dir_name="predict_env_all",
+#   overwrite=TRUE
+# )
+# print(readRDS(ex1$agg_metrics_file))
+# print(head(readRDS(ex1$agg_predictions_file)))
+
+# Example 2: EnsembleRuns (from disk)
+ex2 <- LoadandPredict(
   source="EnsembleRuns",
-  folder=NULL,   # or NULL for latest
+  folder=NULL,   # latest under artifacts/EnsembleRuns
+  seeds=c(1,2),
+  slots=c(1,2),
   predict_split="test",
-  CLASSIFICATION_MODE="BINARY",
-  run_index=1L,
-  run_dir_name="predict_from_latest_ensemble_fresh",  # <-- new dir
-  selection="all",
-  overwrite=TRUE                                     # <-- start clean
+  CLASSIFICATION_MODE="binary",
+  run_index=1,
+  output_dir_base="artifacts/PredictOnly",
+  run_dir_name="predict_from_latest_ensemble_all",
+  overwrite=TRUE
 )
+print(readRDS(ex2$agg_metrics_file))
+print(head(readRDS(ex2$agg_predictions_file)))
