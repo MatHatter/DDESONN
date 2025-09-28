@@ -1507,100 +1507,133 @@ if(train) {
           cat(sprintf("[single-run][TEST] seed=%s slot=%d wrote? %s\n", s, k, ok))
         }
         
-        ## --- canonical post-filter for the saved TEST agg metrics file (uses .filter_flat_metric_names) ---
+        ## --- canonical post-filter for the saved TEST agg metrics file (self-contained; no helpers) ---
         if (file.exists(agg_metrics_file)) {
           df <- try(readRDS(agg_metrics_file), silent = TRUE)
           if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
             
-            nms <- names(df)
+            # -----------------------
+            # Ensure flat scalar metrics exist
+            # -----------------------
+            if (!("accuracy"   %in% names(df))) df$accuracy   <- NA_real_
+            if (!("precision"  %in% names(df))) df$precision  <- NA_real_
+            if (!("recall"     %in% names(df))) df$recall     <- NA_real_
+            if (!("f1"         %in% names(df))) df$f1         <- NA_real_
+            if (!("f1_score"   %in% names(df))) df$f1_score   <- NA_real_
             
-            # IDs you may have (support both model_slot casings)
-            id_cols <- c("run_index","seed","model_slot","MODEL_SLOT","split","mode","K","ts","ts_stamp")
+            # -----------------------
+            # Prefer tuned metrics to populate flat when flat is NA/missing
+            # -----------------------
+            tuned_acc  <- "accuracy_precision_recall_f1_tuned.accuracy"
+            tuned_pr   <- "accuracy_precision_recall_f1_tuned.precision"
+            tuned_rec  <- "accuracy_precision_recall_f1_tuned.recall"
+            tuned_f1   <- "accuracy_precision_recall_f1_tuned.f1"
             
-            # Flat metrics seen in your sample (clustering + regression + clf + misc)
-            flat_names <- c(
-              # clustering / SOM-style
-              "quantization_error","topographic_error","clustering_quality_db",
+            if (tuned_acc %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$accuracy)))
+              if (any(na_idx)) df$accuracy[na_idx] <- suppressWarnings(as.numeric(df[[tuned_acc]])[na_idx])
+            }
+            
+            if (tuned_pr %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$precision)))
+              if (any(na_idx)) df$precision[na_idx] <- suppressWarnings(as.numeric(df[[tuned_pr]])[na_idx])
+            }
+            
+            if (tuned_rec %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$recall)))
+              if (any(na_idx)) df$recall[na_idx] <- suppressWarnings(as.numeric(df[[tuned_rec]])[na_idx])
+            }
+            
+            if (tuned_f1 %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$f1)))
+              if (any(na_idx)) df$f1[na_idx] <- suppressWarnings(as.numeric(df[[tuned_f1]])[na_idx])
+            }
+            
+            # Keep f1_score mirrored to f1 where missing/NA
+            na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+            if (any(na_f1s)) df$f1_score[na_f1s] <- suppressWarnings(as.numeric(df$f1))[na_f1s]
+            
+            # -----------------------
+            # Compute recall/f1 if still NA from confusion matrix (+ precision)
+            # -----------------------
+            has_tp <- "confusion_matrix.TP" %in% names(df)
+            has_fp <- "confusion_matrix.FP" %in% names(df)
+            has_fn <- "confusion_matrix.FN" %in% names(df)
+            
+            if (has_tp && has_fn) {
+              TP <- suppressWarnings(as.numeric(df[["confusion_matrix.TP"]]))
+              FN <- suppressWarnings(as.numeric(df[["confusion_matrix.FN"]]))
+              # recall = TP / (TP + FN)
+              rec_na <- is.na(suppressWarnings(as.numeric(df$recall)))
+              if (any(rec_na)) {
+                denom <- TP + FN
+                rec_calc <- ifelse(denom > 0, TP / denom, NA_real_)
+                df$recall[rec_na] <- rec_calc[rec_na]
+              }
+            }
+            
+            # f1 from precision & recall if still NA
+            if (any(is.na(suppressWarnings(as.numeric(df$f1))))) {
+              # precision: try flat first, else tuned
+              prec_vec <- suppressWarnings(as.numeric(df$precision))
+              if (all(is.na(prec_vec)) && (tuned_pr %in% names(df))) {
+                prec_vec <- suppressWarnings(as.numeric(df[[tuned_pr]]))
+                # also backfill flat precision so it "just comes out"
+                na_prec <- is.na(suppressWarnings(as.numeric(df$precision)))
+                if (any(na_prec)) df$precision[na_prec] <- prec_vec[na_prec]
+              }
+              # recall already attempted above (flat/tuned/compute)
+              rec_vec <- suppressWarnings(as.numeric(df$recall))
+              
+              f1_calc <- ifelse((prec_vec + rec_vec) > 0, 2 * prec_vec * rec_vec / (prec_vec + rec_vec), NA_real_)
+              na_f1 <- is.na(suppressWarnings(as.numeric(df$f1)))
+              if (any(na_f1)) df$f1[na_f1] <- f1_calc[na_f1]
+              
+              # mirror into f1_score where NA
+              na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+              if (any(na_f1s)) df$f1_score[na_f1s] <- df$f1[na_f1s]
+            }
+            
+            # -----------------------
+            # Type normalization on existing numeric columns
+            # -----------------------
+            numeric_maybe <- c(
               # regression
               "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
               # base classification
-              "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
-              "specificity","sensitivity","auc","logloss","brier",
-              # counts (sometimes appear top-level)
-              "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
-              # misc
-              "generalization_ability","speed","speed_learn1","speed_learn2",
-              "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
-            )
-            
-            # Tuned family and tuned confusion counts + allow perf/relevance prefixed flats
-            keep_regexes <- c(
-              # tuned scalar metrics
-              "^accuracy_precision_recall_f1_tuned\\.(accuracy|precision|recall|f1)$",
-              # tuned confusion counts
-              "^accuracy_precision_recall_f1_tuned\\.confusion_matrix\\.(TP|FP|TN|FN)$",
-              # perf/relevance prefixed scalars (classification + regression)
-              "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE)$",
-              # prefixed clustering/misc
-              "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness|hit_rate|ndcg|diversity|serendipity)$"
-            )
-            
-            # Drop obvious non-scalars (curves/tables) and list columns
-            drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
-            is_scalar_col <- vapply(df, function(x) !is.list(x) && is.atomic(x), logical(1))
-            
-            keep_mask <-
-              (nms %in% id_cols) |
-              (nms %in% flat_names) |
-              Reduce(`|`, lapply(keep_regexes, function(rx) grepl(rx, nms, perl = TRUE)))
-            
-            keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
-            keep_nms <- intersect(keep_nms, names(df))  # only columns that actually exist
-            df <- df[, keep_nms, drop = FALSE]
-            
-            # Strip only perf/relevance prefixes (leave tuned prefix intact)
-            names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
-            
-            # ---- Type normalization on EXISTING columns only (no new cols created) ----
-            # Numeric metrics (intersect with existing to avoid creating)
-            numeric_maybe <- c(
-              "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
               "accuracy","precision","recall","f1","f1_score",
               "balanced_accuracy","specificity","sensitivity","auc","logloss","brier",
+              # clustering/misc
               "quantization_error","topographic_error","clustering_quality_db",
               "generalization_ability","speed","speed_learn1","speed_learn2",
               "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity",
+              # confusion (flat)
               "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
-              "accuracy_precision_recall_f1_tuned.accuracy",
-              "accuracy_precision_recall_f1_tuned.precision",
-              "accuracy_precision_recall_f1_tuned.recall",
-              "accuracy_precision_recall_f1_tuned.f1",
-              "accuracy_precision_recall_f1_tuned.confusion_matrix.TP",
-              "accuracy_precision_recall_f1_tuned.confusion_matrix.FP",
-              "accuracy_precision_recall_f1_tuned.confusion_matrix.TN",
-              "accuracy_precision_recall_f1_tuned.confusion_matrix.FN"
+              # tuned (keep available and numeric)
+              tuned_acc, tuned_pr, tuned_rec, tuned_f1,
+              paste0("accuracy_precision_recall_f1_tuned.confusion_matrix.", c("TP","FP","TN","FN"))
             )
-            to_num <- intersect(numeric_maybe, names(df))
-            for (nm in to_num) df[[nm]] <- suppressWarnings(as.numeric(df[[nm]]))
+            present_num <- intersect(numeric_maybe, names(df))
+            for (nm in present_num) df[[nm]] <- suppressWarnings(as.numeric(df[[nm]]))
             
-            # IDs (normalize types only if present)
-            if ("run_index" %in% names(df))  df$run_index  <- suppressWarnings(as.integer(df$run_index))
-            if ("seed" %in% names(df))       df$seed       <- suppressWarnings(as.integer(df$seed))
-            # Prefer lowercase model_slot if only MODEL_SLOT exists
+            # -----------------------
+            # ID/type normalization
+            # -----------------------
+            if ("run_index"  %in% names(df)) df$run_index  <- suppressWarnings(as.integer(df$run_index))
+            if ("seed"       %in% names(df)) df$seed       <- suppressWarnings(as.integer(df$seed))
             if ("MODEL_SLOT" %in% names(df) && !("model_slot" %in% names(df))) {
               names(df)[names(df) == "MODEL_SLOT"] <- "model_slot"
             }
             if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
-            if ("split" %in% names(df))      df$split      <- as.character(df$split)
+            if ("split"      %in% names(df)) df$split      <- as.character(df$split)
             
-            # Reorder (IDs first if present), but ONLY among existing columns
-            id_order <- intersect(c("run_index","seed","model_slot","split"), names(df))
-            other    <- setdiff(names(df), id_order)
-            df <- df[, c(id_order, other), drop = FALSE]
-            
+            # -----------------------
+            # Save back
+            # -----------------------
             saveRDS(df, agg_metrics_file)
           }
         }
+        
         
         
         
@@ -2083,13 +2116,76 @@ if(train) {
             keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
             df <- df[, intersect(keep_nms, names(df)), drop = FALSE]
             
-            # Normalize ID casings (keep originals too if present; you said no dedupe)
-            if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- as.integer(df$RUN_INDEX)
-            if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- as.integer(df$SEED)
-            if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- as.integer(df$MODEL_SLOT)
+            # Normalize ID casings (keep originals too if present; no dedupe)
+            if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- suppressWarnings(as.integer(df$RUN_INDEX))
+            if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- suppressWarnings(as.integer(df$SEED))
+            if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$MODEL_SLOT))
+            if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
+            if ("split"      %in% names(df)) df$split      <- as.character(df$split)
             
-            # Strip prefixes (this can create duplicate names; we leave them)
+            # Strip perf/relevance prefixes (leave tuned prefix intact)
             names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
+            
+            # --- Ensure flat columns exist ---
+            if (!("accuracy" %in% names(df)))  df$accuracy  <- NA_real_
+            if (!("precision" %in% names(df))) df$precision <- NA_real_
+            if (!("recall" %in% names(df)))    df$recall    <- NA_real_
+            if (!("f1" %in% names(df)))        df$f1        <- NA_real_
+            if (!("f1_score" %in% names(df)))  df$f1_score  <- NA_real_
+            
+            # --- Prefer tuned values to fill flats when flats are NA/missing ---
+            if ("accuracy_precision_recall_f1_tuned.accuracy" %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$accuracy)))
+              if (any(na_idx)) df$accuracy[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.accuracy"]]))[na_idx]
+            }
+            if ("accuracy_precision_recall_f1_tuned.precision" %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$precision)))
+              if (any(na_idx)) df$precision[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.precision"]]))[na_idx]
+            }
+            if ("accuracy_precision_recall_f1_tuned.recall" %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$recall)))
+              if (any(na_idx)) df$recall[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.recall"]]))[na_idx]
+            }
+            if ("accuracy_precision_recall_f1_tuned.f1" %in% names(df)) {
+              na_idx <- is.na(suppressWarnings(as.numeric(df$f1)))
+              if (any(na_idx)) df$f1[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.f1"]]))[na_idx]
+            }
+            # mirror to f1_score if missing/NA
+            na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+            if (any(na_f1s)) df$f1_score[na_f1s] <- suppressWarnings(as.numeric(df$f1))[na_f1s]
+            
+            # --- If still NA, compute recall/f1 from confusion matrix (+ precision) ---
+            has_tp <- "confusion_matrix.TP" %in% names(df)
+            has_fp <- "confusion_matrix.FP" %in% names(df)
+            has_fn <- "confusion_matrix.FN" %in% names(df)
+            
+            if (has_tp && has_fn) {
+              TP <- suppressWarnings(as.numeric(df[["confusion_matrix.TP"]]))
+              FN <- suppressWarnings(as.numeric(df[["confusion_matrix.FN"]]))
+              rec_na <- is.na(suppressWarnings(as.numeric(df$recall)))
+              if (any(rec_na)) {
+                denom <- TP + FN
+                rec_calc <- ifelse(denom > 0, TP / denom, NA_real_)
+                df$recall[rec_na] <- rec_calc[rec_na]
+              }
+            }
+            
+            # compute f1 if needed
+            if (any(is.na(suppressWarnings(as.numeric(df$f1))))) {
+              prec_vec <- suppressWarnings(as.numeric(df$precision))
+              if (all(is.na(prec_vec)) && ("accuracy_precision_recall_f1_tuned.precision" %in% names(df))) {
+                prec_vec <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.precision"]]))
+                na_prec <- is.na(suppressWarnings(as.numeric(df$precision)))
+                if (any(na_prec)) df$precision[na_prec] <- prec_vec[na_prec]
+              }
+              rec_vec <- suppressWarnings(as.numeric(df$recall))
+              f1_calc <- ifelse((prec_vec + rec_vec) > 0, 2 * prec_vec * rec_vec / (prec_vec + rec_vec), NA_real_)
+              na_f1 <- is.na(suppressWarnings(as.numeric(df$f1)))
+              if (any(na_f1)) df$f1[na_f1] <- f1_calc[na_f1]
+              # mirror into f1_score where NA
+              na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+              if (any(na_f1s)) df$f1_score[na_f1s] <- df$f1[na_f1s]
+            }
             
             # Preferred column order (IDs first, then your classic metrics; rest appended)
             id_order <- c("run_index","seed","model_slot","split","mode","K","ts","ts_stamp")
@@ -2119,6 +2215,7 @@ if(train) {
             saveRDS(df, agg_metrics_file)
           }
         }
+        
         
         
         
@@ -2313,10 +2410,10 @@ if(train) {
             if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
               nms <- names(df)
               
-              # IDs (both casings supported)
+              # IDs (support both casings)
               id_cols <- c("run_index","seed","model_slot","MODEL_SLOT","split","mode","K","ts","ts_stamp")
               
-              # Flat metric names to keep (clustering, regression, classification, misc)
+              # Flat metrics (unprefixed names)
               flat_names <- c(
                 "quantization_error","topographic_error","clustering_quality_db",
                 "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
@@ -2327,40 +2424,128 @@ if(train) {
                 "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
               )
               
-              # Regex families to include (tuned + perf/relevance-prefixed scalars)
+              # Regex families to KEEP (include both performance_metric.* and relevance_metric.*)
               keep_regexes <- c(
                 "^accuracy_precision_recall_f1_tuned\\.(accuracy|precision|recall|f1)$",
                 "^accuracy_precision_recall_f1_tuned\\.confusion_matrix\\.(TP|FP|TN|FN)$",
-                # classification + regression scalars under performance_metric|relevance_metric
-                "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE)$",
-                # clustering/misc under perf/relevance
-                "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness|hit_rate|ndcg|diversity|serendipity)$"
+                # scalar perf/relevance metrics (prefixed)
+                "^(performance_metric|relevance_metric)\\.(accuracy|precision|recall|f1|f1_score|auc|balanced_accuracy|specificity|sensitivity|logloss|brier|MSE|MAE|RMSE|R2|MAPE|SMAPE|WMAPE|MASE|hit_rate|ndcg|diversity|serendipity)$",
+                # clustering/misc (prefixed)
+                "^(performance_metric|relevance_metric)\\.(quantization_error|topographic_error|clustering_quality_db|generalization_ability|speed|speed_learn1|speed_learn2|memory_usage|robustness)$"
               )
+              
+              # Drop obvious non-scalars
+              drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
+              is_scalar_col <- vapply(df, function(x) !is.list(x), logical(1))
               
               keep_mask <-
                 (nms %in% id_cols) |
                 (nms %in% flat_names) |
                 Reduce(`|`, lapply(keep_regexes, function(rx) grepl(rx, nms, perl = TRUE)))
               
-              # Drop obvious non-scalars if present + drop list columns
-              drop_mask <- grepl("^(roc_.*_points|pr_.*_points|calibration_bins|lift_table|gain_table)$", nms, perl = TRUE)
-              is_scalar_col <- vapply(df, function(x) !is.list(x), logical(1))
-              
               keep_nms <- nms[ keep_mask & !drop_mask & is_scalar_col ]
-              
               df <- df[, intersect(keep_nms, names(df)), drop = FALSE]
               
-              # Normalize ID casings if missing lower-case
-              if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- as.integer(df$RUN_INDEX)
-              if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- as.integer(df$SEED)
-              if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- as.integer(df$MODEL_SLOT)
+              # Normalize ID casings (keep originals too if present; no dedupe)
+              if (!"run_index"  %in% names(df) && "RUN_INDEX"  %in% names(df)) df$run_index  <- suppressWarnings(as.integer(df$RUN_INDEX))
+              if (!"seed"       %in% names(df) && "SEED"       %in% names(df)) df$seed       <- suppressWarnings(as.integer(df$SEED))
+              if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$MODEL_SLOT))
+              if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
+              if ("split"      %in% names(df)) df$split      <- as.character(df$split)
               
-              # Strip perf/relevance prefixes (leave tuned prefix intact). Duplicates are allowed.
+              # Strip perf/relevance prefixes (leave tuned prefix intact)
               names(df) <- sub("^(performance_metric|relevance_metric)\\.", "", names(df))
+              
+              # --- Ensure flat columns exist ---
+              if (!("accuracy" %in% names(df)))  df$accuracy  <- NA_real_
+              if (!("precision" %in% names(df))) df$precision <- NA_real_
+              if (!("recall" %in% names(df)))    df$recall    <- NA_real_
+              if (!("f1" %in% names(df)))        df$f1        <- NA_real_
+              if (!("f1_score" %in% names(df)))  df$f1_score  <- NA_real_
+              
+              # --- Prefer tuned values to fill flats when flats are NA/missing ---
+              if ("accuracy_precision_recall_f1_tuned.accuracy" %in% names(df)) {
+                na_idx <- is.na(suppressWarnings(as.numeric(df$accuracy)))
+                if (any(na_idx)) df$accuracy[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.accuracy"]]))[na_idx]
+              }
+              if ("accuracy_precision_recall_f1_tuned.precision" %in% names(df)) {
+                na_idx <- is.na(suppressWarnings(as.numeric(df$precision)))
+                if (any(na_idx)) df$precision[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.precision"]]))[na_idx]
+              }
+              if ("accuracy_precision_recall_f1_tuned.recall" %in% names(df)) {
+                na_idx <- is.na(suppressWarnings(as.numeric(df$recall)))
+                if (any(na_idx)) df$recall[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.recall"]]))[na_idx]
+              }
+              if ("accuracy_precision_recall_f1_tuned.f1" %in% names(df)) {
+                na_idx <- is.na(suppressWarnings(as.numeric(df$f1)))
+                if (any(na_idx)) df$f1[na_idx] <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.f1"]]))[na_idx]
+              }
+              # mirror to f1_score if missing/NA
+              na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+              if (any(na_f1s)) df$f1_score[na_f1s] <- suppressWarnings(as.numeric(df$f1))[na_f1s]
+              
+              # --- If still NA, compute recall/f1 from confusion matrix (+ precision) ---
+              has_tp <- "confusion_matrix.TP" %in% names(df)
+              has_fp <- "confusion_matrix.FP" %in% names(df)
+              has_fn <- "confusion_matrix.FN" %in% names(df)
+              
+              if (has_tp && has_fn) {
+                TP <- suppressWarnings(as.numeric(df[["confusion_matrix.TP"]]))
+                FN <- suppressWarnings(as.numeric(df[["confusion_matrix.FN"]]))
+                rec_na <- is.na(suppressWarnings(as.numeric(df$recall)))
+                if (any(rec_na)) {
+                  denom <- TP + FN
+                  rec_calc <- ifelse(denom > 0, TP / denom, NA_real_)
+                  df$recall[rec_na] <- rec_calc[rec_na]
+                }
+              }
+              
+              # compute f1 if needed
+              if (any(is.na(suppressWarnings(as.numeric(df$f1))))) {
+                prec_vec <- suppressWarnings(as.numeric(df$precision))
+                if (all(is.na(prec_vec)) && ("accuracy_precision_recall_f1_tuned.precision" %in% names(df))) {
+                  prec_vec <- suppressWarnings(as.numeric(df[["accuracy_precision_recall_f1_tuned.precision"]]))
+                  na_prec <- is.na(suppressWarnings(as.numeric(df$precision)))
+                  if (any(na_prec)) df$precision[na_prec] <- prec_vec[na_prec]
+                }
+                rec_vec <- suppressWarnings(as.numeric(df$recall))
+                f1_calc <- ifelse((prec_vec + rec_vec) > 0, 2 * prec_vec * rec_vec / (prec_vec + rec_vec), NA_real_)
+                na_f1 <- is.na(suppressWarnings(as.numeric(df$f1)))
+                if (any(na_f1)) df$f1[na_f1] <- f1_calc[na_f1]
+                # mirror into f1_score where NA
+                na_f1s <- is.na(suppressWarnings(as.numeric(df$f1_score)))
+                if (any(na_f1s)) df$f1_score[na_f1s] <- df$f1[na_f1s]
+              }
+              
+              # Preferred column order (IDs first, then your classic metrics; rest appended)
+              id_order <- c("run_index","seed","model_slot","split","mode","K","ts","ts_stamp")
+              metric_order <- c(
+                "quantization_error","topographic_error","clustering_quality_db",
+                "MSE","MAE","RMSE","R2","MAPE","SMAPE","WMAPE","MASE",
+                "accuracy","precision","recall","f1","f1_score","balanced_accuracy",
+                "specificity","sensitivity","auc","logloss","brier",
+                "accuracy_precision_recall_f1_tuned.accuracy",
+                "accuracy_precision_recall_f1_tuned.precision",
+                "accuracy_precision_recall_f1_tuned.recall",
+                "accuracy_precision_recall_f1_tuned.f1",
+                "accuracy_precision_recall_f1_tuned.confusion_matrix.TP",
+                "accuracy_precision_recall_f1_tuned.confusion_matrix.FP",
+                "accuracy_precision_recall_f1_tuned.confusion_matrix.TN",
+                "accuracy_precision_recall_f1_tuned.confusion_matrix.FN",
+                "confusion_matrix.TP","confusion_matrix.FP","confusion_matrix.TN","confusion_matrix.FN",
+                "generalization_ability","speed","speed_learn1","speed_learn2",
+                "memory_usage","robustness","hit_rate","ndcg","diversity","serendipity"
+              )
+              
+              prefer <- c(id_order, metric_order)
+              have_pref <- intersect(prefer, names(df))
+              rest <- setdiff(names(df), have_pref)
+              df <- df[, c(have_pref, rest), drop = FALSE]
               
               saveRDS(df, agg_metrics_file)
             }
           }
+          
           
           
           

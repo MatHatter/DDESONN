@@ -2295,12 +2295,15 @@ DDESONN_predict_eval <- function(
   
   ## ---------- predict ----------
   out <- P_raw <- NULL
+  prediction_time <- NA_real_
   tryCatch({
+    t0 <- proc.time()
     out <- .safe_run_predict(
       X = Xi, meta = meta, model_index = as.integer(MODEL_SLOT), ML_NN = TRUE,
       verbose = isTRUE(get0("VERBOSE_RUNPRED", inherits=TRUE, ifnotfound=FALSE)),
       debug   = isTRUE(get0("DEBUG_RUNPRED",   inherits=TRUE, ifnotfound=FALSE))
     )
+    prediction_time <- as.numeric((proc.time() - t0)[["elapsed"]])
     P_raw <- .as_pred_matrix_local(out, mode = if (CLASSIFICATION_MODE=="regression") "regression" else "binary")
     if (is.null(colnames(P_raw))) colnames(P_raw) <- "pred"
     mark("predict_ok")
@@ -2434,25 +2437,79 @@ DDESONN_predict_eval <- function(
   if (!is.null(problem_stage) && problem_stage == "tuned_metrics") return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
   mark("tuned_ok")
   
+  ## ---------- FULL TEST METRICS (performance + relevance) ----------
+  # Pull optional fields (only for computing; not added to table)
+  run_id            <- tryCatch(meta$run_index,        error=function(e) NULL)
+  threshold_val     <- as.numeric(get0("CLASS_THRESHOLD", inherits=TRUE, ifnotfound=0.5))
+  cluster_assign    <- tryCatch(meta$cluster_assignments, error=function(e) NULL)
+  grid_vals         <- tryCatch(get0("THRESHOLD_GRID", inherits=TRUE, ifnotfound=seq(0.05,0.95,0.01)), error=function(e) seq(0.05,0.95,0.01))
+  lr                <- tryCatch(meta$lr %||% meta$learning_rate, error=function(e) NULL)
+  num_epochs        <- tryCatch(meta$num_epochs,       error=function(e) NULL)
+  model_iter_num    <- tryCatch(meta$model_iter_num,   error=function(e) NULL)
+  ensemble_number   <- tryCatch(meta$ensemble_number,  error=function(e) NULL)
+  weights           <- tryCatch(meta$weights,          error=function(e) NULL)
+  biases            <- tryCatch(meta$biases,           error=function(e) NULL)
+  activation_functions <- tryCatch(meta$activation_functions, error=function(e) NULL)
+  dropout_rates     <- tryCatch(meta$dropout_rates,    error=function(e) NULL)
+  learn_time        <- suppressWarnings(as.numeric(tryCatch(meta$learn_time, error=function(e) NA_real_)))
+  
+  Rdata            <- Xi
+  labels           <- yi_vec
+  predicted_output <- P
+  verbose          <- isTRUE(get0("verbose", inherits=TRUE, ifnotfound=FALSE))
+  .s <- function(expr) tryCatch(expr, error=function(e) NA)
+  
+  # Performance (clustering + extras)
+  quantization_error_val    <- .s(quantization_error(SONN, Rdata, run_id, verbose))
+  topographic_error_val     <- .s(topographic_error(SONN, Rdata, threshold_val, verbose))
+  clustering_quality_db_val <- .s(clustering_quality_db(SONN, Rdata, cluster_assign, verbose))
+  generalization_ability_val<- .s(generalization_ability(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose=FALSE))
+  speed_val                 <- .s(speed(SONN, prediction_time, verbose))
+  speed_learn_val           <- .s(speed_learn(SONN, learn_time, verbose))
+  memory_usage_val          <- .s(memory_usage(SONN, Rdata, verbose))
+  robustness_val <- .s(robustness(
+    SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num,
+    predicted_output, ensemble_number, weights, biases, activation_functions, dropout_rates, verbose
+  ))
+  custom_relative_error_binned_val <- .s(custom_relative_error_binned(
+    SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose
+  ))
+  
+  # Relevance
+  hit_rate_val    <- .s(hit_rate(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, labels, verbose))
+  ndcg_val        <- .s(ndcg(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, labels, verbose))
+  diversity_val   <- .s(diversity(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, verbose))
+  serendipity_val <- .s(serendipity(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, verbose))
+  
   ## ---------- flatten metrics row ----------
   row_df <- NULL
   tryCatch({
     performance_metric <- list(
-      quantization_error    = NA_real_,
-      topographic_error     = NA_real_,
-      clustering_quality_db = NA_real_,
+      quantization_error    = r6(quantization_error_val),
+      topographic_error     = r6(topographic_error_val),
+      clustering_quality_db = r6(clustering_quality_db_val),
+      
       MSE   = r6(mse_val),  MAE = r6(mae_val),  RMSE = r6(rmse_val),  R2   = r6(r2_val),
       MAPE  = r6(mape_val), SMAPE = r6(smape_val), WMAPE = r6(wmape_val), MASE = r6(mase_val),
+      
       accuracy  = r6(acc), precision = r6(prec), recall = r6(rec), f1_score = r6(f1s),
       confusion_matrix = cm_base,
       accuracy_precision_recall_f1_tuned = tuned,
-      speed = NA_real_, speed_learn = NA_real_, memory_usage = NA_real_, robustness = NA_real_,
-      custom_relative_error_binned = NA
+      
+      generalization_ability = r6(generalization_ability_val),
+      speed        = r6(speed_val),
+      speed_learn  = r6(speed_learn_val),
+      memory_usage = r6(memory_usage_val),
+      robustness   = r6(robustness_val),
+      
+      custom_relative_error_binned = custom_relative_error_binned_val
     )
+    
     relevance_metric <- list(
-      hit_rate=NA_real_, ndcg=NA_real_, diversity=NA_real_, serendipity=NA_real_,
-      precision_boolean=NA_real_, recall=NA_real_, f1_score=NA_real_, mean_precision=NA_real_,
-      novelty=NA_real_
+      hit_rate    = r6(hit_rate_val),
+      ndcg        = r6(ndcg_val),
+      diversity   = r6(diversity_val),
+      serendipity = r6(serendipity_val)
     )
     
     flat <- tryCatch(
@@ -2549,22 +2606,20 @@ DDESONN_predict_eval <- function(
     if (!is.null(AGG_PREDICTIONS_FILE) && nzchar(AGG_PREDICTIONS_FILE)) {
       SAVE_PREDICTIONS_COLUMN_IN_RDS <- isTRUE(get0("SAVE_PREDICTIONS_COLUMN_IN_RDS", inherits=TRUE, ifnotfound=FALSE))
       
-      # y_prob / y_pred by mode (keep simple & consistent across modes)
       thr <- as.numeric(get0("CLASS_THRESHOLD", inherits=TRUE, ifnotfound=0.5))
       if (CLASSIFICATION_MODE == "binary") {
         y_prob_vec <- as.numeric(P[,1])
         y_pred_vec <- as.integer(y_prob_vec >= thr)
       } else if (CLASSIFICATION_MODE == "multiclass") {
-        y_prob_vec <- apply(P, 1, max)                 # max prob
-        y_pred_vec <- max.col(P, ties.method = "first")# class index
+        y_prob_vec <- apply(P, 1, max)
+        y_pred_vec <- max.col(P, ties.method = "first")
       } else {
-        y_prob_vec <- as.numeric(P[,1])                 # regression: mirror prob field
+        y_prob_vec <- as.numeric(P[,1])
         y_pred_vec <- y_prob_vec
       }
       
       pred_list_col <- NULL
       if (SAVE_PREDICTIONS_COLUMN_IN_RDS) {
-        # store each row of P as a numeric vector in a list-column
         pred_list_col <- I(split(P, row(P)[,1]))
       }
       
@@ -2594,10 +2649,8 @@ DDESONN_predict_eval <- function(
         old <- readRDS(AGG_PREDICTIONS_FILE); if (!is.data.frame(old)) old <- as.data.frame(old, stringsAsFactors=FALSE)
         add_missing  <- setdiff(names(old), names(pred_df)); for (nm in add_missing)  pred_df[[nm]] <- NA
         extra_in_new <- setdiff(names(pred_df), names(old)); for (nm in extra_in_new) old[[nm]]     <- NA
-        # Keep existing column order
         pred_df <- pred_df[, names(old), drop=FALSE]
         
-        # Coerce key fields to consistent types
         for (nm in c("run_index","seed","model_slot","RUN_INDEX","SEED","MODEL_SLOT")) {
           if (nm %in% names(old)) { old[[nm]] <- suppressWarnings(as.integer(old[[nm]])); pred_df[[nm]] <- suppressWarnings(as.integer(pred_df[[nm]])) }
         }
@@ -2623,9 +2676,9 @@ DDESONN_predict_eval <- function(
   if (is.null(problem_stage)) dcat("[OK] seed=", SEED, " slot=", MODEL_SLOT,
                                    " acc=", r6(acc), " prec=", r6(prec), " rec=", r6(rec), " f1=", r6(f1s))
   return(list(
-    problem_stage   = problem_stage,   # NULL if all good
-    errors          = errors,          # named list by stage
-    stage_log       = stage_log,       # ordered stage markers
+    problem_stage   = problem_stage,
+    errors          = errors,
+    stage_log       = stage_log,
     results_compact = results_df,
     metrics_row     = row_df,
     probs           = P,
@@ -2634,6 +2687,7 @@ DDESONN_predict_eval <- function(
     n_rows          = base_n
   ))
 }
+
 
 
 
