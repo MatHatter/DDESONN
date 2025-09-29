@@ -1185,7 +1185,7 @@ SONN <- R6Class(
       return(list(predicted_output = output, prediction_time = prediction_time))
     }
     ,# Method for training the SONN with L2 regularization
-    train_with_l2_regularization = function(Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, use_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose) {
+    train_with_l2_regularization = function(Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose) {
       
       start_time <- Sys.time()
       
@@ -2265,33 +2265,14 @@ SONN <- R6Class(
       
 
       
-      # Print the loss for the current epoch
-      # print(paste("Loss for epoch", epoch, ":", round(losses[epoch], 6)))
-      
       
 
-      if(never_ran_flag == TRUE) {
-        # Find the index where the validation loss starts to increase
         optimal_epoch <- which(diff(losses) > 0)[1]
         
         # Check if loss at any epoch is greater than loss at epoch 0
         loss_increase_flag <- any(losses > losses[1])
         
-      }else if(never_ran_flag == FALSE){ #unlist due to initialization of these losses under train_with_l2_regularization
-        losses <- unlist(losses)
-        optimal_epoch <- which(diff(losses) > 0)[1]
-        
-        # Check if loss at any epoch is greater than loss at epoch 0
-        loss_increase_flag <- any(losses > losses[1])
-        
-        # Print the last element in list because we ran before and it is the optimal so it won't show on the graph (unless you explicitly define it like this)
-        # if(is.na(optimal_epoch)){
-        #     optimal_epoch <- losses[[length(losses)]]
-        # }
-      }
-      
-      
-
+     
       
       
       # Record the loss at the optimal epoch, or fall back to the last epoch's loss if no optimal epoch was found
@@ -2351,7 +2332,7 @@ SONN <- R6Class(
       # Calculate the training time
       training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
 
-      # Return the predicted output
+      # Return the predicted output & best weights, etc. through train_with_l2_regularization thourgh learn()
       return(list(predicted_output_l2 = predicted_output_train_reg, training_time = training_time, best_train_acc = best_train_acc, best_epoch_train = best_epoch_train, best_val_acc = best_val_acc, best_val_epoch = best_val_epoch, best_val_prediction_time = best_val_prediction_time, learn_output = learn_result$learn_output, learn_time = total_learn_time, learn_dim_hidden_layers = learn_result$dim_hidden_layers, learn_hidden_outputs = learn_result$hidden_outputs, learn_grads_matrix = learn_result$grads_matrix, learn_bias_gradients = learn_result$bias_gradients, learn_errors = learn_result$errors, optimal_epoch = optimal_epoch, weights_record = weights_record, biases_record = biases_record, best_weights_record = best_weights, best_biases_record = best_biases, lossesatoptimalepoch = NULL, loss_increase_flag = NULL, loss_status = NULL, dim_hidden_layers = dim_hidden_layers, predicted_output_val = predicted_output_val, best_val_probs = best_val_probs, best_val_labels = best_val_labels))
     } #end of train_with_l2_regularization
   )
@@ -2371,11 +2352,6 @@ DDESONN <- R6Class(
   lock_objects = FALSE,
   public = list(
     ensemble = NULL,  # Define ensemble as a public property
-    performance = NULL,   # Initialize performance as NULL
-    relevance = NULL,     # Initialize relevance as NULL
-    performance_augmentation = NULL,  # Add this line
-    relevance_augmentation = NULL,  # Add this line if you plan to use it
-    results_list_learnOnly = NULL,
     results_list = NULL,
     predicted_outputAndTime = NULL,
     numeric_columns = NULL,
@@ -2386,19 +2362,9 @@ DDESONN <- R6Class(
       
       # Initialize an ensemble of SONN networks
       self$ensemble <- lapply(1:num_networks, function(i) {
+        
         # Determine ensemble and model names
-        # if (hyperparameter_grid_setup) {
-        #   ensemble_number <- j
-        # } else {
-        #   ensemble_number <- j
-        # }
-        
-        # if (firstRun) {
-        #   ensemble_number <- j
-        # } else {
-        #   ensemble_number <- j + 1
-        # }
-        
+
         ensemble_name <- ensemble_number
         model_name <- i
         
@@ -2446,7 +2412,6 @@ DDESONN <- R6Class(
       
       
       self$predicted_outputAndTime <- list() #vector("list", length(self$ensemble) * 2) #* nrow(hyperparameter_grid))
-      results_list_learnOnly <- list() #vector("list", length(self$ensemble) * 2) #* nrow(hyperparameter_grid))
       results_list <- list() #vector("list", length(self$ensemble) * 2) #* nrow(hyperparameter_grid))
       self$numeric_columns <- NULL
       
@@ -2541,8 +2506,7 @@ DDESONN <- R6Class(
       
       # Return the normalized data and the updated running mean/variance
       return(list(normalized_data = normalized_data_bn, running_mean = running_mean_bn, running_var = running_var_bn))
-    },
-    # Function to calculate a reasonable batch size
+    }, # Function to calculate a reasonable batch size
     calculate_batch_size = function(data_size, max_batch_size = 512, min_batch_size = 16) {
       # Get the number of rows from the dataset
       n <- nrow(data_size)
@@ -2565,21 +2529,12 @@ DDESONN <- R6Class(
       val <- cfg[[name]]
       flag <- isTRUE(val) || (is.logical(val) && length(val) == 1 && !is.na(val) && val)
       on_all || flag
-    }
-    ,
-    
-    train = function(Rdata, labels, lr, lr_decay_rate, lr_decay_epoch, lr_min, ensemble_number, num_epochs, use_biases, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, viewTables, verbose) {
+    },
+    train = function(Rdata, labels, lr, lr_decay_rate, lr_decay_epoch, lr_min, ensemble_number, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, viewTables, verbose) {
       
-      
+      # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
-        # Normalize the input data
         Rdata <- self$normalize_data(Rdata, numeric_columns)
-        
-        # Optionally normalize labels if they are continuous, otherwise skip
-        # If labels are binary or categorical, normalization should not be applied
-        # if (is.numeric(labels) && CLASSIFICATION_MODE == "regression") {
-        #   labels <- self$normalize_data(labels, numeric_columns)
-        # }
       }
       
       # Initialize batch normalization parameters if not set
@@ -2591,99 +2546,93 @@ DDESONN <- R6Class(
       }
       
       for (epoch in 1:num_epochs) {
+        
         # Create mini-batches
         n <- nrow(Rdata)
         indices <- 1:n
+        
+        # Shuffle data if prompted
         if (shuffle_bn) {
-          indices <- sample(indices)  # Shuffle data if required
+          indices <- sample(indices)  
         }
         
         batch_size <- self$calculate_batch_size(Rdata)
         mini_batches <- split(indices, ceiling(seq_along(indices) / batch_size))
         
-        for (batch in mini_batches) {
-          # Extract the current mini-batch
-          batch_data <- Rdata[batch, ]
-          batch_labels <- labels[batch]
-          
-          # Perform batch normalization if specified
-          if (batch_normalize_data) {
-            if (is_training_bn) {
-              # Training mode: Compute mean and variance from the current batch
-              batch_mean_bn <- colMeans(batch_data[, numeric_columns])
-              batch_var_bn <- apply(batch_data[, numeric_columns], 2, var)
-              
-              # Update running statistics
+        if (batch_normalize_data) {
+          if (train) {
+            for (batch in mini_batches) {
+              batch_data <- Rdata[batch, , drop = FALSE]
+              batch_labels <- labels[batch]
+              batch_mean_bn <- colMeans(batch_data[, numeric_columns, drop = FALSE])
+              batch_var_bn <- apply(batch_data[, numeric_columns, drop = FALSE], 2, var)
+              batch_var_bn[!is.finite(batch_var_bn) | batch_var_bn < 0] <- 0
               self$mean_bn <- momentum_bn * self$mean_bn + (1 - momentum_bn) * batch_mean_bn
               self$var_bn <- momentum_bn * self$var_bn + (1 - momentum_bn) * batch_var_bn
-              
-              # Normalize using batch statistics
-              batch_data[, numeric_columns] <- (batch_data[, numeric_columns] - batch_mean_bn) / sqrt(batch_var_bn + epsilon_bn)
-              
-              # Apply gamma and beta
-              batch_data[, numeric_columns] <- (batch_data[, numeric_columns] * gamma_bn) + beta_bn
-              
-              if(verbose){
-              # Print diagnostic information for the current mini-batch
-              print(paste("Batch Mean: ", batch_mean_bn))
-              print(paste("Batch Variance: ", batch_var_bn))
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, batch_mean_bn, `-`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, sqrt(batch_var_bn + epsilon_bn), `/`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, gamma_bn, `*`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, beta_bn, `+`)
+              if (verbose) {
+                print(paste("Batch Mean: ", toString(round(batch_mean_bn, 6))))
+                print(paste("Batch Variance: ", toString(round(batch_var_bn, 6))))
               }
-            } else {
-              # Inference mode: Use running statistics computed during training
-              if (is.null(self$mean_bn) || is.null(self$var_bn)) {
-                stop("Running mean and variance must be provided for inference.")
-              }
-              
-              # Normalize using running statistics
-              batch_data[, numeric_columns] <- (batch_data[, numeric_columns] - self$mean_bn) / sqrt(self$var_bn + epsilon_bn)
-              
-              # Apply gamma and beta
-              batch_data[, numeric_columns] <- (batch_data[, numeric_columns] * gamma_bn) + beta_bn
-              
-              # Print diagnostic information for the current mini-batch
-              post_norm_mean_bn <- colMeans(batch_data[, numeric_columns])
-              post_norm_var_bn <- apply(batch_data[, numeric_columns], 2, var)
-              if(verbose){
-              print(paste("After normalization - Mean: ", post_norm_mean_bn))
-              print(paste("After normalization - Variance: ", post_norm_var_bn))
+            }
+          } else {
+            if (is.null(self$mean_bn) || is.null(self$var_bn)) stop("Running mean and variance must be provided for inference.")
+            for (batch in mini_batches) {
+              batch_data <- Rdata[batch, , drop = FALSE]
+              batch_labels <- labels[batch]
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, self$mean_bn, `-`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, sqrt(self$var_bn + epsilon_bn), `/`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, gamma_bn, `*`)
+              batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, beta_bn, `+`)
+              if (verbose) {
+                post_norm_mean_bn <- colMeans(batch_data[, numeric_columns, drop = FALSE])
+                post_norm_var_bn <- apply(batch_data[, numeric_columns, drop = FALSE], 2, var)
+                print(paste("After normalization - Mean: ", toString(round(post_norm_mean_bn, 6))))
+                print(paste("After normalization - Variance: ", toString(round(post_norm_var_bn, 6))))
               }
             }
           }
-          
-          # Training logic (forward pass, loss computation, backpropagation, parameter updates) goes here
-          
-        }
+        } else {
+          for (batch in mini_batches) {
+            batch_data <- Rdata[batch, , drop = FALSE]
+            batch_labels <- labels[batch]
+          }
+        }#end of batch normalize data
+        
+        
+        
+        
       }
       
       
       # Initialize lists to store results
-      all_predicted_outputAndTime    <- vector("list", length(self$ensemble))
-      all_predicted_outputs_learn    <- vector("list", length(self$ensemble))
-      all_predicted_outputs          <- vector("list", length(self$ensemble))
-      all_prediction_times           <- vector("list", length(self$ensemble))
-      all_training_times             <- vector("list", length(self$ensemble))
-      all_best_val_prediction_time   <- vector("list", length(self$ensemble))
-      all_learn_times                <- vector("list", length(self$ensemble))
-      all_ensemble_name_model_name   <- vector("list", length(self$ensemble))
-      all_model_iter_num             <- vector("list", length(self$ensemble))
-      all_best_train_acc             <- vector("list", length(self$ensemble))
-      all_best_epoch_train           <- vector("list", length(self$ensemble))
-      all_best_val_acc               <- vector("list", length(self$ensemble))
-      all_best_val_epoch             <- vector("list", length(self$ensemble))
-      
-      # NEW: Extended debug/tracking
-      all_errors                     <- vector("list", length(self$ensemble))
-      all_hidden_outputs             <- vector("list", length(self$ensemble))
-      all_layer_dims                 <- vector("list", length(self$ensemble))
-      all_best_val_probs <- vector("list", length(self$ensemble))
-      all_best_val_labels <- vector("list", length(self$ensemble))
-      all_weights <- vector("list", length(self$ensemble))
-      all_biases <- vector("list", length(self$ensemble))
-      all_activation_functions <- vector("list", length(self$ensemble))
+      all_predicted_outputAndTime      <- vector("list", length(self$ensemble))
+      all_predicted_outputs_learn      <- vector("list", length(self$ensemble))
+      all_predicted_outputs            <- vector("list", length(self$ensemble))
+      all_prediction_times             <- vector("list", length(self$ensemble))
+      all_training_times               <- vector("list", length(self$ensemble))
+      all_best_val_prediction_time     <- vector("list", length(self$ensemble))
+      all_learn_times                  <- vector("list", length(self$ensemble))
+      all_ensemble_name_model_name     <- vector("list", length(self$ensemble))
+      all_model_iter_num               <- vector("list", length(self$ensemble))
+      all_best_train_acc               <- vector("list", length(self$ensemble))
+      all_best_epoch_train             <- vector("list", length(self$ensemble))
+      all_best_val_acc                 <- vector("list", length(self$ensemble))
+      all_best_val_epoch               <- vector("list", length(self$ensemble))
+      all_errors                       <- vector("list", length(self$ensemble))
+      all_hidden_outputs               <- vector("list", length(self$ensemble))
+      all_layer_dims                   <- vector("list", length(self$ensemble))
+      all_best_val_probs               <- vector("list", length(self$ensemble))
+      all_best_val_labels              <- vector("list", length(self$ensemble))
+      all_weights                      <- vector("list", length(self$ensemble))
+      all_biases                       <- vector("list", length(self$ensemble))
+      all_activation_functions         <- vector("list", length(self$ensemble))
       all_activation_functions_predict <- vector("list", length(self$ensemble))
       
-      # my_optimal_epoch_out_vector    <- vector("list", length(self$ensemble))
-      
+
 
         for (i in 1:length(self$ensemble)) {
           # Add Ensemble and Model names to performance_list
@@ -2694,24 +2643,25 @@ DDESONN <- R6Class(
           
           model_iter_num <- i
           
+          if(self_org){
+            self$ensemble[[i]]$self_organize(Rdata, labels, lr)
+          }
           
-          
-          
-          # self$ensemble[[i]]$self_organize(Rdata, labels, lr)
-          if (learnOnlyTrainingRun == FALSE) {
+          # might remove if, but keep contents
+          if (train) {
 
+            
             predicted_outputAndTime <- suppressMessages(
               self$ensemble[[i]]$train_with_l2_regularization(
-                Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, use_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose
+                Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose
               ))
-
-            predicted_outputAndTime$learn
             
-            # -- Start: Store core model info --
+            # str(predicted_outputAndTime)
+            
+            # Store core model info
             all_ensemble_name_model_name[[i]] <- ensemble_name_model_name
-            
             all_model_iter_num[[i]] <- model_iter_num
-
+            
             
             all_predicted_outputAndTime[[i]] <- list(
               predicted_output         = predicted_outputAndTime$predicted_output_l2$predicted_output, #this is last_val_predict or last_train_predict based on what is toggled upstream (isTrue(validation_metrics))
@@ -2729,10 +2679,7 @@ DDESONN <- R6Class(
               best_val_epoch           = predicted_outputAndTime$best_val_epoch
             )
 
-            # Optional storage
-            # my_optimal_epoch_out_vector[[i]] <<- predicted_outputAndTime$optimal_epoch
-            # ----------------------------------
-            
+
             # Continue if predictions are available
             if (!is.null(predicted_outputAndTime$predicted_output_l2)) {
               
@@ -2755,6 +2702,8 @@ DDESONN <- R6Class(
               all_best_val_acc[[i]]                   <- predicted_outputAndTime$best_val_acc
               all_best_val_epoch[[i]]                 <- predicted_outputAndTime$best_val_epoch
 
+              
+              if(verbose){
               # --- Debug prints ---
               cat(">> Ensemble Index:", i, "\n")
               cat("Predicted Output (first 5):\n"); print(head(all_predicted_outputs[[i]], 5))
@@ -2778,16 +2727,15 @@ DDESONN <- R6Class(
               cat("--------------------------------------------------------\n")
               
               
-            } else {
-              cat("WARNING: predicted_output_l2$learn_output is NULL at ensemble index", i, "\n")
-              str(predicted_outputAndTime)
-            }
-            
+              } #end of verbose
+              
+            } # end of if (!is.null(predicted_outputAndTime$predicted_output_l2)){}
             
             
             
           }
-        }
+          
+        } # end of for (i in 1:length(self$ensemble))
         
         ###########code from old code###########
         print(all_ensemble_name_model_name)
@@ -3070,15 +3018,12 @@ DDESONN <- R6Class(
           single_predicted_output <- predicted_output_list[[i]]
           single_ensemble_name_model_name <- run_id[[i]]
           
-          if (learnOnlyTrainingRun == FALSE) {
+          # might remove if, but keep contents
+          if (train) {
             
-            if (hyperparameter_grid_setup) {
-              cat("___________________________________________________________________________\n")
-              cat("______________________________DESONN_", ensemble_number , "_SONN_", i, "______________________________\n", sep = "")
-            } else {
-              cat("___________________________________________________________________________\n")
-              cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
-            }
+
+            cat("___________________________________________________________________________\n")
+            cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
             
             single_prediction_time <- prediction_time_list[[i]]
             
@@ -3165,6 +3110,7 @@ DDESONN <- R6Class(
               }
             }
             
+            #probably never need to be FALSE, but here temp until I conclude.
             use_best_val <- TRUE
             
  
@@ -3288,13 +3234,11 @@ DDESONN <- R6Class(
       process_performance <- function(metrics_data, model_names, high_threshold = 10, verbose = FALSE) {
         EXCLUDE_METRICS_REGEX <- paste(
           c(
-            "^accuracy_precision_recall_f1_tuned_accuracy_percent$",
+            "^accuracy_precision_recall_f1_tuned_details_accuracy_percent$",
             "^accuracy_percent$",
-            "^accuracy_precision_recall_f1_tuned_y_pred_class\\d+$",
-            "^y_pred_class\\d+$",
-            "^accuracy_precision_recall_f1_tuned_best_thresholds?$",
-            "^best_thresholds?$",
-            "^accuracy_precision_recall_f1_tuned_grid_used",
+            "^accuracy_precision_recall_f1_tuned_details_y_pred_class",
+            "^y_pred_class",
+            "^accuracy_precision_recall_f1_tuned_details_grid_used",
             "^grid_used"
           ),
           collapse = "|"
@@ -3897,7 +3841,6 @@ DDESONN <- R6Class(
         input_size = input_size,
         output_size = output_size,
         N = N,
-        never_ran_flag = never_ran_flag,
         num_samples = total_num_samples,
         num_test_samples = num_test_samples,
         num_training_samples = num_training_samples,

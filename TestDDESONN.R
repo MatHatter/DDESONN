@@ -16,7 +16,6 @@
 
 source("DDESONN.R")
 source("utils/utils.R")
-source("utils/bootstrap_metadata.R")
 
 # # Define parameters
 ## =========================
@@ -25,9 +24,11 @@ source("utils/bootstrap_metadata.R")
 # CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
 CLASSIFICATION_MODE <- "binary"
 # CLASSIFICATION_MODE <- "regression"
+self_org <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
-x <- 2
+x <- 1
+train <- TRUE
 test <- TRUE
 init_method <- "he" #variance_scaling" #glorot_uniform" #"orthogonal" #"orthogonal" #lecun" #xavier"
 optimizer <- "adagrad" #"lamb" #ftrl #nag #"sgd" #NULL "rmsprop" #adam #sgd_momentum #lookahead #adagrad
@@ -48,7 +49,7 @@ lr_decay_epoch <- 20
 lr_min <- 1e-5
 lambda <- 0.00028
 # lambda <- 0.00013
-num_epochs <- 360
+num_epochs <- 3
 validation_metrics <- TRUE
 test_metrics <- TRUE
 custom_scale <- 1.04349
@@ -951,18 +952,7 @@ reg_type = "L1" #"Max_Norm" #"L2" #Max_Norm" #"Group_Lasso" #"L1_L2"
 
 # input_size <- 13 # This should match the actual number of features in your data
 # hidden_size <- 2
-loading_ensemble_1_run_ids <- FALSE
-#########################################################################################################################
-never_ran_flag <- TRUE
 
-# if(hyperparameter_grid_setup){
-#     loading_ensemble_1_run_ids <- TRUE #change back to false
-# }else if(!hyperparameter_grid_setup){
-# loading_ensemble_1_run_ids <- TRUE
-# }
-# results <- data.frame(lr = numeric(), lambda = numeric(), accuracy = numeric(), stringsAsFactors = FALSE)
-# Iterate over each row of the hyperparameter grid
-# for (j in 1:nruns) {
 
 plot_robustness <- FALSE
 predict_models <- FALSE
@@ -977,9 +967,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 ## DDESONN Runner – Modes
 ## =========================
 ## SCENARIO A: Single-run only (no ensemble, ONE model)
-# do_ensemble         <- FALSE
-# num_networks        <- 1L
-# num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
+do_ensemble         <- FALSE
+num_networks        <- 1L
+num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
 #
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
 # do_ensemble         <- FALSE
@@ -987,9 +977,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 # num_temp_iterations <- 0L
 #
 ## SCENARIO C: Main ensemble only (no TEMP/prune-add)
-do_ensemble         <- TRUE
-num_networks        <- 2L          # example main size
-num_temp_iterations <- 0L
+# do_ensemble         <- TRUE
+# num_networks        <- 1L          # example main size
+# num_temp_iterations <- 0L
 #
 ## SCENARIO D: Main + TEMP iterations (prune/add enabled)
 # do_ensemble         <- TRUE
@@ -1032,227 +1022,11 @@ performance_low_mean_plots  <- FALSE
 relevance_high_mean_plots   <- FALSE
 relevance_low_mean_plots    <- FALSE
 
-# =========================
-# Session bootstrap & flags (TRAIN | PREDICT:STATELESS | PREDICT:STATEFUL)
-# =========================
-# =========================
-# Phase 0 — toggles & mode
-# =========================
 
-# Toggle — set TRUE to export RDS metadata and (optionally) clear env, then stop.
-
-prepare_disk_only <- FALSE
-# prepare_disk_only <- TRUE
-
-prepare_disk_only <- get0("prepare_disk_only", ifnotfound = FALSE)  # one-shot RDS export helper
-
-# Flag specific to disk-only prepare / selection
-prepare_disk_only_FROM_RDS <- FALSE
-prepare_disk_only_FROM_RDS <- get0("prepare_disk_only_FROM_RDS", ifnotfound = FALSE)
-# Modes:
-
-MODE <- "train"
-# num_epochs <- 3
-# MODE <- "predict:stateless"
-MODE <- get0("MODE", ifnotfound = "train")
-PREDICT_ONLY_FROM_RDS <- TRUE
-PREDICT_ONLY_FROM_RDS  <- isTRUE(get0("PREDICT_ONLY_FROM_RDS", inherits=TRUE, ifnotfound=FALSE))
-# Prediction scope (only used when MODE starts with "predict:")
-PREDICT_SCOPE <- "all"
-PREDICT_SCOPE    <- get0("PREDICT_SCOPE",    ifnotfound = "one")
-PICK_INDEX       <- as.integer(get0("PICK_INDEX", 1L))    # used when scope="pick"
-PREDICT_SELECTOR <- get0("PREDICT_SELECTOR", ifnotfound = "by_metric")
-TARGET_METRIC    <- get0("TARGET_METRIC",    ifnotfound = "accuracy")
-
-# Optional candidate filters
-KIND_FILTER      <- get0("KIND_FILTER",      ifnotfound = c("Main","Temp"))
-ENS_FILTER       <- get0("ENS_FILTER",       ifnotfound = NULL)
-MODEL_FILTER     <- get0("MODEL_FILTER",     ifnotfound = NULL)
-
-# (Kept only for one-shot export convenience)
-BM_NAME_HINT    <- get0("BM_NAME_HINT", ifnotfound = NULL)
-BM_PREFER_KIND  <- get0("BM_PREFER_KIND",  ifnotfound = c("Main","Temp"))
-BM_PREFER_ENS   <- get0("BM_PREFER_ENS",   ifnotfound = c(0L, 1L))
-BM_PREFER_MODEL <- get0("BM_PREFER_MODEL", ifnotfound = 1L)   # legacy keeps your old default
-.BM_DIR <- "artifacts"
-# ---- NEW: prepare-disk choice flags (adds 3-choice behavior) ----------
-# Choices: "first" | "all" | "pick"
-PREPARE_DISK_CHOICE <- get0("PREPARE_DISK_CHOICE", ifnotfound = "all")
-
-# Clear environment after saving (matches prior behavior of bm_prepare_disk_only):
-PREPARE_CLEAR_ENV <- FALSE
-PREPARE_CLEAR_ENV   <- get0("PREPARE_CLEAR_ENV",   ifnotfound = TRUE)
-
-# ---- NEW FLAG: clear environment after saving EXCEPT the models (keep models in env) ----
-# If this is TRUE, PREPARE_CLEAR_ENV is forced FALSE (mutually exclusive).
-PREPARE_CLEAR_ENV_EXCEPT_MODELS <- TRUE
-PREPARE_CLEAR_ENV_EXCEPT_MODELS <- get0("PREPARE_CLEAR_ENV_EXCEPT_MODELS", ifnotfound = FALSE)
-
-# Enforce mutual exclusion at runtime
-if (isTRUE(PREPARE_CLEAR_ENV_EXCEPT_MODELS)) {
-  PREPARE_CLEAR_ENV <- FALSE
-}
-
-# Default metadata dir (if not already set elsewhere)
-.BM_DIR <- get0(".BM_DIR", ifnotfound = "artifacts")
-
-# Helper: strip trailing _YYYYMMDD_HHMMSS from a base name
-.strip_ts <- function(x) sub("_(\\d{8}_\\d{6})$", "", x)
-
-# =========================================
-# Phase 1 — one-shot export & (optional) clean
-# =========================================
-if (isTRUE(prepare_disk_only)) {
-  
-  # Snapshot the clear flags BEFORE any helper that might wipe env
-  .CLEAR_EXCEPT <- isTRUE(PREPARE_CLEAR_ENV_EXCEPT_MODELS)  # strong override branch
-  .CLEAR_AFTER  <- isTRUE(PREPARE_CLEAR_ENV)                # only used if .CLEAR_EXCEPT is FALSE
-  saved_names   <- character(0)  # will hold names of models we want to keep in env (if needed)
-  ts_tag        <- format(Sys.time(), "%Y%m%d_%H%M%S")  # timestamp for filenames
-  
-  # -------------------------------
-  # A) Legacy exact-name path (BM_NAME_HINT)
-  # -------------------------------
-  if (!is.null(BM_NAME_HINT) && nzchar(BM_NAME_HINT)) {
-    rds_path <- bm_prepare_disk_only(
-      name_hint    = BM_NAME_HINT,
-      prefer_kind  = BM_PREFER_KIND,
-      prefer_ens   = BM_PREFER_ENS,
-      prefer_model = BM_PREFER_MODEL,
-      dir          = .BM_DIR
-    )
-    # rename file with timestamp
-    if (file.exists(rds_path)) {
-      rds_new <- sub("\\.rds$", sprintf("_%s.rds", ts_tag), rds_path)
-      file.rename(rds_path, rds_new)
-      rds_path <- rds_new
-    }
-    cat(sprintf("[prepare_disk_only] Saved metadata to: %s\n", rds_path))
-    
-    # record the object name (strip timestamp) so we can keep it in env after clearing
-    base_no_ext <- sub("\\.rds$", "", basename(rds_path))
-    saved_names <- unique(c(saved_names, .strip_ts(base_no_ext)))
-    
-  } else {
-    
-    # -------------------------------
-    # B) Choice-based export ("first" | "all" | "pick")
-    #     — DO NOT clear inside helper
-    # -------------------------------
-    rds_paths <- tryCatch(
-      bm_prepare_disk_by_choice(
-        choice       = PREPARE_DISK_CHOICE,   # "first" | "all" | "pick"
-        kind_filter  = KIND_FILTER,
-        ens_filter   = ENS_FILTER,
-        model_filter = MODEL_FILTER,
-        dir          = .BM_DIR,
-        clear_env    = FALSE                  # ← prevent premature wipe
-      ),
-      error = function(e) {
-        cat("\n[prepare_disk_only] ERROR during bm_prepare_disk_by_choice:\n")
-        message(e)
-        stop(e)
-      }
-    )
-    
-    # rename each file with timestamp
-    rds_new_paths <- character(0)
-    if (length(rds_paths)) {
-      for (p in unique(rds_paths)) {
-        if (file.exists(p)) {
-          p_new <- sub("\\.rds$", sprintf("_%s.rds", ts_tag), p)
-          file.rename(p, p_new)
-          rds_new_paths <- c(rds_new_paths, p_new)
-        }
-      }
-      cat("[prepare_disk_only] Saved metadata files:\n")
-      for (p in rds_new_paths) cat("  - ", p, "\n", sep = "")
-    } else {
-      cat("[prepare_disk_only] No candidates saved (zero-length result).\n")
-    }
-    
-    # record all object names (strip timestamp) so we can keep them in env after clearing
-    base_no_ext <- sub("\\.rds$", "", basename(rds_new_paths))
-    saved_names <- unique(c(saved_names, .strip_ts(base_no_ext)))
-  }
-  
-  # -------------------------------
-  # C) Clear environment policy
-  # -------------------------------
-  if (.CLEAR_EXCEPT) {
-    # Clear everything EXCEPT the saved models/metadata objects (by name)
-    if (length(saved_names)) {
-      if (exists("bm_clear_env_except", inherits = TRUE)) {
-        bm_clear_env_except(keep_names = saved_names)
-      } else {
-        all_objs <- ls(envir = .GlobalEnv, all.names = FALSE)
-        to_rm    <- setdiff(all_objs, saved_names)
-        if (length(to_rm)) rm(list = to_rm, envir = .GlobalEnv)
-      }
-      gc()
-      cat("[prepare_disk_only] Environment cleared EXCEPT saved models (kept in env). End of phase-1.\n")
-    } else {
-      # nothing saved? full clear fallback
-      rm(list = ls(envir = .GlobalEnv), envir = .GlobalEnv)
-      gc()
-      cat("[prepare_disk_only] Environment fully cleared (no saved models to keep). End of phase-1.\n")
-    }
-  } else if (.CLEAR_AFTER) {
-    # Legacy behavior: clear after saving; keep saved models/metadata in env
-    if (length(saved_names)) {
-      if (exists("bm_clear_env_except", inherits = TRUE)) {
-        bm_clear_env_except(keep_names = saved_names)
-      } else {
-        all_objs <- ls(envir = .GlobalEnv, all.names = FALSE)
-        to_rm    <- setdiff(all_objs, saved_names)
-        if (length(to_rm)) rm(list = to_rm, envir = .GlobalEnv)
-      }
-      gc()
-      cat("[prepare_disk_only] Environment cleared (kept saved models). End of phase-1.\n")
-    } else {
-      # nothing saved? fall back to full clear
-      rm(list = ls(envir = .GlobalEnv), envir = .GlobalEnv)
-      gc()
-      cat("[prepare_disk_only] Environment cleared. End of phase-1.\n")
-    }
-  } else {
-    cat("[prepare_disk_only] No environment clear requested. End of phase-1.\n")
-  }
-  
-  # Final stop/quit
-  if (exists(".hard_stop", mode = "function")) .hard_stop() else stop("prepare_disk_only done.")
-}
-
-
-# Derive boolean once from MODE (no redundancy)
-train <- identical(MODE, "train")
-INPUT_SPLIT    <- "test"   # or "test" / "train" / "auto"
-USE_EMBEDDED_X <- FALSE          # keep FALSE to ensure it uses your chosen split
-
-## —— Ensembling
-ENABLE_ENSEMBLE_AVG   <- TRUE
-ENABLE_ENSEMBLE_WAVG  <- TRUE
-ENABLE_ENSEMBLE_VOTE  <- TRUE
-ENSEMBLE_WEIGHT_COLUMN <- "tuned_f1"  # falls back automatically if missing
-ENSEMBLE_RESPECT_MINIMIZE <- TRUE
-ENSEMBLE_VOTE_USE_TUNED_THRESH <- TRUE
-# ENSEMBLE_VOTE_QUORUM <- 4L      # optional explicit quorum
-
-## —— Printing
-PREDICT_FULL_PRINT  <- TRUE      # show everything
-PREDICT_HEAD_N      <- 100L      # if not full-printing
-PREDICT_PRINT_MAX   <- 1e7
-PREDICT_PRINT_WIDTH <- 240L
-PREDICT_USE_TIBBLE  <- TRUE
 
 ## —— Artifacts
 ARTIFACTS_DIR       <- file.path(getwd(), "artifacts")
-PREDICT_RDS_DEBUG   <- FALSE     # set TRUE if model_rds shows NA
 
-# ======================= PREDICT-ONLY (choose split via INPUT_SPLIT) =======================
-############################################################
-# PREDICT-ONLY MODE (!train) — cleaned & fixed for regression
-############################################################
 if(train) {
 
   ## =========================================================================================
@@ -1345,7 +1119,7 @@ if(train) {
       
       model_results <- run_model$train(
         Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-        lr_min=lr_min, ensemble_number=0L, num_epochs=num_epochs,
+        lr_min=lr_min, ensemble_number=0L, num_epochs=num_epochs, self_org=self_org,
         threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
         activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
         dropout_rates=dropout_rates, optimizer=optimizer,
@@ -2009,7 +1783,7 @@ if(train) {
       
       model_results_main <<- main_model$train(
         Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-        lr_min=lr_min, ensemble_number=1L, num_epochs=num_epochs,
+        lr_min=lr_min, ensemble_number=1L, num_epochs=num_epochs, self_org=self_org,
         threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
         activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
         dropout_rates=dropout_rates, optimizer=optimizer,
@@ -2270,7 +2044,7 @@ if(train) {
           
           invisible(temp_model$train(
             Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-            lr_min=lr_min, ensemble_number=j+1L, num_epochs=num_epochs,
+            lr_min=lr_min, ensemble_number=j+1L, num_epochs=num_epochs, self_org=self_org,
             threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
             activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
             dropout_rates=dropout_rates, optimizer=optimizer,

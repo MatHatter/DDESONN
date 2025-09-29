@@ -9,10 +9,12 @@
 # - Writes fresh agg files: agg_metrics_<split>.rds, agg_predictions_<split>.rds
 # =====================================================================
 
+source("utils/utils.R")
+
 LoadandPredict <- function(
-    source               = c("env","EnsembleRuns"),
-    folder               = NULL,         # for source="EnsembleRuns": subfolder under artifacts/EnsembleRuns; NULL → latest
-    env_meta_name_base   = NULL,         # REQUIRED only when source="env"; ignored for EnsembleRuns
+    source               = c("env","EnsembleRuns","SingleRuns"),
+    folder               = NULL,         # subfolder under artifacts/<source>; NULL → latest
+    env_meta_name_base   = NULL,         # REQUIRED only when source="env"; ignored for artifacts
     seeds                = c(1L, 2L),
     slots                = c(1L, 2L),
     predict_split        = c("test","validation","train"),
@@ -61,28 +63,12 @@ LoadandPredict <- function(
   .ensure_predictor <- function() {
     if (exists("DDESONN", envir=.GlobalEnv, inherits=FALSE)) return(invisible(TRUE))
     
-    # Try to source a real implementation from common paths
-    candidates <- c(
-      "R/DDESONN.R","R/DESONN.R","R/desonn.R","DDESONN.R","DESONN.R",
-      "src/DDESONN.R","inst/DDESONN.R"
-    )
-    for (p in candidates) {
-      if (file.exists(p)) {
-        try(source(p, local=FALSE), silent=TRUE)
-        if (exists("DDESONN", envir=.GlobalEnv, inherits=FALSE)) return(invisible(TRUE))
-      }
-    }
-    
-    # Define a minimal forward-pass shim so .safe_run_predict can proceed
-    # It expects: DDESONN$predict(X, meta, model_index, ML_NN=TRUE, ...)
-    sigmoid <- function(z) 1/(1+exp(-z))
-    tanh_act <- function(z) tanh(z)
-    relu <- function(z) { z[z<0] <- 0; z }
+    sigmoid    <- function(z) 1/(1+exp(-z))
+    tanh_act   <- function(z) tanh(z)
+    relu       <- function(z) { z[z<0] <- 0; z }
     leaky_relu <- function(z, a=0.01) { z[z<0] <- a*z[z<0]; z }
-    softmax <- function(z) {
-      z <- as.matrix(z); mx <- apply(z,1,max); ex <- exp(z - mx); sm <- rowSums(ex); ex/sm
-    }
-    linear <- function(z) z
+    softmax    <- function(z) { z <- as.matrix(z); mx <- apply(z,1,max); ex <- exp(z - mx); sm <- rowSums(ex); ex/sm }
+    linear     <- function(z) z
     
     apply_act <- function(Z, name) {
       if (is.null(name)) return(Z)
@@ -93,18 +79,14 @@ LoadandPredict <- function(
       if (n %in% c("lrelu","leaky_relu")) return(leaky_relu(Z))
       if (n %in% c("softmax"))            return(softmax(Z))
       if (n %in% c("linear","identity"))  return(linear(Z))
-      # default safe
-      return(Z)
+      Z
     }
-    
     add_bias <- function(Z, b) {
       if (is.null(b)) return(Z)
       b <- as.numeric(b)
       Z + matrix(rep(b, each=nrow(Z)), nrow=nrow(Z), ncol=length(b), byrow=FALSE)
     }
-    
     forward_from_meta <- function(X, meta, model_index=1L) {
-      # choose weights/biases: prefer best_* if available
       W <- meta$best_weights_record %||% meta$weights
       B <- meta$best_biases_record   %||% meta$biases
       if (is.null(W) || is.null(B)) stop("[shim] No weights/biases in meta")
@@ -112,37 +94,25 @@ LoadandPredict <- function(
       acts <- meta$activation_functions_predict %||% meta$activation_functions
       if (is.list(acts) && !is.null(acts[[model_index]])) acts <- acts[[model_index]]
       
-      # Some metas store per-layer in lists indexed by layer
-      # Normalize to a simple list of matrices
-      if (is.list(W) && !is.matrix(W[[1]])) {
-        WL <- W
-      } else {
-        WL <- W
-      }
-      BL <- B
-      
-      H <- as.matrix(X)
-      L <- length(WL)
+      WL <- W; BL <- B
+      H  <- as.matrix(X)
+      L  <- length(WL)
       for (l in seq_len(L)) {
-        Wl <- WL[[l]]
-        bl <- BL[[l]]
-        Z  <- H %*% Wl
-        Z  <- add_bias(Z, bl)
+        Z  <- H %*% WL[[l]]
+        Z  <- add_bias(Z, BL[[l]])
         act_name <- if (is.null(acts)) NULL else acts[[l]] %||% acts[l] %||% acts
-        # No dropout during predict
-        H <- apply_act(Z, act_name)
+        H  <- apply_act(Z, act_name)
       }
       list(predicted_output = as.matrix(H))
     }
     
-    DDESONN <- list(
+    DDESONN <<- list(
       predict = function(X, meta, model_index=1L, ML_NN=TRUE, ...) {
         forward_from_meta(X, meta, model_index)
       }
     )
     invisible(TRUE)
   }
-  
   .ensure_predictor()
   
   # ---------- ENV meta resolver ----------
@@ -150,34 +120,28 @@ LoadandPredict <- function(
     tries <- unique(c(
       base,
       paste0(base, "_model_", as.integer(slot), "_metadata"),
-      paste0(base, "_seed", as.character(seed))
+      paste0(base, "_seed",  as.character(seed))
     ))
     for (nm in tries) if (exists(nm, envir=.GlobalEnv, inherits=FALSE)) return(get(nm, envir=.GlobalEnv))
-    
-    syms <- ls(.GlobalEnv)
-    hits <- syms[grepl(base, syms, fixed=TRUE)]
-    if (!length(hits)) stop("No ENV meta found matching: ", base)
-    slot_pat <- paste0("_model_", as.integer(slot), "_")
-    seed_pat <- paste0("_seed",  as.character(seed))
-    prefer <- hits[grepl(slot_pat, hits, fixed=TRUE) & grepl(seed_pat, hits, fixed=TRUE)]
-    if (!length(prefer)) prefer <- hits[grepl(slot_pat, hits, fixed=TRUE)]
-    nm <- (if (length(prefer)) prefer else hits)[1]
-    get(nm, envir=.GlobalEnv)
+    stop("No ENV meta found matching: ", base)
   }
   
   # ---------- Artifacts meta resolver ----------
+  # For EnsembleRuns: search under artifacts/EnsembleRuns/<run> (recursive, unchanged)
+  # For SingleRuns:   search strictly under artifacts/SingleRuns/<run>/models (recursive)
   .resolve_meta_artifacts <- function(root_folder, slot, seed, base=NULL) {
     if (!dir.exists(root_folder)) stop("Artifacts folder not found: ", root_folder)
-    files <- list.files(root_folder, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
-    if (!length(files)) stop("No .rds files in ", root_folder)
     
-    bn <- basename(files)
+    files <- list.files(root_folder, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
+    if (!length(files)) return(NULL)  # allow caller to skip
+    
+    bn  <- basename(files)
     hit <- grepl("metadata", bn, ignore.case=TRUE) &
       grepl(paste0("_model_", as.integer(slot), "_"), bn, fixed=TRUE) &
       grepl(paste0("_seed",  as.character(seed)),     bn, fixed=TRUE)
     if (!is.null(base) && nzchar(base)) hit <- hit & grepl(base, bn, fixed=TRUE)
     
-    if (!any(hit)) stop("No matching metadata RDS for slot=", slot, ", seed=", seed, " in ", root_folder)
+    if (!any(hit)) return(NULL)  # allow caller to skip
     
     cand <- files[hit]
     info <- file.info(cand)
@@ -186,7 +150,6 @@ LoadandPredict <- function(
     
     sym  <- .safe_name("LP_META", "slot", slot, "seed", seed)
     assign(sym, meta, envir=.GlobalEnv)
-    
     list(meta_sym = sym, path = file)
   }
   
@@ -211,12 +174,26 @@ LoadandPredict <- function(
   
   # ---------- resolve artifacts folder ----------
   artifacts_root <- NULL
-  if (source == "EnsembleRuns") {
-    root <- file.path("artifacts","EnsembleRuns")
-    if (!dir.exists(root)) stop("Expected artifacts root does not exist: ", root)
-    artifacts_root <- if (is.null(folder)) .latest_subdir(root) else file.path(root, folder)
-    if (is.null(artifacts_root) || !dir.exists(artifacts_root)) {
-      stop("Could not resolve artifacts folder under: ", normalizePath(root, winslash="/", mustWork=FALSE))
+  if (source %in% c("EnsembleRuns","SingleRuns")) {
+    # Base under artifacts/<source>
+    base_root <- file.path("artifacts", source)
+    if (!dir.exists(base_root)) stop("Expected artifacts root does not exist: ", base_root)
+    
+    # Choose run directory (latest or explicit)
+    run_root <- if (is.null(folder)) .latest_subdir(base_root) else file.path(base_root, folder)
+    if (is.null(run_root) || !dir.exists(run_root)) {
+      stop("Could not resolve run folder under: ", base_root)
+    }
+    
+    # For SingleRuns specifically: metas are in models/ (no Main there)
+    if (identical(source, "SingleRuns")) {
+      artifacts_root <- file.path(run_root, "models")
+      if (!dir.exists(artifacts_root)) {
+        stop("SingleRuns expected a 'models' subfolder but none found at: ", run_root)
+      }
+    } else {
+      # EnsembleRuns unchanged (search whole run folder recursively)
+      artifacts_root <- run_root
     }
   }
   
@@ -229,14 +206,20 @@ LoadandPredict <- function(
   message(sprintf("Predicting split='%s' | mode='%s' | run_index=%d", predict_split, CLASSIFICATION_MODE, run_index))
   
   # ---------- core loop ----------
+  processed_any <- FALSE
+  
   for (seed in seeds) {
     for (slot in slots) {
-      
       if (source == "env") {
         meta <- .resolve_meta_env(env_meta_name_base, slot, seed)
         env_token_for_eval <- env_meta_name_base
       } else {
         art <- .resolve_meta_artifacts(artifacts_root, slot, seed, base = env_meta_name_base)
+        if (is.null(art)) {
+          warning(sprintf("No matching metadata RDS for slot=%d, seed=%d in %s — skipping",
+                          as.integer(slot), as.integer(seed), artifacts_root))
+          next
+        }
         meta <- get(art$meta_sym, envir=.GlobalEnv)
         env_token_for_eval <- art$meta_sym
       }
@@ -247,7 +230,8 @@ LoadandPredict <- function(
         next
       }
       
-      # Run your existing evaluator (unchanged). We keep LOAD_FROM_RDS=FALSE to stay in the fast path.
+      processed_any <- TRUE
+      
       res <- DDESONN_predict_eval(
         LOAD_FROM_RDS         = FALSE,
         ENV_META_NAME         = env_token_for_eval,
@@ -265,11 +249,8 @@ LoadandPredict <- function(
         OUT_DIR_ASSERT        = out_dir
       )
       
-      # ---- metrics row
       mr <- res$metrics_row
-      if (is.null(mr) || !is.data.frame(mr) || !nrow(mr)) {
-        warning(sprintf("No metrics_row for seed=%d slot=%d — skipping", seed, slot))
-      } else {
+      if (!is.null(mr) && is.data.frame(mr) && nrow(mr)) {
         mr$run_index <- as.integer(run_index)
         mr$seed      <- as.integer(seed)
         mr$model_slot<- as.integer(slot)
@@ -279,11 +260,8 @@ LoadandPredict <- function(
         metrics_rows[[mr_idx]] <- mr
       }
       
-      # ---- predictions row(s)
       P <- res$probs
-      if (is.null(P) || !is.matrix(P) || !nrow(P)) {
-        warning(sprintf("Empty probs for seed=%d slot=%d — skipping preds", seed, slot))
-      } else {
+      if (!is.null(P) && is.matrix(P) && nrow(P)) {
         y_true <- .as_num_vec(ss$y)
         if (length(y_true) != nrow(P)) {
           nmin <- min(length(y_true), nrow(P))
@@ -320,17 +298,25 @@ LoadandPredict <- function(
     }
   }
   
+  if (!processed_any) {
+    warning("No (seed, slot) pairs were processed. Check available models under: ", artifacts_root)
+  }
+  
   # ---------- bind + write ----------
   agg_metrics     <- if (length(metrics_rows)) do.call(rbind, metrics_rows) else data.frame()
   agg_predictions <- if (length(preds_rows))   do.call(rbind, preds_rows)   else data.frame()
+  
   saveRDS(agg_metrics,     agg_metrics_path)
   saveRDS(agg_predictions, agg_preds_path)
   
+  if (!file.exists(agg_metrics_path)) stop("Internal error: metrics file not created: ", agg_metrics_path)
+  if (!file.exists(agg_preds_path))   stop("Internal error: predictions file not created: ", agg_preds_path)
+  
   message("LoadandPredict complete.")
   list(
-    output_dir            = normalizePath(out_dir, winslash="/", mustWork=FALSE),
-    agg_metrics_file      = normalizePath(agg_metrics_path, winslash="/", mustWork=FALSE),
-    agg_predictions_file  = normalizePath(agg_preds_path, winslash="/", mustWork=FALSE),
+    output_dir            = out_dir,
+    agg_metrics_file      = agg_metrics_path,
+    agg_predictions_file  = agg_preds_path,
     agg_metrics_preview   = utils::head(agg_metrics),
     agg_predictions_rows  = nrow(agg_predictions)
   )
@@ -340,36 +326,24 @@ LoadandPredict <- function(
 # EXAMPLES
 # =====================================================================
 
-# Example 1: ENV metas (no disk)
-# ex1 <- LoadandPredict(
-#   source="env",
-#   env_meta_name_base="Ensemble_Main_0_model_1_metadata",
-#   seeds=c(1,2),
-#   slots=c(1,2),
-#   predict_split="test",
-#   CLASSIFICATION_MODE="binary",
-#   run_index=1,
-#   output_dir_base="artifacts/PredictOnly",
-#   run_dir_name="predict_env_all",
-#   overwrite=TRUE
-# )
-# print(readRDS(ex1$agg_metrics_file))
-# print(head(readRDS(ex1$agg_predictions_file)))
+# Example 1: ENV metas
+# ex1 <- LoadandPredict(source="env", env_meta_name_base="Ensemble_Main_0_model_1_metadata")
 
-# Example 2: EnsembleRuns (from disk)
-ex2 <- LoadandPredict(
-  source="EnsembleRuns",
-  folder=NULL,   # latest under artifacts/EnsembleRuns
-  env_meta_name_base   = NULL,   
+# Example 2: EnsembleRuns
+# ex2 <- LoadandPredict(source="EnsembleRuns", folder=NULL)
+
+# Example 3: SingleRuns (metas live in models/)
+ex3 <- LoadandPredict(
+  source="SingleRuns",
+  folder=NULL,   # latest under artifacts/SingleRuns
   seeds=c(1,2),
   slots=c(1,2),
   predict_split="test",
   CLASSIFICATION_MODE="binary",
   run_index=1,
   output_dir_base="artifacts/PredictOnly",
-  run_dir_name="predict_from_latest_ensemble_all",
+  run_dir_name="predict_from_latest_single_all",
   overwrite=TRUE
 )
-print(readRDS(ex2$agg_metrics_file))
-print(head(readRDS(ex2$agg_predictions_file)))
-
+print(readRDS(ex3$agg_metrics_file))
+print(head(readRDS(ex3$agg_predictions_file)))
