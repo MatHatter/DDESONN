@@ -2381,7 +2381,7 @@ DDESONN <- R6Class(
     numeric_columns = NULL,
     #ensemble_number = NULL,
     # Constructor
-    initialize = function(num_networks, input_size, hidden_sizes, output_size, N, lambda, ensemble_number, ensembles, ML_NN, method = init_method, custom_scale = custom_scale) {
+    initialize = function(num_networks, input_size, hidden_sizes, output_size, N, lambda, ensemble_number, ensembles, ML_NN, activation_functions, activation_functions_predict, method = init_method, custom_scale = custom_scale) {
       
       
       # Initialize an ensemble of SONN networks
@@ -2393,11 +2393,11 @@ DDESONN <- R6Class(
         #   ensemble_number <- j
         # }
         
-        if (firstRun) {
-          ensemble_number <- j
-        } else {
-          ensemble_number <- j + 1
-        }
+        # if (firstRun) {
+        #   ensemble_number <- j
+        # } else {
+        #   ensemble_number <- j + 1
+        # }
         
         ensemble_name <- ensemble_number
         model_name <- i
@@ -2407,65 +2407,7 @@ DDESONN <- R6Class(
         weights_record_extract <- NULL
         biases_record_extract <- NULL
         
-        # Construct result variable name dynamically
-        if (use_loaded_weights || predict_models) {
-          if (startsWith(paste0("run_results_1_", i), "run_results_1_")) {
-            result_variable_name <- paste0("run_results_1_", i)
-          } else if (startsWith(paste0("run_results_1_", i), "official_run_results_1_")) {
-            result_variable_name <- paste0("official_run_results_1_", i)
-          } else {
-            result_variable_name <- paste0("official_", i)
-            cat("Trying to get variable:", result_variable_name, "\n")
-          }
-          
-          # Ensure the variable exists before accessing it
-          if (exists(result_variable_name, envir = .GlobalEnv)) {
-            # Access the variable
-            run_result <- get(result_variable_name, envir = .GlobalEnv)
-            
-            if (!is.null(run_result$weights_record) &&
-                !is.null(run_result$biases_record) &&
-                is.null(run_result$metadata)) {
-              # Initialize lists within lists for weights and biases
-              weights_record_extract <- vector("list", length = length(run_result$best_weights_record))
-              biases_record_extract <- vector("list", length = length(run_result$best_biases_record))
-              
-              # Extract and unlist the first element of weights_record and biases_record
-              weights_record_extract[[1]] <- unlist(official_run_results_1_1$best_weights_record[[1]][[1]])
-              biases_record_extract[[1]] <- unlist(official_run_results_1_1$best_biases_record[[1]][[1]])
-              
-              # Check if ML_NN is TRUE before accessing weights and biases for additional layers
-              if (ML_NN == TRUE) {
-                for (k in 2:(length(hidden_sizes)+1)) {
-                  weights_record_extract[[k]] <- unlist(official_run_results_1_1$best_weights_record[[1]][[k]])
-                  biases_record_extract[[k]] <- unlist(official_run_results_1_1$best_biases_record[[1]][[k]])
-                }
-              }
-            } else if (!is.null(run_result$best_model_metadata$best_weights_record) &&
-                       !is.null(run_result$best_model_metadata$best_biases_record) &&
-                       !is.null(run_result$metadata)) {
-              # Initialize lists within lists for weights and biases
-              weights_record_extract <- vector("list", length = length(run_result$best_model_metadata$best_weights_record))
-              biases_record_extract <- vector("list", length = length(run_result$best_model_metadata$best_biases_record))
-              
-              # Extract and unlist the first element of weights_record and biases_record from best_model_metadata
-              weights_record_extract[[1]] <- unlist(run_result$best_model_metadata$best_weights_record[[1]][[1]])
-              biases_record_extract[[1]] <- unlist(run_result$best_model_metadata$best_biases_record[[1]][[1]])
-              
-              # Check if ML_NN is TRUE before accessing weights and biases for additional layers
-              if (ML_NN == TRUE) {
-                for (k in 2:(length(hidden_sizes)+1)) {
-                  weights_record_extract[[k]] <- unlist(run_result$best_model_metadata$best_weights_record[[1]][[k]])
-                  biases_record_extract[[k]] <- unlist(run_result$best_model_metadata$best_biases_record[[1]][[k]])
-                }
-              }
-            } else {
-              stop(paste("Weights or biases not found in", result_variable_name))
-            }
-          } else {
-            stop(paste("Variable", result_variable_name, "does not exist."))
-          }
-        }
+
         # Instantiate SONN network based on conditions
         if (ML_NN) {
           new_network <- SONN$new(input_size = input_size, hidden_sizes = hidden_sizes, output_size = output_size, N = N, lambda = lambda, ML_NN = ML_NN, activation_functions = activation_functions, activation_functions_predict = activation_functions_predict, method = init_method, custom_scale = custom_scale)

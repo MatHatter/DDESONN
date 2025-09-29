@@ -1317,6 +1317,8 @@ if(train) {
         ensemble_number = 0L,
         ensembles       = NULL,
         ML_NN           = ML_NN,
+        activation_functions=activation_functions, 
+        activation_functions_predict=activation_functions_predict,
         method          = init_method,
         custom_scale    = custom_scale
       )
@@ -2002,7 +2004,7 @@ if(train) {
         num_networks    = max(1L, as.integer(num_networks)),
         input_size      = input_size, hidden_sizes = hidden_sizes, output_size = output_size,
         N = N, lambda = lambda, ensemble_number = 1L, ensembles = ensembles,
-        ML_NN = ML_NN, method = init_method, custom_scale = custom_scale
+        ML_NN = ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, method = init_method, custom_scale = custom_scale
       )
       
       model_results_main <<- main_model$train(
@@ -2262,7 +2264,7 @@ if(train) {
           temp_model <- DDESONN$new(
             num_networks=max(1L, as.integer(num_networks)), input_size=input_size,
             hidden_sizes=hidden_sizes, output_size=output_size, N=N, lambda=lambda,
-            ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, method=init_method, custom_scale=custom_scale
+            ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, method=init_method, custom_scale=custom_scale
           )
           ensembles$temp_ensemble[[1]] <- temp_model
           

@@ -135,7 +135,7 @@ LoadandPredict <- function(
       list(predicted_output = as.matrix(H))
     }
     
-    DDESONN <<- list(
+    DDESONN <- list(
       predict = function(X, meta, model_index=1L, ML_NN=TRUE, ...) {
         forward_from_meta(X, meta, model_index)
       }
@@ -360,6 +360,7 @@ LoadandPredict <- function(
 ex2 <- LoadandPredict(
   source="EnsembleRuns",
   folder=NULL,   # latest under artifacts/EnsembleRuns
+  env_meta_name_base   = NULL,   
   seeds=c(1,2),
   slots=c(1,2),
   predict_split="test",
@@ -371,3 +372,4 @@ ex2 <- LoadandPredict(
 )
 print(readRDS(ex2$agg_metrics_file))
 print(head(readRDS(ex2$agg_predictions_file)))
+
