@@ -852,69 +852,132 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 # .safe_run_predict (passes verbose/debug through)
 .safe_run_predict <- function(
     X, meta,
-    model_index        = 1L,
-    ML_NN              = TRUE,
-    CLASSIFICATION_MODE = NULL,   # ← explicit arg, not expected_mode
+    model_index         = 1L,
+    ML_NN               = TRUE,
+    CLASSIFICATION_MODE = NULL,   # explicit arg, not expected_mode
     ...,
     verbose = get0("VERBOSE_SAFERUN", inherits = TRUE, ifnotfound = FALSE),
     debug   = get0("DEBUG_SAFERUN",   inherits = TRUE, ifnotfound = FALSE),
     DEBUG   = get0("DEBUG_SAFERUN",   inherits = TRUE, ifnotfound = FALSE)
 ) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  vrb <- isTRUE(verbose)
-  dbg <- isTRUE(DEBUG) || isTRUE(debug)
+  vrb  <- isTRUE(verbose)
+  dbg  <- isTRUE(DEBUG) || isTRUE(debug)
   stamp <- format(Sys.time(), "%H:%M:%S")
+  
+  ## ---- Resolve meta (string → env object) & grab predictor
+  if (is.character(meta)) {
+    meta <- get(meta, envir = .GlobalEnv, inherits = TRUE)
+  }
+  predictor <- tryCatch(meta$predictor, error = function(e) NULL)
+  
+  ## ---- Single print; optional early stop (flip STOP_SAFERUN_AT_ENTRY <- TRUE to halt)
+  cat(sprintf("[SAFE-IN] meta_has_predictor=%s | predictor_class=%s | is_function=%s\n",
+              as.character(!is.null(predictor)),
+              paste(class(predictor), collapse = ","),
+              as.character(is.function(predictor))))
+  if (isTRUE(get0("STOP_SAFERUN_AT_ENTRY", inherits = TRUE, ifnotfound = FALSE))) {
+    stop("HALT inside .safe_run_predict (STOP_SAFERUN_AT_ENTRY).")
+  }
   
   if (isTRUE(dbg)) {
     cat(sprintf("[SAFE-DBG %s] enter .safe_run_predict | X dims=%d x %d\n",
                 stamp, NROW(X), NCOL(X)))
-    cat(sprintf("[SAFE-DBG %s] X summary: mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
-                stamp, mean(X), sd(as.vector(X)), min(X), max(X)))
+    ## keep lightweight (avoid heavy summaries on huge X)
+    suppressWarnings({
+      xm <- try(mean(as.numeric(X)), silent = TRUE)
+      xs <- try(sd(as.numeric(X)),   silent = TRUE)
+      xmn <- try(min(as.numeric(X)), silent = TRUE)
+      xmx <- try(max(as.numeric(X)), silent = TRUE)
+      if (!inherits(xm, "try-error")) {
+        cat(sprintf("[SAFE-DBG %s] X summary: mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
+                    stamp, as.numeric(xm), as.numeric(xs), as.numeric(xmn), as.numeric(xmx)))
+      }
+    })
   }
   
-  # resolve mode cleanly: arg > env > meta
+  ## ---- Optional 2-row smoke test around predictor (single print + optional stop)
+  if (isTRUE(get0("SMOKE_SAFERUN", inherits = TRUE, ifnotfound = FALSE)) && is.function(predictor)) {
+    mini_n <- min(2L, NROW(X))
+    if (mini_n >= 1L) {
+      cat(sprintf("[CALL] predictor() | X dims=%d x %d (mini=%d)\n", NROW(X), NCOL(X), mini_n))
+      smoke <- try(predictor(head(X, mini_n), ...), silent = TRUE)
+      has_po <- is.list(smoke) && "predicted_output" %in% names(smoke)
+      po_is_matrix <- isTRUE(has_po) && is.matrix(smoke$predicted_output)
+      cat(sprintf("[RET] class=%s | has_po=%s | po_is_matrix=%s\n",
+                  paste(class(smoke), collapse=","), as.character(has_po), as.character(po_is_matrix)))
+      if (isTRUE(get0("STOP_AFTER_SMOKE", inherits = TRUE, ifnotfound = FALSE))) {
+        stop("HALT after predictor() smoke.")
+      }
+    }
+  }
+  
+  ## ---- Resolve mode cleanly: arg > env > meta
   mode_hint <- tolower(as.character(
     CLASSIFICATION_MODE %||%
       get0("CLASSIFICATION_MODE", inherits = TRUE, ifnotfound = NULL) %||%
       meta$CLASSIFICATION_MODE %||%
       .get_mode(meta) %||% NA
   ))
-  if (!mode_hint %in% c("binary","multiclass","regression")) mode_hint <- NULL
+  if (!mode_hint %in% c("binary", "multiclass", "regression")) mode_hint <- NULL
   if (isTRUE(dbg)) cat(sprintf("[SAFE-DBG %s] mode_hint=%s\n", stamp, as.character(mode_hint)))
   
+  ## ---- Delegate to .run_predict (robust fallback on error)
   out <- tryCatch(
     .run_predict(
       X = X,
       meta = meta,
       model_index = model_index,
       ML_NN = ML_NN,
-      expected_mode = mode_hint,  # ← forward it
+      expected_mode = mode_hint,   # forward hint
       ...,
       verbose = vrb,
       debug   = dbg
     ),
     error = function(e) {
       if (isTRUE(dbg)) message("[SAFE-DBG] .run_predict error: ", conditionMessage(e))
+      ## return an empty prediction matrix to keep pipeline alive
       list(predicted_output = matrix(numeric(0), nrow = 0, ncol = 1))
     }
   )
   
   if (isTRUE(dbg)) {
     raw <- out$predicted_output %||% out
-    cat(sprintf("[SAFE-DBG %s] raw preds head=%s | mean=%.6f | sd=%.6f\n",
-                stamp,
-                paste(head(as.numeric(raw)), collapse=", "),
-                mean(as.numeric(raw)), sd(as.numeric(raw))))
+    suppressWarnings({
+      h <- try(paste(head(as.numeric(raw)), collapse = ", "), silent = TRUE)
+      mu <- try(mean(as.numeric(raw)), silent = TRUE)
+      sdv <- try(sd(as.numeric(raw)),  silent = TRUE)
+      cat(sprintf("[SAFE-DBG %s] raw preds head=%s | mean=%s | sd=%s\n",
+                  stamp,
+                  if (!inherits(h, "try-error")) h else "NA",
+                  if (!inherits(mu, "try-error")) sprintf("%.6f", as.numeric(mu)) else "NA",
+                  if (!inherits(sdv, "try-error")) sprintf("%.6f", as.numeric(sdv)) else "NA"))
+      cat("\n")
+    })
   }
   
-  res <- .as_pred_matrix(out, mode = mode_hint %||% .get_mode(meta), meta = meta,
-                         DEBUG = get0("DEBUG_ASPM", inherits = TRUE, ifnotfound = FALSE))
+  ## ---- Normalize to matrix
+  res <- .as_pred_matrix(
+    out,
+    mode = mode_hint %||% .get_mode(meta),
+    meta = meta,
+    DEBUG = get0("DEBUG_ASPM", inherits = TRUE, ifnotfound = FALSE)
+  )
+  
   if (isTRUE(dbg)) {
-    cat(sprintf("[SAFE-DBG %s] ASPM result dims=%d x %d | mean=%.6f | sd=%.6f\n",
-                stamp, nrow(res), ncol(res), mean(res), sd(as.vector(res))))
+    suppressWarnings({
+      mu <- try(mean(res), silent = TRUE)
+      sdv <- try(sd(as.vector(res)), silent = TRUE)
+      cat(sprintf("[SAFE-DBG %s] ASPM result dims=%d x %d | mean=%s | sd=%s\n",
+                  stamp, nrow(res), ncol(res),
+                  if (!inherits(mu, "try-error")) sprintf("%.6f", as.numeric(mu)) else "NA",
+                  if (!inherits(sdv, "try-error")) sprintf("%.6f", as.numeric(sdv)) else "NA"))
+      cat("\n")
+    })
   }
   res
 }
+
 
 
 
@@ -2208,8 +2271,20 @@ DDESONN_predict_eval <- function(
       ))
       if (length(hits)) { nm <- hits[1]; m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
     }
-    adir <- get0(".BM_DIR", inherits=TRUE, ifnotfound="artifacts")
-    if (!dir.exists(adir)) stop(sprintf("Artifacts dir not found: %s", adir))
+    # Prefer the caller's OUTPUT_DIR / RUN_DIR; else fall back to .BM_DIR; else "artifacts"
+    adir <- if (exists("OUTPUT_DIR", inherits = TRUE) && nzchar(get("OUTPUT_DIR", inherits = TRUE))) {
+      get("OUTPUT_DIR", inherits = TRUE)
+    } else if (exists("RUN_DIR", inherits = TRUE) && nzchar(get("RUN_DIR", inherits = TRUE))) {
+      get("RUN_DIR", inherits = TRUE)
+    } else {
+      get0(".BM_DIR", inherits = TRUE, ifnotfound = "artifacts")
+    }
+    
+    if (!dir.exists(adir)) {
+      dir.create(adir, recursive = TRUE, showWarnings = FALSE)
+      message(sprintf("[IO] Created artifacts dir: %s", adir))
+    }
+    
     files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE, include.dirs=FALSE)
     base_hit <- grepl(sprintf("(?i)%s", esc(ENV_META_NAME)), basename(files), perl=TRUE)
     slot_pat <- sprintf("(?i)_model_%d_", as.integer(MODEL_SLOT))
