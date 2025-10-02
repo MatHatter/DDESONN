@@ -39,10 +39,10 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
     }
     
   } else {
-    
-    # --- SL path: expect SONN$weights to be a matrix ---
-    if (!is.matrix(SONN$weights)) SONN$weights <- as.matrix(SONN$weights)
+    # --- SL path (minimal fix): allow length-1 list, force matrix before storage.mode ---
     W <- SONN$weights
+    if (is.list(W)) W <- W[[1L]]
+    W <- as.matrix(W)
   }
   
   # orient W so columns = features in Rdata
@@ -66,17 +66,13 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
     return(NA_real_)
   }
   
-  mean_distance <- mean(distances, na.rm = TRUE)
-  
-  # if (isTRUE(verbose)) {
-  #   cat("[quantization error]: ", format(mean_distance, digits = 7), "\n", sep = "")
-  # }
-  return(mean_distance)
+  mean(distances, na.rm = TRUE)
 }
+
 
 # Model-only topo error: uses layer-1 weights + map inside SONN
 topographic_error <- function(SONN, Rdata, threshold, verbose) {
-  # --- normalize to list-of-matrix ---
+  # --- normalize to list-of-matrix (preserved) ---
   if (is.matrix(SONN)) SONN <- list(weights = list(as.matrix(SONN)))
   if (is.matrix(SONN$weights)) SONN$weights <- list(as.matrix(SONN$weights))
   if (is.null(SONN$map)) {
@@ -90,14 +86,16 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
     SONN$map[[1]] <- as.matrix(SONN$map[[1]])
   }
   
-  W <- as.matrix(SONN$weights[[1]])   # units x features
-  M <- as.matrix(SONN$map[[1]])       # grid with labels 1..m
+  # --- SL-safe W build (minimal fix): unbox length-1 list, force matrix BEFORE storage.mode ---
+  W <- SONN$weights
+  if (is.list(W)) W <- W[[1L]]
+  W <- as.matrix(W)                    # <— key fix
+  M <- as.matrix(SONN$map[[1]])
   X <- as.matrix(Rdata)
   storage.mode(W) <- "double"; storage.mode(X) <- "double"
   
-  # ---------- ALIGN W to X (prevents sweep() length warnings) ----------
+  # ---------- ALIGN W to X (preserved) ----------
   align_to_X <- function(W, X) {
-    # Name-aware alignment if both have colnames
     if (!is.null(colnames(W)) && !is.null(colnames(X))) {
       wanted <- colnames(X)
       miss <- setdiff(wanted, colnames(W))
@@ -105,11 +103,9 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
         W <- cbind(W, matrix(0, nrow = nrow(W), ncol = length(miss),
                              dimnames = list(NULL, miss)))
       }
-      # drop extras and reorder to X's order
       W <- W[, wanted, drop = FALSE]
       return(W)
     }
-    # Fallback: align by width only
     kx <- ncol(X); kw <- ncol(W)
     if (kw > kx) {
       W[, seq_len(kx), drop = FALSE]
@@ -124,7 +120,7 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
   m <- nrow(W); n <- nrow(X)
   if (m < 2L || n < 1L) return(NA_real_)
   
-  # If map size doesn't match units, rebuild a compact grid
+  # map size check (preserved)
   if (length(M) != m) {
     r <- max(1L, floor(sqrt(m))); while (m %% r && r > 1L) r <- r - 1L
     c <- max(1L, m %/% r)
@@ -140,19 +136,18 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
     }
   }
   
-  # ---------- Fast pairwise squared distances: no sweep(), no warnings ----------
-  # D_ij = ||X_i||^2 + ||W_j||^2 - 2 * X_i · W_j
-  X2 <- rowSums(X * X)                  # n x 1
-  W2 <- rowSums(W * W)                  # m x 1
-  G  <- X %*% t(W)                      # n x m
+  # ---------- Fast pairwise squared distances (preserved) ----------
+  X2 <- rowSums(X * X)
+  W2 <- rowSums(W * W)
+  G  <- X %*% t(W)
   D  <- matrix(X2, n, m) + matrix(W2, n, m, byrow = TRUE) - 2 * G
   
-  # BMU / second-BMU
+  # BMU / second-BMU (preserved)
   bmu <- max.col(-D, ties.method = "first")
   D[cbind(seq_len(n), bmu)] <- Inf
   sbmu <- max.col(-D, ties.method = "first")
   
-  # grid coords for units 1..m
+  # grid coords (preserved)
   coords <- matrix(NA_integer_, m, 2)
   for (k in 1:m) {
     pos <- which(M == k, arr.ind = TRUE)
@@ -190,16 +185,23 @@ clustering_quality_db <- function(SONN, Rdata, cluster_assignments, verbose) {
     stop("Cluster assignments not available. Perform kmeans clustering first.")
   }
   
-  # Ensure Rdata is a numeric matrix
+  # Ensure Rdata is a numeric matrix (SL-safe: force matrix BEFORE storage.mode)
   if (!is.matrix(Rdata)) Rdata <- as.matrix(Rdata)
-  Rdata <- apply(Rdata, 2, as.numeric)  # force numeric values
+  Rdata <- apply(Rdata, 2, as.numeric)
+  storage.mode(Rdata) <- "double"
   
-  # Compute centroids and ensure it's numeric matrix
-  centroids <- aggregate(Rdata, by = list(cluster_assignments), FUN = mean)[, -1]
+  # Compute centroids and ensure it's a numeric matrix
+  centroids <- aggregate(Rdata, by = list(cluster_assignments), FUN = mean)[, -1, drop = FALSE]
   centroids <- as.matrix(centroids)
   centroids <- apply(centroids, 2, as.numeric)
+  storage.mode(centroids) <- "double"
   
   n_clusters <- nrow(centroids)
+  if (n_clusters < 2L) {
+    # DB index undefined with <2 clusters; return NA to avoid bogus division
+    if (isTRUE(verbose)) cat("[clustering_quality_db] n_clusters <", 2L, "→ NA\n")
+    return(NA_real_)
+  }
   
   # Split indices by cluster
   cluster_indices <- split(seq_len(nrow(Rdata)), cluster_assignments)
@@ -215,14 +217,16 @@ clustering_quality_db <- function(SONN, Rdata, cluster_assignments, verbose) {
   
   # Precompute inter-cluster distances (squared Euclidean)
   D <- as.matrix(dist(centroids))^2
+  storage.mode(D) <- "double"
   
-  # Compute Davies-Bouldin index
+  # Compute Davies-Bouldin index (guard 0 distance)
   db_index <- 0
   for (i in seq_len(n_clusters)) {
     max_ratio <- -Inf
     for (j in seq_len(n_clusters)) {
       if (i != j) {
-        ratio <- (S[i] + S[j]) / sqrt(D[i, j])
+        denom <- sqrt(D[i, j])
+        ratio <- if (denom > 0) (S[i] + S[j]) / denom else Inf
         if (ratio > max_ratio) max_ratio <- ratio
       }
     }
@@ -245,9 +249,15 @@ MSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
   # support %||% like base R (define before use)
   `%||%` <- function(x, y) if (is.null(x)) y else x
   
-  # --- coerce to numeric matrices ---
+  # --- coerce to numeric matrices (then SL-style tiny guards) ---
   lbl  <- coerce_to_numeric_matrix(labels)
   pred <- coerce_to_numeric_matrix(predicted_output)
+  if (is.list(lbl))  lbl  <- lbl[[1L]]
+  if (is.list(pred)) pred <- pred[[1L]]
+  if (!is.matrix(lbl))  lbl  <- as.matrix(lbl)
+  if (!is.matrix(pred)) pred <- as.matrix(pred)
+  storage.mode(lbl)  <- "double"
+  storage.mode(pred) <- "double"
   
   # --- ROW ALIGNMENT (no recycling) ---
   n_common <- min(nrow(lbl), nrow(pred))
@@ -346,10 +356,16 @@ MSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
 # Signature: R2(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose)
 R2 <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-
-  # --- coerce ---
+  
+  # --- coerce (with minimal SL-style guard) ---
   lbl  <- coerce_to_numeric_matrix(labels)
   pred <- coerce_to_numeric_matrix(predicted_output)
+  if (is.list(lbl))  lbl  <- lbl[[1L]]
+  if (is.list(pred)) pred <- pred[[1L]]
+  if (!is.matrix(lbl))  lbl  <- as.matrix(lbl)
+  if (!is.matrix(pred)) pred <- as.matrix(pred)
+  storage.mode(lbl)  <- "double"
+  storage.mode(pred) <- "double"
   
   # --- row align ---
   n_common <- min(nrow(lbl), nrow(pred)); if (n_common == 0L) return(NA_real_)

@@ -909,8 +909,8 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 .safe_run_predict <- function(
     X, meta,
     model_index         = 1L,
-    ML_NN               = TRUE,
-    CLASSIFICATION_MODE = NULL,   # optional hint
+    ML_NN               = NULL,
+    CLASSIFICATION_MODE = NULL,   # ← fixed (no self-reference)
     ...,
     verbose = get0("VERBOSE_SAFERUN", inherits = TRUE, ifnotfound = FALSE),
     debug   = get0("DEBUG_SAFERUN",   inherits = TRUE, ifnotfound = FALSE),
@@ -928,19 +928,21 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
   predictor    <- tryCatch(meta$predictor,    error = function(e) NULL)
   predictor_fn <- tryCatch(meta$predictor_fn, error = function(e) NULL)
   
-  cat(sprintf("[SAFE-IN] meta_has_predictor=%s | predictor_class=%s | is_function=%s\n",
-              as.character(!is.null(predictor)),
-              paste(class(predictor), collapse = ","),
-              as.character(is.function(predictor))))
+  if (vrb || dbg) {
+    cat(sprintf("[SAFE-IN] meta_has_predictor=%s | predictor_class=%s | is_function=%s\n",
+                as.character(!is.null(predictor)),
+                paste(class(predictor), collapse = ","),
+                as.character(is.function(predictor))))
+  }
   
   if (dbg) {
     cat(sprintf("[SAFE-DBG %s] enter .safe_run_predict | X dims=%d x %d\n",
                 stamp, NROW(X), NCOL(X)))
     suppressWarnings({
-      xm <- try(mean(as.numeric(X)), silent = TRUE)
-      xs <- try(sd(as.numeric(X)),   silent = TRUE)
-      xmn <- try(min(as.numeric(X)), silent = TRUE)
-      xmx <- try(max(as.numeric(X)), silent = TRUE)
+      xm  <- try(mean(as.numeric(X)), silent = TRUE)
+      xs  <- try(sd(as.numeric(X)),   silent = TRUE)
+      xmn <- try(min(as.numeric(X)),  silent = TRUE)
+      xmx <- try(max(as.numeric(X)),  silent = TRUE)
       if (!inherits(xm, "try-error")) {
         cat(sprintf("[SAFE-DBG %s] X summary: mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
                     stamp, as.numeric(xm), as.numeric(xs), as.numeric(xmn), as.numeric(xmx)))
@@ -1028,6 +1030,10 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 }
 
 
+
+## ------------------------------------------------------------------------
+## Predict shim (stateless, uses extract_best_records) — MODE-AWARE
+## ------------------------------------------------------------------------
 ## ------------------------------------------------------------------------
 ## Predict shim (stateless, uses extract_best_records) — MODE-AWARE
 ## ------------------------------------------------------------------------
@@ -1035,7 +1041,7 @@ if (!exists(".run_predict", inherits = TRUE)) {
   .run_predict <- function(
     X, meta,
     model_index   = 1L,
-    ML_NN         = TRUE,
+    ML_NN         = NULL,
     expected_mode = NULL,
     ...,
     verbose = get0("VERBOSE_RUNPRED", inherits = TRUE, ifnotfound = FALSE),
@@ -2391,7 +2397,7 @@ DDESONN_predict_eval <- function(
   tryCatch({
     Xi <- .as_numeric_matrix_strict(Xi_raw, nm="X")
     yi <- .as_numeric_vector_strict(yi_raw,  nm="y")
-    if (NROW(Xi_raw) != length(yi)) stop(sprintf("[LABEL-CHK] NROW(X)=%d vs len(y)=%d", NROW(Xi_raw), length(yi)))
+    if (nrow(Xi) != length(yi)) stop(sprintf("[LABEL-CHK] NROW(X)=%d vs len(y)=%d", nrow(Xi), length(yi)))
     expected <- tryCatch({ nms <- meta$feature_names %||% meta$input_names %||% meta$colnames; if (is.null(nms)) colnames(Xi) else as.character(nms) }, error=function(e) colnames(Xi))
     miss <- setdiff(expected, colnames(Xi))
     if (length(miss)) Xi <- cbind(Xi, matrix(0, nrow=nrow(Xi), ncol=length(miss), dimnames=list(NULL, miss)))
@@ -2406,7 +2412,7 @@ DDESONN_predict_eval <- function(
   tryCatch({
     t0 <- proc.time()
     out <- .safe_run_predict(
-      X = Xi, meta = meta, model_index = as.integer(MODEL_SLOT), ML_NN = TRUE,
+      X = Xi, meta = meta, model_index = as.integer(MODEL_SLOT), ML_NN = ML_NN,
       verbose = isTRUE(get0("VERBOSE_RUNPRED", inherits=TRUE, ifnotfound=FALSE)),
       debug   = isTRUE(get0("DEBUG_RUNPRED",   inherits=TRUE, ifnotfound=FALSE))
     )
