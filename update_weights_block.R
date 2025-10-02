@@ -287,10 +287,15 @@ update_weights_block <- function(
     # SINGLE-LAYER NN BRANCH
     # =========================
     if (!is.null(self$weights) && !is.null(optimizer)) {
+      weights_mat <- if (is.list(self$weights)) {
+        as.matrix(self$weights[[1]])
+      } else {
+        as.matrix(self$weights)
+      }
       if (is.null(optimizer_params_weights[[1]])) {
         optimizer_params_weights[[1]] <- initialize_optimizer_params(
           optimizer,
-          list(dim(self$weights)),
+          list(dim(weights_mat)),
           lookahead_step,
           1L
         )
@@ -308,28 +313,28 @@ update_weights_block <- function(
       # --------- Regularization ---------
       if (!is.null(reg_type)) {
         if (reg_type == "L2") {
-          reg_term <- self$lambda * self$weights
+          reg_term <- self$lambda * weights_mat
           weight_update <- lr * grads_matrix + reg_term
         } else if (reg_type == "L1") {
-          reg_term <- self$lambda * sign(self$weights)
+          reg_term <- self$lambda * sign(weights_mat)
           weight_update <- lr * grads_matrix + reg_term
         } else if (reg_type == "L1_L2") {
           l1_ratio <- 0.5
-          reg_term <- self$lambda * (l1_ratio * sign(self$weights) + (1 - l1_ratio) * self$weights)
+          reg_term <- self$lambda * (l1_ratio * sign(weights_mat) + (1 - l1_ratio) * weights_mat)
           weight_update <- lr * grads_matrix + reg_term
         } else if (reg_type == "Group_Lasso") {
-          norm_weights <- sqrt(sum(self$weights^2, na.rm = TRUE)) + 1e-8
-          reg_term <- self$lambda * (self$weights / norm_weights)
+          norm_weights <- sqrt(sum(weights_mat^2, na.rm = TRUE)) + 1e-8
+          reg_term <- self$lambda * (weights_mat / norm_weights)
           weight_update <- lr * grads_matrix + reg_term
         } else if (reg_type == "Max_Norm") {
           max_norm <- 1.0
-          norm_weights <- sqrt(sum(self$weights^2, na.rm = TRUE))
+          norm_weights <- sqrt(sum(weights_mat^2, na.rm = TRUE))
           clipped_weights <- if (norm_weights > max_norm) {
-            (self$weights / norm_weights) * max_norm
+            (weights_mat / norm_weights) * max_norm
           } else {
-            self$weights
+            weights_mat
           }
-          reg_term <- self$lambda * (self$weights - clipped_weights)
+          reg_term <- self$lambda * (weights_mat - clipped_weights)
           weight_update <- lr * grads_matrix + reg_term
         } else {
           cat("Warning: Unknown reg_type in SL. No regularization applied.\n")
@@ -361,31 +366,46 @@ update_weights_block <- function(
             verbose = verbose
           )
           # Most branches in your ML path assign absolute weights; mirror that:
-          self$weights <- updated_optimizer$updated_weights_or_biases
+          weights_mat <- updated_optimizer$updated_weights_or_biases
+          if (is.list(self$weights)) {
+            self$weights[[1]] <- weights_mat
+          } else {
+            self$weights <- weights_mat
+          }
           optimizer_params_weights[[1]] <- updated_optimizer$updated_optimizer_params
-          
-          cat(">> SL updated weights summary: min =", min(self$weights),
-              ", mean =", mean(self$weights),
-              ", max =", max(self$weights), "\n")
+
+          cat(">> SL updated weights summary: min =", min(weights_mat),
+              ", mean =", mean(weights_mat),
+              ", max =", max(weights_mat), "\n")
           
         } else {
           # Unknown optimizer → fall back to manual update
-          if (all(dim(grads_matrix) == dim(self$weights))) {
-            self$weights <- self$weights - weight_update
-          } else if (prod(dim(self$weights)) == 1) {
-            self$weights <- self$weights - sum(weight_update)
+          if (all(dim(grads_matrix) == dim(weights_mat))) {
+            weights_mat <- weights_mat - weight_update
+          } else if (prod(dim(weights_mat)) == 1) {
+            weights_mat <- weights_mat - sum(weight_update)
           } else {
-            self$weights <- self$weights - apply(weight_update, 2, mean)
+            weights_mat <- weights_mat - apply(weight_update, 2, mean)
+          }
+          if (is.list(self$weights)) {
+            self$weights[[1]] <- weights_mat
+          } else {
+            self$weights <- weights_mat
           }
         }
       } else {
         # Params not initialized (shouldn’t happen) → safe fallback
-        if (all(dim(grads_matrix) == dim(self$weights))) {
-          self$weights <- self$weights - weight_update
-        } else if (prod(dim(self$weights)) == 1) {
-          self$weights <- self$weights - sum(weight_update)
+        if (all(dim(grads_matrix) == dim(weights_mat))) {
+          weights_mat <- weights_mat - weight_update
+        } else if (prod(dim(weights_mat)) == 1) {
+          weights_mat <- weights_mat - sum(weight_update)
         } else {
-          self$weights <- self$weights - apply(weight_update, 2, mean)
+          weights_mat <- weights_mat - apply(weight_update, 2, mean)
+        }
+        if (is.list(self$weights)) {
+          self$weights[[1]] <- weights_mat
+        } else {
+          self$weights <- weights_mat
         }
       }
     }

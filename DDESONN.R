@@ -188,22 +188,20 @@ SONN <- R6Class(
         # First hidden layer
         weights[[1]] <- init_weight(input_size, hidden_sizes[1], method, custom_scale)
         biases[[1]]  <- matrix(0, nrow = hidden_sizes[1], ncol = 1)
-        
+
         # Intermediate hidden layers
         for (layer in 2:length(hidden_sizes)) {
           weights[[layer]] <- init_weight(hidden_sizes[layer - 1], hidden_sizes[layer], method, custom_scale)
           biases[[layer]]  <- matrix(0, nrow = hidden_sizes[layer], ncol = 1)
         }
-        
+
         # Output layer
         last_hidden_size <- hidden_sizes[[length(hidden_sizes)]]
         weights[[length(hidden_sizes) + 1]] <- init_weight(last_hidden_size, output_size, method, custom_scale)
         biases[[length(hidden_sizes) + 1]]  <- matrix(0, nrow = output_size, ncol = 1)
+
         
-        # assign into self (UNCHANGED for ML)
-        self$weights <- weights
-        self$biases  <- biases
-        
+
       } else {
         # ---- Single-layer path ----
         # keep building in locals for consistency
@@ -223,9 +221,13 @@ SONN <- R6Class(
         self$weights <- W                       # matrix: input_size x output_size
         self$biases  <- as.numeric(b)           # vector: length = output_size
       }
+      # assign into self
+      self$weights <- weights
+      self$biases  <- biases
       
       # return shapes consistent with assignment (SL returns plain; ML returns lists)
       return(list(weights = self$weights, biases = self$biases))
+      
     },
     #Dropout functions with no default rates (training only)
     dropout_forward = function(x, rate) {
@@ -280,7 +282,8 @@ SONN <- R6Class(
       } else {
         # Single-layer mode
         input_rows <- nrow(Rdata)
-        output_cols <- ncol(self$weights)
+        weight_matrix_sl <- if (is.list(self$weights)) as.matrix(self$weights[[1]]) else as.matrix(self$weights)
+        output_cols <- ncol(weight_matrix_sl)
         
         if (length(self$biases) == 1) {
           bias_matrix <- matrix(self$biases, nrow = input_rows, ncol = output_cols, byrow = TRUE)
@@ -293,7 +296,7 @@ SONN <- R6Class(
           bias_matrix <- matrix(self$biases[1:output_cols], nrow = input_rows, ncol = output_cols, byrow = TRUE)
         }
         
-        outputs <- Rdata %*% self$weights + bias_matrix 
+        outputs <- Rdata %*% weight_matrix_sl + bias_matrix
       }
       
       
@@ -451,7 +454,7 @@ SONN <- R6Class(
         cat("Single Layer Backpropagation\n")
         
         # Check existence
-        weights_sl <- self$weights[[1]]
+        weights_sl <- if (is.list(self$weights)) self$weights[[1]] else self$weights
         errors_sl  <- errors[[1]]
         
         if (is.null(weights_sl) || is.null(errors_sl)) {
@@ -548,19 +551,20 @@ SONN <- R6Class(
       }
       else {
         # Robust single-layer weight update
+        weights_mat <- if (is.list(self$weights)) as.matrix(self$weights[[1]]) else as.matrix(self$weights)
         gradient <- tryCatch({
           grad <- t(Rdata) %*% error_1000x10
-          if (all(dim(self$weights) == dim(grad))) {
+          if (all(dim(weights_mat) == dim(grad))) {
             grad
-          } else if (prod(dim(self$weights)) == 1) {
+          } else if (prod(dim(weights_mat)) == 1) {
             sum(grad)
-          } else if (ncol(self$weights) < ncol(grad)) {
-            grad[, 1:ncol(self$weights), drop = FALSE]
-          } else if (ncol(self$weights) > ncol(grad)) {
+          } else if (ncol(weights_mat) < ncol(grad)) {
+            grad[, 1:ncol(weights_mat), drop = FALSE]
+          } else if (ncol(weights_mat) > ncol(grad)) {
             matrix(
-              rep(grad, length.out = nrow(self$weights) * ncol(self$weights)),
-              nrow = nrow(self$weights),
-              ncol = ncol(self$weights)
+              rep(grad, length.out = nrow(weights_mat) * ncol(weights_mat)),
+              nrow = nrow(weights_mat),
+              ncol = ncol(weights_mat)
             )
           } else {
             apply(grad, 2, mean)
@@ -568,12 +572,17 @@ SONN <- R6Class(
         }, error = function(e) {
           apply(t(Rdata) %*% error_1000x10, 2, mean)
         })
-        
+
         # Update weights
         if (is.matrix(gradient)) {
-          self$weights <- self$weights - (lr * gradient)
+          weights_mat <- weights_mat - (lr * gradient)
         } else {
-          self$weights <- self$weights - (lr * matrix(gradient, nrow = nrow(self$weights), ncol = ncol(self$weights)))
+          weights_mat <- weights_mat - (lr * matrix(gradient, nrow = nrow(weights_mat), ncol = ncol(weights_mat)))
+        }
+        if (is.list(self$weights)) {
+          self$weights[[1]] <- weights_mat
+        } else {
+          self$weights <- weights_mat
         }
         
         # Robust single-layer bias update
@@ -674,19 +683,29 @@ SONN <- R6Class(
         
         # Truncate weights to desired number of SOM neurons and match input dimension
         truncated_weights <- self$map$codes[[1]][1:actual_neurons, 1:input_dim, drop = FALSE]
-        self$weights[[1]] <- matrix(truncated_weights, nrow = actual_neurons, ncol = input_dim)
-        
+        if (is.list(self$weights)) {
+          self$weights[[1]] <- matrix(truncated_weights, nrow = actual_neurons, ncol = input_dim)
+          weight_dim <- dim(self$weights[[1]])
+        } else {
+          self$weights <- matrix(truncated_weights, nrow = actual_neurons, ncol = input_dim)
+          weight_dim <- dim(self$weights)
+        }
+
         # Set bias to match output dimension of layer 1
         output_dim_layer1 <- if (self$ML_NN && self$num_layers >= 1) {
-          ncol(self$weights[[1]])
+          weight_dim[2]
         } else {
           1
         }
-        self$biases[[1]] <- rep(0, output_dim_layer1)
-        
+        if (is.list(self$biases)) {
+          self$biases[[1]] <- rep(0, output_dim_layer1)
+        } else {
+          self$biases <- rep(0, output_dim_layer1)
+        }
+
         # Debug info
         cat("[Debug] SOM-trained weights dim after truncation:\n")
-        print(dim(self$weights[[1]]))
+        print(weight_dim)
       }
       
       
@@ -911,8 +930,16 @@ SONN <- R6Class(
         cat("Single Layer Learning Phase\n")
         
         X <- as.matrix(Rdata)
-        weights_matrix <- as.matrix(self$weights)
-        bias_vec <- as.numeric(unlist(self$biases))
+        weights_matrix <- if (is.list(self$weights)) {
+          as.matrix(self$weights[[1]])
+        } else {
+          as.matrix(self$weights)
+        }
+        bias_vec <- if (is.list(self$biases)) {
+          as.numeric(unlist(self$biases[[1]]))
+        } else {
+          as.numeric(self$biases)
+        }
         
         if (ncol(X) != nrow(weights_matrix)) {
           stop(sprintf("SL NN: input cols (%d) do not match weights rows (%d)", ncol(X), nrow(weights_matrix)))
@@ -1745,7 +1772,11 @@ SONN <- R6Class(
               weights_record[[layer]] <- as.matrix(self$weights[[layer]])
             }
           } else {
-            weights_record <- as.matrix(self$weights)
+            weights_record <- if (is.list(self$weights)) {
+              as.matrix(self$weights[[1]])
+            } else {
+              as.matrix(self$weights)
+            }
           }
           
           # =========================
@@ -1756,8 +1787,11 @@ SONN <- R6Class(
           
           # post-update max|W| and log
           max_weight <- tryCatch({
-            stopifnot(is.list(self$weights), length(self$weights) >= 1)
-            max(unlist(lapply(self$weights, function(W) max(abs(as.numeric(W)), na.rm = TRUE))), na.rm = TRUE)
+            if (is.list(self$weights)) {
+              max(unlist(lapply(self$weights, function(W) max(abs(as.numeric(W)), na.rm = TRUE))), na.rm = TRUE)
+            } else {
+              max(abs(as.numeric(self$weights)), na.rm = TRUE)
+            }
           }, error = function(e) NA_real_)
           max_weight_log <- c(max_weight_log, max_weight)
           
