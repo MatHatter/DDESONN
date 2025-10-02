@@ -595,7 +595,7 @@ LoadandPredict <- function(
 # -------------------------------
 # # EnsembleRuns — models/main (default)
 ex1 <- LoadandPredict(
-  source="SingleRuns", folder=NULL, seeds=c(1), slots=1:4,
+  source="EnsembleRuns", folder=NULL, seeds=c(1), slots=1:5,
   predict_split="test", CLASSIFICATION_MODE="binary", run_index=1,
   output_dir_base="artifacts/PredictOnly", run_dir_name="predict_from_latest_ensemble_main",
   overwrite=TRUE, ensemble_model_subdir="main"
