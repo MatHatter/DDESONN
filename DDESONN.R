@@ -1854,17 +1854,13 @@ SONN <- R6Class(
           }
           
 
-            
-            if (self$ML_NN) {
-              for (layer in 1:self$num_layers) {
-                
-                self$biases[[layer]] <- 0
-                biases_record[[layer]] <- as.matrix(self$biases[[layer]])
-              }
-            } else {
-              self$biases <- 0
-              biases_record <- as.matrix(self$biases)
+          if (self$ML_NN) {
+            for (layer in 1:self$num_layers) {
+              biases_record[[layer]] <- as.matrix(self$biases[[layer]])
             }
+          } else {
+            biases_record <- as.matrix(self$biases)
+          }
           
           
           
@@ -1900,6 +1896,9 @@ SONN <- R6Class(
           best_biases  <- NULL
           
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+            
+            # ensure symbol exists for all return paths
+            predicted_output_val <- NULL
             
             # -------- Validation path --------
             predicted_output_val <- tryCatch(
