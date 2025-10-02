@@ -2016,8 +2016,7 @@ if(train) {
             weight_column = "tuned_f1", use_tuned_threshold_for_vote = TRUE,
             default_threshold = 0.5, classification_mode = CLASSIFICATION_MODE
           )
-          fused_path <- file.path(RUN_DIR, "fused",
-                                  sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
+          fused_path <- file.path(RUN_DIR, "fused", sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
           saveRDS(fused, fused_path)
           cat("[SAVE] fused → ", fused_path, "\n", sep = "")
         }

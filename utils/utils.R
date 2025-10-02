@@ -473,6 +473,60 @@ if (!exists("extract_best_records", inherits = TRUE)) {
   as.numeric(y)
 }
 
+# ------------------------------------------------------------------
+# Shared numeric coercion helpers
+# ------------------------------------------------------------------
+
+coerce_to_numeric_matrix <- function(x, allow_model_matrix = TRUE) {
+  if (is.null(x)) {
+    return(matrix(numeric(0), nrow = 0, ncol = 0))
+  }
+
+  if (is.data.frame(x)) {
+    if (!ncol(x)) {
+      return(matrix(numeric(0), nrow = nrow(x), ncol = 0))
+    }
+    if (allow_model_matrix) {
+      x <- stats::model.matrix(~ . - 1, data = x)
+    } else {
+      x[] <- lapply(x, function(col) {
+        if (is.numeric(col)) col else as.numeric(as.factor(col))
+      })
+      x <- as.matrix(x)
+    }
+  } else if (is.factor(x) || is.character(x)) {
+    x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
+  } else if (is.atomic(x) && !is.matrix(x)) {
+    x <- matrix(x, ncol = 1L)
+  } else {
+    x <- as.matrix(x)
+    if (!is.numeric(x)) {
+      x <- apply(x, 2L, function(col) {
+        if (is.numeric(col)) col else as.numeric(as.factor(col))
+      })
+      x <- as.matrix(x)
+    }
+  }
+
+  storage.mode(x) <- "double"
+  x
+}
+
+safe_one_hot_matrix <- function(idx, K) {
+  idx <- suppressWarnings(as.integer(idx))
+  if (!length(idx)) {
+    return(matrix(0, nrow = 0, ncol = K))
+  }
+
+  idx[is.na(idx)] <- 1L
+  idx[idx < 1L] <- 1L
+  idx[idx > K]  <- K
+
+  M <- one_hot_from_ids(idx, K, N = length(idx), strict = FALSE)
+  storage.mode(M) <- "double"
+  M
+}
+
 .align_by_names_safe <- function(Xi, Xref) {
   Xi <- as.matrix(Xi)
   if (is.null(Xref)) return(Xi)
@@ -2794,11 +2848,6 @@ DDESONN_fuse_from_agg <- function(
   } else {
     df$.__split__ <- NA_character_
   }
-  
-  # quick sanity debug (prints once)
-  message(sprintf("[FUSE-DBG] agg rows=%d | cols={%s}", nrow(df), paste(names(df), collapse=",")))
-  message("[FUSE-DBG] sample ids (run,seed,slot,split):")
-  print(utils::head(df[, c(run_col, seed_col, slot_col, ".__split__"), drop = FALSE], 10))
   
   # build filter (only apply split if there are any non-NA values)
   keep <- (df[[run_col]] == as.integer(RUN_INDEX)) & (df[[seed_col]] == as.integer(SEED))

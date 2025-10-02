@@ -10,6 +10,10 @@
 # `-'     `-'  `-'     `-'  `-'     `-'  `-'     `-'  `-'     `-'  `-'     `-'  `-'     `-'     $$$$$$$$$$$$$$$$$$$$$$$
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
+if (!exists("coerce_to_numeric_matrix", inherits = TRUE)) {
+  source("utils/utils.R")
+}
+
 quantization_error <- function(SONN, Rdata, run_id, verbose) {
   
   # keep your structure; just coerce data once
@@ -241,35 +245,9 @@ MSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
   # support %||% like base R (define before use)
   `%||%` <- function(x, y) if (is.null(x)) y else x
   
-  # --- helpers ---
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      mm <- model.matrix(~ . - 1, data = x)
-      x <- as.matrix(mm)
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1)
-    } else {
-      x <- as.matrix(x)
-    }
-    storage.mode(x) <- "double"
-    x
-  }
-  one_hot <- function(idx, K) {
-    idx <- as.integer(idx)
-    idx[is.na(idx)] <- 1L
-    idx[idx < 1L] <- 1L
-    idx[idx > K]  <- K
-    M <- matrix(0, nrow = length(idx), ncol = K)
-    if (length(idx)) M[cbind(seq_along(idx), idx)] <- 1
-    storage.mode(M) <- "double"
-    M
-  }
-  
   # --- coerce to numeric matrices ---
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   
   # --- ROW ALIGNMENT (no recycling) ---
   n_common <- min(nrow(lbl), nrow(pred))
@@ -292,7 +270,7 @@ MSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
           lbl <- lbl + 1
         }
       }
-      lbl <- one_hot(lbl[, 1], K)
+      lbl <- safe_one_hot_matrix(lbl[, 1], K)
     } else if (ncol(lbl) != K) {
       return(NA_real_)
     }
@@ -368,28 +346,10 @@ MSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
 # Signature: R2(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose)
 R2 <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  
-  # --- helpers ---
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      mm <- model.matrix(~ . - 1, data = x); x <- as.matrix(mm)
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1)
-    } else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
-  one_hot <- function(idx, K) {
-    idx <- as.integer(idx); idx[is.na(idx)] <- 1L; idx[idx < 1L] <- 1L; idx[idx > K] <- K
-    M <- matrix(0, nrow = length(idx), ncol = K)
-    if (length(idx)) M[cbind(seq_along(idx), idx)] <- 1
-    storage.mode(M) <- "double"; M
-  }
-  
+
   # --- coerce ---
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   
   # --- row align ---
   n_common <- min(nrow(lbl), nrow(pred)); if (n_common == 0L) return(NA_real_)
@@ -404,7 +364,7 @@ R2 <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbo
     if (ncol(lbl) == 1L) {
       u <- sort(unique(as.integer(lbl[, 1])))
       if (length(u) && min(u, na.rm = TRUE) == 0L && max(u, na.rm = TRUE) == (K - 1L)) lbl <- lbl + 1
-      lbl <- one_hot(lbl[, 1], K)
+      lbl <- safe_one_hot_matrix(lbl[, 1], K)
     } else if (ncol(lbl) != K) return(NA_real_)
     return(NA_real_)  # R² not meaningful for classification
     
@@ -450,18 +410,11 @@ R2 <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbo
 MAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE,
                  eps_abs = 1e-6, eps_pct = 1e-3) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) x <- model.matrix(~ . - 1, x)
-    else if (is.factor(x) || is.character(x)) x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    else if (is.atomic(x) && !is.matrix(x)) x <- matrix(x, ncol = 1)
-    else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
   mode <- tolower(as.character(CLASSIFICATION_MODE %||% "regression"))
   if (!identical(mode, "regression")) return(NA_real_)
-  
-  y   <- to_num_mat(labels)
-  yhat<- to_num_mat(predicted_output)
+
+  y   <- coerce_to_numeric_matrix(labels)
+  yhat<- coerce_to_numeric_matrix(predicted_output)
   
   n <- min(nrow(y), nrow(yhat)); if (n == 0L) return(NA_real_)
   y    <- y[seq_len(n), , drop = FALSE]
@@ -490,18 +443,11 @@ MAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, ver
 SMAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE,
                   eps = 1e-6) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) x <- model.matrix(~ . - 1, x)
-    else if (is.factor(x) || is.character(x)) x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    else if (is.atomic(x) && !is.matrix(x)) x <- matrix(x, ncol = 1)
-    else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
   mode <- tolower(as.character(CLASSIFICATION_MODE %||% "regression"))
   if (!identical(mode, "regression")) return(NA_real_)
-  
-  y   <- to_num_mat(labels)
-  yhat<- to_num_mat(predicted_output)
+
+  y   <- coerce_to_numeric_matrix(labels)
+  yhat<- coerce_to_numeric_matrix(predicted_output)
   
   n <- min(nrow(y), nrow(yhat)); if (n == 0L) return(NA_real_)
   y    <- y[seq_len(n), , drop = FALSE]
@@ -526,18 +472,11 @@ SMAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, ve
 WMAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE,
                   denom_floor = 1e-6) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) x <- model.matrix(~ . - 1, x)
-    else if (is.factor(x) || is.character(x)) x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    else if (is.atomic(x) && !is.matrix(x)) x <- matrix(x, ncol = 1)
-    else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
   mode <- tolower(as.character(CLASSIFICATION_MODE %||% "regression"))
   if (!identical(mode, "regression")) return(NA_real_)
-  
-  y   <- to_num_mat(labels)
-  yhat<- to_num_mat(predicted_output)
+
+  y   <- coerce_to_numeric_matrix(labels)
+  yhat<- coerce_to_numeric_matrix(predicted_output)
   
   n <- min(nrow(y), nrow(yhat)); if (n == 0L) return(NA_real_)
   y    <- y[seq_len(n), , drop = FALSE]
@@ -563,24 +502,12 @@ WMAPE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, ve
 MASE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE,
                  lag = 1L) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  
-  # --- helpers ---
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) {
-      mm <- model.matrix(~ . - 1, data = x); x <- as.matrix(mm)
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1)
-    } else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
-  
+
   mode <- tolower(as.character(CLASSIFICATION_MODE %||% "regression"))
   if (!identical(mode, "regression")) return(NA_real_)
-  
-  y    <- to_num_mat(labels)
-  yhat <- to_num_mat(predicted_output)
+
+  y    <- coerce_to_numeric_matrix(labels)
+  yhat <- coerce_to_numeric_matrix(predicted_output)
   
   # --- align rows ---
   n <- min(nrow(y), nrow(yhat))
@@ -669,20 +596,6 @@ memory_usage <- function(SONN, Rdata, verbose) {
 robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, predicted_output, ensemble_number, weights, biases, activation_functions, dropout_rates, verbose) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
   
-  # Minimal, safe coercion (kept local; upstream helpers don't include this)
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      mm <- model.matrix(~ . - 1, data = x); x <- as.matrix(mm)
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-    }
-    storage.mode(x) <- "double"; x
-  }
-  
   # --------- Build noisy data (deterministic) ----------
   Rdata <- as.matrix(Rdata); storage.mode(Rdata) <- "double"
   set.seed(123)
@@ -713,8 +626,8 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
   pred_raw <- pred_obj$predicted_output
   
   # Coerce to numeric matrices
-  L <- to_num_mat(labels, "labels")
-  P <- to_num_mat(pred_raw, "predicted_output")
+  L <- coerce_to_numeric_matrix(labels)
+  P <- coerce_to_numeric_matrix(pred_raw)
   
   # Row alignment
   n_common <- min(nrow(L), nrow(P))
@@ -850,21 +763,6 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      x <- as.matrix(model.matrix(~ . - 1, data = x))
-    } else if (is.matrix(x)) {
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    }
-    storage.mode(x) <- "double"; x
-  }
   
   infer_mode <- function(lbl, pred) {
     if (ncol(pred) > 1L) return("multiclass")
@@ -892,8 +790,8 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   
   
   # ---------- coerce ----------
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[accuracy] Empty labels or predictions.")
   if (isTRUE(verbose)) dbg(sprintf("[accuracy] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
@@ -1011,21 +909,6 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      x <- as.matrix(model.matrix(~ . - 1, data = x))
-    } else if (is.matrix(x)) {
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    }
-    storage.mode(x) <- "double"; x
-  }
   
   infer_mode <- function(lbl, pred) {
     if (ncol(pred) > 1L) return("multiclass")
@@ -1053,8 +936,8 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
   }
   
   # ---------- coerce ----------
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[precision] Empty labels or predictions.")
   
@@ -1178,23 +1061,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
   `%||%` <- function(x, y) if (is.null(x)) y else x
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
-  
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      x <- as.matrix(model.matrix(~ . - 1, data = x))
-    } else if (is.matrix(x)) {
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    }
-    storage.mode(x) <- "double"; x
-  }
-  
+
   infer_mode <- function(lbl, pred) {
     if (ncol(pred) > 1L) return("multiclass")
     if (ncol(lbl) == 1L) {
@@ -1219,8 +1086,8 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
   }
   
   # ---------- coerce ----------
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[recall] Empty labels or predictions.")
   if (isTRUE(verbose)) dbg(sprintf("[recall] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
@@ -1351,23 +1218,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   `%||%` <- function(x, y) if (is.null(x)) y else x
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
-  
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      x <- as.matrix(model.matrix(~ . - 1, data = x))
-    } else if (is.matrix(x)) {
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-      if (!is.numeric(x)) x <- matrix(as.numeric(as.factor(x)), nrow = nrow(x), ncol = ncol(x))
-    }
-    storage.mode(x) <- "double"; x
-  }
-  
+
   infer_mode <- function(lbl, pred) {
     if (ncol(pred) > 1L) return("multiclass")
     if (ncol(lbl) == 1L) {
@@ -1392,8 +1243,8 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   }
   
   # ---------- coerce ----------
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[f1] Empty labels or predictions.")
   if (isTRUE(verbose)) dbg(sprintf("[f1] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
@@ -1591,13 +1442,6 @@ accuracy_precision_recall_f1_tuned <- function(
   metric_for_tuning <- match.arg(metric_for_tuning)
   
   # --- helpers ---
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) x <- as.matrix(x)
-    if (is.list(x) && length(x) == 1L) x <- x[[1L]]
-    if (!is.matrix(x)) x <- as.matrix(x)
-    storage.mode(x) <- "double"
-    x
-  }
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   infer_mode <- function(L, P) if (max(ncol(L), ncol(P)) > 1L) "multiclass" else "binary"
@@ -1621,8 +1465,8 @@ accuracy_precision_recall_f1_tuned <- function(
   }
   
   # --- coerce & trim ---
-  L <- to_num_mat(labels)
-  P <- to_num_mat(predicted_output)
+  L <- coerce_to_numeric_matrix(labels, allow_model_matrix = FALSE)
+  P <- coerce_to_numeric_matrix(predicted_output, allow_model_matrix = FALSE)
   n <- min(nrow(L), nrow(P))
   if (n == 0L) stop("[accuracy_precision_recall_f1_tuned] empty inputs after trim.")
   L <- L[seq_len(n), , drop = FALSE]
@@ -1811,33 +1655,9 @@ accuracy_precision_recall_f1_tuned <- function(
 MAE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
   
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      mm <- model.matrix(~ . - 1, data = x); x <- as.matrix(mm)
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else {
-      x <- as.matrix(x)
-    }
-    storage.mode(x) <- "double"
-    x
-  }
-  one_hot <- function(idx, K) {
-    idx <- as.integer(idx)
-    idx[is.na(idx)] <- 1L
-    idx[idx < 1L] <- 1L
-    idx[idx > K]  <- K
-    M <- matrix(0, nrow = length(idx), ncol = K)
-    if (length(idx)) M[cbind(seq_along(idx), idx)] <- 1
-    storage.mode(M) <- "double"
-    M
-  }
-  
   # Coerce to numeric matrices
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   
   # Row alignment (no recycling)
   n_common <- min(nrow(lbl), nrow(pred))
@@ -1856,7 +1676,7 @@ MAE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verb
       if (length(u) && min(u, na.rm = TRUE) == 0L && max(u, na.rm = TRUE) == (K - 1L)) {
         lbl <- lbl + 1
       }
-      lbl <- one_hot(lbl[, 1], K)
+      lbl <- safe_one_hot_matrix(lbl[, 1], K)
     } else if (ncol(lbl) != K) {
       return(NA_real_)
     }
@@ -1956,13 +1776,6 @@ ndcg <- function(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, labels, ver
 # Returns: named LIST of bin means.
 custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE) {
   # --- helpers ---
-  to_num_mat <- function(x) {
-    if (is.data.frame(x)) x <- as.matrix(x)
-    else if (is.atomic(x) && !is.matrix(x)) x <- matrix(x, ncol = 1L)
-    else x <- as.matrix(x)
-    storage.mode(x) <- "double"
-    x
-  }
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   infer_mode <- function(L, P) {
@@ -1982,8 +1795,8 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
   }
   
   # --- coerce & trim to common rows ---
-  L <- to_num_mat(labels)
-  P <- to_num_mat(predicted_output)
+  L <- coerce_to_numeric_matrix(labels, allow_model_matrix = FALSE)
+  P <- coerce_to_numeric_matrix(predicted_output, allow_model_matrix = FALSE)
   n <- min(nrow(L), nrow(P))
   if (n == 0L) return(empty_out())
   
@@ -2216,24 +2029,6 @@ generalization_ability <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, pre
 RMSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
   # helpers
   `%||%` <- function(x, y) if (is.null(x)) y else x
-  to_num_mat <- function(x, name = "obj") {
-    if (is.data.frame(x)) {
-      x <- as.matrix(model.matrix(~ . - 1, data = x))
-    } else if (is.factor(x) || is.character(x)) {
-      x <- matrix(as.numeric(as.factor(x)), ncol = 1L)
-    } else if (is.atomic(x) && !is.matrix(x)) {
-      x <- matrix(x, ncol = 1L)
-    } else x <- as.matrix(x)
-    storage.mode(x) <- "double"; x
-  }
-  one_hot <- function(idx, K) {
-    idx <- as.integer(idx)
-    idx[is.na(idx)] <- 1L
-    idx[idx < 1L] <- 1L; idx[idx > K] <- K
-    M <- matrix(0, nrow = length(idx), ncol = K)
-    if (length(idx)) M[cbind(seq_along(idx), idx)] <- 1
-    storage.mode(M) <- "double"; M
-  }
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   infer_mode <- function(lbl, pred) {
@@ -2258,8 +2053,8 @@ RMSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, ver
   }
   
   # coerce to numeric matrices
-  lbl  <- to_num_mat(labels, "labels")
-  pred <- to_num_mat(predicted_output, "predicted_output")
+  lbl  <- coerce_to_numeric_matrix(labels)
+  pred <- coerce_to_numeric_matrix(predicted_output)
   
   # row alignment (NO recycling)
   n_common <- min(nrow(lbl), nrow(pred))
@@ -2279,7 +2074,7 @@ RMSE <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, ver
       if (length(u) && min(u, na.rm = TRUE) == 0L && max(u, na.rm = TRUE) == (K - 1L)) {
         lbl <- lbl + 1
       }
-      lbl <- one_hot(lbl[,1], K)
+      lbl <- safe_one_hot_matrix(lbl[,1], K)
     } else if (ncol(lbl) != K) {
       return(NA_real_)
     }

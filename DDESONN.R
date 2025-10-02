@@ -101,16 +101,11 @@ SONN <- R6Class(
 
  
 
-      # Initialize weights and biases for subsequent layers if ML_NN is TRUE
-      if (ML_NN) {
-        # Initialize weights and biases using specified initialization method
-        init <- self$initialize_weights(input_size, hidden_sizes, output_size, method = init_method, custom_scale)
-        self$weights <- init$weights
-        self$biases <- init$biases
-      }else{
-        self$weights <- matrix(runif(input_size *  output_size), ncol = output_size, nrow = input_size) #should highly consider removing column if not relevant
-        self$biases <- rnorm(output_size, mean = 0, sd = 0.01)
-      }
+      # Initialize weights and biases using specified initialization method fir MLNN and SLNN
+      init <- self$initialize_weights_biases(input_size, hidden_sizes, output_size, method = init_method, custom_scale)
+      self$weights <- init$weights
+      self$biases <- init$biases
+
 
       
       # Function to find factors of N that are as close as possible to each other
@@ -145,14 +140,12 @@ SONN <- R6Class(
       )
       
     },
-    initialize_weights = function(input_size, hidden_sizes, output_size, method = init_method, custom_scale = NULL) {
+    initialize_weights_biases = function(input_size, hidden_sizes, output_size, method = init_method, custom_scale = NULL) {
+      # container
       weights <- list()
-      biases <- list()
+      biases  <- list()
       
-      # clip_weights <- function(W, limit = .08) {
-      #   return(pmin(pmax(W, -limit), limit))
-      # }
-      
+      # local initializer
       init_weight <- function(fan_in, fan_out, method, custom_scale) {
         if (method == "xavier") {
           scale <- ifelse(is.null(custom_scale), 0.5, custom_scale)
@@ -185,26 +178,37 @@ SONN <- R6Class(
           W <- matrix(rnorm(fan_in * fan_out, mean = 0, sd = sd), nrow = fan_in, ncol = fan_out)
         }
         return(W)
-        # return(clip_weights(W, limit = .08))
       }
       
-      # Initialize first hidden layer
-      weights[[1]] <- init_weight(input_size, hidden_sizes[1], method, custom_scale)
-      biases[[1]]  <- matrix(0, nrow = hidden_sizes[1], ncol = 1)
-      
-      # Intermediate hidden layers
-      for (layer in 2:length(hidden_sizes)) {
-        weights[[layer]] <- init_weight(hidden_sizes[layer - 1], hidden_sizes[layer], method, custom_scale)
-        biases[[layer]]  <- matrix(0, nrow = hidden_sizes[layer], ncol = 1)
+      # ======================
+      # Multi-layer vs Single
+      # ======================
+      if (self$ML_NN) {
+        # ---- Multi-layer path ----
+        # First hidden layer
+        weights[[1]] <- init_weight(input_size, hidden_sizes[1], method, custom_scale)
+        biases[[1]]  <- matrix(0, nrow = hidden_sizes[1], ncol = 1)
+        
+        # Intermediate hidden layers
+        for (layer in 2:length(hidden_sizes)) {
+          weights[[layer]] <- init_weight(hidden_sizes[layer - 1], hidden_sizes[layer], method, custom_scale)
+          biases[[layer]]  <- matrix(0, nrow = hidden_sizes[layer], ncol = 1)
+        }
+        
+        # Output layer
+        last_hidden_size <- hidden_sizes[[length(hidden_sizes)]]
+        weights[[length(hidden_sizes) + 1]] <- init_weight(last_hidden_size, output_size, method, custom_scale)
+        biases[[length(hidden_sizes) + 1]]  <- matrix(0, nrow = output_size, ncol = 1)
+        
+      } else {
+        # ---- Single-layer path ----
+        weights[[1]] <- init_weight(input_size, output_size, method, custom_scale)
+        biases[[1]]  <- matrix(0, nrow = output_size, ncol = 1)
       }
       
-      # Output layer
-      last_hidden_size <- hidden_sizes[[length(hidden_sizes)]]
-      weights[[length(hidden_sizes) + 1]] <- init_weight(last_hidden_size, output_size, method, custom_scale)
-      biases[[length(hidden_sizes) + 1]]  <- matrix(0, nrow = output_size, ncol = 1)
-      
+      # assign into self
       self$weights <- weights
-      self$biases <- biases
+      self$biases  <- biases
       
       return(list(weights = weights, biases = biases))
     },
