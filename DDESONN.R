@@ -200,19 +200,34 @@ SONN <- R6Class(
         weights[[length(hidden_sizes) + 1]] <- init_weight(last_hidden_size, output_size, method, custom_scale)
         biases[[length(hidden_sizes) + 1]]  <- matrix(0, nrow = output_size, ncol = 1)
         
+        # assign into self (UNCHANGED for ML)
+        self$weights <- weights
+        self$biases  <- biases
+        
       } else {
         # ---- Single-layer path ----
+        # keep building in locals for consistency
         weights[[1]] <- init_weight(input_size, output_size, method, custom_scale)
-        biases[[1]]  <- matrix(0, nrow = output_size, ncol = 1)
+        biases[[1]]  <- rep(0, output_size)   # <- store as numeric vector for SL
+        
+        # === ONLY CHANGE for SL: unwrap to matrix/vector before assigning ===
+        W <- weights[[1]]
+        b <- biases[[1]]
+        
+        # orientation sanity: rows must match input_size; transpose if needed
+        if (nrow(W) != input_size && ncol(W) == input_size) {
+          W <- t(W)
+        }
+        
+        # assign into self as plain numeric types (not lists)
+        self$weights <- W                       # matrix: input_size x output_size
+        self$biases  <- as.numeric(b)           # vector: length = output_size
       }
       
-      # assign into self
-      self$weights <- weights
-      self$biases  <- biases
-      
-      return(list(weights = weights, biases = biases))
+      # return shapes consistent with assignment (SL returns plain; ML returns lists)
+      return(list(weights = self$weights, biases = self$biases))
     },
-    # Dropout functions with no default rates (training only)
+    #Dropout functions with no default rates (training only)
     dropout_forward = function(x, rate) {
       # Keep shapes stable & support NULL / edge rates
       if (is.null(rate) || rate <= 0 || rate >= 1) {
@@ -238,7 +253,7 @@ SONN <- R6Class(
       isTRUE(cfg[[name]]) || on_all
     },
     self_organize = function(Rdata, labels, lr) {
-      print("------------------------self-organize-begin----------------------------------------")
+      print("----------------------------------------self-organize-begin----------------------------------------")
       
       
       
@@ -679,13 +694,13 @@ SONN <- R6Class(
       
       
       
-      print("------------------------self-organize-end------------------------------------------")
+      print("----------------------------------------self-organize-end----------------------------------------")
       
     },
 
     learn = function(Rdata, labels, lr, CLASSIFICATION_MODE,
                      activation_functions, dropout_rates, sample_weights) {
-      print("------------------------learn-begin-------------------------------------------------")
+      print("----------------------------------------learn-begin----------------------------------------")
       start_time <- Sys.time()
       
       `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -981,13 +996,14 @@ SONN <- R6Class(
       }
       
       learn_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
-      print("------------------------learn-end-------------------------------------------------")
+      print("----------------------------------------learn-end----------------------------------------")
       
       return(list(learn_output = predicted_output_learn, learn_time = learn_time, error = error_learn, dim_hidden_layers = dim_hidden_layers_learn, hidden_outputs = predicted_output_learn_hidden, grads_matrix = grads_matrix, bias_gradients = bias_gradients, errors = errors))
     },
   
     # Method to perform prediction
     predict = function(Rdata, weights, biases, activation_functions_predict, verbose=FALSE, debug=FALSE) {
+      print("----------------------------------------predict-begin----------------------------------------")
       # ---- Debug/Verbose toggles ----
       if (is.null(debug)) {
         debug <- isTRUE(get0("DEBUG_PREDICT_FORWARD", inherits = TRUE, ifnotfound = FALSE))
@@ -1186,11 +1202,12 @@ SONN <- R6Class(
                     prediction_time, nrow(output), ncol(output)))
       }
       
+      print("----------------------------------------predict-end----------------------------------------")
       return(list(predicted_output = output, prediction_time = prediction_time))
     }
     ,# Method for training the SONN with L2 regularization
-    train_with_l2_regularization = function(Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose) {
-      
+    train_network = function(Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose) {
+      print("----------------------------------------train_network-begin----------------------------------------")
       start_time <- Sys.time()
       
       # ----------------------------
@@ -1693,7 +1710,8 @@ SONN <- R6Class(
             labels              = labels_epoch,    # aligned to n above
             CLASSIFICATION_MODE = CLASSIFICATION_MODE,
             reg_loss_total      = reg_loss_total,  # always defined
-            loss_type           = loss_type
+            loss_type           = loss_type,
+            verbose             = verbose
           )
 
           # ===== Initialize records and optimizer params (unchanged) =====
@@ -2335,10 +2353,10 @@ SONN <- R6Class(
       
       # Calculate the training time
       training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
-
-      # Return the predicted output & best weights, etc. through train_with_l2_regularization thourgh learn()
+      print("----------------------------------------train_network-end----------------------------------------")
+      # Return the predicted output & best weights, etc. through train_network thourgh learn()
       return(list(predicted_output_l2 = predicted_output_train_reg, training_time = training_time, best_train_acc = best_train_acc, best_epoch_train = best_epoch_train, best_val_acc = best_val_acc, best_val_epoch = best_val_epoch, best_val_prediction_time = best_val_prediction_time, learn_output = learn_result$learn_output, learn_time = total_learn_time, learn_dim_hidden_layers = learn_result$dim_hidden_layers, learn_hidden_outputs = learn_result$hidden_outputs, learn_grads_matrix = learn_result$grads_matrix, learn_bias_gradients = learn_result$bias_gradients, learn_errors = learn_result$errors, optimal_epoch = optimal_epoch, weights_record = weights_record, biases_record = biases_record, best_weights_record = best_weights, best_biases_record = best_biases, lossesatoptimalepoch = NULL, loss_increase_flag = NULL, loss_status = NULL, dim_hidden_layers = dim_hidden_layers, predicted_output_val = predicted_output_val, best_val_probs = best_val_probs, best_val_labels = best_val_labels))
-    } #end of train_with_l2_regularization
+    } #end of train_network
   )
 ) #end off SONN class
 #
@@ -2456,9 +2474,7 @@ DDESONN <- R6Class(
       print(paste("After normalization - Standard Deviation: ", normalized_std_devs))
       
       return(normalized_Rdata)
-    }
-    
-    ,
+    },
     # Function to perform batch normalization on specific columns in the data
     batch_normalize_data = function(Rdata, numeric_columns, gamma_bn, beta_bn, epsilon_bn = epsilon_bn, momentum_bn = momentum_bn, is_training_bn = is_training_bn) {
       
@@ -2510,7 +2526,8 @@ DDESONN <- R6Class(
       
       # Return the normalized data and the updated running mean/variance
       return(list(normalized_data = normalized_data_bn, running_mean = running_mean_bn, running_var = running_var_bn))
-    }, # Function to calculate a reasonable batch size
+    },
+    # Function to calculate a reasonable batch size
     calculate_batch_size = function(data_size, max_batch_size = 512, min_batch_size = 16) {
       # Get the number of rows from the dataset
       n <- nrow(data_size)
@@ -2534,8 +2551,8 @@ DDESONN <- R6Class(
       flag <- isTRUE(val) || (is.logical(val) && length(val) == 1 && !is.na(val) && val)
       on_all || flag
     },
-    train = function(Rdata, labels, lr, lr_decay_rate, lr_decay_epoch, lr_min, ensemble_number, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, viewTables, verbose) {
-      
+    train = function(Rdata, labels, lr, lr_decay_rate, lr_decay_epoch, lr_min, ensemble_number, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, grouped_metrics, viewTables, verbose) {
+      print("----------------------------------------train-begin----------------------------------------")
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
         Rdata <- self$normalize_data(Rdata, numeric_columns)
@@ -2605,9 +2622,7 @@ DDESONN <- R6Class(
             batch_labels <- labels[batch]
           }
         }#end of batch normalize data
-        
-        
-        
+
         
       }
       
@@ -2656,7 +2671,7 @@ DDESONN <- R6Class(
 
             
             predicted_outputAndTime <- suppressMessages(
-              self$ensemble[[i]]$train_with_l2_regularization(
+              self$ensemble[[i]]$train_network(
                 Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, threshold_function, ML_NN, train, verbose
               ))
             
@@ -2741,62 +2756,66 @@ DDESONN <- R6Class(
           
         } # end of for (i in 1:length(self$ensemble))
         
-        ###########code from old code###########
-        print(all_ensemble_name_model_name)
-        
-        
-        for (i in seq_along(all_predicted_outputAndTime)) {
-          cat("\n── Model", i, "──\n")
-          model_result <- all_predicted_outputAndTime[[i]]
-          
-          if (is.null(model_result)) {
-            cat("Empty slot.\n")
-            next
-          }
-          
-          cat("Prediction length:", length(model_result$predicted_output), "\n")
-          cat("Prediction time:", model_result$prediction_time, "\n")
-          cat("Training time:", model_result$training_time, "\n")
-          cat("Optimal epoch:", model_result$optimal_epoch, "\n")
-          cat("Loss at optimal:", model_result$losses_at_optimal_epoch, "\n")
-          
-          # ---- Weights ----
-          if (is.list(model_result$weights_record)) {
-            cat("Weights record dims by layer:\n")
-            for (L in seq_along(model_result$weights_record)) {
-              W <- model_result$weights_record[[L]]
-              if (!is.null(W)) {
-                cat(sprintf("  Layer %d: ", L)); print(dim(W))
-              } else {
-                cat(sprintf("  Layer %d: NULL\n", L))
-              }
-            }
-          } else {
-            cat("Weights record dims (SL): "); print(dim(model_result$weights_record))
-          }
-          
-          # ---- Biases ----
-          if (is.list(model_result$biases_record)) {
-            cat("Biases record length by layer:\n")
-            for (L in seq_along(model_result$biases_record)) {
-              b <- model_result$biases_record[[L]]
-              if (!is.null(b)) {
-                # bias could be vector or 1-col matrix
-                blen <- if (is.matrix(b)) nrow(b) * ncol(b) else length(b)
-                cat(sprintf("  Layer %d: %d\n", L, blen))
-              } else {
-                cat(sprintf("  Layer %d: NULL\n", L))
-              }
-            }
-          } else {
-            cat("Biases record length (SL): ")
-            blen <- if (is.matrix(model_result$biases_record)) length(model_result$biases_record) else length(model_result$biases_record)
-            print(blen)
-          }
-          
-          
-          # Sys.sleep(0.25)  # pause slightly for readability
+        if(verbose){
+          print(all_ensemble_name_model_name)
         }
+        
+      for (i in seq_along(all_predicted_outputAndTime)) {
+        if (isTRUE(verbose)) {
+          message("\n── Model ", i, " ──")
+        }
+        
+        model_result <- all_predicted_outputAndTime[[i]]
+        
+        if (is.null(model_result)) {
+          if (isTRUE(verbose)) message("Empty slot.")
+          next
+        }
+        
+        if (isTRUE(verbose)) {
+          message("Prediction length: ", length(model_result$predicted_output))
+          message("Prediction time: ", model_result$prediction_time)
+          message("Training time: ", model_result$training_time)
+          message("Optimal epoch: ", model_result$optimal_epoch)
+          message("Loss at optimal: ", model_result$losses_at_optimal_epoch)
+        }
+        
+        # ---- Weights ----
+        if (is.list(model_result$weights_record)) {
+          if (isTRUE(verbose)) message("Weights record dims by layer:")
+          for (L in seq_along(model_result$weights_record)) {
+            W <- model_result$weights_record[[L]]
+            if (!is.null(W)) {
+              if (isTRUE(verbose)) message(sprintf("  Layer %d: %s", L, paste(dim(W), collapse = " x ")))
+            } else {
+              if (isTRUE(verbose)) message(sprintf("  Layer %d: NULL", L))
+            }
+          }
+        } else {
+          if (isTRUE(verbose)) message("Weights record dims (SL): ", paste(dim(model_result$weights_record), collapse = " x "))
+        }
+        
+        # ---- Biases ----
+        if (is.list(model_result$biases_record)) {
+          if (isTRUE(verbose)) message("Biases record length by layer:")
+          for (L in seq_along(model_result$biases_record)) {
+            b <- model_result$biases_record[[L]]
+            if (!is.null(b)) {
+              # bias could be vector or 1-col matrix
+              blen <- if (is.matrix(b)) nrow(b) * ncol(b) else length(b)
+              if (isTRUE(verbose)) message(sprintf("  Layer %d: %d", L, blen))
+            } else {
+              if (isTRUE(verbose)) message(sprintf("  Layer %d: NULL", L))
+            }
+          }
+        } else {
+          blen <- if (is.matrix(model_result$biases_record)) length(model_result$biases_record) else length(model_result$biases_record)
+          if (isTRUE(verbose)) message("Biases record length (SL): ", blen)
+        }
+        
+        # if (isTRUE(verbose)) Sys.sleep(0.25)  # pause slightly for readability
+      }
+      
         
         # all_ensemble_name_model_name <<- do.call(c, all_ensemble_name_model_name)
         
@@ -2832,6 +2851,7 @@ DDESONN <- R6Class(
           all_best_val_acc                 = all_best_val_acc,
           all_best_val_epoch               = all_best_val_epoch,
           ML_NN = ML_NN,
+          grouped_metrics = grouped_metrics,
           viewTables = viewTables,
           verbose = verbose
         )
@@ -2990,13 +3010,13 @@ DDESONN <- R6Class(
 
         
   
-      
+        print("----------------------------------------train-end----------------------------------------")
       return(list(predicted_outputAndTime = predicted_outputAndTime, performance_relevance_data = performance_relevance_data))
     }
     , # Method for updating performance and relevance metrics
     
-    update_performance_and_relevance = function(Rdata, labels, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_val_acc, all_best_val_epoch, ML_NN, viewTables, verbose) {
-      
+    update_performance_and_relevance = function(Rdata, labels, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_val_acc, all_best_val_epoch, ML_NN, grouped_metrics, viewTables, verbose) {
+      print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")
       
       # Initialize lists to store performance and relevance metrics for each SONN
       performance_list <- list()
@@ -3199,7 +3219,7 @@ DDESONN <- R6Class(
           cat("====================================\n\n")
           
           
-          self$store_metadata(run_id = single_ensemble_name_model_name, CLASSIFICATION_MODE, ensemble_number, activation_functions, activation_functions_predict, preprocessScaledData, validation_metrics, model_iter_num = i, num_epochs, threshold = NULL, predicted_output = single_predicted_output, actual_values = y, all_weights = all_weights, all_biases = all_biases, performance_metric = performance_metric, relevance_metric = relevance_metric, predicted_outputAndTime = single_predicted_outputAndTime, best_val_prediction_time = best_val_prediction_time, best_train_acc = best_train_acc, best_epoch_train = best_epoch_train, best_val_acc = best_val_acc, best_val_epoch = best_val_epoch)
+          self$store_metadata(single_predicted_outputAndTime, y, do_ensemble, self$input_size, self$output_size, self$N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, self$lambda, num_epochs, run_id = single_ensemble_name_model_name, ensemble_number, model_iter_num = i, model_serial_num = sprintf("%d.0.%d", ensemble_number, i), threshold = NULL, CLASSIFICATION_MODE, predicted_output = single_predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics = validation_metrics, activation_functions, activation_functions_predict, self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL)
           
         }
       
@@ -3434,87 +3454,121 @@ DDESONN <- R6Class(
       } else {
         NULL
       }
-      # 
-      # # -----------------------------------------------
-      # # Grouped metrics + printing policy (final)
-      # # -----------------------------------------------
-      # # Predeclare so they're always in scope
+      
+
+      # =====================================================================
+      # GROUPED METRICS  ≠  FUSED ENSEMBLE
+      #
+      # Audience (plain English):
+      # - "Fused" means we COMBINE outputs from multiple models into ONE
+      #   consensus prediction stream (used for final decisions/evaluation).
+      #   Examples: average, weighted-average, majority vote.
+      #
+      # What THIS block does:
+      # - Provides convenient, experimental insight / reporting across multiple models.
+      # - Two modes:
+      #     (A) "aggregate_predictions+rep_sonn":
+      #         We first call aggregate_predictions() to create a temporary
+      #         aggregated prediction vector (mean/median/vote), then score it
+      #         with ONE representative SONN to reuse metric code.
+      #         • More appropriate when you want a single *proxy* view of the
+      #           ensemble’s output (close to how fusion works, but reporting-only).
+      #     (B) "average_per_model":
+      #         Compute metrics for each model separately, then average the
+      #         metric values numerically.
+      #         • More of an experimental “sampling pulse” — tells you the
+      #           typical performance level across models, not a consensus output.
+      #
+      # What this is NOT:
+      # - NOT the fused-ensemble decision path (avg / wavg / vote_soft /
+      #   vote_hard) implemented in DDESONN_fuse_from_agg(), which creates the
+      #   SINGLE prediction stream used downstream.
+      #
+      # Side note:
+      # - aggregate_predictions() supports mean/median/vote for reporting use.
+      #   The true decision fusion (with weights and soft/hard voting) lives in
+      #   DDESONN_fuse_from_agg().
+      # =====================================================================
+      
+      # Predeclare so they're always in scope
       perf_df <- relev_df <- NULL
       perf_group_summary <- relev_group_summary <- NULL
       group_perf <- group_relev <- NULL
-      # 
-      # # Build per-model long DFs (works for 1+ models)
-      # perf_df  <- flatten_metrics_to_df(performance_list, run_id)
-      # relev_df <- flatten_metrics_to_df(relevance_list,     run_id)
-      # 
+      
+      if(grouped_metrics) {
+      
+      # Build per-model long DFs (works for 1+ models)
+      perf_df  <- flatten_metrics_to_df(performance_list, run_id)
+      relev_df <- flatten_metrics_to_df(relevance_list,     run_id)
+      
       # # --- Vanilla group summaries (across models) ---
-      # perf_group_summary  <- summarize_grouped(perf_df)
-      # relev_group_summary <- summarize_grouped(relev_df)
-      # 
-      # # --- Optional notify user ---
-      # if (!isTRUE(verbose) && !isTRUE(viewTables)) {
-      #   cat("\n[ℹ] Group summaries computed silently. 
-      # Set `verbose = TRUE` to print data frames, 
-      # or `viewTables = TRUE` to see tables.\n")
-      # }
-      # 
-      # # Grouped metrics (run whenever you have ≥1 model)
-      # if (ensemble_number >= 1 && length(self$ensemble) > 1) {
-      #   group_perf <- calculate_performance_grouped(
-      #     SONN_list             = self$ensemble,
-      #     Rdata                 = Rdata,
-      #     labels                = labels,
-      #     lr                    = lr,
-      #     CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
-      #     num_epochs            = num_epochs,
-      #     threshold             = threshold,
-      #     predicted_output_list = predicted_output_list,
-      #     prediction_time_list  = prediction_time_list,
-      #     ensemble_number       = ensemble_number,
-      #     run_id                = run_id,
-      #     ML_NN                 = ML_NN,
-      #     verbose               = verbose,
-      #     agg_method            = "mean",
-      #     metric_mode           = "aggregate_predictions+rep_sonn",
-      #     weights_list          = NULL,
-      #     biases_list           = NULL,
-      #     act_list              = NULL
-      #   )
-      #   
-      #   group_relev <- calculate_relevance_grouped(
-      #     SONN_list             = self$ensemble,
-      #     Rdata                 = Rdata,
-      #     labels                = labels,
-      #     CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
-      #     predicted_output_list = predicted_output_list,
-      #     ensemble_number       = ensemble_number,
-      #     run_id                = run_id,
-      #     ML_NN                 = ML_NN,
-      #     verbose               = verbose,
-      #     agg_method            = "mean",
-      #     metric_mode           = "aggregate_predictions+rep_sonn"
-      #   )
-      #   
-      #   # ---------- Printing policy ----------
-      #   # Tables (DF heads) print if EITHER verbose OR viewTables
-      #   if (isTRUE(verbose) || isTRUE(viewTables)) {
-      #     if (!is.null(perf_df))  { cat("\n--- performance_long_df (head) ---\n"); print(utils::head(perf_df, 12)) }
-      #     if (!is.null(relev_df)) { cat("\n--- relevance_long_df (head) ---\n"); print(utils::head(relev_df, 12)) }
-      #   }
-      #   
-      #   # Summaries + grouped metrics print ONLY when verbose = TRUE
-      #   if (isTRUE(verbose)) {
-      #     if (!is.null(perf_group_summary))  { cat("\n=== PERFORMANCE group summary ===\n"); print(perf_group_summary) }
-      #     if (!is.null(relev_group_summary)) { cat("\n=== RELEVANCE group summary ===\n"); print(relev_group_summary) }
-      #     if (!is.null(group_perf))  { cat("\n=== GROUPED PERFORMANCE metrics ===\n"); print(group_perf$metrics) }
-      #     if (!is.null(group_relev)) { cat("\n=== GROUPED RELEVANCE metrics ===\n"); print(group_relev$metrics) }
-      #   }
-        
-      # }
+      perf_group_summary  <- summarize_grouped(perf_df)
+      relev_group_summary <- summarize_grouped(relev_df)
       
+      # --- Optional notify user ---
+      if (!isTRUE(verbose) && !isTRUE(viewTables)) {
+        cat("\n[ℹ] Group summaries computed silently.
+      Set `verbose = TRUE` to print data frames,
+      or `viewTables = TRUE` to see tables.\n")
+      }
+
+      # Grouped metrics (run whenever you have ≥1 model)
+      if (ensemble_number >= 1 && length(self$ensemble) > 1) {
+        group_perf <- calculate_performance_grouped(
+          SONN_list             = self$ensemble,
+          Rdata                 = Rdata,
+          labels                = labels,
+          lr                    = lr,
+          CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
+          num_epochs            = num_epochs,
+          threshold             = threshold,
+          predicted_output_list = predicted_output_list,
+          prediction_time_list  = prediction_time_list,
+          ensemble_number       = ensemble_number,
+          run_id                = run_id,
+          ML_NN                 = ML_NN,
+          verbose               = verbose,
+          agg_method            = "mean",
+          metric_mode           = "aggregate_predictions+rep_sonn",
+          weights_list          = NULL,
+          biases_list           = NULL,
+          act_list              = NULL
+        )
+
+        group_relev <- calculate_relevance_grouped(
+          SONN_list             = self$ensemble,
+          Rdata                 = Rdata,
+          labels                = labels,
+          CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
+          predicted_output_list = predicted_output_list,
+          ensemble_number       = ensemble_number,
+          run_id                = run_id,
+          ML_NN                 = ML_NN,
+          verbose               = verbose,
+          agg_method            = "mean",
+          metric_mode           = "aggregate_predictions+rep_sonn"
+        )
+
+        # ---------- Printing policy ----------
+        # Tables (DF heads) print if EITHER verbose OR viewTables
+        if (isTRUE(verbose) || isTRUE(viewTables)) {
+          if (!is.null(perf_df))  { cat("\n--- performance_long_df (head) ---\n"); print(utils::head(perf_df, 12)) }
+          if (!is.null(relev_df)) { cat("\n--- relevance_long_df (head) ---\n"); print(utils::head(relev_df, 12)) }
+        }
+
+        # Summaries + grouped metrics print ONLY when verbose = TRUE
+        if (isTRUE(verbose)) {
+          if (!is.null(perf_group_summary))  { cat("\n=== PERFORMANCE group summary ===\n"); print(perf_group_summary) }
+          if (!is.null(relev_group_summary)) { cat("\n=== RELEVANCE group summary ===\n"); print(relev_group_summary) }
+          if (!is.null(group_perf))  { cat("\n=== GROUPED PERFORMANCE metrics ===\n"); print(group_perf$metrics) }
+          if (!is.null(group_relev)) { cat("\n=== GROUPED RELEVANCE metrics ===\n"); print(group_relev$metrics) }
+        }
+
+      }
+
+      } #end of if(grouped_metrics)
       
-      
-      
+      print("----------------------------------------update_performance_and_relevance-end----------------------------------------")
       # Return the lists of plots
       return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL))
       
@@ -3677,7 +3731,7 @@ DDESONN <- R6Class(
       return(low_mean_plots)
     }
     ,
-    store_metadata = function(run_id, CLASSIFICATION_MODE, ensemble_number, activation_functions, activation_functions_predict, preprocessScaledData, validation_metrics, model_iter_num, num_epochs, threshold, all_weights, all_biases, predicted_output, actual_values, performance_metric, relevance_metric, predicted_outputAndTime, best_val_prediction_time, best_train_acc, best_epoch_train, best_val_acc, best_val_epoch) {
+    store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
       
       # ---------------- helpers (lightweight; keep most original structure) ----------------
       to_num_mat <- function(x) {
@@ -3900,7 +3954,6 @@ DDESONN <- R6Class(
         activation_functions_predict = activation_functions_predict,
         dropout_rates        = dropout_rates,
         hidden_sizes         = self$hidden_sizes %||% hidden_sizes,
-        output_size          = self$output_size %||% output_size,
         ML_NN                = self$ML_NN %||% ML_NN,
         
         best_val_prediction_time = best_val_prediction_time,
@@ -4026,7 +4079,6 @@ calculate_performance <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, 
   return(list(metrics = perf_metrics, names = names(perf_metrics)))
 }
 
-
 calculate_relevance <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, model_iter_num, predicted_output, ensemble_number, weights, biases, activation_functions, ML_NN, verbose) {
   
   # --- Standardize single-layer to list format ---
@@ -4062,7 +4114,33 @@ calculate_relevance <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, model_
 }
 
 
-
+# =====================================================================
+# PURPOSE: Convenient, experimental insight / reporting across models
+#
+# NOT "fused" in the deployment sense:
+# - "Fused" = combine multiple model outputs into ONE final prediction
+#   stream for decisions/evaluation (see DDESONN_fuse_from_agg()).
+#
+# Modes here:
+#   1) metric_mode = "aggregate_predictions+rep_sonn"
+#      - Use aggregate_predictions() (mean/median/vote) to create a
+#        temporary aggregated prediction vector across models, then score
+#        it with a representative SONN.
+#      - Best when you want a single proxy view that resembles how fusion
+#        behaves, but is still reporting-only (not the true ensemble output).
+#
+#   2) metric_mode = "average_per_model"
+#      - Compute each model’s metrics independently, then average the
+#        numeric metric values across models.
+#      - More of an experimental “sampling pulse” — shows the typical
+#        performance level across models, not a consensus output.
+#
+# TL;DR:
+# - These helpers provide quick experimental insight and reporting across
+#   multiple models.
+# - Final fused ensemble decisions (avg / wavg / vote_soft / vote_hard)
+#   are produced in DDESONN_fuse_from_agg().
+# =====================================================================
 
 calculate_performance_grouped <- function(SONN_list, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, threshold, predicted_output_list, prediction_time_list, ensemble_number, run_id, ML_NN, verbose,
                                           agg_method = c("mean","median","vote"),
@@ -4191,19 +4269,21 @@ calculate_relevance_grouped <- function(SONN_list, Rdata, labels, CLASSIFICATION
 
 
 
-# Unified Loss Function (minimal edits, original style preserved)
+# Unified Loss Function (with optional verbose printing)
 # Supports binary, multiclass, and regression.
 # Strictly enforces valid (mode, loss_type) combos with clear error messages.
-loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_total, loss_type) {
+loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_total, loss_type, verbose) {
   # Default reg_loss_total to 0 if NULL
   if (is.null(reg_loss_total)) reg_loss_total <- 0
   
-  print(dim(predictions))
-  print(dim(labels))
+  if (verbose) {
+    print(dim(predictions))
+    print(dim(labels))
+  }
   
   # Handle missing or NULL loss_type gracefully
   if (is.null(loss_type)) {
-    print("Loss type is NULL. Please specify 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
+    if (verbose) print("Loss type is NULL. Please specify 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
     return(NA)
   }
   
@@ -4296,13 +4376,14 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
     }
     
   } else {
-    print("Invalid loss type. Choose from 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
+    if (verbose) print("Invalid loss type. Choose from 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
     return(NA)
   }
   
   total_loss <- loss + reg_loss_total
+  if (verbose) print(paste("Final loss (with regularization):", total_loss))
+  
   return(total_loss)
 }
-
 
 

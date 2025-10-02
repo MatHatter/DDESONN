@@ -2805,9 +2805,44 @@ DDESONN_predict_eval <- function(
 
 
 
-# ============================================================
-# Fuse predictions from an aggregate predictions RDS (per run/seed)
-# ============================================================
+
+# =====================================================================
+# FUSED ENSEMBLE DECISION PATH (final consensus predictions)
+# Fuse per-slot predictions loaded from an aggregate-per-model RDS
+# (filtered by RUN/SEED and optional split) into ONE ensemble output.
+#
+# Audience (plain English):
+# - "Fused" = we COMBINE multiple model outputs into ONE prediction
+#   stream that is treated as the final ensemble decision.
+#
+# What this function does:
+# - Reads per-slot predictions (by RUN/SEED/etc.) and builds a matrix.
+# - Produces ONE consensus prediction via:
+#     • "avg"        → unweighted mean of probabilities
+#     • "wavg"       → weighted mean (weights from tuned_f1 / f1 / accuracy)
+#     • "vote_soft"  → fraction of models voting positive (soft proportion)
+#     • "vote_hard"  → majority (or quorum) hard vote (0/1 outcome)
+# - Computes metrics on these fused outputs (currently binary path shown).
+#   (Extend here for multiclass/regression if needed.)
+#
+# Thresholds & quorum:
+# - Voting uses per-slot tuned_threshold when available; otherwise falls
+#   back to default_threshold. Quorum defaults to simple majority unless
+#   explicitly provided.
+#
+# How this differs from aggregate_predictions():
+# - aggregate_predictions() (mean/median/vote) is a lightweight utility
+#   mainly used for reporting flows (e.g., grouped summaries).
+# - DDESONN_fuse_from_agg() is THE place that creates the final, fused
+#   ensemble outputs for evaluation or downstream consumption, including
+#   weighted averaging and explicit soft/hard voting variants.
+#
+# Notes:
+# - If you need median fusion in the final path, add it here explicitly.
+# - Ensure row alignment across slots (IDs/order) before forming the matrix.
+# =====================================================================
+
+
 DDESONN_fuse_from_agg <- function(
     AGG_PREDICTIONS_FILE,
     RUN_INDEX,

@@ -55,9 +55,10 @@ test_metrics <- TRUE
 custom_scale <- 1.04349
 
 
-ML_NN <- TRUE
+ML_NN <- FALSE
 
-learnOnlyTrainingRun <- FALSE
+grouped_metrics <- FALSE
+
 update_weights <- TRUE
 update_biases <- TRUE
 
@@ -1117,7 +1118,7 @@ if(train) {
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
         X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
-        train=train, viewTables=viewTables, verbose=verbose
+        train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       
       ## === STAMP MAIN_0 METADATA with best_* including best_val_prediction_time ===
@@ -1792,7 +1793,7 @@ if(train) {
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
         X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
-        train=train, viewTables=viewTables, verbose=verbose
+        train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       ensembles$main_ensemble[[1]] <- main_model
       
@@ -2026,14 +2027,14 @@ if(train) {
       if (num_temp_iterations > 0L) {
         for (j in seq_len(num_temp_iterations)) {
           ensembles$temp_ensemble <- vector("list", 1L)
-          temp_model <- DDESONN$new(
+          temp_model <<- DDESONN$new(
             num_networks=max(1L, as.integer(num_networks)), input_size=input_size,
             hidden_sizes=hidden_sizes, output_size=output_size, N=N, lambda=lambda,
             ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, method=init_method, custom_scale=custom_scale
           )
           ensembles$temp_ensemble[[1]] <- temp_model
           
-          invisible(temp_model$train(
+          model_results_temp <<- temp_model$train(
             Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
             lr_min=lr_min, ensemble_number=j+1L, num_epochs=num_epochs, self_org=self_org,
             threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
@@ -2044,8 +2045,8 @@ if(train) {
             epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
             shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
             X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
-            train=train, viewTables=viewTables, verbose=verbose
-          ))
+            train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
+          )
           
           #  models/temp_eXX directory for this iteration
           MODELS_DIR_TEMP <- file.path(RUN_DIR, "models", sprintf("temp_e%02d", j + 1L))
@@ -2083,12 +2084,12 @@ if(train) {
           }
           
           ## STAMP TEMP META
-          best_train_acc_tmp     <- try(temp_model$train_last_result$best_train_acc,           silent=TRUE); if (inherits(best_train_acc_tmp,"try-error")) best_train_acc_tmp <- NA_real_
-          best_epoch_train_tmp   <- try(temp_model$train_last_result$best_epoch_train,         silent=TRUE); if (inherits(best_epoch_train_tmp,"try-error")) best_epoch_train_tmp <- NA_integer_
-          best_val_acc_tmp       <- try(temp_model$train_last_result$best_val_acc,             silent=TRUE); if (inherits(best_val_acc_tmp,"try-error")) best_val_acc_tmp <- NA_real_
-          best_val_epoch_tmp     <- try(temp_model$train_last_result$best_val_epoch,           silent=TRUE); if (inherits(best_val_epoch_tmp,"try-error")) best_val_epoch_tmp <- NA_integer_
-          best_val_pred_time_tmp <- try(temp_model$train_last_result$best_val_prediction_time, silent=TRUE); if (inherits(best_val_pred_time_tmp,"try-error")) best_val_pred_time_tmp <- NA_real_
-          
+          best_train_acc_tmp     <- try(model_results_temp$predicted_outputAndTime$best_train_acc,           silent=TRUE); if (inherits(best_train_acc_tmp,"try-error")) best_train_acc_tmp <- NA_real_
+          best_epoch_train_tmp   <- try(model_results_temp$predicted_outputAndTime$best_epoch_train,         silent=TRUE); if (inherits(best_epoch_train_tmp,"try-error")) best_epoch_train_tmp <- NA_integer_
+          best_val_acc_tmp       <- try(model_results_temp$predicted_outputAndTime$best_val_acc,             silent=TRUE); if (inherits(best_val_acc_tmp,"try-error")) best_val_acc_tmp <- NA_real_
+          best_val_epoch_tmp     <- try(model_results_temp$predicted_outputAndTime$best_val_epoch,           silent=TRUE); if (inherits(best_val_epoch_tmp,"try-error")) best_val_epoch_tmp <- NA_integer_
+          best_val_pred_time_tmp <- try(model_results_temp$predicted_outputAndTime$best_val_prediction_time, silent=TRUE); if (inherits(best_val_pred_time_tmp,"try-error")) best_val_pred_time_tmp <- NA_real_
+
           for (k in seq_len(K)) {
             tvar <- temp_meta_var(j + 1L, k)
             if (!exists(tvar, envir = .GlobalEnv)) next
