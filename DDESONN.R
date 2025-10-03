@@ -3106,7 +3106,7 @@ DDESONN <- R6Class(
                 threshold_function = threshold_function,    # still accepted, no-op
                 all_best_val_probs = best_val_probs,
                 all_best_val_labels = best_val_labels,
-                verbose = TRUE,
+                verbose = verbose,
                 # --- NEW ---
                 accuracy_plot = "both",                    # or "default" or "both"
                 tuned_threshold_override = NULL,
@@ -3562,7 +3562,7 @@ DDESONN <- R6Class(
       
       # --- Optional notify user ---
       if (!verbose && !viewTables) {
-        message("[ℹ] Group summaries computed silently. Set `verbose = TRUE` to print data frames, or `viewTables = TRUE` to see tables.")
+        message("[ℹ] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
       }
 
       # Grouped metrics (run whenever you have ≥1 model)
@@ -3623,13 +3623,13 @@ DDESONN <- R6Class(
           }
         }
 
-        # Summaries + grouped metrics print ONLY when verbose = TRUE
+        # Summaries + grouped metrics print ONLY when verbose = verbose
         if (verbose) {
           if (!is.null(perf_group_summary)) {
             emit_table(
               perf_group_summary,
               title = "=== PERFORMANCE group summary ===",
-              verbose = TRUE,
+              verbose = verbose,
               viewTables = viewTables
             )
           }
@@ -3637,7 +3637,7 @@ DDESONN <- R6Class(
             emit_table(
               relev_group_summary,
               title = "=== RELEVANCE group summary ===",
-              verbose = TRUE,
+              verbose = verbose,
               viewTables = viewTables
             )
           }
@@ -3645,7 +3645,7 @@ DDESONN <- R6Class(
             emit_table(
               group_perf$metrics,
               title = "=== GROUPED PERFORMANCE metrics ===",
-              verbose = TRUE,
+              verbose = verbose,
               viewTables = viewTables
             )
           }
@@ -3653,7 +3653,7 @@ DDESONN <- R6Class(
             emit_table(
               group_relev$metrics,
               title = "=== GROUPED RELEVANCE metrics ===",
-              verbose = TRUE,
+              verbose = verbose,
               viewTables = viewTables
             )
           }

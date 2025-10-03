@@ -15,7 +15,7 @@
 # ===============================================================
 
 probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FALSE,
-                                  verbose = TRUE) {
+                                  verbose = verbose) {
   r2_val <- tryCatch({
     ss_tot <- sum((labs - mean(labs))^2, na.rm = TRUE)
     ss_res <- sum((labs - preds)^2, na.rm = TRUE)

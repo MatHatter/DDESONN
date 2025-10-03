@@ -81,7 +81,7 @@ checkSinks <- function() {
   list(stdout = sink.number(), stderr = sink.number(type = "message"))
 }
 
-resetSinks <- function(verbose = TRUE) {
+resetSinks <- function(verbose = verbose) {
   n_out <- sink.number()
   n_err <- sink.number(type = "message")
   

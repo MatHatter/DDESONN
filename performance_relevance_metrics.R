@@ -1074,7 +1074,7 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
 # - Binary    : standard recall = TP / (TP + FN), using threshold 0.5 (or column 2 for N×2 preds).
 # - Regression: undefined -> returns NA_real_.
 # Set global option RECALL_MIN_OVERLAP <- 0.80 to control row-trim tolerance (default 0.80).
-recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = TRUE) {
+recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = verbose) {
   dbg <- function(...) {
     if (verbose) message(paste(..., collapse = " "))
   }
@@ -1233,7 +1233,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
 # - Binary    : standard F1 from thresholded predictions (0.5 on p_pos).
 # - Regression: undefined -> returns NA_real_.
 # Set global option F1_MIN_OVERLAP <- 0.80 to control row-trim tolerance (default 0.80).
-f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = TRUE) {
+f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = verbose) {
   dbg <- function(...) {
     if (verbose) message(paste(..., collapse = " "))
   }
