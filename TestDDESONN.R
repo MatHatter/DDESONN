@@ -51,7 +51,7 @@ lambda <- 0.00028
 # lambda <- 0.00013
 num_epochs <- 3
 validation_metrics <- TRUE
-test_metrics <- TRUE
+
 custom_scale <- 1.04349
 
 

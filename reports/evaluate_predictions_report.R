@@ -261,7 +261,7 @@ EvaluatePredictionsReport <- function(
     # ----- TUNED METRICS -----
     if (is.numeric(tuned_threshold_override) && is.finite(tuned_threshold_override)) {
       DDESONN_set_threshold(tuned_threshold_override)
-      if (verbose) cat(sprintf("[Eval-Binary] Forced tuned_threshold_override=%.4f\n", tuned_threshold_override))
+      if (verbose) message(sprintf("[Eval-Binary] Forced tuned_threshold_override=%.4f", tuned_threshold_override))
     } else {
       invisible(TRUE)
     }

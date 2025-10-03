@@ -30,13 +30,20 @@ pkgs <- c(
   "pROC", "ggplotify"
 )
 
-for (pkg in pkgs) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    message(sprintf("Installing package: %s", pkg))
-    install.packages(pkg, dependencies = TRUE)
-  }
-  library(pkg, character.only = TRUE)
+# Check which packages are missing
+missing_pkgs <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
+
+# If some are missing, tell the user what to do
+if (length(missing_pkgs) > 0) {
+  message("The following packages are not installed: ",
+          paste(missing_pkgs, collapse = ", "))
+  message("You can install them with:\n",
+          "install.packages(c(\"", 
+          paste(missing_pkgs, collapse = "\", \""), "\"))")
+} else {
+  message("All required packages are installed.")
 }
+
 
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -73,7 +80,7 @@ SONN <- R6Class(
     activation_functions_predict = NULL,
     dropout_rates = NULL,
     
-    initialize = function(input_size, hidden_sizes = NULL, output_size, Rdata = NULL, N,  lambda, ML_NN, dropout_rates = NULL, activation_functions = NULL, activation_functions_predict = NULL, method = init_method, custom_scale = custom_scale) {
+    initialize = function(input_size, hidden_sizes = NULL, output_size, Rdata = NULL, N,  lambda, ML_NN, dropout_rates = NULL, activation_functions = NULL, activation_functions_predict = NULL, method, custom_scale) {
       
       # Initialize SONN parameters and architecture
       self$input_size <- input_size
@@ -102,7 +109,7 @@ SONN <- R6Class(
  
 
       # Initialize weights and biases using specified initialization method fir MLNN and SLNN
-      init <- self$initialize_weights_biases(input_size, hidden_sizes, output_size, method = init_method, custom_scale)
+      init <- self$initialize_weights_biases(input_size, hidden_sizes, output_size, method, custom_scale)
       self$weights <- init$weights
       self$biases <- init$biases
 
@@ -140,7 +147,7 @@ SONN <- R6Class(
       )
       
     },
-    initialize_weights_biases = function(input_size, hidden_sizes, output_size, method = init_method, custom_scale = NULL) {
+    initialize_weights_biases = function(input_size, hidden_sizes, output_size, method, custom_scale) {
       # container
       weights <- list()
       biases  <- list()
@@ -255,7 +262,7 @@ SONN <- R6Class(
       isTRUE(cfg[[name]]) || on_all
     },
     self_organize = function(Rdata, labels, lr) {
-      print("----------------------------------------self-organize-begin----------------------------------------")
+      if(verbose){print("----------------------------------------self-organize-begin----------------------------------------")}
       
       
       
@@ -708,18 +715,15 @@ SONN <- R6Class(
         print(weight_dim)
       }
       
+
       
       
-      
-      
-      
-      print("----------------------------------------self-organize-end----------------------------------------")
+      if(verbose){print("----------------------------------------self-organize-end----------------------------------------")}
       
     },
-
-    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE,
-                     activation_functions, dropout_rates, sample_weights) {
-      print("----------------------------------------learn-begin----------------------------------------")
+    #the magical function
+    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights) {
+      if(verbose){print("----------------------------------------learn-begin----------------------------------------")}
       start_time <- Sys.time()
       
       `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -1023,14 +1027,15 @@ SONN <- R6Class(
       }
       
       learn_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
-      print("----------------------------------------learn-end----------------------------------------")
+      
+      if(verbose){print("----------------------------------------learn-end----------------------------------------")}
       
       return(list(learn_output = predicted_output_learn, learn_time = learn_time, error = error_learn, dim_hidden_layers = dim_hidden_layers_learn, hidden_outputs = predicted_output_learn_hidden, grads_matrix = grads_matrix, bias_gradients = bias_gradients, errors = errors))
     },
   
     # Method to perform prediction
     predict = function(Rdata, weights, biases, activation_functions_predict, verbose=FALSE, debug=FALSE) {
-      print("----------------------------------------predict-begin----------------------------------------")
+      if(verbose){print("----------------------------------------predict-begin----------------------------------------")}
       # ---- Debug/Verbose toggles ----
       if (is.null(debug)) {
         debug <- isTRUE(get0("DEBUG_PREDICT_FORWARD", inherits = TRUE, ifnotfound = FALSE))
@@ -2386,7 +2391,7 @@ SONN <- R6Class(
       
       # Calculate the training time
       training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
-      print("----------------------------------------train_network-end----------------------------------------")
+      if(verbose){print("----------------------------------------train_network-end----------------------------------------")}
       # Return the predicted output & best weights, etc. through train_network thourgh learn()
       return(list(predicted_output_l2 = predicted_output_train_reg, training_time = training_time, best_train_acc = best_train_acc, best_epoch_train = best_epoch_train, best_val_acc = best_val_acc, best_val_epoch = best_val_epoch, best_val_prediction_time = best_val_prediction_time, learn_output = learn_result$learn_output, learn_time = total_learn_time, learn_dim_hidden_layers = learn_result$dim_hidden_layers, learn_hidden_outputs = learn_result$hidden_outputs, learn_grads_matrix = learn_result$grads_matrix, learn_bias_gradients = learn_result$bias_gradients, learn_errors = learn_result$errors, optimal_epoch = optimal_epoch, weights_record = weights_record, biases_record = biases_record, best_weights_record = best_weights, best_biases_record = best_biases, lossesatoptimalepoch = NULL, loss_increase_flag = NULL, loss_status = NULL, dim_hidden_layers = dim_hidden_layers, predicted_output_val = predicted_output_val, best_val_probs = best_val_probs, best_val_labels = best_val_labels))
     } #end of train_network
@@ -2585,7 +2590,7 @@ DDESONN <- R6Class(
       on_all || flag
     },
     train = function(Rdata, labels, lr, lr_decay_rate, lr_decay_epoch, lr_min, ensemble_number, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, grouped_metrics, viewTables, verbose) {
-      print("----------------------------------------train-begin----------------------------------------")
+      if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
         Rdata <- self$normalize_data(Rdata, numeric_columns)
@@ -3043,13 +3048,13 @@ DDESONN <- R6Class(
 
         
   
-        print("----------------------------------------train-end----------------------------------------")
+        if(verbose){print("----------------------------------------train-end----------------------------------------")}
       return(list(predicted_outputAndTime = predicted_outputAndTime, performance_relevance_data = performance_relevance_data))
     }
     , # Method for updating performance and relevance metrics
     
     update_performance_and_relevance = function(Rdata, labels, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_val_acc, all_best_val_epoch, ML_NN, grouped_metrics, viewTables, verbose) {
-      print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")
+      if(verbose){pprint("----------------------------------------update_performance_and_relevance-begin----------------------------------------")}
       
       # Initialize lists to store performance and relevance metrics for each SONN
       performance_list <- list()
@@ -3231,25 +3236,41 @@ DDESONN <- R6Class(
             
             
             
-            if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))){
-              cat(">> METRICS FOR ENSEMBLE:", ensemble_number, "MODEL:", i, "\n")
-              print(performance_metric)
-              print(relevance_metric)
+            iif (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
+              if (isTRUE(verbose) || isTRUE(viewTables)) {
+                message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
+                emit_table(
+                  performance_metric,
+                  title = "[PERFORMANCE metrics]",
+                  verbose = verbose,
+                  viewTables = viewTables
+                )
+                emit_table(
+                  relevance_metric,
+                  title = "[RELEVANCE metrics]",
+                  verbose = verbose,
+                  viewTables = viewTables
+                )
+              }
               
             }
             
           }
           
           
-          cat("\n====================================\n")
-          cat("🔍 DEBUG: Preparing to store metadata\n")
-          cat("Ensemble number: ", ensemble_number, "\n")
-          cat("Model iteration: ", i, "\n")
-          cat("Run ID: ", single_ensemble_name_model_name, "\n")
-          cat("Predicted output shape:\n"); print(dim(single_predicted_output))
-          cat("Checking self$ensemble[[", i, "]]\n")
-          str(self$ensemble[[i]])
-          cat("====================================\n\n")
+          if (isTRUE(verbose)) {
+            cat("\n=============================================\n")
+            cat("DEBUG: Preparing to store metadata (Network Container)\n")
+            cat("Ensemble number: ", ensemble_number, "\n")
+            cat("Model iteration: ", i, "\n")
+            cat("Run ID: ", single_ensemble_name_model_name, "\n")
+            cat("Predicted output shape:\n")
+            print(dim(single_predicted_output))
+            cat("Checking self$ensemble[[", i, "]]\n")
+            str(self$ensemble[[i]])
+            cat("=============================================\n\n")
+          }
+          
           
           
           self$store_metadata(single_predicted_outputAndTime, y, do_ensemble, self$input_size, self$output_size, self$N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, self$lambda, num_epochs, run_id = single_ensemble_name_model_name, ensemble_number, model_iter_num = i, model_serial_num = sprintf("%d.0.%d", ensemble_number, i), threshold = NULL, CLASSIFICATION_MODE, predicted_output = single_predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics = validation_metrics, activation_functions, activation_functions_predict, self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL)
@@ -3601,7 +3622,7 @@ DDESONN <- R6Class(
 
       } #end of if(grouped_metrics)
       
-      print("----------------------------------------update_performance_and_relevance-end----------------------------------------")
+      if(verbose){pprint("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
       # Return the lists of plots
       return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL))
       

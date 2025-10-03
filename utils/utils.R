@@ -3087,3 +3087,49 @@ DDESONN_fuse_from_agg <- function(
   list(metrics = rows_df, predictions = out_preds)
 }
 
+
+
+
+emit_table <- function(x,
+                       title,
+                       rows = NULL,
+                       verbose = FALSE,
+                       viewTables = FALSE) {
+  if (!isTRUE(verbose) && !isTRUE(viewTables)) {
+    return(invisible(x))
+  }
+  
+  if (is.null(x)) {
+    if (isTRUE(verbose) || isTRUE(viewTables)) {
+      message(sprintf("%s <NULL>", title))
+    }
+    return(invisible(x))
+  }
+  
+  n_rows <- tryCatch(NROW(x), error = function(...) NA_integer_)
+  if (is.na(n_rows) || n_rows == 0) {
+    if (isTRUE(verbose) || isTRUE(viewTables)) {
+      message(sprintf("%s <empty>", title))
+    }
+    return(invisible(x))
+  }
+  
+  max_rows <- rows
+  if (is.null(max_rows)) {
+    max_rows <- if (isTRUE(verbose)) n_rows else min(n_rows, 10L)
+  }
+  
+  truncated <- n_rows > max_rows
+  to_show <- if (truncated) utils::head(x, max_rows) else x
+  
+  message(title)
+  captured <- utils::capture.output(print(to_show))
+  for (line in captured) message(line)
+  
+  if (truncated) {
+    message(sprintf("... (%d of %d rows shown)", max_rows, n_rows))
+  }
+  
+  invisible(x)
+}
+
