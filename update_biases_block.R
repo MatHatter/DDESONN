@@ -31,11 +31,11 @@ update_biases_block <- function(
     lookahead_step,
     verbose = FALSE
 ) {
-  if (!isTRUE(update_biases)) {
+  if (!update_biases) {
     return(list(updated_optimizer_params = optimizer_params_biases))
   }
-  
-  if (isTRUE(self$ML_NN)) {
+
+  if (self$ML_NN) {
     # =========================
     # MULTI-LAYER NN BRANCH
     # =========================
@@ -107,7 +107,7 @@ update_biases_block <- function(
             bias_update <- lr * grads_matrix + reg_term
             
           } else {
-            cat("Warning: Unknown reg_type in ML bias update. No regularization applied.\n")
+            message("Warning: Unknown reg_type in ML bias update. No regularization applied.")
             bias_update <- lr * grads_matrix
           }
         } else {
@@ -321,7 +321,9 @@ update_biases_block <- function(
     # =========================
     # SINGLE-LAYER BIAS UPDATE
     # =========================
-    cat("Single Layer Bias Update\n")
+    if (verbose) {
+      message("Single Layer Bias Update")
+    }
     
     # 1) Ensure biases matrix [1 x n_units]
     if (is.null(self$biases)) stop("Biases are NULL in single-layer mode.")
@@ -336,9 +338,11 @@ update_biases_block <- function(
         lookahead_step,
         1L
       )
-      cat(">>> SL initialize_optimizer_params (bias) done for layer 1\n")
-      str(optimizer_params_biases[[1]])
-      print(names(optimizer_params_biases[[1]]))
+      if (verbose) {
+        message(">>> SL initialize_optimizer_params (bias) done for layer 1")
+        for (line in utils::capture.output(str(optimizer_params_biases[[1]]))) message(line)
+        message("Names: ", paste(names(optimizer_params_biases[[1]]), collapse = ", "))
+      }
     }
     
     # 3) Gradient from errors (per-unit mean)
@@ -351,8 +355,13 @@ update_biases_block <- function(
     bias_grad <- clip_gradient_norm(bias_grad, max_norm = 5.0)
     
     # Debug
-    cat("SL bias_grad dim:", paste(dim(bias_grad), collapse = "x"), "\n")
-    cat("SL bias_grad summary:\n"); print(summary(as.vector(bias_grad)))
+    if (verbose) {
+      message("SL bias_grad dim: ", paste(dim(bias_grad), collapse = " x "))
+      message("SL bias_grad summary:")
+      for (nm in names(summary(as.vector(bias_grad)))) {
+        message(nm, ": ", summary(as.vector(bias_grad))[nm])
+      }
+    }
     
     # 4) Optimizer dispatch (preferred path)
     if (!is.null(optimizer) && !is.null(optimizer_params_biases[[1]])) {
@@ -374,9 +383,11 @@ update_biases_block <- function(
       self$biases <- updated_optimizer$updated_weights_or_biases
       optimizer_params_biases[[1]] <- updated_optimizer$updated_optimizer_params
       
-      cat(">> SL updated biases summary: min =", min(self$biases),
-          ", mean =", mean(self$biases),
-          ", max =", max(self$biases), "\n")
+      if (verbose) {
+        message(">> SL updated biases summary: min = ", min(self$biases),
+                ", mean = ", mean(self$biases),
+                ", max = ", max(self$biases))
+      }
       
     } else {
       # 5) Manual / fallback with regularization
@@ -409,7 +420,7 @@ update_biases_block <- function(
           reg_term <- self$lambda * (self$biases - clipped_bias)
           bias_update <- bias_update + reg_term
         } else {
-          cat("Warning: Unknown reg_type in SL bias update. No regularization applied.\n")
+          message("Warning: Unknown reg_type in SL bias update. No regularization applied.")
         }
       }
       

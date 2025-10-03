@@ -56,7 +56,7 @@ probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FA
 }
 
 probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = TRUE,
-                             verbose = TRUE) {
+                             verbose = verbose) {
   W_last <- weights[[length(weights)]]
   b_last <- biases[[length(biases)]]
 

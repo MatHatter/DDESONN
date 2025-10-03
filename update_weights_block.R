@@ -33,17 +33,17 @@ update_weights_block <- function(
     lookahead_step,
     verbose = FALSE
 ) {
-  if (!isTRUE(update_weights)) {
+  if (!update_weights) {
     return(list(updated_optimizer_params = optimizer_params_weights))
   }
-  
+
   # =========================
   # MULTI-LAYER NN BRANCH
   # =========================
-  if (isTRUE(self$ML_NN)) {
+  if (self$ML_NN) {
     for (layer in 1:self$num_layers) {
       if (!is.null(self$weights[[layer]]) && !is.null(optimizer)) {
-        
+
         if (is.null(optimizer_params_weights[[layer]])) {
           optimizer_params_weights[[layer]] <- initialize_optimizer_params(
             optimizer,
@@ -51,11 +51,12 @@ update_weights_block <- function(
             lookahead_step,
             layer
           )
-          
-          # $$$$$$$$$$$$$$$ DEBUGGING OUTPUT $$$$$$$$$$$$$$$
-          cat(">>> After initialize_optimizer_params() for layer", layer, "\n")
-          str(optimizer_params_weights[[layer]])  # structure of this specific layer’s params
-          print(names(optimizer_params_weights[[layer]]))  # list element names
+
+          if (verbose) {
+            message(">>> After initialize_optimizer_params() for layer ", layer)
+            for (line in utils::capture.output(str(optimizer_params_weights[[layer]]))) message(line)
+            message("Names: ", paste(names(optimizer_params_weights[[layer]]), collapse = ", "))
+          }
         }
         
         # Get weight gradients from learn()
@@ -98,7 +99,7 @@ update_weights_block <- function(
             }
             weight_update <- lr * grads_matrix + self$lambda * (self$weights[[layer]] - clipped_weights)
           } else {
-            cat("Warning: Unknown reg_type provided. No regularization applied.\n")
+            message("Warning: Unknown reg_type provided. No regularization applied.")
             weight_update <- lr * grads_matrix
           }
         } else {
@@ -299,9 +300,11 @@ update_weights_block <- function(
           lookahead_step,
           1L
         )
-        cat(">>> SL initialize_optimizer_params done for layer 1\n")
-        str(optimizer_params_weights[[1]])
-        print(names(optimizer_params_weights[[1]]))
+        if (verbose) {
+          message(">>> SL initialize_optimizer_params done for layer 1")
+          for (line in utils::capture.output(str(optimizer_params_weights[[1]]))) message(line)
+          message("Names: ", paste(names(optimizer_params_weights[[1]]), collapse = ", "))
+        }
       }
       
       # Get weight gradients from learn()
@@ -337,16 +340,21 @@ update_weights_block <- function(
           reg_term <- self$lambda * (weights_mat - clipped_weights)
           weight_update <- lr * grads_matrix + reg_term
         } else {
-          cat("Warning: Unknown reg_type in SL. No regularization applied.\n")
+          message("Warning: Unknown reg_type in SL. No regularization applied.")
           weight_update <- lr * grads_matrix
         }
       } else {
         weight_update <- lr * grads_matrix
       }
-      
+
       # ------------------- DEBUG -------------------
-      cat(">> SL grads_matrix dim:\n"); print(dim(grads_matrix))
-      cat("SL grads_matrix summary:\n"); print(summary(as.vector(grads_matrix)))
+      if (verbose) {
+        message(">> SL grads_matrix dim: ", paste(dim(grads_matrix), collapse = " x "))
+        message("SL grads_matrix summary:")
+        for (nm in names(summary(as.vector(grads_matrix)))) {
+          message(nm, ": ", summary(as.vector(grads_matrix))[nm])
+        }
+      }
       
       # ------------------- OPTIMIZER DISPATCH (SL) -------------------
       if (!is.null(optimizer_params_weights[[1]])) {
@@ -374,9 +382,11 @@ update_weights_block <- function(
           }
           optimizer_params_weights[[1]] <- updated_optimizer$updated_optimizer_params
 
-          cat(">> SL updated weights summary: min =", min(weights_mat),
-              ", mean =", mean(weights_mat),
-              ", max =", max(weights_mat), "\n")
+          if (verbose) {
+            message(">> SL updated weights summary: min = ", min(weights_mat),
+                    ", mean = ", mean(weights_mat),
+                    ", max = ", max(weights_mat))
+          }
           
         } else {
           # Unknown optimizer → fall back to manual update

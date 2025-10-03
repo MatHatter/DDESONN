@@ -316,7 +316,7 @@ LoadandPredict <- function(
     dse_env <- environment(DDESONN_predict_eval)
     assign("load_meta",
            function(LOAD_FROM_RDS=FALSE, ENV_META_NAME=NULL, ...){
-             if (isTRUE(LOAD_FROM_RDS)) {
+             if (LOAD_FROM_RDS) {
                if (!is.null(ENV_META_NAME) && file.exists(ENV_META_NAME)) return(readRDS(ENV_META_NAME))
                stop("load_meta(LOAD_FROM_RDS=TRUE): file not found / not provided")
              }
@@ -346,7 +346,7 @@ LoadandPredict <- function(
     if ("SPLIT" %in% names(df)) df$SPLIT <- toupper(as_chr(df$SPLIT))
     if ("CLASSIFICATION_MODE" %in% names(df)) df$CLASSIFICATION_MODE <- tolower(as_chr(df$CLASSIFICATION_MODE))
     
-    if (isTRUE(force_run_index)) {
+    if (force_run_index) {
       if ("run_index" %in% names(df)) {
         df$run_index <- 1L
       } else if ("RUN_INDEX" %in% names(df)) {
@@ -552,7 +552,7 @@ LoadandPredict <- function(
   # ---------- outputs ----------
   agg_metrics_path <- file.path(out_dir, sprintf("agg_metrics_%s.rds", predict_split))
   agg_preds_path   <- file.path(out_dir, sprintf("agg_predictions_%s.rds", predict_split))
-  if (isTRUE(overwrite)) {
+  if (overwrite) {
     suppressWarnings(try(unlink(agg_metrics_path, force=TRUE), silent=TRUE))
     suppressWarnings(try(unlink(agg_preds_path,   force=TRUE), silent=TRUE))
   }

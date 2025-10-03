@@ -15,10 +15,10 @@
 # ===============================================================
 
 apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr, beta1, beta2, epsilon, epoch, self, layer, target,
-                                   alpha = NULL, lambda1 = NULL, lambda2 = NULL, verbose) {
+                                   alpha = NULL, lambda1 = NULL, lambda2 = NULL, verbose = FALSE) {
   
   # -------- SL shim (normalize shapes so ML-style code works) --------
-  is_sl <- !isTRUE(self$ML_NN)
+  is_sl <- !self$ML_NN
   
   # In SL, weights/biases are matrices, but branches use [[layer]].
   # Temporarily "box" them into 1-element lists and guarantee shapes.
@@ -363,10 +363,11 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
   }
   
   else if (optimizer == "nag") {
-    cat(">> Optimizer = nag\n")
-    cat("Layer:", layer, "\n")
-    cat("grads_matrix dim:\n")
-    print(dim(grads_matrix))
+    if (verbose) {
+      message(">> Optimizer = nag")
+      message("Layer: ", layer)
+      message("grads_matrix dim: ", if (is.null(dim(grads_matrix))) "NULL" else paste(dim(grads_matrix), collapse = " x "))
+    }
     
     layer_boost <- if (layer == self$num_layers) 1 else 1
     
@@ -421,8 +422,10 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       updated <- pmin(pmax(updated, -clip_threshold), clip_threshold)
     }
     
-    cat("Updated", target, "summary (layer", layer, "): min =", min(updated), 
-        ", mean =", mean(updated), ", max =", max(updated), "\n")
+    if (verbose) {
+      message("Updated ", target, " summary (layer ", layer, "): min = ", min(updated),
+              ", mean = ", mean(updated), ", max = ", max(updated))
+    }
     
     # Apply update
     if (target == "weights") {
@@ -434,10 +437,11 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
   
   
   else if (optimizer == "ftrl") {
-    cat(">> Optimizer = ftrl\n")
-    cat("Layer:", layer, "\n")
-    cat("grads_matrix dim:\n")
-    print(dim(grads_matrix))
+    if (verbose) {
+      message(">> Optimizer = ftrl")
+      message("Layer: ", layer)
+      message("grads_matrix dim: ", if (is.null(dim(grads_matrix))) "NULL" else paste(dim(grads_matrix), collapse = " x "))
+    }
     
     layer_boost <- if (layer == self$num_layers) 1 else 1
     
@@ -495,8 +499,10 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       updated <- pmin(pmax(updated, -clip_threshold), clip_threshold)
     }
     
-    cat("Updated", target, "summary (layer", layer, "): min =", min(updated), 
-        ", mean =", mean(updated), ", max =", max(updated), "\n")
+    if (verbose) {
+      message("Updated ", target, " summary (layer ", layer, "): min = ", min(updated),
+              ", mean = ", mean(updated), ", max = ", max(updated))
+    }
     
     # Apply update
     if (target == "weights") {
@@ -507,10 +513,11 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
   }
   
   else if (optimizer == "lamb") {
-    cat(">> Optimizer = lamb\n")
-    cat("Layer:", layer, "\n")
-    cat("grads_matrix dim:\n")
-    print(dim(grads_matrix))
+    if (verbose) {
+      message(">> Optimizer = lamb")
+      message("Layer: ", layer)
+      message("grads_matrix dim: ", if (is.null(dim(grads_matrix))) "NULL" else paste(dim(grads_matrix), collapse = " x "))
+    }
     
     layer_boost <- if (layer == self$num_layers) 1 else 1
     
@@ -568,8 +575,10 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       updated <- pmin(pmax(updated, -clip_threshold), clip_threshold)
     }
     
-    cat("Updated", target, "summary (layer", layer, "): min =", min(updated), 
-        ", mean =", mean(updated), ", max =", max(updated), "\n")
+    if (verbose) {
+      message("Updated ", target, " summary (layer ", layer, "): min = ", min(updated),
+              ", mean = ", mean(updated), ", max = ", max(updated))
+    }
     
     # Apply update
     if (target == "weights") {
@@ -580,10 +589,11 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
   }
   
   else if (optimizer == "lookahead") {
-    cat(">> Optimizer = lookahead\n")
-    cat("Layer:", layer, "\n")
-    cat("grads_matrix dim:\n")
-    print(dim(grads_matrix))
+    if (verbose) {
+      message(">> Optimizer = lookahead")
+      message("Layer: ", layer)
+      message("grads_matrix dim: ", if (is.null(dim(grads_matrix))) "NULL" else paste(dim(grads_matrix), collapse = " x "))
+    }
     
     layer_boost <- if (layer == self$num_layers) 1 else 1
     
@@ -628,8 +638,10 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       updated <- pmin(pmax(updated, -clip_threshold), clip_threshold)
     }
     
-    cat("Updated", target, "summary (layer", layer, "): min =", min(updated),
-        ", mean =", mean(updated), ", max =", max(updated), "\n")
+    if (verbose) {
+      message("Updated ", target, " summary (layer ", layer, "): min = ", min(updated),
+              ", mean = ", mean(updated), ", max = ", max(updated))
+    }
     
     # Apply the update
     if (target == "weights") {
@@ -711,7 +723,9 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
     }
     
     # --- Log summary (works for weights or biases) ---
-    print("before log")
+    if (verbose) {
+      message("before log")
+    }
     optimizers_log_update(
       optimizer       = "adagrad", epoch = epoch,
       layer           = layer,
@@ -728,12 +742,16 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
   
   
   else if (optimizer == "adadelta") {
-    cat(">> Optimizer = adadelta (", target, ")\n")
-    cat("Layer:", layer, "\n")
-    
+    if (verbose) {
+      message(">> Optimizer = adadelta (", target, ")")
+      message("Layer: ", layer)
+    }
+
     err <- errors[[layer]]
     err_dims <- dim(err)
-    cat("errors dim:\n"); print(err_dims)
+    if (verbose) {
+      message("errors dim: ", if (is.null(err_dims)) "NULL" else paste(err_dims, collapse = " x "))
+    }
     
     # Normalize error to matrix shape
     if (is.null(err_dims)) {
@@ -745,8 +763,9 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
     # Safe to compute gradient matrix now
     grads_matrix <- colSums(err)
     
-    cat("grads_matrix dim:\n")
-    print(dim(grads_matrix))
+    if (verbose) {
+      message("grads_matrix dim: ", if (is.null(dim(grads_matrix))) "NULL" else paste(dim(grads_matrix), collapse = " x "))
+    }
     
     layer_boost <- if (layer == self$num_layers) 1 else 1
     
@@ -796,8 +815,10 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       updated <- pmin(pmax(updated, -clip_threshold), clip_threshold)
     }
     
-    cat("Updated", target, "summary (layer", layer, "): min =", min(updated),
-        ", mean =", mean(updated), ", max =", max(updated), "\n")
+    if (verbose) {
+      message("Updated ", target, " summary (layer ", layer, "): min = ", min(updated),
+              ", mean = ", mean(updated), ", max = ", max(updated))
+    }
     
     if (target == "weights") {
       self$weights[[layer]] <- self$weights[[layer]] - updated
@@ -822,7 +843,7 @@ initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer, v
   
   layer_dim <- dim[[1]]  # always using first dim block
   if (length(layer_dim) != 2 || any(is.na(layer_dim)) || any(layer_dim <= 0)) {
-    cat("Invalid dimensions detected. Setting default dimension [1, 1].\n")
+    message("Invalid dimensions detected. Setting default dimension [1, 1].")
     layer_dim <- c(1, 1)
   }
   
@@ -830,7 +851,9 @@ initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer, v
   ncol_dim <- layer_dim[2]
   
   current_layer <- if (!is.null(layer)) layer else 1
-  cat("Layer", current_layer, "dimensions: nrow =", nrow_dim, ", ncol =", ncol_dim, "\n")
+  if (verbose) {
+    message("Layer ", current_layer, " dimensions: nrow = ", nrow_dim, ", ncol = ", ncol_dim)
+  }
   
   param_init <- matrix(rnorm(nrow_dim * ncol_dim), nrow = nrow_dim, ncol = ncol_dim)
   
@@ -863,8 +886,8 @@ initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer, v
   )
   
   if (verbose) {
-    cat("Layer", current_layer, "optimizer tracking params initialized:\n")
-    str(entry)
+    message("Layer ", current_layer, " optimizer tracking params initialized:")
+    for (line in utils::capture.output(str(entry))) message(line)
   }
   
   return(entry)
