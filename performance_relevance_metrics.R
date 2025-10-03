@@ -34,7 +34,7 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
       # legacy: codebook passed directly as a matrix
       W <- as.matrix(SONN)
     } else {
-      if (isTRUE(verbose)) cat("[quantization error]: NA\n")
+      if (verbose) message("[quantization error]: NA")
       return(NA_real_)
     }
     
@@ -49,7 +49,7 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
   storage.mode(W) <- "double"
   if (ncol(W) != NCOL(Rdata) && nrow(W) == NCOL(Rdata)) W <- t(W)
   if (ncol(W) != NCOL(Rdata)) {
-    if (isTRUE(verbose)) cat("[quantization error]: NA\n")
+    if (verbose) message("[quantization error]: NA")
     return(NA_real_)
   }
   
@@ -62,7 +62,7 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
   })
   
   if (!length(distances) || all(!is.finite(distances))) {
-    if (isTRUE(verbose)) cat("[quantization error]: NA\n")
+    if (verbose) message("[quantization error]: NA")
     return(NA_real_)
   }
   
@@ -127,12 +127,12 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
     M <- matrix(seq_len(m), nrow = r, ncol = c, byrow = TRUE)
   }
   
-  if (isTRUE(verbose)) {
-    cat(sprintf("[topo] dim(X)=%dx%d | dim(W)=%dx%d | units=%d\n",
-                nrow(X), ncol(X), nrow(W), ncol(W), m))
+  if (verbose) {
+    message(sprintf("[topo] dim(X)=%dx%d | dim(W)=%dx%d | units=%d",
+                    nrow(X), ncol(X), nrow(W), ncol(W), m))
     if (!is.null(colnames(X)) && !is.null(colnames(W))) {
       same_names <- identical(colnames(X), colnames(W))
-      cat("[topo] colnames(X)==colnames(W): ", same_names, "\n", sep = "")
+      message(sprintf("[topo] colnames(X)==colnames(W): %s", same_names))
     }
   }
   
@@ -157,7 +157,7 @@ topographic_error <- function(SONN, Rdata, threshold, verbose) {
   dgrid <- sqrt(rowSums((coords[bmu, , drop = FALSE] - coords[sbmu, , drop = FALSE])^2))
   err <- mean(dgrid > 1)
   
-  if (isTRUE(verbose)) cat("[topo] error =", err, "\n")
+  if (verbose) message(sprintf("[topo] error = %s", err))
   err
 }
 
@@ -199,7 +199,7 @@ clustering_quality_db <- function(SONN, Rdata, cluster_assignments, verbose) {
   n_clusters <- nrow(centroids)
   if (n_clusters < 2L) {
     # DB index undefined with <2 clusters; return NA to avoid bogus division
-    if (isTRUE(verbose)) cat("[clustering_quality_db] n_clusters <", 2L, "→ NA\n")
+    if (verbose) message(sprintf("[clustering_quality_db] n_clusters < %d → NA", 2L))
     return(NA_real_)
   }
   
@@ -772,7 +772,9 @@ hit_rate <- function(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, labels,
 # - Binary    : predicted_output = N×1 (p_pos) or N×2 ([p_neg, p_pos]); labels = 0/1, two unique values, or one-hot N×2.
 # - Regression: accuracy undefined -> returns NA_real_.
 accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
-  dbg <- function(...) if (isTRUE(verbose)) cat(..., "\n")
+  dbg <- function(...) {
+    if (verbose) message(paste(..., collapse = " "))
+  }
   
   # ---------- helpers ----------
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -792,12 +794,12 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   # ---------- argument recovery (handle swapped positional args) ----------
   if (!is_valid_mode(CLASSIFICATION_MODE)) {
     if (!missing(predicted_output) && is.logical(predicted_output) && length(predicted_output) == 1L) {
-      if (isTRUE(verbose)) dbg("[accuracy] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
+      if (verbose) dbg("[accuracy] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
       verbose <- predicted_output
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     } else if (missing(predicted_output)) {
-      if (isTRUE(verbose)) dbg("[accuracy] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
+      if (verbose) dbg("[accuracy] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     }
@@ -809,7 +811,7 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   lbl  <- coerce_to_numeric_matrix(labels)
   pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[accuracy] Empty labels or predictions.")
-  if (isTRUE(verbose)) dbg(sprintf("[accuracy] initial dims: labels=%d x %d | pred=%d x %d",
+  if (verbose) dbg(sprintf("[accuracy] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
   
   # ---------- row alignment (NO aggressive recycling) ----------
@@ -822,14 +824,14 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
       stop(sprintf("[accuracy] Row mismatch too large (labels=%d, pred=%d). Pass aligned inputs.",
                    nrow(lbl), nrow(pred)))
     }
-    if (isTRUE(verbose)) dbg(sprintf("[accuracy] Minor row mismatch -> trimming to %d rows", n_common))
+    if (verbose) dbg(sprintf("[accuracy] Minor row mismatch -> trimming to %d rows", n_common))
     lbl  <- lbl[seq_len(n_common), , drop = FALSE]
     pred <- pred[seq_len(n_common), , drop = FALSE]
   }
   
   # ---------- resolve/infer mode ----------
   mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(lbl, pred)
-  if (isTRUE(verbose)) dbg(paste("[accuracy] MODE =", mode))
+  if (verbose) dbg(paste("[accuracy] MODE =", mode))
   
   # ---------- classification paths ----------
   if (identical(mode, "multiclass")) {
@@ -854,7 +856,7 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     
     ok <- stats::complete.cases(true_class, pred_class)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[accuracy] Dropping %d row(s) with NA in classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[accuracy] Dropping %d row(s) with NA in classes", sum(!ok)))
       true_class <- true_class[ok]; pred_class <- pred_class[ok]
     }
     if (!length(true_class)) return(NA_real_)
@@ -894,7 +896,7 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     
     ok <- stats::complete.cases(y_true, y_pred)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[accuracy] Dropping %d row(s) with NA in binary classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[accuracy] Dropping %d row(s) with NA in binary classes", sum(!ok)))
       y_true <- y_true[ok]; y_pred <- y_pred[ok]
     }
     if (!length(y_true)) return(NA_real_)
@@ -903,7 +905,7 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     return(round(as.numeric(acc), 8))
     
   } else if (identical(mode, "regression")) {
-    if (isTRUE(verbose)) dbg("[accuracy] Regression mode: accuracy undefined -> returning NA_real_.")
+    if (verbose) dbg("[accuracy] Regression mode: accuracy undefined -> returning NA_real_.")
     return(NA_real_)
   }
   
@@ -918,7 +920,9 @@ accuracy <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
 # - Binary accepts predicted_output as N×1 (p_pos) or N×2 ([p_neg, p_pos]). labels as 0/1, two unique values, or one-hot N×2.
 # - Regression: precision is undefined -> returns NA_real_ (with optional debug note).
 precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose) {
-  dbg <- function(...) if (isTRUE(verbose)) cat(..., "\n")
+  dbg <- function(...) {
+    if (verbose) message(paste(..., collapse = " "))
+  }
   
   # ---------- helpers ----------
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -939,13 +943,13 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
   if (!is_valid_mode(CLASSIFICATION_MODE)) {
     if (!missing(predicted_output) && is.logical(predicted_output) && length(predicted_output) == 1L) {
       # called like precision(..., preds, TRUE)
-      if (isTRUE(verbose)) dbg("[precision] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
+      if (verbose) dbg("[precision] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
       verbose <- predicted_output
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     } else if (missing(predicted_output)) {
       # called like precision(..., preds)
-      if (isTRUE(verbose)) dbg("[precision] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
+      if (verbose) dbg("[precision] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     }
@@ -964,14 +968,14 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
     if (ratio < 0.9) {
       stop(sprintf("[precision] Row mismatch too large (labels=%d, pred=%d). Pass aligned inputs.", nrow(lbl), nrow(pred)))
     }
-    if (isTRUE(verbose)) dbg(sprintf("[precision] Minor row mismatch -> trimming to %d rows", n_common))
+    if (verbose) dbg(sprintf("[precision] Minor row mismatch -> trimming to %d rows", n_common))
     lbl  <- lbl[seq_len(n_common), , drop = FALSE]
     pred <- pred[seq_len(n_common), , drop = FALSE]
   }
   
   # ---------- resolve/infer mode ----------
   mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(lbl, pred)
-  if (isTRUE(verbose)) dbg(paste("[precision] MODE =", mode))
+  if (verbose) dbg(paste("[precision] MODE =", mode))
   
   # ---------- classification paths ----------
   if (identical(mode, "multiclass")) {
@@ -997,7 +1001,7 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
     # drop any NA rows (defensive)
     ok <- stats::complete.cases(true_class, pred_class)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[precision] Dropping %d row(s) with NA in classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[precision] Dropping %d row(s) with NA in classes", sum(!ok)))
       true_class <- true_class[ok]; pred_class <- pred_class[ok]
     }
     if (!length(true_class)) return(NA_real_)
@@ -1044,7 +1048,7 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
     
     ok <- stats::complete.cases(y_true, y_pred)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[precision] Dropping %d row(s) with NA in binary classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[precision] Dropping %d row(s) with NA in binary classes", sum(!ok)))
       y_true <- y_true[ok]; y_pred <- y_pred[ok]
     }
     if (!length(y_true)) return(NA_real_)
@@ -1055,7 +1059,7 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
     return(round(as.numeric(prec), 8))
     
   } else if (identical(mode, "regression")) {
-    if (isTRUE(verbose)) dbg("[precision] Regression mode: precision is undefined -> returning NA_real_.")
+    if (verbose) dbg("[precision] Regression mode: precision is undefined -> returning NA_real_.")
     return(NA_real_)
   }
   
@@ -1071,7 +1075,9 @@ precision <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output
 # - Regression: undefined -> returns NA_real_.
 # Set global option RECALL_MIN_OVERLAP <- 0.80 to control row-trim tolerance (default 0.80).
 recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = TRUE) {
-  dbg <- function(...) if (isTRUE(verbose)) cat(..., "\n")
+  dbg <- function(...) {
+    if (verbose) message(paste(..., collapse = " "))
+  }
   
   # ---------- helpers ----------
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -1090,12 +1096,12 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
   # ---------- argument recovery (handle swapped positional args) ----------
   if (!is_valid_mode(CLASSIFICATION_MODE)) {
     if (!missing(predicted_output) && is.logical(predicted_output) && length(predicted_output) == 1L) {
-      if (isTRUE(verbose)) dbg("[recall] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
+      if (verbose) dbg("[recall] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
       verbose <- predicted_output
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     } else if (missing(predicted_output)) {
-      if (isTRUE(verbose)) dbg("[recall] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
+      if (verbose) dbg("[recall] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     }
@@ -1105,7 +1111,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
   lbl  <- coerce_to_numeric_matrix(labels)
   pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[recall] Empty labels or predictions.")
-  if (isTRUE(verbose)) dbg(sprintf("[recall] initial dims: labels=%d x %d | pred=%d x %d",
+  if (verbose) dbg(sprintf("[recall] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
   
   # ---------- row alignment (prefer by rownames, else tolerant trim) ----------
@@ -1115,7 +1121,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
     if (length(common_ids) == 0L) stop("[recall] No overlapping rownames between labels and predictions.")
     lbl  <- lbl[common_ids, , drop = FALSE]
     pred <- pred[common_ids, , drop = FALSE]
-    if (isTRUE(verbose)) dbg(sprintf("[recall] Aligned by rownames: %d rows", length(common_ids)))
+    if (verbose) dbg(sprintf("[recall] Aligned by rownames: %d rows", length(common_ids)))
   } else if (nrow(lbl) != nrow(pred)) {
     n_common <- min(nrow(lbl), nrow(pred))
     min_overlap <- get0("RECALL_MIN_OVERLAP", ifnotfound = 0.80, inherits = TRUE)
@@ -1124,14 +1130,14 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
       stop(sprintf("[recall] Row mismatch too large (labels=%d, pred=%d). Overlap=%.3f < %.2f.",
                    nrow(lbl), nrow(pred), ratio, min_overlap))
     }
-    if (isTRUE(verbose)) dbg(sprintf("[recall] Trimmed to %d rows (overlap=%.3f >= %.2f)", n_common, ratio, min_overlap))
+    if (verbose) dbg(sprintf("[recall] Trimmed to %d rows (overlap=%.3f >= %.2f)", n_common, ratio, min_overlap))
     lbl  <- lbl[seq_len(n_common), , drop = FALSE]
     pred <- pred[seq_len(n_common), , drop = FALSE]
   }
   
   # ---------- resolve/infer mode ----------
   mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(lbl, pred)
-  if (isTRUE(verbose)) dbg(paste("[recall] MODE =", mode))
+  if (verbose) dbg(paste("[recall] MODE =", mode))
   
   # ---------- classification paths ----------
   if (identical(mode, "multiclass")) {
@@ -1156,7 +1162,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
     
     ok <- stats::complete.cases(true_class, pred_class)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[recall] Dropping %d row(s) with NA in classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[recall] Dropping %d row(s) with NA in classes", sum(!ok)))
       true_class <- true_class[ok]; pred_class <- pred_class[ok]
     }
     if (!length(true_class)) return(NA_real_)
@@ -1201,7 +1207,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
     
     ok <- stats::complete.cases(y_true, y_pred)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[recall] Dropping %d row(s) with NA in binary classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[recall] Dropping %d row(s) with NA in binary classes", sum(!ok)))
       y_true <- y_true[ok]; y_pred <- y_pred[ok]
     }
     if (!length(y_true)) return(NA_real_)
@@ -1212,7 +1218,7 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
     return(round(as.numeric(rec), 8))
     
   } else if (identical(mode, "regression")) {
-    if (isTRUE(verbose)) dbg("[recall] Regression mode: recall undefined -> returning NA_real_.")
+    if (verbose) dbg("[recall] Regression mode: recall undefined -> returning NA_real_.")
     return(NA_real_)
   }
   
@@ -1228,7 +1234,9 @@ recall <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, v
 # - Regression: undefined -> returns NA_real_.
 # Set global option F1_MIN_OVERLAP <- 0.80 to control row-trim tolerance (default 0.80).
 f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = TRUE) {
-  dbg <- function(...) if (isTRUE(verbose)) cat(..., "\n")
+  dbg <- function(...) {
+    if (verbose) message(paste(..., collapse = " "))
+  }
   
   # ---------- helpers ----------
   `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -1247,12 +1255,12 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   # ---------- argument recovery (handle swapped positional args) ----------
   if (!is_valid_mode(CLASSIFICATION_MODE)) {
     if (!missing(predicted_output) && is.logical(predicted_output) && length(predicted_output) == 1L) {
-      if (isTRUE(verbose)) dbg("[f1] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
+      if (verbose) dbg("[f1] Swapped args detected -> using CLASSIFICATION_MODE as predicted_output; predicted_output as verbose.")
       verbose <- predicted_output
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     } else if (missing(predicted_output)) {
-      if (isTRUE(verbose)) dbg("[f1] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
+      if (verbose) dbg("[f1] Missing predicted_output -> treating CLASSIFICATION_MODE as predicted_output.")
       predicted_output <- CLASSIFICATION_MODE
       CLASSIFICATION_MODE <- NULL
     }
@@ -1262,7 +1270,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
   lbl  <- coerce_to_numeric_matrix(labels)
   pred <- coerce_to_numeric_matrix(predicted_output)
   if (nrow(lbl) == 0L || nrow(pred) == 0L) stop("[f1] Empty labels or predictions.")
-  if (isTRUE(verbose)) dbg(sprintf("[f1] initial dims: labels=%d x %d | pred=%d x %d",
+  if (verbose) dbg(sprintf("[f1] initial dims: labels=%d x %d | pred=%d x %d",
                                    nrow(lbl), ncol(lbl), nrow(pred), ncol(pred)))
   
   # ---------- row alignment (prefer by rownames, else tolerant trim) ----------
@@ -1272,7 +1280,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     if (length(common_ids) == 0L) stop("[f1] No overlapping rownames between labels and predictions.")
     lbl  <- lbl[common_ids, , drop = FALSE]
     pred <- pred[common_ids, , drop = FALSE]
-    if (isTRUE(verbose)) dbg(sprintf("[f1] Aligned by rownames: %d rows", length(common_ids)))
+    if (verbose) dbg(sprintf("[f1] Aligned by rownames: %d rows", length(common_ids)))
   } else if (nrow(lbl) != nrow(pred)) {
     n_common <- min(nrow(lbl), nrow(pred))
     min_overlap <- get0("F1_MIN_OVERLAP", ifnotfound = 0.80, inherits = TRUE)
@@ -1281,14 +1289,14 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
       stop(sprintf("[f1] Row mismatch too large (labels=%d, pred=%d). Overlap=%.3f < %.2f.",
                    nrow(lbl), nrow(pred), ratio, min_overlap))
     }
-    if (isTRUE(verbose)) dbg(sprintf("[f1] Trimmed to %d rows (overlap=%.3f >= %.2f)", n_common, ratio, min_overlap))
+    if (verbose) dbg(sprintf("[f1] Trimmed to %d rows (overlap=%.3f >= %.2f)", n_common, ratio, min_overlap))
     lbl  <- lbl[seq_len(n_common), , drop = FALSE]
     pred <- pred[seq_len(n_common), , drop = FALSE]
   }
   
   # ---------- resolve/infer mode ----------
   mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(lbl, pred)
-  if (isTRUE(verbose)) dbg(paste("[f1] MODE =", mode))
+  if (verbose) dbg(paste("[f1] MODE =", mode))
   
   # ---------- classification paths ----------
   if (identical(mode, "multiclass")) {
@@ -1313,7 +1321,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     
     ok <- stats::complete.cases(true_class, pred_class)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[f1] Dropping %d row(s) with NA in classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[f1] Dropping %d row(s) with NA in classes", sum(!ok)))
       true_class <- true_class[ok]; pred_class <- pred_class[ok]
     }
     if (!length(true_class)) return(NA_real_)
@@ -1362,7 +1370,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     
     ok <- stats::complete.cases(y_true, y_pred)
     if (!all(ok)) {
-      if (isTRUE(verbose)) dbg(sprintf("[f1] Dropping %d row(s) with NA in binary classes", sum(!ok)))
+      if (verbose) dbg(sprintf("[f1] Dropping %d row(s) with NA in binary classes", sum(!ok)))
       y_true <- y_true[ok]; y_pred <- y_pred[ok]
     }
     if (!length(y_true)) return(NA_real_)
@@ -1377,7 +1385,7 @@ f1_score <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
     return(round(as.numeric(f1), 8))
     
   } else if (identical(mode, "regression")) {
-    if (isTRUE(verbose)) dbg("[f1] Regression mode: F1 undefined -> returning NA_real_.")
+    if (verbose) dbg("[f1] Regression mode: F1 undefined -> returning NA_real_.")
     return(NA_real_)
   }
   
@@ -1454,7 +1462,9 @@ accuracy_precision_recall_f1_tuned <- function(
     threshold_grid = seq(0.05, 0.95, by = 0.01),
     verbose = FALSE
 ) {
-  dbg <- function(...) if (isTRUE(verbose)) cat(..., "\n")
+  dbg <- function(...) {
+    if (verbose) message(paste(..., collapse = " "))
+  }
   metric_for_tuning <- match.arg(metric_for_tuning)
   
   # --- helpers ---

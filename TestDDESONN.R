@@ -125,7 +125,7 @@ path = p
             to   = dst_path,
             recursive = TRUE, overwrite = TRUE)
   
-  cat("Copied dataset from:\n ", src_path, "\n→\n ", dst_path, "\n")
+  message("Copied dataset from:\n ", src_path, "\n→\n ", dst_path)
 }
 
 
@@ -155,7 +155,7 @@ if (CLASSIFICATION_MODE == "binary") {
 
 ## Quick NA check
 na_count <- sum(is.na(data))
-cat("[split] NA count:", na_count, "\n")
+message(sprintf("[split] NA count: %s", na_count))
 
 
 # Assuming there are no missing values, or handle them if they exist

@@ -14,23 +14,26 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FALSE) {
+probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FALSE,
+                                  verbose = TRUE) {
   r2_val <- tryCatch({
     ss_tot <- sum((labs - mean(labs))^2, na.rm = TRUE)
     ss_res <- sum((labs - preds)^2, na.rm = TRUE)
     1 - ss_res / ss_tot
   }, error = function(e) NA_real_)
-  
-  cat(sprintf(
-    "[PROBE-R2 %s] preds min=%.4f mean=%.4f max=%.4f\n",
-    tag, min(preds), mean(preds), max(preds)
-  ))
-  cat(sprintf(
-    "[PROBE-R2 %s] labs  min=%.4f mean=%.4f max=%.4f\n",
-    tag, min(labs), mean(labs), max(labs)
-  ))
-  cat(sprintf("[PROBE-R2 %s] R^2=%.6f (n=%d)\n",
-              tag, r2_val, length(preds)))
+
+  if (verbose) {
+    message(sprintf(
+      "[PROBE-R2 %s] preds min=%.4f mean=%.4f max=%.4f",
+      tag, min(preds), mean(preds), max(preds)
+    ))
+    message(sprintf(
+      "[PROBE-R2 %s] labs  min=%.4f mean=%.4f max=%.4f",
+      tag, min(labs), mean(labs), max(labs)
+    ))
+    message(sprintf("[PROBE-R2 %s] R^2=%.6f (n=%d)",
+                    tag, r2_val, length(preds)))
+  }
   
   if (save_global) {
     dbg <- list(
@@ -52,10 +55,11 @@ probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FA
   }
 }
 
-probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = TRUE) {
+probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = TRUE,
+                             verbose = TRUE) {
   W_last <- weights[[length(weights)]]
   b_last <- biases[[length(biases)]]
-  
+
   stats <- list(
     tag = tag,
     W_last = list(
@@ -83,23 +87,25 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
     )
   )
   
-  cat(sprintf(
-    "[LASTLAYER %s] W dims=%s | mean=%.6f sd=%.6f range=[%.3f, %.3f]\n",
-    tag, paste(dim(W_last), collapse="x"),
-    stats$W_last$mean, stats$W_last$sd,
-    stats$W_last$min, stats$W_last$max
-  ))
-  cat(sprintf(
-    "[LASTLAYER %s] b len=%d | mean=%.6f range=[%.3f, %.3f]\n",
-    tag, stats$b_last$len,
-    stats$b_last$mean, stats$b_last$min, stats$b_last$max
-  ))
-  cat(sprintf(
-    "[LASTLAYER %s] y n=%d | mean=%.6f sd=%.6f range=[%.3f, %.3f]\n",
-    tag, stats$y$n,
-    stats$y$mean, stats$y$sd,
-    stats$y$min, stats$y$max
-  ))
+  if (verbose) {
+    message(sprintf(
+      "[LASTLAYER %s] W dims=%s | mean=%.6f sd=%.6f range=[%.3f, %.3f]",
+      tag, paste(dim(W_last), collapse = "x"),
+      stats$W_last$mean, stats$W_last$sd,
+      stats$W_last$min, stats$W_last$max
+    ))
+    message(sprintf(
+      "[LASTLAYER %s] b len=%d | mean=%.6f range=[%.3f, %.3f]",
+      tag, stats$b_last$len,
+      stats$b_last$mean, stats$b_last$min, stats$b_last$max
+    ))
+    message(sprintf(
+      "[LASTLAYER %s] y n=%d | mean=%.6f sd=%.6f range=[%.3f, %.3f]",
+      tag, stats$y$n,
+      stats$y$mean, stats$y$sd,
+      stats$y$min, stats$y$max
+    ))
+  }
   
   if (save_global) {
     # store in global env
@@ -109,9 +115,9 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
     fname <- sprintf("artifacts/probe_last_layer_%s_%s.rds",
                      tag, format(Sys.time(), "%Y%m%d_%H%M%S"))
     saveRDS(stats, fname)
-    cat("[LASTLAYER] Snapshot saved to:", fname, "\n")
+    message("[LASTLAYER] Snapshot saved to: ", fname)
   }
-  
+
   invisible(stats)
 }
 
@@ -3095,28 +3101,24 @@ emit_table <- function(x,
                        rows = NULL,
                        verbose = FALSE,
                        viewTables = FALSE) {
-  if (!isTRUE(verbose) && !isTRUE(viewTables)) {
+  if (!verbose && !viewTables) {
     return(invisible(x))
   }
-  
+
   if (is.null(x)) {
-    if (isTRUE(verbose) || isTRUE(viewTables)) {
-      message(sprintf("%s <NULL>", title))
-    }
+    message(sprintf("%s <NULL>", title))
     return(invisible(x))
   }
-  
+
   n_rows <- tryCatch(NROW(x), error = function(...) NA_integer_)
   if (is.na(n_rows) || n_rows == 0) {
-    if (isTRUE(verbose) || isTRUE(viewTables)) {
-      message(sprintf("%s <empty>", title))
-    }
+    message(sprintf("%s <empty>", title))
     return(invisible(x))
   }
-  
+
   max_rows <- rows
   if (is.null(max_rows)) {
-    max_rows <- if (isTRUE(verbose)) n_rows else min(n_rows, 10L)
+    max_rows <- if (verbose) n_rows else min(n_rows, 10L)
   }
   
   truncated <- n_rows > max_rows

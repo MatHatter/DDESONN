@@ -3236,8 +3236,8 @@ DDESONN <- R6Class(
             
             
             
-            iif (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
-              if (isTRUE(verbose) || isTRUE(viewTables)) {
+            if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
+              if (verbose || viewTables) {
                 message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
                 emit_table(
                   performance_metric,
@@ -3252,23 +3252,24 @@ DDESONN <- R6Class(
                   viewTables = viewTables
                 )
               }
-              
+
             }
             
           }
           
           
-          if (isTRUE(verbose)) {
-            cat("\n=============================================\n")
-            cat("DEBUG: Preparing to store metadata (Network Container)\n")
-            cat("Ensemble number: ", ensemble_number, "\n")
-            cat("Model iteration: ", i, "\n")
-            cat("Run ID: ", single_ensemble_name_model_name, "\n")
-            cat("Predicted output shape:\n")
-            print(dim(single_predicted_output))
-            cat("Checking self$ensemble[[", i, "]]\n")
-            str(self$ensemble[[i]])
-            cat("=============================================\n\n")
+          if (verbose) {
+            message("\n=============================================")
+            message("DEBUG: Preparing to store metadata (Network Container)")
+            message(sprintf("Ensemble number: %s", ensemble_number))
+            message(sprintf("Model iteration: %s", i))
+            message(sprintf("Run ID: %s", single_ensemble_name_model_name))
+            pred_shape <- tryCatch(paste(dim(single_predicted_output), collapse = " × "), error = function(...) "<unknown>")
+            message(sprintf("Predicted output shape: %s", pred_shape))
+            message(sprintf("Checking self$ensemble[[%s]]", i))
+            captured <- utils::capture.output(str(self$ensemble[[i]]))
+            for (line in captured) message(line)
+            message("=============================================\n")
           }
           
           
@@ -3380,7 +3381,7 @@ DDESONN <- R6Class(
         
         build_long_df <- function(lst, model_name) {
           if (is.null(lst) || length(lst) == 0L) {
-            if (isTRUE(verbose)) cat("[process_performance] empty metrics for", model_name, "\n")
+            if (verbose) message("[process_performance] empty metrics for ", model_name)
             return(data.frame(Model_Name = character(0), Metric = character(0), Value = numeric(0)))
           }
           rows <- list()
@@ -3560,10 +3561,8 @@ DDESONN <- R6Class(
       relev_group_summary <- summarize_grouped(relev_df)
       
       # --- Optional notify user ---
-      if (!isTRUE(verbose) && !isTRUE(viewTables)) {
-        cat("\n[ℹ] Group summaries computed silently.
-      Set `verbose = TRUE` to print data frames,
-      or `viewTables = TRUE` to see tables.\n")
+      if (!verbose && !viewTables) {
+        message("[ℹ] Group summaries computed silently. Set `verbose = TRUE` to print data frames, or `viewTables = TRUE` to see tables.")
       }
 
       # Grouped metrics (run whenever you have ≥1 model)
@@ -3605,17 +3604,59 @@ DDESONN <- R6Class(
 
         # ---------- Printing policy ----------
         # Tables (DF heads) print if EITHER verbose OR viewTables
-        if (isTRUE(verbose) || isTRUE(viewTables)) {
-          if (!is.null(perf_df))  { cat("\n--- performance_long_df (head) ---\n"); print(utils::head(perf_df, 12)) }
-          if (!is.null(relev_df)) { cat("\n--- relevance_long_df (head) ---\n"); print(utils::head(relev_df, 12)) }
+        if (verbose || viewTables) {
+          if (!is.null(perf_df)) {
+            emit_table(
+              utils::head(perf_df, 12),
+              title = "--- performance_long_df (head) ---",
+              verbose = verbose,
+              viewTables = viewTables
+            )
+          }
+          if (!is.null(relev_df)) {
+            emit_table(
+              utils::head(relev_df, 12),
+              title = "--- relevance_long_df (head) ---",
+              verbose = verbose,
+              viewTables = viewTables
+            )
+          }
         }
 
         # Summaries + grouped metrics print ONLY when verbose = TRUE
-        if (isTRUE(verbose)) {
-          if (!is.null(perf_group_summary))  { cat("\n=== PERFORMANCE group summary ===\n"); print(perf_group_summary) }
-          if (!is.null(relev_group_summary)) { cat("\n=== RELEVANCE group summary ===\n"); print(relev_group_summary) }
-          if (!is.null(group_perf))  { cat("\n=== GROUPED PERFORMANCE metrics ===\n"); print(group_perf$metrics) }
-          if (!is.null(group_relev)) { cat("\n=== GROUPED RELEVANCE metrics ===\n"); print(group_relev$metrics) }
+        if (verbose) {
+          if (!is.null(perf_group_summary)) {
+            emit_table(
+              perf_group_summary,
+              title = "=== PERFORMANCE group summary ===",
+              verbose = TRUE,
+              viewTables = viewTables
+            )
+          }
+          if (!is.null(relev_group_summary)) {
+            emit_table(
+              relev_group_summary,
+              title = "=== RELEVANCE group summary ===",
+              verbose = TRUE,
+              viewTables = viewTables
+            )
+          }
+          if (!is.null(group_perf)) {
+            emit_table(
+              group_perf$metrics,
+              title = "=== GROUPED PERFORMANCE metrics ===",
+              verbose = TRUE,
+              viewTables = viewTables
+            )
+          }
+          if (!is.null(group_relev)) {
+            emit_table(
+              group_relev$metrics,
+              title = "=== GROUPED RELEVANCE metrics ===",
+              verbose = TRUE,
+              viewTables = viewTables
+            )
+          }
         }
 
       }
