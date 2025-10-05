@@ -1,0 +1,7 @@
+export(ddesonn_activation_defaults)
+export(ddesonn_dropout_defaults)
+export(ddesonn_fit)
+export(ddesonn_model)
+export(ddesonn_optimizer_options)
+export(ddesonn_predict)
+export(ddesonn_training_defaults)

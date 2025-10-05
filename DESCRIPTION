@@ -1,0 +1,43 @@
+Package: DDESONN
+Type: Package
+Title: Deep Dynamic Ensemble Self-Organizing Neural Network
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Mathew William Armitage", family = "Fok", role = c("aut", "cre"),
+           email = "mathew@example.com")
+)
+Description: High-level helpers for constructing, training, and evaluating
+    Deep Dynamic Ensemble Self-Organizing Neural Networks (DDESONN). The
+    package wraps the legacy R6 implementations and exposes a modern API for
+    modelling workflows.
+License: file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Depends: R (>= 4.1.0)
+Imports:
+    R6,
+    stats,
+    utils,
+    cluster,
+    fpc,
+    tibble,
+    dplyr,
+    ggplot2,
+    plotly,
+    gridExtra,
+    rlist,
+    writexl,
+    readxl,
+    tidyr,
+    purrr,
+    pracma,
+    openxlsx,
+    pROC,
+    ggplotify
+Suggests:
+    testthat,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
