@@ -2819,7 +2819,6 @@ DDESONN <- R6Class(
               all_best_val_acc[[i]]                   <- predicted_outputAndTime$best_val_acc
               all_best_val_epoch[[i]]                 <- predicted_outputAndTime$best_val_epoch
 
-
               if(verbose){
               # --- Debug prints ---
               cat(">> Ensemble Index:", i, "\n")
@@ -3152,7 +3151,10 @@ DDESONN <- R6Class(
         single_predicted_outputAndTime <- all_predicted_outputAndTime[[i]]  # metadata
         single_predicted_output <- predicted_output_list[[i]]
         single_ensemble_name_model_name <- run_id[[i]]
-
+        
+        single_activation_functions <- all_activation_functions[[i]]
+        single_activation_functions_predict <- all_activation_functions_predict[[i]]
+        
         # might remove if, but keep contents
         if (train) {
 
@@ -3398,17 +3400,16 @@ print("1")
         }
 
 
-
         self$store_metadata(
-          single_predicted_outputAndTime, actual_values = NULL, do_ensemble, self$input_size, self$output_size, self$N,
-          total_num_samples, num_test_samples, num_training_samples, num_validation_samples,
+          single_predicted_outputAndTime, actual_values = NULL, do_ensemble = NULL, self$input_size, self$output_size, self$N,
+          total_num_samples = NULL, num_test_samples = NULL, num_training_samples = NULL, num_validation_samples = NULL,
           num_networks, update_weights, update_biases, lr, self$lambda, num_epochs,
           run_id = single_ensemble_name_model_name, ensemble_number, model_iter_num = i,
           model_serial_num = sprintf("%d.0.%d", ensemble_number, i),
           threshold = if (exists("threshold_used") && isTRUE(is.finite(threshold_used))) threshold_used else NULL,
           CLASSIFICATION_MODE, predicted_output = single_predicted_output, preprocessScaledData,
-          X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths,
-          validation_metrics = validation_metrics, activation_functions, activation_functions_predict,
+          X = NULL, y = NULL, X_test_scaled = NULL, y_test = NULL, all_weights, all_biases, artifact_names, artifact_paths,
+          validation_metrics = validation_metrics, single_activation_functions, single_activation_functions_predict,
           self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc,
           best_epoch_train, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL
         )
@@ -3800,7 +3801,7 @@ print("1")
 
       } #end of if(grouped_metrics)
 
-      if(verbose){pprint("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
+      if(verbose){print("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
       # Return the lists of plots
       return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL))
 
