@@ -1779,7 +1779,7 @@ if(train) {
         num_networks    = max(1L, as.integer(num_networks)),
         input_size      = input_size, hidden_sizes = hidden_sizes, output_size = output_size,
         N = N, lambda = lambda, ensemble_number = 1L, ensembles = ensembles,
-        ML_NN = ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, method = init_method, custom_scale = custom_scale
+        ML_NN = ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, init_method = init_method, custom_scale = custom_scale
       )
       
       model_results_main <<- main_model$train(

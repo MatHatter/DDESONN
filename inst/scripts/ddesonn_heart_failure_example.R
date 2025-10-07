@@ -1,187 +1,157 @@
 #!/usr/bin/env Rscript
-# ============================================================
-# DDESONN Runner – Four Scenarios (A–D) in One Walkthrough
-# ============================================================
-# Scenario A: Single-run only (no ensemble, ONE model)
-#   do_ensemble         <- FALSE
-#   num_networks        <- 1L
-#   num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
-#
-# Scenario B: Single-run, MULTI-MODEL (no ensemble aggregation)
-#   do_ensemble         <- FALSE
-#   num_networks        <- 4L
-#   num_temp_iterations <- 0L
-#
-# Scenario C: Main ensemble only (no TEMP/prune-add loop)
-#   do_ensemble         <- TRUE
-#   num_networks        <- 5L
-#   num_temp_iterations <- 0L
-#
-# Scenario D: Main pass + TEMP iterations (prune/add enabled)
-#   do_ensemble         <- TRUE
-#   num_networks        <- 3L
-#   num_temp_iterations <- 2L
-#
-# This script shows how each scenario maps onto the high-level
-# DDESONN API.  Every section is heavily commented so that a
-# first-year university student could follow along.
+# Example workflow using the high-level DDESONN API.
 
-suppressPackageStartupMessages(library(DDESONN))
+# suppressPackageStartupMessages(library(DDESONN))
 
-# ------------------------------------------------------------------
-# 1. Prepare a toy classification task (the classic 'mtcars' dataset)
-# ------------------------------------------------------------------
-# We predict whether a car has automatic (0) or manual (1) transmission.
+source("R/api.R")
+
+# Use the built-in 'mtcars' data set for a lightweight binary classification task.
+# The transmission column (am) is treated as the target label.
 data <- mtcars
 target <- "am"
 features <- setdiff(colnames(data), target)
 
-# Split 75% / 25% into training and validation sets.
+# ----------------------------
+# 3-way split: train/valid/test
+# ----------------------------
 set.seed(42)
-idx <- sample.int(nrow(data), floor(0.75 * nrow(data)))
-train_x <- data[idx, features]
-train_y <- data[idx, target, drop = FALSE]
-valid_x <- data[-idx, features]
-valid_y <- data[-idx, target, drop = FALSE]
+n <- nrow(data)
+all_idx <- seq_len(n)
 
-label_vec <- function(y) {
-  if (is.data.frame(y)) {
-    as.numeric(y[[1]])
-  } else if (is.matrix(y)) {
-    as.numeric(y[, 1])
-  } else {
-    as.numeric(y)
-  }
+# 60% train, 20% valid, 20% test
+idx_train <- sample(all_idx, floor(0.6 * n))
+remain1   <- setdiff(all_idx, idx_train)
+idx_valid <- sample(remain1, floor(0.2 * n))
+idx_test  <- setdiff(remain1, idx_valid)
+
+train_x <- data[idx_train, features, drop = FALSE]
+train_y <- data[idx_train, target, drop = FALSE]
+valid_x <- data[idx_valid, features, drop = FALSE]
+valid_y <- data[idx_valid, target, drop = FALSE]
+test_x  <- data[idx_test,  features, drop = FALSE]
+test_y  <- data[idx_test,  target, drop = FALSE]
+
+model <- ddesonn_model(
+  input_size = ncol(train_x),
+  output_size = 1,
+  hidden_sizes = c(16, 8),
+  classification_mode = "binary",
+  activation_functions = c("relu", "relu", "sigmoid"),
+  activation_functions_predict = c("relu", "relu", "sigmoid"),
+  num_networks = 1
+)
+
+# Explicit toggle for best-weight restore behavior from the upgraded API
+RESTORE_BEST_WEIGHTS <- TRUE  # set FALSE to keep final-epoch weights
+
+ddesonn_fit(
+  model,
+  train_x,
+  train_y,
+  validation = list(x = valid_x, y = valid_y),
+  num_epochs = 2,
+  lr = 0.02,
+  validation_metrics = TRUE,
+  verbose = TRUE,
+  best_weights_on_lastest_weights_off = RESTORE_BEST_WEIGHTS
+)
+
+# ----------------------------
+# VALIDATION EVALUATION (kept)
+# ----------------------------
+pred <- ddesonn_predict(model, valid_x, aggregate = "mean")
+
+# --- Build actual vs predicted safely ---
+
+# 1) Flatten predicted probs to a numeric vector
+probs <- as.numeric(pred$prediction)
+
+# 2) Pick a threshold (prefer tuned/best if present; else 0.5)
+thr <- if (!is.null(pred$chosen_threshold)) {
+  pred$chosen_threshold
+} else if (!is.null(pred$best_threshold)) {
+  pred$best_threshold
+} else {
+  0.5
 }
 
-build_model <- function(num_networks) {
-  ddesonn_model(
-    input_size = ncol(train_x),
-    output_size = 1,
-    hidden_sizes = c(32, 16),
-    classification_mode = "binary",
-    num_networks = num_networks
-  )
+# 3) Derive classes from probabilities
+predicted_class <- as.integer(probs >= thr)
+
+# 4) Actual labels as a simple vector
+actual <- as.integer(valid_y[[1]])
+
+# 5) Sanity check lengths
+stopifnot(length(probs) == length(actual), length(predicted_class) == length(actual))
+
+# 6) Side-by-side comparison
+comparison <<- data.frame(
+  actual = actual,
+  predicted_class = predicted_class,
+  predicted_prob = round(probs, 3)
+)
+
+print(tail(comparison, 10))
+
+# Quick metrics
+acc <- mean(comparison$actual == comparison$predicted_class)
+cat("Validation accuracy:", round(acc * 100, 2), "% (thr =", thr, ")\n")
+
+# Confusion matrix
+print(table(Actual = comparison$actual, Predicted = comparison$predicted_class))
+
+
+
+
+
+
+
+
+
+
+
+
+cat("First few probability predictions:\n")
+print(head(pred$prediction))
+
+cat("Summary probability predictions:\n")
+print(summary(pred$prediction))
+
+
+
+if (!is.null(pred$class)) {
+  cat("Predicted classes:\n")
+  print(head(pred$class))
 }
 
-train_model <- function(model, seed, epochs = 2, lr = 0.05, sample_weights = NULL, verbose = FALSE) {
-  set.seed(seed)
-  ddesonn_fit(
-    model,
-    train_x,
-    train_y,
-    validation = list(x = valid_x, y = valid_y),
-    num_epochs = epochs,
-    lr = lr,
-    sample_weights = sample_weights,
-    validation_metrics = TRUE,
-    verbose = verbose
-  )
-  invisible(model)
-}
+# -----------------------------------------
+# TEST EVALUATION (true hold-out, 20% split)
+# -----------------------------------------
+pred_test <- ddesonn_predict(model, test_x, aggregate = "mean")
 
-summarise_predictions <- function(pred, label = NULL, heading = NULL) {
-  if (!is.null(heading)) {
-    cat("\n", heading, "\n", sep = "")
-    cat(strrep("-", nchar(heading)), "\n", sep = "")
-  }
-  cat("First few probability predictions:\n")
-  print(head(pred$prediction))
-  if (!is.null(pred$class)) {
-    cat("First few class predictions:\n")
-    print(head(pred$class))
-  }
-  if (!is.null(label)) {
-    cat("First few ground-truth labels:\n")
-    print(head(label))
-  }
-}
+probs_test <- as.numeric(pred_test$prediction)
+pred_class_test <- as.integer(probs_test >= thr)   # use threshold from validation
+actual_test <- as.integer(test_y[[1]])
 
-hard_example_weights <- function(model, top_fraction = 0.3) {
-  probs <- ddesonn_predict(model, train_x, aggregate = "mean")$prediction[, 1]
-  truth <- label_vec(train_y)
-  errors <- abs(truth - probs)
-  weights <- rep(1, length(errors))
-  if (length(errors) == 0L) {
-    return(weights)
-  }
-  top_k <- max(1L, ceiling(length(errors) * top_fraction))
-  hardest <- order(errors, decreasing = TRUE)[seq_len(top_k)]
-  weights[hardest] <- 5
-  weights
-}
+stopifnot(length(probs_test) == length(actual_test))
 
-# ---------------------------------------------
-# Scenario A – a single SONN trained end-to-end
-# ---------------------------------------------
-cat("\n==============================\n")
-cat("Scenario A: One network, no ensemble\n")
-cat("==============================\n")
-scenario_a <- build_model(num_networks = 1)
-train_model(scenario_a, seed = 1001)
-pred_a <- ddesonn_predict(scenario_a, valid_x, aggregate = "mean", type = "class")
-summarise_predictions(pred_a, label_vec(valid_y), "Scenario A results")
+comparison_test <<- data.frame(
+  actual = actual_test,
+  predicted_class = pred_class_test,
+  predicted_prob = round(probs_test, 3)
+)
 
-# ----------------------------------------------------------------------
-# Scenario B – train multiple networks but inspect them individually.
-# ----------------------------------------------------------------------
-# This mirrors running several SONNs without averaging their outputs.
-cat("\n==============================\n")
-cat("Scenario B: Multiple networks, analysed separately\n")
-cat("==============================\n")
-scenario_b <- build_model(num_networks = 4)
-train_model(scenario_b, seed = 2002)
-pred_b <- ddesonn_predict(scenario_b, valid_x, aggregate = "none")
+test_acc <<- mean(comparison_test$actual == comparison_test$predicted_class)
+cat("TEST accuracy (true hold-out):", round(test_acc * 100, 2), "% (thr =", thr, ")\n")
 
-# Each entry in pred_b$per_model is a matrix of predictions for one SONN.
-for (i in seq_along(pred_b$per_model)) {
-  cat(sprintf("\nModel %d probability head:\n", i))
-  print(head(pred_b$per_model[[i]]))
-}
-# If you still want class labels per model, apply your own threshold (0.5 here).
-per_model_classes <- lapply(pred_b$per_model, function(mat) ifelse(mat >= 0.5, 1L, 0L))
-cat("\nExample: class predictions from the first model in Scenario B:\n")
-print(head(per_model_classes[[1]]))
+test_cm <- table(Actual = comparison_test$actual, Predicted = comparison_test$predicted_class)
+print(test_cm)
 
-# ---------------------------------------------------------
-# Scenario C – classic ensemble: average the SONN members.
-# ---------------------------------------------------------
-cat("\n==============================\n")
-cat("Scenario C: Main ensemble (mean aggregation)\n")
-cat("==============================\n")
-scenario_c <- build_model(num_networks = 5)
-train_model(scenario_c, seed = 3003)
-pred_c <- ddesonn_predict(scenario_c, valid_x, aggregate = "mean", type = "class")
-summarise_predictions(pred_c, label_vec(valid_y), "Scenario C results")
-
-# -------------------------------------------------------------------
-# Scenario D – ensemble + two TEMP passes that focus on hard samples.
-# -------------------------------------------------------------------
-cat("\n==============================\n")
-cat("Scenario D: Ensemble with TEMP-style fine-tuning\n")
-cat("==============================\n")
-scenario_d <- build_model(num_networks = 3)
-train_model(scenario_d, seed = 4004)
-
-# After the main run we look for hard training cases and up-weight them.
-weights <- hard_example_weights(scenario_d, top_fraction = 0.3)
-cat("TEMP setup: emphasising", sum(weights > 1), "hard training rows out of", length(weights), "total.\n")
-
-# Run two lightweight TEMP iterations. We use a smaller learning rate so the
-# fine-tuning nudges the ensemble instead of completely retraining it.
-for (iter in seq_len(2)) {
-  cat(sprintf("Starting TEMP iteration %d...\n", iter))
-  train_model(
-    scenario_d,
-    seed = 5000 + iter,
-    epochs = 1,
-    lr = 0.02,
-    sample_weights = weights,
-    verbose = FALSE
-  )
-}
-
-pred_d <- ddesonn_predict(scenario_d, valid_x, aggregate = "mean", type = "class")
-summarise_predictions(pred_d, label_vec(valid_y), "Scenario D results after TEMP passes")
-
-cat("\nWalkthrough complete!\n")
+# Handy globals for quick review after run
+THRESHOLD_USED <<- thr
+VALID_ACC <<- acc
+TEST_ACC <<- test_acc
+VALID_CM <<- table(Actual = comparison$actual, Predicted = comparison$predicted_class)
+TEST_CM <<- test_cm
+COMPARISON_VALID <<- comparison
+COMPARISON_TEST <<- comparison_test

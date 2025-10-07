@@ -20,7 +20,7 @@ quantization_error <- function(SONN, Rdata, run_id, verbose) {
   if (!is.matrix(Rdata)) Rdata <- as.matrix(Rdata)
   storage.mode(Rdata) <- "double"
   
-  if (ML_NN) {
+  if (SONN$ML_NN) {
     # --- ML path: get a matrix W from SONN$weights (first input-facing layer) ---
     if (is.list(SONN$weights)) {
       # pick the first layer that matches NCOL(Rdata); fallback to first layer

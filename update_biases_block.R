@@ -431,3 +431,19 @@ update_biases_block <- function(
   
   return(list(updated_optimizer_params = optimizer_params_biases))
 }
+
+clip_gradient_norm <- function(gradient, min_norm = 1e-3, max_norm = 5) {
+  if (any(is.na(gradient)) || all(gradient == 0)) return(gradient)
+  
+  grad_norm <- sqrt(sum(gradient^2, na.rm = TRUE))
+  
+  if (is.na(grad_norm)) return(gradient)  # added line
+  
+  if (grad_norm > max_norm) {
+    gradient <- gradient * (max_norm / grad_norm)
+  } else if (grad_norm < min_norm && grad_norm > 0) {
+    gradient <- gradient * (min_norm / grad_norm)
+  }
+  
+  return(gradient)
+}
