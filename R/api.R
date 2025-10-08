@@ -12,6 +12,46 @@ source("utils/utils.R")
 ## Robust root resolver + legacy source (drop-in replacement)
 ## ============================================================
 
+normalize_architecture <- function(architecture = c("auto", "single", "multi"), hidden_sizes) {
+  arch <- match.arg(architecture)
+  
+  hs <- hidden_sizes
+  if (is.null(hs) || length(hs) == 0L) {
+    hs <- integer(0)
+  } else {
+    if (!is.numeric(hs)) {
+      stop("hidden_sizes must be numeric/integer.", call. = FALSE)
+    }
+    hs <- hs[!is.na(hs)]
+    if (!length(hs)) {
+      hs <- integer(0)
+    } else {
+      if (any(!is.finite(hs))) stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      if (any(hs < 0))        stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      if (any(hs != as.integer(hs))) stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      hs <- as.integer(hs)
+      hs <- hs[hs > 0L]
+    }
+  }
+  
+  if (arch == "single") {
+    if (length(hs) > 0L) {
+      warning("architecture='single' but hidden_sizes provided; ignoring hidden_sizes.", call. = FALSE)
+      hs <- integer(0)
+    }
+    return(list(arch = "single", hidden_sizes = hs))
+  }
+  
+  if (arch == "multi") {
+    if (length(hs) == 0L) {
+      stop("architecture='multi' requires hidden_sizes with one or more positive integers (e.g., c(8) or c(16,8)).", call. = FALSE)
+    }
+    return(list(arch = "multi", hidden_sizes = hs))
+  }
+  
+  if (length(hs) == 0L) list(arch = "single", hidden_sizes = hs) else list(arch = "multi", hidden_sizes = hs)
+}
+
 .ddesonn_find_root <- function() {
   opt <- getOption("DDESONN_ROOT")
   root <- if (!is.null(opt) && nzchar(opt)) opt else {
@@ -22,6 +62,7 @@ source("utils/utils.R")
   if (basename(root) == "inst") root <- dirname(root)  # <-- key line
   root
 }
+
 
 .ddesonn_source_legacy <- function(force = FALSE) {
   # Fast-return if we already sourced successfully
@@ -224,10 +265,11 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param input_size Number of input features.
 #' @param output_size Number of outputs.
 #' @param hidden_sizes Integer vector describing hidden layer widths.
+#' @param architecture Neural network architecture strategy. One of
+#'   `"auto"`, `"single"`, or `"multi"`. See Details.
 #' @param num_networks Number of SONN members to initialise within the ensemble.
 #' @param lambda Regularisation strength.
 #' @param classification_mode Problem mode: `"binary"`, `"multiclass"`, or `"regression"`.
-#' @param ML_NN Logical; whether to initialise a multi-layer SONN.
 #' @param activation_functions Optional list of activation functions for training.
 #' @param activation_functions_predict Optional list of activation functions used during prediction.
 #' @param method Weight initialisation scheme passed to the legacy constructor.
@@ -236,6 +278,14 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param ensembles Optional pre-existing ensemble container.
 #' @param ensemble_number Identifier used when combining multiple ensembles.
 #'
+#' @details
+#' The `architecture` argument provides guardrails around the hidden layer
+#' configuration. When set to `"auto"`, non-empty positive `hidden_sizes`
+#' imply a multi-layer network, while empty, zero, or `NA` values imply a
+#' single-layer network. Forcing `architecture = "single"` drops any provided
+#' hidden sizes (with a warning). Forcing `architecture = "multi"` requires at
+#' least one positive hidden size and raises an error otherwise.
+#' 
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #' @export
 #'
@@ -249,10 +299,10 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 ddesonn_model <- function(input_size,
                           output_size,
                           hidden_sizes = c(64, 32),
+                          architecture = c("auto", "single", "multi"),
                           num_networks = 1L,
                           lambda = 2.8e-4,
                           classification_mode = c("binary", "multiclass", "regression"),
-                          ML_NN = TRUE,
                           activation_functions = NULL,
                           activation_functions_predict = NULL,
                           init_method = "he",
@@ -261,12 +311,22 @@ ddesonn_model <- function(input_size,
                           ensembles = NULL,
                           ensemble_number = 0L) {
   classification_mode <- match.arg(classification_mode)
-  
+  architecture <- match.arg(architecture)
+
+  arch_norm <- normalize_architecture(architecture, hidden_sizes)
+  arch <- arch_norm$arch
+  hidden_sizes <- arch_norm$hidden_sizes
+  ML_NN <- (arch == "multi")
+
+  if (arch == "multi" && length(hidden_sizes) == 1L) {
+    message(sprintf("[DDESONN] Architecture='multi' with a single hidden layer (%d neurons). This is still MULTI-LAYER (input -> hidden -> output).", hidden_sizes[1]))
+  }
+
   activation_functions <- activation_functions %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "train")
   activation_functions_predict <- activation_functions_predict %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "predict")
-  
+
   if (is.null(N)) {
     N <- if (isTRUE(ML_NN)) {
       input_size + sum(hidden_sizes %||% 0) + output_size
@@ -291,13 +351,15 @@ ddesonn_model <- function(input_size,
     init_method = init_method,
     custom_scale = custom_scale
   )
-  
+
   attr(model, "classification_mode") <- classification_mode
   attr(model, "activation_functions") <- activation_functions
   attr(model, "activation_functions_predict") <- activation_functions_predict
   attr(model, "hidden_sizes") <- hidden_sizes
   attr(model, "lambda") <- lambda
+  attr(model, "architecture") <- arch
   attr(model, "ML_NN") <- ML_NN
+  model$architecture <- arch
   class(model) <- unique(c("ddesonn_model", class(model)))
   model
 }
@@ -317,6 +379,8 @@ ddesonn_model <- function(input_size,
 #' @param x Training features.
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
+#' @param architecture Neural network architecture strategy. One of `"auto"`, `"single"`, or `"multi"`.
+#' @param ... Named overrides (kept for forward-compat; values here are ignored to preserve model’s architecture).
 #' @param num_epochs,lr,lr_decay_rate,lr_decay_epoch,lr_min Optimizer schedule.
 #' @param self_org Logical; legacy self-organization flag.
 #' @param threshold Optional initial threshold.
@@ -337,18 +401,18 @@ ddesonn_model <- function(input_size,
 #' @param train Logical; train loop on/off.
 #' @param grouped_metrics,viewTables,verbose Legacy diagnostics flags.
 #' @param ensemble_number Integer ensemble id.
-#' @param best_weights_on_lastest_weights_off Logical (default TRUE). When TRUE, restore best-on-validation weights/biases into the model (model-level or per-member) before returning; when FALSE, keep final-epoch weights.
-#' @param num_networks Optional override for ensemble size (pass-through to train()).
-#' @param do_ensemble Optional logical flag to enable ensemble flow (pass-through to train()).
-#' @param X_train,y_train Optional explicit train sets forwarded to train().
+#' @param best_weights_on_lastest_weights_off Logical; restore best-on-val weights if TRUE.
+#' @param num_networks,do_ensemble,X_train,y_train Optional passthroughs to legacy `train()`.
 #'
-#' @return The trained model (invisibly). The R6 object is modified in-place and the last training result is stored under `model$last_training`.
+#' @return The trained model (invisibly).
 #' @export
 ddesonn_fit <- function(
     model,
     x,
     y,
     validation = NULL,
+    architecture = c("auto","single","multi"),
+    ...,
     num_epochs = 100,
     lr = 0.01,
     lr_decay_rate = 0.9,
@@ -394,9 +458,15 @@ ddesonn_fit <- function(
     X_train = NULL,
     y_train = NULL
 ) {
-  if (!inherits(model, "ddesonn_model")) {
-    stop("'model' must be created with ddesonn_model().", call. = FALSE)
+  if (!inherits(model, "ddesonn_model")) stop("'model' must be created with ddesonn_model().", call. = FALSE)
+  
+  # Soft-check architecture mismatch if user passed it here
+  architecture <- match.arg(architecture)
+  model_arch <- attr(model, "architecture") %||% if (length(attr(model, "hidden_sizes") %||% integer())) "multi" else "single"
+  if (!identical(architecture, "auto") && !identical(architecture, model_arch)) {
+    warning(sprintf("architecture='%s' ignored at fit-time; model was created as '%s'.", architecture, model_arch), call. = FALSE)
   }
+  # Ignore `...` on purpose (kept for forward-compat)
   
   # Prepare data
   data_prep <- .prepare_training_data(x)
@@ -419,7 +489,7 @@ ddesonn_fit <- function(
     reg_type = reg_type,
     numeric_columns = numeric_columns,
     CLASSIFICATION_MODE = mode,
-    activation_functions = activation_functions %||% attr(model, "activation_functions") %||% model$activation_functions, # robust fallback
+    activation_functions = activation_functions %||% attr(model, "activation_functions") %||% model$activation_functions,
     activation_functions_predict = activation_functions_predict %||% attr(model, "activation_functions_predict") %||% model$activation_functions_predict,
     dropout_rates = dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes),
     optimizer = optimizer,
@@ -441,6 +511,7 @@ ddesonn_fit <- function(
     preprocessScaledData = preprocessScaledData,
     validation_metrics = isTRUE(validation_metrics),
     threshold_function = if (!is.null(threshold_function)) threshold_function else NULL,
+    best_weights_on_lastest_weights_off = best_weights_on_lastest_weights_off,
     ML_NN = isTRUE(ML_NN %||% attr(model, "ML_NN")),
     train = train,
     grouped_metrics = grouped_metrics,
@@ -454,7 +525,7 @@ ddesonn_fit <- function(
     y_train = if (!is.null(y_train)) .as_numeric_matrix(y_train) else NULL
   ), keep.null = TRUE)
   
-  # Validation wiring (and safe fallback to train when not provided)
+  # Validation wiring
   if (!is.null(validation)) {
     if (!is.list(validation) || !all(c("x", "y") %in% names(validation))) {
       stop("'validation' must be a list with elements 'x' and 'y'.", call. = FALSE)
@@ -462,23 +533,21 @@ ddesonn_fit <- function(
     cfg$X_validation <- .as_numeric_matrix(validation$x)
     cfg$y_validation <- .as_numeric_matrix(validation$y)
   }
-  # SAFETY: ensure val data is non-NULL for legacy branches computing val preds
   if (is.null(cfg$X_validation)) cfg$X_validation <- cfg$X_train
   if (is.null(cfg$y_validation)) cfg$y_validation <- cfg$y_train
   
-  # Build training args — mirrors your desired call signature.
+  # Build training args to match legacy `train()`
   train_args <- list(
     Rdata = data_prep$data,
     labels = labels,
-    # explicit optional training sets
     X_train = cfg$X_train,
     y_train = cfg$y_train,
     lr = cfg$lr,
     lr_decay_rate = cfg$lr_decay_rate,
     lr_decay_epoch = cfg$lr_decay_epoch,
     lr_min = cfg$lr_min,
-    num_networks = cfg$num_networks,   # correct name for legacy train()
-    ensemble_number = cfg$ensemble_number,  # kept as-is
+    num_networks = cfg$num_networks,
+    ensemble_number = cfg$ensemble_number,
     do_ensemble = cfg$do_ensemble,
     num_epochs = cfg$num_epochs,
     self_org = cfg$self_org,
@@ -510,40 +579,31 @@ ddesonn_fit <- function(
     y_validation = cfg$y_validation,
     validation_metrics = cfg$validation_metrics,
     threshold_function = cfg$threshold_function,
+    best_weights_on_lastest_weights_off = cfg$best_weights_on_lastest_weights_off,
     ML_NN = cfg$ML_NN,
     train = cfg$train,
     grouped_metrics = cfg$grouped_metrics,
     viewTables = cfg$viewTables,
     verbose = cfg$verbose,
-    # legacy branch sometimes expects this
     model_iter_num = 1L
   )
-  
-  # Only pass args that train() actually accepts (prevents positional drift)
   formals_train <- names(formals(model$train))
   train_args <- train_args[intersect(names(train_args), formals_train)]
   
-  # Train
   result <- do.call(model$train, train_args)
   model$last_training <- result
   attr(model, "threshold") <- cfg$threshold
   
-  # Best-on-validation restore (model-level OR per-member)
+  # Restore best-on-validation weights if available
   if (isTRUE(best_weights_on_lastest_weights_off)) {
     restored <- FALSE
-    # model-level
     if (!is.null(model$best_weights) && !is.null(model$best_biases)) {
       message("[DDESONN] Restoring best validation weights from model...")
-      model$weights <- model$best_weights
-      model$biases  <- model$best_biases
-      restored <- TRUE
+      model$weights <- model$best_weights; model$biases <- model$best_biases; restored <- TRUE
     } else if (!is.null(result$best_weights) && !is.null(result$best_biases)) {
       message("[DDESONN] Restoring best validation weights from training result (model-level)...")
-      model$weights <- result$best_weights
-      model$biases  <- result$best_biases
-      restored <- TRUE
+      model$weights <- result$best_weights; model$biases <- result$best_biases; restored <- TRUE
     }
-    # per-member
     if (!restored && length(model$ensemble)) {
       per_ok <- FALSE
       if (!is.null(result$best_weights_per_member)) {
@@ -559,9 +619,7 @@ ddesonn_fit <- function(
         for (i in seq_along(model$ensemble)) {
           net <- model$ensemble[[i]]
           if (!is.null(net$best_weights) && !is.null(net$best_biases)) {
-            net$weights <- net$best_weights
-            net$biases  <- net$best_biases
-            per_ok <- TRUE
+            net$weights <- net$best_weights; net$biases <- net$best_biases; per_ok <- TRUE
           }
         }
       }
@@ -573,6 +631,7 @@ ddesonn_fit <- function(
   
   invisible(model)
 }
+
 
 .aggregate_predictions <- function(preds, aggregate) {
   if (identical(aggregate, "none")) {
@@ -600,20 +659,32 @@ ddesonn_fit <- function(
 #' @param type Prediction type. `"response"` returns numeric predictions,
 #'   while `"class"` applies thresholding for classification problems.
 #' @param threshold Optional threshold override when `type = "class"`.
+#' @param architecture Neural network architecture strategy. One of
+#'   `"auto"`, `"single"`, or `"multi"`.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.
 #' @export
 ddesonn_predict <- function(model, new_data, aggregate = c("mean", "median", "none"),
-                            type = c("response", "class"), threshold = NULL) {
+                            type = c("response", "class"), threshold = NULL,
+                            architecture = c("auto", "single", "multi")) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   aggregate <- match.arg(aggregate)
   type <- match.arg(type)
+  architecture <- match.arg(architecture)
   
   X <- .as_numeric_matrix(new_data)
   mode <- attr(model, "classification_mode") %||% "binary"
+  
+  # Add harmless compatibility check (from 'theirs')
+  hidden_sizes <- attr(model, "hidden_sizes") %||% integer()
+  model_arch <- attr(model, "architecture") %||% { if (length(hidden_sizes)) "multi" else "single" }
+  if (!identical(architecture, "auto") && !identical(architecture, model_arch)) {
+    warning(sprintf("architecture='%s' is incompatible with the model architecture ('%s'); using '%s'.",
+                    architecture, model_arch, model_arch), call. = FALSE)
+  }
   
   # Per-member predictions (always collect raw member outputs first)
   preds <- lapply(seq_along(model$ensemble), function(i) {

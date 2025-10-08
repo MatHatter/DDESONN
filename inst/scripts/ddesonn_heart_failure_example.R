@@ -34,7 +34,8 @@ test_y  <- data[idx_test,  target, drop = FALSE]
 model <- ddesonn_model(
   input_size = ncol(train_x),
   output_size = 1,
-  hidden_sizes = c(10),
+  hidden_sizes = NULL,
+  architecture = "auto",
   classification_mode = "binary",
   activation_functions = c("relu", "relu", "sigmoid"),
   activation_functions_predict = c("relu", "relu", "sigmoid"),
@@ -49,6 +50,7 @@ ddesonn_fit(
   train_x,
   train_y,
   validation = list(x = valid_x, y = valid_y),
+  architecture = "auto",
   num_epochs = 2,
   lr = 0.02,
   validation_metrics = TRUE,

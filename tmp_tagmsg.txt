@@ -1,0 +1,2 @@
+6.3.1 Fix ML_NN single-hidden initialization guard and rnorm(sd=NA) safety in initialize_weights_biases. Preserves full structure and SL/ML assignment integrity.
+

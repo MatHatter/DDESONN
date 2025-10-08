@@ -13,6 +13,88 @@
 #
 # Intended future distribution: CRAN package.
 # ===============================================================
+`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
+
+
+# Map common aliases
+.learn_predict_alias <- function(nm) {
+  nm <- tolower(trimws(nm %||% ""))
+  switch(nm,
+         logistic = "sigmoid",
+         linear   = "identity",
+         none     = "identity",
+         nm
+  )
+}
+
+# Safe resolver: string -> function (or identity on unknown, with warning)
+learn_predict_as_activation <- function(x) {
+  # function already
+  if (is.function(x)) {
+    if (is.null(attr(x, "name"))) attr(x, "name") <- "function"
+    return(x)
+  }
+  
+  # NULL allowed (means "no activation" → identity later)
+  if (is.null(x)) return(NULL)
+  
+  # single string name
+  if (is.character(x) && length(x) == 1L) {
+    nm <- .learn_predict_alias(x)
+    
+    # try direct lookup in current or parent envs
+    fn <- get0(nm, mode = "function", inherits = TRUE)
+    if (is.function(fn)) {
+      if (is.null(attr(fn, "name"))) attr(fn, "name") <- nm
+      return(fn)
+    }
+    
+    # last fallback → identity (do not crash)
+    warning(sprintf("Activation '%s' not found; falling back to identity.", x), call. = FALSE)
+    id <- get0("identity", mode = "function", inherits = TRUE)
+    if (is.null(attr(id, "name"))) attr(id, "name") <- "identity"
+    return(id)
+  }
+  
+  # vector/list etc. that isn't a function/string/null for this slot
+  warning("Unsupported activation type; using identity.", call. = FALSE)
+  id <- get0("identity", mode = "function", inherits = TRUE)
+  if (is.null(attr(id, "name"))) attr(id, "name") <- "identity"
+  id
+}
+
+# Normalize any form (function | string | list | vector | NULL) to a
+# list of length = num_layers, filled with callables or NULL (becomes identity later)
+learn_predict_normalize_activations <- function(acts, num_layers) {
+  nl <- max(1L, as.integer(num_layers %||% 1L))
+  
+  # Coerce to list of items (each item resolved by learn_predict_as_activation)
+  if (is.null(acts)) {
+    lst <- vector("list", 0L)
+  } else if (is.function(acts) || (is.character(acts) && length(acts) == 1L)) {
+    lst <- list(acts)
+  } else if (is.list(acts)) {
+    lst <- acts
+  } else {
+    # e.g., character vector c("relu","sigmoid",...)
+    lst <- as.list(acts)
+  }
+  
+  lst <- lapply(lst, learn_predict_as_activation)
+  
+  # If empty, return nl NULLs (caller will treat NULL as identity)
+  if (length(lst) == 0L) lst <- rep(list(NULL), nl)
+  
+  # Recycle/truncate to exactly nl
+  if (length(lst) < nl) {
+    lst <- c(lst, rep(list(lst[[length(lst)]]), nl - length(lst)))
+  } else if (length(lst) > nl) {
+    lst <- lst[seq_len(nl)]
+  }
+  
+  lst
+}
+
 
 probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FALSE,
                                   verbose = verbose) {
@@ -434,8 +516,6 @@ if (!exists("extract_best_records", inherits = TRUE)) {
 }
 
 # ===== helpers used by predict-only flow =====
-`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
-
 .get_in <- function(x, path) {
   cur <- x
   for (p in path) {

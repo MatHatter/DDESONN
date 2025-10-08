@@ -1117,7 +1117,7 @@ if(train) {
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
+        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       
@@ -1792,7 +1792,7 @@ if(train) {
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
+        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off=best_weights_on_lastest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       ensembles$main_ensemble[[1]] <- main_model
@@ -2044,7 +2044,7 @@ if(train) {
             batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
             epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
             shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-            X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, ML_NN=ML_NN,
+            X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off= best_weights_on_lastest_weights_off, ML_NN=ML_NN,
             train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
           )
           
