@@ -322,10 +322,21 @@ ddesonn_model <- function(input_size,
     message(sprintf("[DDESONN] Architecture='multi' with a single hidden layer (%d neurons). This is still MULTI-LAYER (input -> hidden -> output).", hidden_sizes[1]))
   }
 
+  num_layers <- if (isTRUE(ML_NN)) length(hidden_sizes) + 1L else 1L
+
   activation_functions <- activation_functions %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "train")
+  activation_functions <- learn_predict_normalize_activations(
+    activation_functions,
+    num_layers
+  )
+
   activation_functions_predict <- activation_functions_predict %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "predict")
+  activation_functions_predict <- learn_predict_normalize_activations(
+    activation_functions_predict,
+    num_layers
+  )
 
   if (is.null(N)) {
     N <- if (isTRUE(ML_NN)) {
@@ -475,6 +486,16 @@ ddesonn_fit <- function(
   # Resolve mode/architecture
   mode <- attr(model, "classification_mode") %||% CLASSIFICATION_MODE
   hidden_sizes <- attr(model, "hidden_sizes") %||% NULL
+  ML_NN_flag <- attr(model, "ML_NN")
+  num_layers <- if (isTRUE(ML_NN_flag)) length(hidden_sizes %||% integer()) + 1L else 1L
+
+  activation_train <- activation_functions %||%
+    attr(model, "activation_functions") %||% model$activation_functions
+  activation_train <- learn_predict_normalize_activations(activation_train, num_layers)
+
+  activation_predict <- activation_functions_predict %||%
+    attr(model, "activation_functions_predict") %||% model$activation_functions_predict
+  activation_predict <- learn_predict_normalize_activations(activation_predict, num_layers)
   
   # Start from defaults, then overwrite with explicit arguments
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
@@ -487,10 +508,10 @@ ddesonn_fit <- function(
     self_org = self_org,
     threshold = threshold,
     reg_type = reg_type,
-    numeric_columns = numeric_columns,
+    numeric_columns = numeric_columns %||% data_prep$numeric_columns,
     CLASSIFICATION_MODE = mode,
-    activation_functions = activation_functions %||% attr(model, "activation_functions") %||% model$activation_functions,
-    activation_functions_predict = activation_functions_predict %||% attr(model, "activation_functions_predict") %||% model$activation_functions_predict,
+    activation_functions = activation_train,
+    activation_functions_predict = activation_predict,
     dropout_rates = dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes),
     optimizer = optimizer,
     beta1 = beta1,
@@ -512,7 +533,7 @@ ddesonn_fit <- function(
     validation_metrics = isTRUE(validation_metrics),
     threshold_function = if (!is.null(threshold_function)) threshold_function else NULL,
     best_weights_on_lastest_weights_off = best_weights_on_lastest_weights_off,
-    ML_NN = isTRUE(ML_NN %||% attr(model, "ML_NN")),
+    ML_NN = isTRUE(ML_NN %||% ML_NN_flag),
     train = train,
     grouped_metrics = grouped_metrics,
     viewTables = viewTables,
