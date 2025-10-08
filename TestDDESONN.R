@@ -49,8 +49,10 @@ lr_decay_epoch <- 20
 lr_min <- 1e-5
 lambda <- 0.00028
 # lambda <- 0.00013
-num_epochs <- 3
+num_epochs <- 200
 validation_metrics <- TRUE
+
+best_weights_on_lastest_weights_off <- TRUE
 
 custom_scale <- 1.04349
 
@@ -68,7 +70,7 @@ hidden_sizes <- c(64, 32)
 # Activation functions applied in forward pass during prediction | predict(). # hidden layers + output layer
 if (CLASSIFICATION_MODE == "binary") {
   activation_functions <- list(relu, relu, sigmoid)
-  
+  # activation_functions <- list("relu", "relu", "sigmoid")
 } else if (CLASSIFICATION_MODE == "multiclass") {
   activation_functions <- list(relu, relu, softmax)
   
@@ -968,9 +970,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 ## DDESONN Runner – Modes
 ## =========================
 ## SCENARIO A: Single-run only (no ensemble, ONE model)
-# do_ensemble         <- FALSE
-# num_networks        <- 1L
-# num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
+do_ensemble         <- FALSE
+num_networks        <- 1L
+num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
 #
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
 # do_ensemble         <- FALSE
@@ -983,9 +985,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 # num_temp_iterations <- 0L
 #
 ## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-do_ensemble         <- TRUE
-num_networks        <- 3L          # example main size
-num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
+# do_ensemble         <- TRUE
+# num_networks        <- 3L          # example main size
+# num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
 #
 ## You can set the above variables BEFORE sourcing this file. The defaults below are fallbacks.
 
@@ -1083,7 +1085,7 @@ if(train) {
         ML_NN           = ML_NN,
         activation_functions=activation_functions,
         activation_functions_predict=activation_functions_predict,
-        method          = init_method,
+        init_method     = init_method,
         custom_scale    = custom_scale
       )
       
@@ -1108,16 +1110,16 @@ if(train) {
       }
       
       model_results <<- run_model$train(
-        Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-        lr_min=lr_min, ensemble_number=0L, num_epochs=num_epochs, self_org=self_org,
+        Rdata=X, labels=y, X_train=X_train, y_train=y_train, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
+        lr_min=lr_min, num_networks=num_networks, ensemble_number=0L, do_ensemble=do_ensemble, num_epochs=num_epochs, self_org=self_org,
         threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
         activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
         dropout_rates=dropout_rates, optimizer=optimizer,
         beta1=beta1, beta2=beta2, epsilon=epsilon, lookahead_step=lookahead_step,
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
-        shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off, ML_NN=ML_NN,
+        shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
+        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off=best_weights_on_lastest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       
@@ -1783,15 +1785,15 @@ if(train) {
       )
       
       model_results_main <<- main_model$train(
-        Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-        lr_min=lr_min, ensemble_number=1L, num_epochs=num_epochs, self_org=self_org,
+        Rdata=X, labels=y, X_train=X_train, y_train=y_train, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
+        lr_min=lr_min, num_networks=num_networks, ensemble_number=1L, do_ensemble=do_ensemble, num_epochs=num_epochs, self_org=self_org,
         threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
         activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
         dropout_rates=dropout_rates, optimizer=optimizer,
         beta1=beta1, beta2=beta2, epsilon=epsilon, lookahead_step=lookahead_step,
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
-        shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
+        shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
         X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off=best_weights_on_lastest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
@@ -2030,20 +2032,20 @@ if(train) {
           temp_model <<- DDESONN$new(
             num_networks=max(1L, as.integer(num_networks)), input_size=input_size,
             hidden_sizes=hidden_sizes, output_size=output_size, N=N, lambda=lambda,
-            ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, method=init_method, custom_scale=custom_scale
+            ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, init_method=init_method, custom_scale=custom_scale
           )
           ensembles$temp_ensemble[[1]] <- temp_model
           
           model_results_temp <<- temp_model$train(
-            Rdata=X, labels=y, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
-            lr_min=lr_min, ensemble_number=j+1L, num_epochs=num_epochs, self_org=self_org,
+            Rdata=X, labels=y, X_train=X_train, y_train=y_train, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
+            lr_min=lr_min, num_networks=num_networks, ensemble_number=j+1L, do_ensemble=do_ensemble, num_epochs=num_epochs, self_org=self_org,
             threshold=threshold, reg_type=reg_type, numeric_columns=numeric_columns, CLASSIFICATION_MODE=CLASSIFICATION_MODE,
             activation_functions=activation_functions, activation_functions_predict=activation_functions_predict,
             dropout_rates=dropout_rates, optimizer=optimizer,
             beta1=beta1, beta2=beta2, epsilon=epsilon, lookahead_step=lookahead_step,
             batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
             epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
-            shuffle_bn=shuffle_bn, loss_type=loss_type, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
+            shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
             X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off= best_weights_on_lastest_weights_off, ML_NN=ML_NN,
             train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
           )
