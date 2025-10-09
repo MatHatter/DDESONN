@@ -52,7 +52,7 @@ lambda <- 0.00028
 num_epochs <- 200
 validation_metrics <- TRUE
 
-best_weights_on_lastest_weights_off <- TRUE
+best_weights_on_latest_weights_off <- TRUE
 
 custom_scale <- 1.04349
 
@@ -966,28 +966,7 @@ saveToDisk <- FALSE
 hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manually
 
 
-## =========================
-## DDESONN Runner – Modes
-## =========================
-## SCENARIO A: Single-run only (no ensemble, ONE model)
-do_ensemble         <- FALSE
-num_networks        <- 1L
-num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
-#
-## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
-# do_ensemble         <- FALSE
-# num_networks        <- 4L          # e.g., run 5 models in one DDESONN instance
-# num_temp_iterations <- 0L
-#
-## SCENARIO C: Main ensemble only (no TEMP/prune-add)
-# do_ensemble         <- TRUE
-# num_networks        <- 5L          # example main size
-# num_temp_iterations <- 0L
-#
-## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-# do_ensemble         <- TRUE
-# num_networks        <- 3L          # example main size
-# num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
+         # MAIN + 1 TEMP pass (set higher for more TEMP passes)
 #
 ## You can set the above variables BEFORE sourcing this file. The defaults below are fallbacks.
 
@@ -1119,7 +1098,7 @@ if(train) {
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off=best_weights_on_lastest_weights_off, ML_NN=ML_NN,
+        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off=best_weights_on_latest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       
@@ -1478,15 +1457,6 @@ if(train) {
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
   else {
     ## =======================
     ## ENSEMBLE (multi-seed)
@@ -1794,7 +1764,7 @@ if(train) {
         batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off=best_weights_on_lastest_weights_off, ML_NN=ML_NN,
+        X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off=best_weights_on_latest_weights_off, ML_NN=ML_NN,
         train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       ensembles$main_ensemble[[1]] <- main_model
@@ -2046,7 +2016,7 @@ if(train) {
             batch_normalize_data=batch_normalize_data, gamma_bn=gamma_bn, beta_bn=beta_bn,
             epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
             shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
-            X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_lastest_weights_off= best_weights_on_lastest_weights_off, ML_NN=ML_NN,
+            X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off= best_weights_on_latest_weights_off, ML_NN=ML_NN,
             train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
           )
           

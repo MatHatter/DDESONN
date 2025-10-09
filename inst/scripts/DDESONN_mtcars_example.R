@@ -7,35 +7,69 @@ source("R/api.R")
 
 # Use the built-in 'mtcars' data set for a lightweight binary classification task.
 # The transmission column (am) is treated as the target label.
+# Data + basic setup
 data <- mtcars
 target <- "am"
 features <- setdiff(colnames(data), target)
 
-# ----------------------------
-# 3-way split: train/valid/test
-# ----------------------------
 set.seed(42)
 n <- nrow(data)
 all_idx <- seq_len(n)
 
-# 60% train, 20% valid, 20% test
+# 60/20/20 split
 idx_train <- sample(all_idx, floor(0.6 * n))
 remain1   <- setdiff(all_idx, idx_train)
 idx_valid <- sample(remain1, floor(0.2 * n))
 idx_test  <- setdiff(remain1, idx_valid)
 
+# Build X/Y frames BEFORE scaling
 train_x <- data[idx_train, features, drop = FALSE]
-train_y <- data[idx_train, target, drop = FALSE]
+train_y <- data[idx_train, target,   drop = FALSE]
 valid_x <- data[idx_valid, features, drop = FALSE]
-valid_y <- data[idx_valid, target, drop = FALSE]
+valid_y <- data[idx_valid, target,   drop = FALSE]
 test_x  <- data[idx_test,  features, drop = FALSE]
+test_y  <- data[idx_test,  target,   drop = FALSE]
+
+# --- Scaling helpers (train-only stats) ---
+scale_fit <- function(X) {
+  num_cols <- names(which(sapply(X, is.numeric)))
+  if (length(num_cols) == 0) stop("No numeric columns to scale.")
+  mu <- vapply(X[num_cols], function(col) mean(col, na.rm = TRUE), numeric(1))
+  sd <- vapply(X[num_cols], function(col) stats::sd(col, na.rm = TRUE), numeric(1))
+  sd[is.na(sd) | sd == 0] <- 1
+  list(mu = mu, sd = sd, num_cols = num_cols)
+}
+scale_apply <- function(X, s) {
+  Xs <- X
+  for (nm in s$num_cols) {
+    Xs[[nm]] <- (Xs[[nm]] - s$mu[[nm]]) / s$sd[[nm]]
+  }
+  Xs
+}
+
+# Fit scaler on TRAIN, apply to all splits
+scaler  <- scale_fit(train_x)
+train_x <- scale_apply(train_x, scaler)
+valid_x <- scale_apply(valid_x, scaler)
+test_x  <- scale_apply(test_x,  scaler)
+
+# Quick sanity check
+str(train_x); str(valid_x); str(test_x)
+
+
+
+
+
+train_y <- data[idx_train, target, drop = FALSE]
+
+valid_y <- data[idx_valid, target, drop = FALSE]
+
 test_y  <- data[idx_test,  target, drop = FALSE]
 
 model <- ddesonn_model(
   input_size = ncol(train_x),
   output_size = 1,
   hidden_sizes = c(32, 16),
-  architecture = "auto",
   classification_mode = "binary",
   activation_functions = c("relu", "relu", "sigmoid"),
   activation_functions_predict = c("relu", "relu", "sigmoid"),
@@ -50,12 +84,11 @@ ddesonn_fit(
   train_x,
   train_y,
   validation = list(x = valid_x, y = valid_y),
-  architecture = "auto",
-  num_epochs = 200,
+  num_epochs = 300,
   lr = 0.02,
   validation_metrics = TRUE,
   verbose = TRUE,
-  best_weights_on_lastest_weights_off = RESTORE_BEST_WEIGHTS
+  best_weights_on_latest_weights_off = RESTORE_BEST_WEIGHTS
 )
 
 # ----------------------------

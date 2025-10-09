@@ -13,87 +13,70 @@
 #
 # Intended future distribution: CRAN package.
 # ===============================================================
+source("activation_functions.R")
+
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
 
 
-# Map common aliases
-.learn_predict_alias <- function(nm) {
-  nm <- tolower(trimws(nm %||% ""))
-  switch(nm,
-         logistic = "sigmoid",
-         linear   = "identity",
-         none     = "identity",
-         nm
-  )
-}
+# ============================================================
+# Activation Normalization Utility
+# Converts strings or mixed specs into callable functions
+# ============================================================
 
-# Safe resolver: string -> function (or identity on unknown, with warning)
-learn_predict_as_activation <- function(x) {
-  # function already
-  if (is.function(x)) {
-    if (is.null(attr(x, "name"))) attr(x, "name") <- "function"
-    return(x)
-  }
+# ------------------------------------------------------------
+# 1) Activation Normalizer (drop-in)
+# ------------------------------------------------------------
+.ddesonn_normalize_activations <- function(acts, L) {
+  stopifnot(is.numeric(L), length(L) == 1L, L >= 1L, is.finite(L))
+  L <- as.integer(L)
   
-  # NULL allowed (means "no activation" → identity later)
-  if (is.null(x)) return(NULL)
-  
-  # single string name
-  if (is.character(x) && length(x) == 1L) {
-    nm <- .learn_predict_alias(x)
-    
-    # try direct lookup in current or parent envs
-    fn <- get0(nm, mode = "function", inherits = TRUE)
-    if (is.function(fn)) {
-      if (is.null(attr(fn, "name"))) attr(fn, "name") <- nm
+  resolve_one <- function(x) {
+    if (is.null(x)) return(NULL)
+    if (is.function(x)) {
+      if (is.null(attr(x, "name"))) attr(x, "name") <- "unnamed_function"
+      return(x)
+    }
+    if (is.character(x)) {
+      key <- tolower(x[1]); key <- gsub("[- ]", "_", key, perl = TRUE)
+      if (key %in% c("linear","none")) key <- "identity"
+      if (key == "logistic") key <- "sigmoid"
+      fn <- switch(key,
+                   "relu"=relu, "sigmoid"=sigmoid, "softmax"=softmax, "tanh"=tanh, "identity"=identity,
+                   "leaky_relu"=leaky_relu, "elu"=elu, "swish"=swish, "gelu"=gelu, "selu"=selu, "mish"=mish,
+                   "hard_sigmoid"=if (exists("hard_sigmoid","function")) hard_sigmoid else NULL,
+                   "softplus"    =if (exists("softplus",    "function")) softplus     else NULL,
+                   "prelu"       =if (exists("prelu",       "function")) prelu        else NULL,
+                   "bent_identity"=if (exists("bent_identity","function")) bent_identity else NULL,
+                   "maxout"      =if (exists("maxout",      "function")) maxout       else NULL,
+                   NULL
+      )
+      if (is.null(fn)) stop(sprintf("Unsupported activation: '%s'", x[1]), call. = FALSE)
+      if (is.null(attr(fn, "name"))) attr(fn, "name") <- key
       return(fn)
     }
-    
-    # last fallback → identity (do not crash)
-    warning(sprintf("Activation '%s' not found; falling back to identity.", x), call. = FALSE)
-    id <- get0("identity", mode = "function", inherits = TRUE)
-    if (is.null(attr(id, "name"))) attr(id, "name") <- "identity"
-    return(id)
+    stop(sprintf("Unsupported activation spec type: %s", class(x)[1]), call. = FALSE)
   }
   
-  # vector/list etc. that isn't a function/string/null for this slot
-  warning("Unsupported activation type; using identity.", call. = FALSE)
-  id <- get0("identity", mode = "function", inherits = TRUE)
-  if (is.null(attr(id, "name"))) attr(id, "name") <- "identity"
-  id
+  # convert input spec to list, recycle last to length L, resolve each
+  elems <- if (is.list(acts)) {
+    acts
+  } else if (is.function(acts) || is.null(acts) || (is.character(acts) && length(acts) == 1L)) {
+    list(acts)
+  } else if (is.character(acts) && length(acts) > 1L) {
+    as.list(acts)
+  } else {
+    stop(sprintf("activation_functions must be NULL | function | string | character vector | list; got %s",
+                 class(acts)[1]), call. = FALSE)
+  }
+  
+  if (length(elems) < L)      elems <- c(elems, rep(list(elems[[length(elems)]]), L - length(elems)))
+  else if (length(elems) > L) elems <- elems[seq_len(L)]
+  
+  lapply(elems, resolve_one)
 }
 
-# Normalize any form (function | string | list | vector | NULL) to a
-# list of length = num_layers, filled with callables or NULL (becomes identity later)
-learn_predict_normalize_activations <- function(acts, num_layers) {
-  nl <- max(1L, as.integer(num_layers %||% 1L))
-  
-  # Coerce to list of items (each item resolved by learn_predict_as_activation)
-  if (is.null(acts)) {
-    lst <- vector("list", 0L)
-  } else if (is.function(acts) || (is.character(acts) && length(acts) == 1L)) {
-    lst <- list(acts)
-  } else if (is.list(acts)) {
-    lst <- acts
-  } else {
-    # e.g., character vector c("relu","sigmoid",...)
-    lst <- as.list(acts)
-  }
-  
-  lst <- lapply(lst, learn_predict_as_activation)
-  
-  # If empty, return nl NULLs (caller will treat NULL as identity)
-  if (length(lst) == 0L) lst <- rep(list(NULL), nl)
-  
-  # Recycle/truncate to exactly nl
-  if (length(lst) < nl) {
-    lst <- c(lst, rep(list(lst[[length(lst)]]), nl - length(lst)))
-  } else if (length(lst) > nl) {
-    lst <- lst[seq_len(nl)]
-  }
-  
-  lst
-}
+
+
 
 
 probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FALSE,

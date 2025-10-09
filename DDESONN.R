@@ -770,14 +770,50 @@ SONN <- R6Class(
     },
     #the magical function
     learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE) {
-      if(verbose){print("----------------------------------------learn-begin----------------------------------------")}
+      if (verbose) { print("----------------------------------------learn-begin----------------------------------------") }
       start_time <- Sys.time()
-
+      
       `%||%` <- function(x, y) if (is.null(x)) y else x
       .safe_get <- function(lst, idx) {
         if (is.list(lst) && length(lst) >= idx && idx >= 1) lst[[idx]] else NULL
       }
-
+      .af_name <- function(f) {
+        if (is.function(f)) {
+          nm <- attr(f, "name")
+          if (is.null(nm)) return("unnamed_function")
+          return(nm)
+        }
+        if (is.character(f)) return(paste(f, collapse = ","))
+        if (is.null(f)) return("NULL")
+        class(f)[1]
+      }
+      
+      # --- minimal, local resolver (no global normalizer) ---
+      .resolve_one <- function(x) {
+        if (is.null(x) || is.function(x)) {
+          if (is.function(x) && is.null(attr(x, "name"))) attr(x, "name") <- "unnamed_function"
+          return(x)
+        }
+        if (is.character(x) && length(x) >= 1L) {
+          key <- tolower(x[1])
+          key <- gsub("[- ]", "_", key, perl = TRUE)
+          if (key %in% c("linear","none")) key <- "identity"
+          if (key == "logistic") key <- "sigmoid"
+          fn <- switch(key,
+                       "relu"=relu, "tanh"=tanh, "sigmoid"=sigmoid, "softmax"=softmax, "identity"=identity,
+                       "leaky_relu"=leaky_relu, "elu"=elu, "swish"=swish, "gelu"=gelu, "selu"=selu, "mish"=mish,
+                       # add more of your registry names here if you want them available:
+                       "hard_sigmoid"=hard_sigmoid, "softplus"=softplus, "prelu"=prelu,
+                       "bent_identity"=bent_identity, "maxout"=maxout,
+                       NULL
+          )
+          if (is.null(fn)) stop(sprintf("Unsupported activation: '%s'", x[1]), call. = FALSE)
+          if (is.null(attr(fn, "name"))) attr(fn, "name") <- key
+          return(fn)
+        }
+        stop(sprintf("Unsupported activation spec type: %s", class(x)[1]), call. = FALSE)
+      }
+      
       ## ---------------------------
       ## Labels & sample_weights prep
       ## ---------------------------
@@ -791,13 +827,13 @@ SONN <- R6Class(
           sample_weights <- ifelse(labels == 1, pos_weight, neg_weight)
         }
         sample_weights <- matrix(sample_weights, nrow = nrow(labels), ncol = 1)
-
+        
         if (!is.matrix(labels)) labels <- as.matrix(labels)
         if (length(dim(labels)) == 2 && nrow(labels) == ncol(labels)) {
           labels <- matrix(diag(labels), ncol = 1)
         }
         labels <- matrix(as.numeric(labels), ncol = 1)
-
+        
       } else if (identical(CLASSIFICATION_MODE, "multiclass")) {
         # one-hot if needed
         if (is.matrix(labels) && ncol(labels) >= 2) {
@@ -814,28 +850,28 @@ SONN <- R6Class(
           colnames(labels_mat) <- as.character(self$class_levels)
         }
         labels <- as.matrix(labels_mat)
-
+        
         if (is.null(sample_weights)) {
           sample_weights <- rep(1, nrow(labels))
         }
         sample_weights <- matrix(sample_weights, nrow = nrow(labels), ncol = ncol(labels), byrow = FALSE)
-
+        
       } else if (identical(CLASSIFICATION_MODE, "regression")) {
         if (!is.numeric(labels)) labels <- as.numeric(labels)
         if (!is.matrix(labels) || ncol(labels) != 1L) {
           labels <- matrix(labels, ncol = 1L)
         }
         storage.mode(labels) <- "double"
-
+        
         if (is.null(sample_weights)) {
           sample_weights <- rep(1, nrow(labels))
         }
         sample_weights <- matrix(as.numeric(sample_weights), nrow = nrow(labels), ncol = 1L)
-
+        
       } else {
         stop(sprintf("Unknown CLASSIFICATION_MODE: %s", CLASSIFICATION_MODE))
       }
-
+      
       ## ---------------------------
       ## Normalize dropout list to num_layers
       ## ---------------------------
@@ -846,7 +882,7 @@ SONN <- R6Class(
       } else if (length(self$dropout_rates) > self$num_layers) {
         self$dropout_rates <- self$dropout_rates[1:self$num_layers]
       }
-
+      
       ## ---------------------------
       ## Initialize outputs
       ## ---------------------------
@@ -857,15 +893,30 @@ SONN <- R6Class(
       bias_gradients <- list()
       grads_matrix <- list()
       errors <- list()
-
-      ## ---------------------------
-      ## Normalize activation functions
-      ## ---------------------------
-      # activation_functions <- learn_predict_normalize_activations(
-      #   activation_functions,
-      #   max(1L, self$num_layers)
-      # )
       
+      ## ---------------------------
+      ## Activation functions: show RAW input (exactly as received)
+      ## ---------------------------
+      cat("=== RAW activation_functions (as passed to learn) ===\n")
+      if (is.null(activation_functions)) {
+        cat("NULL\n")
+      } else if (is.function(activation_functions)) {
+        cat("single function: ", .af_name(activation_functions), "\n", sep = "")
+      } else if (is.character(activation_functions)) {
+        cat("character vector: ", paste(activation_functions, collapse = ", "), "\n", sep = "")
+      } else if (is.list(activation_functions)) {
+        cat("list len=", length(activation_functions), " (names/types)\n", sep = "")
+        for (i in seq_along(activation_functions)) {
+          v <- activation_functions[[i]]
+          cat(sprintf("  [L%02d] %s\n", i,
+                      if (is.function(v)) paste0("fn:", .af_name(v))
+                      else if (is.character(v)) paste0("str:", v)
+                      else class(v)[1]))
+        }
+      } else {
+        cat("type: ", class(activation_functions)[1], "\n", sep = "")
+      }
+      cat("=== END RAW ===\n\n")
       
       ## ================================================================
       ## MULTI-LAYER MODE
@@ -875,28 +926,28 @@ SONN <- R6Class(
         activation_derivatives <- vector("list", self$num_layers)
         dropout_masks <- rep(list(NULL), self$num_layers)   # store masks for backprop
         dim_hidden_layers_learn <- vector("list", self$num_layers)
-
+        
         input_matrix <- as.matrix(Rdata)
-
+        
         # Forward pass
         for (layer in 1:self$num_layers) {
           weights_matrix <- as.matrix(self$weights[[layer]])
           bias_vec <- as.numeric(unlist(self$biases[[layer]]))
           input_data <- if (layer == 1) input_matrix else hidden_outputs[[layer - 1]]
           input_data <- as.matrix(input_data)
-
+          
           input_rows <- nrow(input_data)
           weights_rows <- nrow(weights_matrix)
           weights_cols <- ncol(weights_matrix)
-
+          
           cat(sprintf("[Debug] Layer %d : input dim = %d x %d | weights dim = %d x %d\n",
                       layer, input_rows, ncol(input_data), weights_rows, weights_cols))
-
+          
           if (ncol(input_data) != weights_rows) {
             stop(sprintf("Layer %d: input cols (%d) do not match weights rows (%d)",
                          layer, ncol(input_data), weights_rows))
           }
-
+          
           if (length(bias_vec) == 1) {
             bias_matrix <- matrix(bias_vec, nrow = input_rows, ncol = weights_cols)
           } else if (length(bias_vec) == weights_cols) {
@@ -906,27 +957,47 @@ SONN <- R6Class(
           } else {
             stop(sprintf("Layer %d: invalid bias shape: length = %d", layer, length(bias_vec)))
           }
-
+          
           Z <- input_data %*% weights_matrix + bias_matrix
-
-          activation_function <- if (length(activation_functions) >= layer) activation_functions[[layer]] else NULL
+          
+          # ---- resolve per-layer spec without global normalization ----
+          af_spec <- if (is.list(activation_functions)) {
+            if (length(activation_functions) >= layer) activation_functions[[layer]] else NULL
+          } else if (is.character(activation_functions)) {
+            if (length(activation_functions) >= layer) activation_functions[layer] else NULL
+          } else if (is.function(activation_functions)) {
+            activation_functions
+          } else {
+            NULL
+          }
+          activation_function <- .resolve_one(af_spec)
           activation_name <- if (is.function(activation_function)) attr(activation_function, "name") else "none"
-          cat(sprintf("[Debug] Layer %d : Activation Function = %s\n", layer, activation_name))
-
+          
+          # DEBUG: what exactly are we applying?
+          if (is.function(activation_function)) {
+            cat(sprintf("[Debug] Layer %d : Activation Function = %s (callable)\n", layer, activation_name %||% "unnamed_function"))
+          } else if (is.character(activation_function)) { # shouldn't happen after resolve
+            cat(sprintf("[Debug] Layer %d : Activation Function (string) = %s\n", layer, paste(activation_function, collapse = ",")))
+          } else if (is.null(activation_function)) {
+            cat(sprintf("[Debug] Layer %d : Activation Function = NULL (identity)\n", layer))
+          } else {
+            cat(sprintf("[Debug] Layer %d : Activation placeholder class = %s\n", layer, class(activation_function)[1]))
+          }
+          
           A <- if (is.function(activation_function)) activation_function(Z) else Z
-
+          
           # Dropout on hidden layers only
           rate <- .safe_get(self$dropout_rates, layer)
           if (layer == self$num_layers) rate <- NULL
           do_out <- self$dropout_forward(A, rate)
           A <- do_out$out
           dropout_masks[[layer]] <- do_out$mask
-
+          
           hidden_outputs[[layer]] <- A
-
+          
           # Derivatives for hidden layers; for output, we’ll handle with CE shortcut
-          if (activation_name != "none") {
-            derivative_name <- paste0(activation_name, "_derivative")
+          if (is.function(activation_function)) {
+            derivative_name <- paste0(attr(activation_function, "name") %||% "unnamed_function", "_derivative")
             if (!exists(derivative_name, mode = "function")) {
               stop(paste("Layer", layer, ": Activation derivative function", derivative_name, "does not exist."))
             }
@@ -934,61 +1005,73 @@ SONN <- R6Class(
           } else {
             activation_derivatives[[layer]] <- matrix(1, nrow = nrow(Z), ncol = ncol(Z))
           }
-
+          
           dim_hidden_layers_learn[[layer]] <- dim(A)
         }
-
+        
         predicted_output_learn <- hidden_outputs[[self$num_layers]]
         predicted_output_learn_hidden <- hidden_outputs
-
+        
         # Error (kept as (pred - y) * w so we can reuse as CE delta at output)
         error_learn <- (predicted_output_learn - labels) * sample_weights
-
+        
         # Backward pass with CE shortcut at the output
         error_backprop <- error_learn
         for (layer in self$num_layers:1) {
-
+          
           # Use CE shortcut on the output layer IF classification + (sigmoid|softmax)
           use_ce_shortcut <- FALSE
           if (identical(CLASSIFICATION_MODE, "binary") || identical(CLASSIFICATION_MODE, "multiclass")) {
-            act_fun <- if (length(activation_functions) >= layer) activation_functions[[layer]] else NULL
+            # resolve again for safety (same logic as forward)
+            af_spec <- if (is.list(activation_functions)) {
+              if (length(activation_functions) >= layer) activation_functions[[layer]] else NULL
+            } else if (is.character(activation_functions)) {
+              if (length(activation_functions) >= layer) activation_functions[layer] else NULL
+            } else if (is.function(activation_functions)) {
+              activation_functions
+            } else {
+              NULL
+            }
+            act_fun <- .resolve_one(af_spec)
             act_name <- if (is.function(act_fun)) attr(act_fun, "name") else "none"
             if (layer == self$num_layers && (act_name %in% c("sigmoid", "softmax"))) {
               use_ce_shortcut <- TRUE
             }
           }
-
+          
           if (use_ce_shortcut) {
             delta <- error_learn  # (A_L - Y) * w, no multiply by derivative
+            cat(sprintf("[Debug] Layer %d : Using CE shortcut (delta = A - Y)\n", layer))
           } else {
             delta <- error_backprop * activation_derivatives[[layer]]
+            cat(sprintf("[Debug] Layer %d : Using derivative-backed delta\n", layer))
           }
-
+          
           # Apply SAME mask/rate as forward for this layer (output layer had rate=NULL)
           rate <- .safe_get(self$dropout_rates, layer)
           mask <- .safe_get(dropout_masks, layer)
           delta <- self$dropout_backward(delta, mask, rate)
-
+          
           # Gradients
           bias_gradients[[layer]] <- matrix(colMeans(delta), nrow = 1)        # average over batch
           input_for_grad <- if (layer == 1) input_matrix else hidden_outputs[[layer - 1]]
           grads_matrix[[layer]] <- t(input_for_grad) %*% delta                # weight grads
-
+          
           errors[[layer]] <- delta
-
+          
           # Propagate to previous layer
           if (layer > 1) {
             weights_t <- t(as.matrix(self$weights[[layer]]))
             error_backprop <- delta %*% weights_t
           }
         }
-
+        
         ## ================================================================
         ## SINGLE-LAYER MODE
         ## ================================================================
       } else {
         cat("Single Layer Learning Phase\n")
-
+        
         X <- as.matrix(Rdata)
         weights_matrix <- if (is.list(self$weights)) {
           as.matrix(self$weights[[1]])
@@ -1000,11 +1083,11 @@ SONN <- R6Class(
         } else {
           as.numeric(self$biases)
         }
-
+        
         if (ncol(X) != nrow(weights_matrix)) {
           stop(sprintf("SL NN: input cols (%d) do not match weights rows (%d)", ncol(X), nrow(weights_matrix)))
         }
-
+        
         if (length(bias_vec) == 1) {
           bias_matrix <- matrix(bias_vec, nrow = nrow(X), ncol = ncol(weights_matrix))
         } else if (length(bias_vec) == ncol(weights_matrix)) {
@@ -1014,47 +1097,64 @@ SONN <- R6Class(
         } else {
           stop(sprintf("SL NN: invalid bias shape: length = %d", length(bias_vec)))
         }
-
+        
         # Optional input dropout (SL)
         if (!is.list(self$dropout_rates)) self$dropout_rates <- list(self$dropout_rates)
         rate <- .safe_get(self$dropout_rates, 1)
         do_x <- self$dropout_forward(X, rate)
         X_dropped <- do_x$out
         mask <- do_x$mask
-
+        
         Z <- X_dropped %*% weights_matrix + bias_matrix
-
-        # Activation
-        if (is.function(activation_functions)) {
-          activation_function <- activation_functions
+        
+        # Resolve SL activation without normalization
+        af_spec <- if (is.list(activation_functions)) {
+          activation_functions[[1]]
+        } else if (is.character(activation_functions)) {
+          activation_functions[1]
+        } else if (is.function(activation_functions)) {
+          activation_functions
         } else {
-          if (!is.list(activation_functions)) activation_functions <- list(activation_functions)
-          activation_function <- activation_functions[[1]]
+          NULL
         }
+        activation_function <- .resolve_one(af_spec)
         activation_name <- if (is.function(activation_function)) attr(activation_function, "name") else "none"
+        
+        # DEBUG: what are we using in SL?
+        if (is.function(activation_function)) {
+          cat(sprintf("[Debug] SL : Activation Function = %s (callable)\n", .af_name(activation_function)))
+        } else if (is.character(activation_function)) {
+          cat(sprintf("[Debug] SL : Activation Function (string) = %s\n", paste(activation_function, collapse = ",")))
+        } else if (is.null(activation_function)) {
+          cat("[Debug] SL : Activation Function = NULL (identity)\n")
+        } else {
+          cat(sprintf("[Debug] SL : Activation placeholder class = %s\n", class(activation_function)[1]))
+        }
+        
         A <- if (is.function(activation_function)) activation_function(Z) else Z
         predicted_output_learn <- A
-
-        ## INSERT: mirror ML shapes for downstream consumers
-        predicted_output_learn_hidden <- list(A)  # so callers can index [[1]] safely
-
+        
+        ## Mirror ML shapes for downstream consumers
+        predicted_output_learn_hidden <- list(A)
+        
         if (identical(CLASSIFICATION_MODE, "multiclass") && ncol(predicted_output_learn) != ncol(labels)) {
           stop(sprintf("SL NN (multiclass): output cols (%d) != label cols (%d).",
                        ncol(predicted_output_learn), ncol(labels)))
         }
-
+        
         # Error
         error_learn <- (predicted_output_learn - labels) * sample_weights
         dim_hidden_layers_learn[[1]] <- dim(predicted_output_learn)
-
+        
         # CE shortcut at output if (binary/multiclass) & (sigmoid/softmax)
         use_ce_shortcut <- FALSE
         if (identical(CLASSIFICATION_MODE, "binary") || identical(CLASSIFICATION_MODE, "multiclass")) {
           if (activation_name %in% c("sigmoid", "softmax")) use_ce_shortcut <- TRUE
         }
-
+        
         if (use_ce_shortcut) {
           delta <- error_learn
+          cat("[Debug] SL : Using CE shortcut (delta = A - Y)\n")
         } else {
           deriv_fn_name <- if (is.function(activation_function)) paste0(attr(activation_function, "name"), "_derivative") else NULL
           activation_deriv <- if (!is.null(deriv_fn_name) && exists(deriv_fn_name)) {
@@ -1063,49 +1163,55 @@ SONN <- R6Class(
             matrix(1, nrow = nrow(Z), ncol = ncol(Z))
           }
           delta <- error_learn * activation_deriv
+          cat("[Debug] SL : Using derivative-backed delta\n")
         }
-
-        # Backprop through dropout ONLY if mask matches delta's shape (ML hidden activations).
-        # In SL mode we applied dropout to inputs (mask = X mask), so we should NOT touch delta.
+        
+        # Backprop through dropout ONLY if mask matches delta's shape
         if (!is.null(rate) && !is.null(mask) && is.matrix(mask) && all(dim(mask) == dim(delta))) {
           delta <- self$dropout_backward(delta, mask, rate)
-        } # else: no-op; gradient uses X_dropped already, preserving dropout effect
-
-
-        ## INSERT: ensure list slots exist like ML
-        errors <- vector("list", max(1L, self$num_layers))  # size-safe
+        }
+        
+        errors <- vector("list", max(1L, self$num_layers))
         grads_matrix <- vector("list", max(1L, self$num_layers))
         bias_gradients <- vector("list", max(1L, self$num_layers))
-
+        
         bias_gradients[[1]] <- matrix(colMeans(delta), nrow = 1)
         grads_matrix[[1]] <- t(X_dropped) %*% delta
         errors[[1]] <- delta
       }
-
+      
       learn_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
-
-      if(verbose){print("----------------------------------------learn-end----------------------------------------")}
-
-      return(list(learn_output = predicted_output_learn, learn_time = learn_time, error = error_learn, dim_hidden_layers = dim_hidden_layers_learn, hidden_outputs = predicted_output_learn_hidden, grads_matrix = grads_matrix, bias_gradients = bias_gradients, errors = errors))
+      
+      if (verbose) { print("----------------------------------------learn-end----------------------------------------") }
+      
+      return(list(
+        learn_output = predicted_output_learn,
+        learn_time = learn_time,
+        error = error_learn,
+        dim_hidden_layers = dim_hidden_layers_learn,
+        hidden_outputs = predicted_output_learn_hidden,
+        grads_matrix = grads_matrix,
+        bias_gradients = bias_gradients,
+        errors = errors
+      ))
     },
-
     # Method to perform prediction
-    predict = function(Rdata, weights, biases, activation_functions_predict, verbose=FALSE, debug=FALSE) {
-      if(verbose){print("----------------------------------------predict-begin----------------------------------------")}
+    predict = function(Rdata, weights, biases, activation_functions_predict, verbose = FALSE, debug = FALSE) {
+      if (verbose) { print("----------------------------------------predict-begin----------------------------------------") }
+      
       # ---- Debug/Verbose toggles ----
       if (is.null(debug)) {
         debug <- isTRUE(get0("DEBUG_PREDICT_FORWARD", inherits = TRUE, ifnotfound = FALSE))
       }
       .dbg <- function(...) if (isTRUE(debug))   cat("[PRED-DBG] ", sprintf(...), "\n", sep = "")
       .vbs <- function(...) if (isTRUE(verbose) && !isTRUE(debug)) cat(sprintf(...), "\n")
-
+      
       # ---------- last-layer variance probe (local helper) ----------
       probe_last_layer <- function(Z_last, A_last, last_af_name = NA_character_, tag = "[PROBE]") {
         vZ  <- as.vector(Z_last); vA <- as.vector(A_last)
         sdZ <- stats::sd(vZ, na.rm = TRUE); sdA <- stats::sd(vA, na.rm = TRUE)
         rngZ <- range(vZ, na.rm = TRUE); rngA <- range(vA, na.rm = TRUE)
-
-        # Print to verbose (nice, concise) OR debug (more hints). Debug contains diagnostics too.
+        
         if (isTRUE(debug)) {
           cat(sprintf(
             "%s last_af=%s | sd(Z)=%.6g | sd(A)=%.6g | range(Z)=[%.6g, %.6g] | range(A)=[%.6g, %.6g]\n",
@@ -1113,50 +1219,122 @@ SONN <- R6Class(
           ))
           eps_flat <- 1e-6
           if (sdZ < eps_flat) {
-            cat(sprintf("%s DIAG: Z_last is ~flat -> training collapse.\n", tag))
+            cat(sprintf("%s DIAG: Z_last is ~flat -> possible collapse.\n", tag))
           } else if (sdA < sdZ * 1e-3) {
-            cat(sprintf("%s DIAG: Z_last has spread but A_last is squashed -> activation/head mismatch.\n", tag))
+            cat(sprintf("%s DIAG: Z_last spread but A_last squashed -> activation/head mismatch.\n", tag))
           } else {
             cat(sprintf("%s DIAG: Variance preserved across head.\n", tag))
           }
         } else if (isTRUE(verbose)) {
-          cat(sprintf(
-            "%s head=%s | sd(Z)=%.6g → sd(A)=%.6g\n",
-            tag, as.character(last_af_name), sdZ, sdA
-          ))
+          cat(sprintf("%s head=%s | sd(Z)=%.6g → sd(A)=%.6g\n", tag, as.character(last_af_name), sdZ, sdA))
         }
         invisible(list(sdZ = sdZ, sdA = sdA, rngZ = rngZ, rngA = rngA))
       }
       # --------------------------------------------------------------
-
-      # If weights/biases are missing → fall back to internal state (stateful mode)
+      
+      # Fallback to internal state (stateful mode) if weights/biases are missing
       if (is.null(weights)) {
         if (!is.null(self$weights)) weights <- self$weights else stop("predict(): weights not provided and self$weights is NULL.")
       }
       if (is.null(biases)) {
         if (!is.null(self$biases))  biases  <- self$biases  else stop("predict(): biases not provided and self$biases is NULL.")
       }
-
-      # Ensure lists
+      
+      # Ensure list shapes
       if (!is.list(weights)) weights <- list(weights)
       if (!is.list(biases))  biases  <- list(biases)
-      if (!is.null(activation_functions_predict) && !is.list(activation_functions_predict)) activation_functions_predict <- list(activation_functions_predict)
-
+      
+      # ---------------- Activation resolver (minimal, local) ----------------
+      .resolve_one <- function(x) {
+        if (is.null(x) || is.function(x)) {
+          if (is.function(x) && is.null(attr(x, "name"))) attr(x, "name") <- "unnamed_function"
+          return(x)
+        }
+        if (is.character(x) && length(x) >= 1L) {
+          key <- tolower(x[1]); key <- gsub("[- ]", "_", key, perl = TRUE)
+          if (key %in% c("linear", "none")) key <- "identity"
+          if (key == "logistic") key <- "sigmoid"
+          fn <- switch(key,
+                       "relu"=relu, "tanh"=tanh, "sigmoid"=sigmoid, "softmax"=softmax, "identity"=identity,
+                       "leaky_relu"=leaky_relu, "elu"=elu, "swish"=swish, "gelu"=gelu, "selu"=selu, "mish"=mish,
+                       "hard_sigmoid"=hard_sigmoid, "softplus"=softplus, "prelu"=prelu,
+                       "bent_identity"=bent_identity, "maxout"=maxout,
+                       NULL
+          )
+          if (is.null(fn)) stop(sprintf("Unsupported activation: '%s'", x[1]), call. = FALSE)
+          if (is.null(attr(fn, "name"))) attr(fn, "name") <- key
+          return(fn)
+        }
+        stop(sprintf("Unsupported activation spec type: %s", class(x)[1]), call. = FALSE)
+      }
+      
+      # Choose the prediction-time activation spec
+      acts_pred <- if (!missing(activation_functions_predict) && !is.null(activation_functions_predict)) {
+        activation_functions_predict
+      } else if (!is.null(self$activation_functions_predict)) {
+        self$activation_functions_predict
+      } else if (!is.null(self$activation_functions)) {
+        self$activation_functions
+      } else {
+        NULL
+      }
+      
+      # Print RAW activations passed to predict (before resolving)
+      cat("=== RAW activation_functions_predict (as passed to predict) ===\n")
+      if (is.null(acts_pred)) {
+        cat("NULL\n")
+      } else if (is.function(acts_pred)) {
+        nm <- attr(acts_pred, "name"); if (is.null(nm)) nm <- "unnamed_function"
+        cat("single function: ", nm, "\n", sep = "")
+      } else if (is.character(acts_pred)) {
+        cat("character vector: ", paste(acts_pred, collapse = ", "), "\n", sep = "")
+      } else if (is.list(acts_pred)) {
+        cat("list len=", length(acts_pred), " (names/types)\n", sep = "")
+        for (i in seq_along(acts_pred)) {
+          v <- acts_pred[[i]]
+          cat(sprintf("  [L%02d] %s\n", i,
+                      if (is.function(v)) paste0("fn:", (attr(v,"name") %||% "unnamed_function"))
+                      else if (is.character(v)) paste0("str:", v)
+                      else class(v)[1]))
+        }
+      } else {
+        cat("type: ", class(acts_pred)[1], "\n", sep = "")
+      }
+      cat("=== END RAW ===\n\n")
+      
+      # Helper to fetch spec for a given layer and resolve it
+      .get_act <- function(layer) {
+        spec <- if (is.list(acts_pred)) {
+          if (length(acts_pred) >= layer) acts_pred[[layer]] else NULL
+        } else if (is.character(acts_pred)) {
+          if (length(acts_pred) >= layer) acts_pred[layer] else NULL
+        } else if (is.function(acts_pred)) {
+          acts_pred
+        } else {
+          NULL
+        }
+        .resolve_one(spec)
+      }
+      # ---------------------------------------------------------------------
+      
       start_time  <- Sys.time()
       output      <- as.matrix(Rdata)
       num_layers  <- length(weights)
-
+      
       # Input diagnostics
       .dbg("INPUT dims=%d x %d | mean=%.6f sd=%.6f min=%.6f p50=%.6f max=%.6f",
            nrow(output), ncol(output),
            mean(output), stats::sd(as.vector(output)), min(output),
            stats::median(as.vector(output)), max(output))
       .vbs("Predict: X dims=%d x %d", nrow(output), ncol(output))
-
+      
+      # For final head debug after the loop
+      last_w <- NULL; last_b <- NULL; last_Z <- NULL; last_A <- NULL; last_act_name <- "identity"
+      
       for (layer in seq_len(num_layers)) {
         w <- as.matrix(weights[[layer]])
         b <- as.numeric(unlist(biases[[layer]]))
-
+        
         # Broadcast bias to match samples × units
         n_samples <- nrow(output)
         n_units   <- ncol(w)
@@ -1167,12 +1345,12 @@ SONN <- R6Class(
         } else {
           bias_mat <- matrix(rep(b, length.out = n_units), nrow = n_samples, ncol = n_units, byrow = TRUE)
         }
-
+        
         # Weights/bias debug info
         .dbg("L%02d: W dims=%d x %d | W mean=%.6g sd=%.6g min=%.6g max=%.6g",
              layer, nrow(w), ncol(w), mean(w), stats::sd(as.vector(w)), min(w), max(w))
-
-        # Concise bias summary for verbose mode (and richer in debug)
+        
+        # Concise bias summary
         if (isTRUE(debug) || isTRUE(verbose)) {
           b_sd   <- if (length(b) > 1) stats::sd(b) else 0
           b_min  <- if (length(b) > 0) min(b) else NA_real_
@@ -1188,16 +1366,16 @@ SONN <- R6Class(
                         format(b_min, digits = 6), format(b_max, digits = 6)))
           }
         }
-
+        
         # Linear transformation
         output <- output %*% w + bias_mat
-
+        
         # Pre-activation stats
         .dbg("L%02d: Z dims=%d x %d | Z mean=%.6f sd=%.6f min=%.6f p50=%.6f max=%.6f",
              layer, nrow(output), ncol(output),
              mean(output), stats::sd(as.vector(output)), min(output),
              stats::median(as.vector(output)), max(output))
-
+        
         # Per-layer probe (before activation)
         if (isTRUE(debug) || isTRUE(verbose)) {
           sdZ  <- stats::sd(as.vector(output))
@@ -1208,91 +1386,80 @@ SONN <- R6Class(
             cat(sprintf("[L%02d] sd(Z)=%.6g\n", layer, sdZ))
           }
         }
-
-        Z_curr <- output  # keep for last-layer probe
-        act_name <- "identity"
         
-        # Apply activation if provided
-        if (!is.null(activation_functions_predict) &&
-            length(activation_functions_predict) >= layer &&
-            is.function(activation_functions_predict[[layer]])) {
-          
-          act_name <- tryCatch({
-            nm <- attr(activation_functions_predict[[layer]], "name")
-            if (is.null(nm)) "function" else nm
-          }, error = function(e) "function")
-          
-          .dbg("L%02d: ACT[%s] applying...", layer, act_name)
-          output <- activation_functions_predict[[layer]](output)
-          
+        Z_curr <- output  # cache before activation
+        act_fn <- .get_act(layer)
+        act_name <- if (is.function(act_fn)) (attr(act_fn, "name") %||% "function") else "identity"
+        
+        # Apply activation
+        if (is.function(act_fn)) {
+          cat(sprintf("[PRED] Layer %d activation = %s\n", layer, act_name))
+          output <- act_fn(output)
           # After-activation probe
           if (isTRUE(debug) || isTRUE(verbose)) {
-            sdA  <- stats::sd(as.vector(output))
-            rngA <- range(as.vector(output))
+            sdA  <- stats::sd(as.vector(output)); rngA <- range(as.vector(output))
             if (isTRUE(debug)) {
               cat(sprintf("[L%02d-PROBE] sd(A)=%.6g | range(A)=[%.6g, %.6g]\n", layer, sdA, rngA[1], rngA[2]))
             } else {
               cat(sprintf("[L%02d] sd(A)=%.6g\n", layer, sdA))
             }
-          }
-          
-          # Last-layer variance probe
-          if (layer == num_layers) {
-            last_af_name <- tryCatch(tolower(act_name), error = function(e) NA_character_)
-            probe_last_layer(Z_last = Z_curr, A_last = output,
-                             last_af_name = last_af_name, tag = "[PROBE]")
           }
         } else {
-          .dbg("L%02d: ACT[identity] (no activation function provided for this layer)", layer)
-          
+          cat(sprintf("[PRED] Layer %d activation = identity (NULL)\n", layer))
+          # output already equals Z_curr
           if (isTRUE(debug) || isTRUE(verbose)) {
-            sdA  <- stats::sd(as.vector(output))
-            rngA <- range(as.vector(output))
+            sdA  <- stats::sd(as.vector(output)); rngA <- range(as.vector(output))
             if (isTRUE(debug)) {
               cat(sprintf("[L%02d-PROBE] sd(A)=%.6g | range(A)=[%.6g, %.6g]\n", layer, sdA, rngA[1], rngA[2]))
             } else {
               cat(sprintf("[L%02d] sd(A)=%.6g\n", layer, sdA))
             }
           }
-          
-          if (layer == num_layers) {
-            probe_last_layer(Z_last = Z_curr, A_last = output,
-                             last_af_name = "identity", tag = "[PROBE]")
-          }
+        }
+        
+        # Stash for final head diagnostics
+        if (layer == num_layers) {
+          last_w <- w; last_b <- b; last_Z <- Z_curr; last_A <- output; last_act_name <- act_name
+          probe_last_layer(Z_last = last_Z, A_last = last_A,
+                           last_af_name = tolower(last_act_name), tag = "[PROBE]")
         }
       }
       
-      # Always do HEAD-DBG if last layer
-      if (layer == num_layers) {
+      # Final head diagnostics
+      if (num_layers >= 1) {
         cat("\n[HEAD-DBG] ---- Last layer diagnostic ----\n")
         cat(sprintf("[HEAD-DBG] W_last dims=%d x %d | mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
-                    nrow(w), ncol(w), mean(w), sd(as.vector(w)), min(w), max(w)))
+                    nrow(last_w), ncol(last_w), mean(last_w), sd(as.vector(last_w)), min(last_w), max(last_w)))
         cat(sprintf("[HEAD-DBG] b_last len=%d | mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
-                    length(b), mean(b), if (length(b)>1) sd(b) else 0, min(b), max(b)))
+                    length(last_b), mean(last_b), if (length(last_b)>1) sd(last_b) else 0, min(last_b), max(last_b)))
         cat(sprintf("[HEAD-DBG] Z_last: mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
-                    mean(Z_curr), sd(as.vector(Z_curr)), min(Z_curr), max(Z_curr)))
+                    mean(last_Z), sd(as.vector(last_Z)), min(last_Z), max(last_Z)))
         cat(sprintf("[HEAD-DBG] A_last: mean=%.6f sd=%.6f min=%.6f max=%.6f\n\n",
-                    mean(output), sd(as.vector(output)), min(output), max(output)))
-        
-        probe_last_layer(Z_last = Z_curr, A_last = output,
-                         last_af_name = act_name, tag = "[PROBE]")
+                    mean(last_A), sd(as.vector(last_A)), min(last_A), max(last_A)))
+        probe_last_layer(Z_last = last_Z, A_last = last_A,
+                         last_af_name = last_act_name, tag = "[PROBE]")
       }
       
-
       end_time <- Sys.time()
       prediction_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
       .dbg("DONE | total_time=%.6fs | FINAL dims=%d x %d | mean=%.6f sd=%.6f min=%.6f p50=%.6f max=%.6f",
            prediction_time, nrow(output), ncol(output),
            mean(output), stats::sd(as.vector(output)), min(output),
            stats::median(as.vector(output)), max(output))
-
+      
       if (isTRUE(verbose) && !isTRUE(debug)) {
         cat(sprintf("Predict complete in %.4fs | Output dims=%d x %d\n",
                     prediction_time, nrow(output), ncol(output)))
       }
-
+      
       print("----------------------------------------predict-end----------------------------------------")
-      return(list(predicted_output = output, prediction_time = prediction_time))
+      
+      # Return both keys for compatibility with existing codepaths
+      return(list(
+        prediction = output,
+        predicted_output = output,
+        prediction_time = prediction_time
+      ))
     }
     ,# Method for training the SONN with L2 regularization
     train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose) {
@@ -2659,7 +2826,7 @@ DDESONN <- R6Class(
       flag <- isTRUE(val) || (is.logical(val) && length(val) == 1 && !is.na(val) && val)
       on_all || flag
     },
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_lastest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
@@ -2968,6 +3135,7 @@ DDESONN <- R6Class(
           all_best_epoch_train             = all_best_epoch_train,
           all_best_val_acc                 = all_best_val_acc,
           all_best_val_epoch               = all_best_val_epoch,
+          best_weights_on_latest_weights_off = best_weights_on_latest_weights_off,
           ML_NN = ML_NN,
           train = train,
           grouped_metrics = grouped_metrics,
@@ -3134,7 +3302,7 @@ DDESONN <- R6Class(
     }
     , # Method for updating performance and relevance metrics
 
-    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_val_acc, all_best_val_epoch, ML_NN, train, grouped_metrics, viewTables, verbose) {
+    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
       if(verbose){print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")}
 
       # Initialize lists to store performance and relevance metrics for each SONN
@@ -3305,11 +3473,8 @@ DDESONN <- R6Class(
             }
           }
 
-          #probably never need to be FALSE, but here temp until I conclude.
-          use_best_val <- TRUE
 
-
-          if (best_weights_on_lastest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
+          if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
             probs   <- best_val_probs
             targets <- best_val_labels
             prediction_time <- best_val_prediction_time

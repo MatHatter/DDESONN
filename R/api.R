@@ -8,9 +8,52 @@ source("utils/utils.R")
   if (is.null(x) || length(x) == 0) y else x
 }
 
-## ============================================================
-## Robust root resolver + legacy source (drop-in replacement)
-## ============================================================
+.ddesonn_find_root <- function() {
+  pkg_root <- system.file(package = "DDESONN")
+  if (nzchar(pkg_root)) {
+    return(pkg_root)
+  }
+  getOption("DDESONN_ROOT", default = getwd())
+}
+
+.ddesonn_source_legacy <- function() {
+  if (exists("DDESONN", envir = .ddesonn_env, inherits = FALSE)) {
+    return(invisible(.ddesonn_env))
+  }
+  
+  root <- .ddesonn_find_root()
+  target <- file.path(root, "DDESONN.R")
+  if (!file.exists(target)) {
+    stop("Unable to locate 'DDESONN.R'. Set options(DDESONN_ROOT=...) to the repository root before calling the API.")
+  }
+  
+  base_source <- base::source
+  assign(
+    "source",
+    function(file, ...) {
+      resolved <- file.path(root, file)
+      if (!file.exists(resolved)) {
+        stop(sprintf("Unable to locate dependency file '%s' relative to '%s'", file, root), call. = FALSE)
+      }
+      base_source(resolved, local = .ddesonn_env, ...)
+    },
+    envir = .ddesonn_env
+  )
+  
+  sys.source(target, envir = .ddesonn_env, chdir = FALSE)
+  invisible(.ddesonn_env)
+}
+
+.ddesonn_get <- function(name) {
+  .ddesonn_source_legacy()
+  obj <- get0(name, envir = .ddesonn_env, inherits = FALSE)
+  if (is.null(obj)) {
+    stop(sprintf("Object '%s' was not initialised from the legacy stack.", name), call. = FALSE)
+  }
+  obj
+}
+
+# special helper for picking up on the user's input in the model's set-up.
 
 normalize_architecture <- function(architecture = c("auto", "single", "multi"), hidden_sizes) {
   arch <- match.arg(architecture)
@@ -26,9 +69,15 @@ normalize_architecture <- function(architecture = c("auto", "single", "multi"), 
     if (!length(hs)) {
       hs <- integer(0)
     } else {
-      if (any(!is.finite(hs))) stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
-      if (any(hs < 0))        stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
-      if (any(hs != as.integer(hs))) stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      if (any(!is.finite(hs))) {
+        stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      }
+      if (any(hs < 0)) {
+        stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      }
+      if (any(hs != as.integer(hs))) {
+        stop("hidden_sizes must be non-negative finite integers.", call. = FALSE)
+      }
       hs <- as.integer(hs)
       hs <- hs[hs > 0L]
     }
@@ -49,66 +98,11 @@ normalize_architecture <- function(architecture = c("auto", "single", "multi"), 
     return(list(arch = "multi", hidden_sizes = hs))
   }
   
-  if (length(hs) == 0L) list(arch = "single", hidden_sizes = hs) else list(arch = "multi", hidden_sizes = hs)
-}
-
-.ddesonn_find_root <- function() {
-  opt <- getOption("DDESONN_ROOT")
-  root <- if (!is.null(opt) && nzchar(opt)) opt else {
-    pkg_root <- tryCatch(system.file(package = "DDESONN"), error = function(e) "")
-    if (nzchar(pkg_root)) pkg_root else getwd()
+  if (length(hs) == 0L) {
+    list(arch = "single", hidden_sizes = hs)
+  } else {
+    list(arch = "multi", hidden_sizes = hs)
   }
-  root <- normalizePath(root, winslash = "/", mustWork = FALSE)
-  if (basename(root) == "inst") root <- dirname(root)  # <-- key line
-  root
-}
-
-
-.ddesonn_source_legacy <- function(force = FALSE) {
-  # Fast-return if we already sourced successfully
-  if (!force && exists(".__LEGACY_OK__", envir = .ddesonn_env, inherits = FALSE)) {
-    return(invisible(.ddesonn_env))
-  }
-  
-  root <- .ddesonn_find_root()
-  
-  # Look in several common spots for the entry file
-  candidates <- file.path(root, c(
-    "DDESONN.R",
-    "legacy/DDESONN.R",
-    "R/DDESONN.R",
-    "src/DDESONN.R"
-  ))
-  hit <- candidates[file.exists(candidates)]
-  
-  if (!length(hit)) {
-    stop(
-      "Unable to locate DDESONN.R under root: ", root, "\n",
-      "Searched: ", paste(candidates, collapse = ", "), "\n",
-      "Tip: set options(DDESONN_ROOT = normalizePath('<repo_root>')) before calling."
-    )
-  }
-  
-  target <- hit[[1L]]
-  
-  # Clean env before re-source (prevents stale symbols)
-  if (length(ls(.ddesonn_env))) rm(list = ls(.ddesonn_env), envir = .ddesonn_env)
-  
-  # chdir=TRUE so relative sources inside DDESONN.R resolve from its folder
-  sys.source(target, envir = .ddesonn_env, keep.source = TRUE, chdir = TRUE)
-  
-  # mark as OK to avoid re-work
-  assign(".__LEGACY_OK__", TRUE, envir = .ddesonn_env)
-  invisible(.ddesonn_env)
-}
-
-.ddesonn_get <- function(name) {
-  .ddesonn_source_legacy()
-  obj <- get0(name, envir = .ddesonn_env, inherits = FALSE)
-  if (is.null(obj)) {
-    stop(sprintf("Object '%s' was not initialised from the legacy stack.", name), call. = FALSE)
-  }
-  obj
 }
 
 #' Default activation sequences used by the high-level helpers.
@@ -226,24 +220,17 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     is_training_bn = TRUE,
     shuffle_bn = FALSE,
     loss_type = if (mode %in% c("binary", "multiclass")) "CrossEntropy" else "MSE",
-    update_weights = TRUE,
-    update_biases  = TRUE,
     sample_weights = NULL,
     preprocessScaledData = NULL,
     X_validation = NULL,
     y_validation = NULL,
     validation_metrics = TRUE,
-    threshold_function = NULL,  # keep NULL-safe
+    threshold_function = .ddesonn_get("tune_threshold_accuracy"),
     ML_NN = TRUE,
-    train = TRUE,
+    train_flag = TRUE,
     grouped_metrics = FALSE,
     viewTables = FALSE,
-    verbose = FALSE,
-    # passthrough controls
-    num_networks = NULL,   # if NULL, use model$num_networks
-    do_ensemble = NULL,    # legacy expects logical; NULL -> handled by train()
-    X_train = NULL,        # optional explicit train features
-    y_train = NULL         # optional explicit train labels
+    verbose = FALSE
   )
 }
 
@@ -265,27 +252,18 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param input_size Number of input features.
 #' @param output_size Number of outputs.
 #' @param hidden_sizes Integer vector describing hidden layer widths.
-#' @param architecture Neural network architecture strategy. One of
-#'   `"auto"`, `"single"`, or `"multi"`. See Details.
 #' @param num_networks Number of SONN members to initialise within the ensemble.
 #' @param lambda Regularisation strength.
 #' @param classification_mode Problem mode: `"binary"`, `"multiclass"`, or `"regression"`.
+#' @param ML_NN Logical; whether to initialise a multi-layer SONN.
 #' @param activation_functions Optional list of activation functions for training.
 #' @param activation_functions_predict Optional list of activation functions used during prediction.
-#' @param method Weight initialisation scheme passed to the legacy constructor.
+#' @param init_method Weight initialisation scheme passed to the legacy constructor.
 #' @param custom_scale Optional scaling factor for the initialiser.
 #' @param N Optional total node count. If omitted it is inferred from the architecture.
 #' @param ensembles Optional pre-existing ensemble container.
 #' @param ensemble_number Identifier used when combining multiple ensembles.
 #'
-#' @details
-#' The `architecture` argument provides guardrails around the hidden layer
-#' configuration. When set to `"auto"`, non-empty positive `hidden_sizes`
-#' imply a multi-layer network, while empty, zero, or `NA` values imply a
-#' single-layer network. Forcing `architecture = "single"` drops any provided
-#' hidden sizes (with a warning). Forcing `architecture = "multi"` requires at
-#' least one positive hidden size and raises an error otherwise.
-#' 
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #' @export
 #'
@@ -299,10 +277,10 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 ddesonn_model <- function(input_size,
                           output_size,
                           hidden_sizes = c(64, 32),
-                          architecture = c("auto", "single", "multi"),
                           num_networks = 1L,
                           lambda = 2.8e-4,
                           classification_mode = c("binary", "multiclass", "regression"),
+                          ML_NN = TRUE,
                           activation_functions = NULL,
                           activation_functions_predict = NULL,
                           init_method = "he",
@@ -311,33 +289,12 @@ ddesonn_model <- function(input_size,
                           ensembles = NULL,
                           ensemble_number = 0L) {
   classification_mode <- match.arg(classification_mode)
-  architecture <- match.arg(architecture)
-
-  arch_norm <- normalize_architecture(architecture, hidden_sizes)
-  arch <- arch_norm$arch
-  hidden_sizes <- arch_norm$hidden_sizes
-  ML_NN <- (arch == "multi")
-
-  if (arch == "multi" && length(hidden_sizes) == 1L) {
-    message(sprintf("[DDESONN] Architecture='multi' with a single hidden layer (%d neurons). This is still MULTI-LAYER (input -> hidden -> output).", hidden_sizes[1]))
-  }
-
-  num_layers <- if (isTRUE(ML_NN)) length(hidden_sizes) + 1L else 1L
-
+  
   activation_functions <- activation_functions %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "train")
-  activation_functions <- learn_predict_normalize_activations(
-    activation_functions,
-    num_layers
-  )
-
   activation_functions_predict <- activation_functions_predict %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "predict")
-  activation_functions_predict <- learn_predict_normalize_activations(
-    activation_functions_predict,
-    num_layers
-  )
-
+  
   if (is.null(N)) {
     N <- if (isTRUE(ML_NN)) {
       input_size + sum(hidden_sizes %||% 0) + output_size
@@ -362,15 +319,13 @@ ddesonn_model <- function(input_size,
     init_method = init_method,
     custom_scale = custom_scale
   )
-
+  
   attr(model, "classification_mode") <- classification_mode
   attr(model, "activation_functions") <- activation_functions
   attr(model, "activation_functions_predict") <- activation_functions_predict
   attr(model, "hidden_sizes") <- hidden_sizes
   attr(model, "lambda") <- lambda
-  attr(model, "architecture") <- arch
   attr(model, "ML_NN") <- ML_NN
-  model$architecture <- arch
   class(model) <- unique(c("ddesonn_model", class(model)))
   model
 }
@@ -390,163 +345,43 @@ ddesonn_model <- function(input_size,
 #' @param x Training features.
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
-#' @param architecture Neural network architecture strategy. One of `"auto"`, `"single"`, or `"multi"`.
-#' @param ... Named overrides (kept for forward-compat; values here are ignored to preserve model’s architecture).
-#' @param num_epochs,lr,lr_decay_rate,lr_decay_epoch,lr_min Optimizer schedule.
-#' @param self_org Logical; legacy self-organization flag.
-#' @param threshold Optional initial threshold.
-#' @param reg_type Regularization type.
-#' @param numeric_columns Optional numeric column names.
-#' @param CLASSIFICATION_MODE "binary","multiclass","regression".
-#' @param activation_functions,activation_functions_predict Activation lists.
-#' @param dropout_rates Dropout per hidden layer.
-#' @param optimizer,beta1,beta2,epsilon,lookahead_step Optimizer options.
-#' @param batch_normalize_data,gamma_bn,beta_bn,epsilon_bn,momentum_bn,is_training_bn,shuffle_bn BN options.
-#' @param loss_type "CrossEntropy" or "MSE" (legacy names supported).
-#' @param update_weights,update_biases Whether to update params.
-#' @param sample_weights Optional vector/matrix of sample weights.
-#' @param preprocessScaledData Optional preprocessing toggle.
-#' @param validation_metrics Logical; compute/track validation metrics.
-#' @param threshold_function Optional custom threshold fn (or NULL).
-#' @param ML_NN Logical; multi-layer SONN.
-#' @param train Logical; train loop on/off.
-#' @param grouped_metrics,viewTables,verbose Legacy diagnostics flags.
-#' @param ensemble_number Integer ensemble id.
-#' @param best_weights_on_lastest_weights_off Logical; restore best-on-val weights if TRUE.
-#' @param num_networks,do_ensemble,X_train,y_train Optional passthroughs to legacy `train()`.
+#' @param ... Named overrides for entries in [ddesonn_training_defaults()].
 #'
-#' @return The trained model (invisibly).
+#' @return The trained model (invisibly). The underlying R6 object is modified
+#'   in-place and the last training result is stored under `model$last_training`.
 #' @export
-ddesonn_fit <- function(
-    model,
-    x,
-    y,
-    validation = NULL,
-    architecture = c("auto","single","multi"),
-    ...,
-    num_epochs = 100,
-    lr = 0.01,
-    lr_decay_rate = 0.9,
-    lr_decay_epoch = 50,
-    lr_min = 1e-5,
-    self_org = TRUE,
-    threshold = NULL,
-    reg_type = NULL,
-    numeric_columns = NULL,
-    CLASSIFICATION_MODE = "binary",
-    activation_functions = NULL,
-    activation_functions_predict = NULL,
-    dropout_rates = NULL,
-    optimizer = "adam",
-    beta1 = 0.9,
-    beta2 = 0.999,
-    epsilon = 1e-8,
-    lookahead_step = 5,
-    batch_normalize_data = FALSE,
-    gamma_bn = 1,
-    beta_bn = 0,
-    epsilon_bn = 1e-5,
-    momentum_bn = 0.9,
-    is_training_bn = TRUE,
-    shuffle_bn = TRUE,
-    loss_type = "mse",
-    update_weights = TRUE,
-    update_biases  = TRUE,
-    sample_weights = NULL,
-    preprocessScaledData = NULL,
-    validation_metrics = TRUE,
-    threshold_function = NULL,
-    ML_NN = TRUE,
-    train = TRUE,
-    grouped_metrics = FALSE,
-    viewTables = FALSE,
-    verbose = FALSE,
-    ensemble_number = 0L,
-    best_weights_on_lastest_weights_off = TRUE,
-    # optional passthroughs
-    num_networks = NULL,
-    do_ensemble = NULL,
-    X_train = NULL,
-    y_train = NULL
-) {
-  if (!inherits(model, "ddesonn_model")) stop("'model' must be created with ddesonn_model().", call. = FALSE)
-  
-  # Soft-check architecture mismatch if user passed it here
-  architecture <- match.arg(architecture)
-  model_arch <- attr(model, "architecture") %||% if (length(attr(model, "hidden_sizes") %||% integer())) "multi" else "single"
-  if (!identical(architecture, "auto") && !identical(architecture, model_arch)) {
-    warning(sprintf("architecture='%s' ignored at fit-time; model was created as '%s'.", architecture, model_arch), call. = FALSE)
+#'
+#' @examples
+#' data <- mtcars
+#' x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+#' y <- data$am
+#' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+#' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
+  if (!inherits(model, "ddesonn_model")) {
+    stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
-  # Ignore `...` on purpose (kept for forward-compat)
   
-  # Prepare data
   data_prep <- .prepare_training_data(x)
   labels <- .as_numeric_matrix(y)
   
-  # Resolve mode/architecture
-  mode <- attr(model, "classification_mode") %||% CLASSIFICATION_MODE
+  mode <- attr(model, "classification_mode") %||% "binary"
   hidden_sizes <- attr(model, "hidden_sizes") %||% NULL
-  ML_NN_flag <- attr(model, "ML_NN")
-  num_layers <- if (isTRUE(ML_NN_flag)) length(hidden_sizes %||% integer()) + 1L else 1L
-
-  activation_train <- activation_functions %||%
-    attr(model, "activation_functions") %||% model$activation_functions
-  activation_train <- learn_predict_normalize_activations(activation_train, num_layers)
-
-  activation_predict <- activation_functions_predict %||%
-    attr(model, "activation_functions_predict") %||% model$activation_functions_predict
-  activation_predict <- learn_predict_normalize_activations(activation_predict, num_layers)
   
-  # Start from defaults, then overwrite with explicit arguments
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
-  cfg <- utils::modifyList(defaults, list(
-    lr = lr,
-    lr_decay_rate = lr_decay_rate,
-    lr_decay_epoch = lr_decay_epoch,
-    lr_min = lr_min,
-    num_epochs = num_epochs,
-    self_org = self_org,
-    threshold = threshold,
-    reg_type = reg_type,
-    numeric_columns = numeric_columns %||% data_prep$numeric_columns,
-    CLASSIFICATION_MODE = mode,
-    activation_functions = activation_train,
-    activation_functions_predict = activation_predict,
-    dropout_rates = dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes),
-    optimizer = optimizer,
-    beta1 = beta1,
-    beta2 = beta2,
-    epsilon = epsilon,
-    lookahead_step = lookahead_step,
-    batch_normalize_data = batch_normalize_data,
-    gamma_bn = gamma_bn,
-    beta_bn = beta_bn,
-    epsilon_bn = epsilon_bn,
-    momentum_bn = momentum_bn,
-    is_training_bn = is_training_bn,
-    shuffle_bn = shuffle_bn,
-    loss_type = loss_type,
-    update_weights = update_weights,
-    update_biases = update_biases,
-    sample_weights = sample_weights,
-    preprocessScaledData = preprocessScaledData,
-    validation_metrics = isTRUE(validation_metrics),
-    threshold_function = if (!is.null(threshold_function)) threshold_function else NULL,
-    best_weights_on_lastest_weights_off = best_weights_on_lastest_weights_off,
-    ML_NN = isTRUE(ML_NN %||% ML_NN_flag),
-    train = train,
-    grouped_metrics = grouped_metrics,
-    viewTables = viewTables,
-    verbose = verbose,
-    ensemble_number = ensemble_number,
-    # passthroughs
-    num_networks = num_networks %||% model$num_networks %||% NULL,
-    do_ensemble = do_ensemble,
-    X_train = if (!is.null(X_train)) .as_numeric_matrix(X_train) else NULL,
-    y_train = if (!is.null(y_train)) .as_numeric_matrix(y_train) else NULL
-  ), keep.null = TRUE)
+  overrides <- list(...)
+  cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
   
-  # Validation wiring
+  cfg$activation_functions <- cfg$activation_functions %||%
+    attr(model, "activation_functions")
+  cfg$activation_functions_predict <- cfg$activation_functions_predict %||%
+    attr(model, "activation_functions_predict")
+  cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
+  cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
+  cfg$threshold_function <- cfg$threshold_function %||% .ddesonn_get("tune_threshold_accuracy")
+  cfg$ML_NN <- isTRUE(cfg$ML_NN %||% attr(model, "ML_NN"))
+  cfg$ensemble_number <- overrides$ensemble_number %||% cfg$ensemble_number %||% 0L
+  
   if (!is.null(validation)) {
     if (!is.list(validation) || !all(c("x", "y") %in% names(validation))) {
       stop("'validation' must be a list with elements 'x' and 'y'.", call. = FALSE)
@@ -554,22 +389,30 @@ ddesonn_fit <- function(
     cfg$X_validation <- .as_numeric_matrix(validation$x)
     cfg$y_validation <- .as_numeric_matrix(validation$y)
   }
-  if (is.null(cfg$X_validation)) cfg$X_validation <- cfg$X_train
-  if (is.null(cfg$y_validation)) cfg$y_validation <- cfg$y_train
   
-  # Build training args to match legacy `train()`
+  # derive from model unless overridden
+  model_num_networks <- tryCatch(model$num_networks, error = function(e) NULL)
+  cfg$num_networks   <- overrides$num_networks %||% model_num_networks %||% 1L
+  cfg$do_ensemble    <- overrides$do_ensemble %||% isTRUE(cfg$num_networks > 1L)
+  cfg$best_weights_on_latest_weights_off <- overrides$best_weights_on_latest_weights_off %||% FALSE
+  
+  # --- add defaults (overridable via ...) ---
+  cfg$update_weights <- overrides$update_weights %||% TRUE
+  cfg$update_biases  <- overrides$update_biases  %||% TRUE
+  
+  
   train_args <- list(
     Rdata = data_prep$data,
     labels = labels,
-    X_train = cfg$X_train,
-    y_train = cfg$y_train,
+    X_train = data_prep$data,      
+    y_train = labels, 
     lr = cfg$lr,
     lr_decay_rate = cfg$lr_decay_rate,
     lr_decay_epoch = cfg$lr_decay_epoch,
     lr_min = cfg$lr_min,
-    num_networks = cfg$num_networks,
+    num_networks = cfg$num_networks,   # <— add
     ensemble_number = cfg$ensemble_number,
-    do_ensemble = cfg$do_ensemble,
+    do_ensemble  = cfg$do_ensemble,    # <— add
     num_epochs = cfg$num_epochs,
     self_org = cfg$self_org,
     threshold = cfg$threshold,
@@ -600,59 +443,19 @@ ddesonn_fit <- function(
     y_validation = cfg$y_validation,
     validation_metrics = cfg$validation_metrics,
     threshold_function = cfg$threshold_function,
-    best_weights_on_lastest_weights_off = cfg$best_weights_on_lastest_weights_off,
+    best_weights_on_latest_weights_off = cfg$best_weights_on_latest_weights_off,
     ML_NN = cfg$ML_NN,
-    train = cfg$train,
+    train = cfg$train_flag,
     grouped_metrics = cfg$grouped_metrics,
     viewTables = cfg$viewTables,
-    verbose = cfg$verbose,
-    model_iter_num = 1L
+    verbose = cfg$verbose
   )
-  formals_train <- names(formals(model$train))
-  train_args <- train_args[intersect(names(train_args), formals_train)]
   
   result <- do.call(model$train, train_args)
   model$last_training <- result
   attr(model, "threshold") <- cfg$threshold
-  
-  # Restore best-on-validation weights if available
-  if (isTRUE(best_weights_on_lastest_weights_off)) {
-    restored <- FALSE
-    if (!is.null(model$best_weights) && !is.null(model$best_biases)) {
-      message("[DDESONN] Restoring best validation weights from model...")
-      model$weights <- model$best_weights; model$biases <- model$best_biases; restored <- TRUE
-    } else if (!is.null(result$best_weights) && !is.null(result$best_biases)) {
-      message("[DDESONN] Restoring best validation weights from training result (model-level)...")
-      model$weights <- result$best_weights; model$biases <- result$best_biases; restored <- TRUE
-    }
-    if (!restored && length(model$ensemble)) {
-      per_ok <- FALSE
-      if (!is.null(result$best_weights_per_member)) {
-        for (i in seq_along(model$ensemble)) {
-          src <- result$best_weights_per_member[[i]]
-          if (!is.null(src$best_weights) && !is.null(src$best_biases)) {
-            model$ensemble[[i]]$weights <- src$best_weights
-            model$ensemble[[i]]$biases  <- src$best_biases
-            per_ok <- TRUE
-          }
-        }
-      } else {
-        for (i in seq_along(model$ensemble)) {
-          net <- model$ensemble[[i]]
-          if (!is.null(net$best_weights) && !is.null(net$best_biases)) {
-            net$weights <- net$best_weights; net$biases <- net$best_biases; per_ok <- TRUE
-          }
-        }
-      }
-      if (per_ok) message("[DDESONN] Restored best validation weights per ensemble member.")
-    }
-  } else {
-    message("[DDESONN] Using final-epoch weights (best restore disabled).")
-  }
-  
   invisible(model)
 }
-
 
 .aggregate_predictions <- function(preds, aggregate) {
   if (identical(aggregate, "none")) {
@@ -680,85 +483,92 @@ ddesonn_fit <- function(
 #' @param type Prediction type. `"response"` returns numeric predictions,
 #'   while `"class"` applies thresholding for classification problems.
 #' @param threshold Optional threshold override when `type = "class"`.
-#' @param architecture Neural network architecture strategy. One of
-#'   `"auto"`, `"single"`, or `"multi"`.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.
 #' @export
-ddesonn_predict <- function(model, new_data, aggregate = c("mean", "median", "none"),
-                            type = c("response", "class"), threshold = NULL,
-                            architecture = c("auto", "single", "multi")) {
+#'
+#' @examples
+#' data <- mtcars
+#' x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+#' y <- data$am
+#' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+#' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+#' preds <- ddesonn_predict(model, x)
+#' head(preds$prediction)
+ddesonn_predict <- function(model, new_data,
+                            aggregate = c("mean", "median", "none"),
+                            type = c("response", "class"),
+                            threshold = NULL) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   aggregate <- match.arg(aggregate)
   type <- match.arg(type)
-  architecture <- match.arg(architecture)
   
   X <- .as_numeric_matrix(new_data)
   mode <- attr(model, "classification_mode") %||% "binary"
   
-  # Add harmless compatibility check (from 'theirs')
-  hidden_sizes <- attr(model, "hidden_sizes") %||% integer()
-  model_arch <- attr(model, "architecture") %||% { if (length(hidden_sizes)) "multi" else "single" }
-  if (!identical(architecture, "auto") && !identical(architecture, model_arch)) {
-    warning(sprintf("architecture='%s' is incompatible with the model architecture ('%s'); using '%s'.",
-                    architecture, model_arch, model_arch), call. = FALSE)
-  }
-  
-  # Per-member predictions (always collect raw member outputs first)
   preds <- lapply(seq_along(model$ensemble), function(i) {
     net <- model$ensemble[[i]]
-    acts <- net$activation_functions_predict %||% net$activation_functions
+    
+    # ---- choose predict activations (no extra helpers) ----
+    acts_raw <- net$activation_functions_predict %||%
+      attr(model, "activation_functions_predict") %||%
+      net$activation_functions %||%
+      attr(model, "activation_functions")
+    
+    # infer L from weights
+    L <- length(net$weights %||% list())
+    if (!is.numeric(L) || L < 1L) stop("ddesonn_predict: cannot infer number of layers.", call. = FALSE)
+    
+    # normalize to a length-L list of callables (or explicit NULLs)
+    acts_norm <- .ddesonn_normalize_activations(acts_raw, L)
+    
     res <- net$predict(
       Rdata = X,
       weights = net$weights,
       biases  = net$biases,
-      activation_functions_predict = acts,
+      activation_functions_predict = acts_norm,
       verbose = FALSE,
       debug   = FALSE
     )
-    out <- res$predicted_output %||% res
+    
+    out <- res$predicted_output %||% res$prediction %||% res
     .as_numeric_matrix(out)
   })
   
-  # Aggregate across ensemble members if requested
-  aggregated <- .aggregate_predictions(preds, aggregate)
+  # aggregate
+  aggregated <-
+    switch(aggregate,
+           mean   = Reduce(`+`, preds) / length(preds),
+           median = apply(array(unlist(preds), dim = c(nrow(preds[[1]]), ncol(preds[[1]]), length(preds))),
+                          c(1, 2), stats::median),
+           none   = preds[[1]]
+    )
   
-  # === Enforce probabilities + class handling for classification ===
-  output <- list()
+  output <- list(prediction = aggregated, per_model = if (aggregate == "none") preds else preds)
   
-  if (mode %in% c("binary", "multiclass")) {
-    if (mode == "binary") {
-      # Keep your safeguard: squash to [0,1] if legacy path emitted logits.
-      probs <- .as_numeric_matrix(aggregated)
-      rng <- range(probs, finite = TRUE)
-      if ((is.finite(rng[1]) && rng[1] < 0) || (is.finite(rng[2]) && rng[2] > 1)) {
-        probs <- 1 / (1 + exp(-probs))
-      }
-      output$prediction <- probs
-      
-      if (type == "class") {
-        thr <- threshold %||% attr(model, "threshold") %||% 0.5
-        output$class <- ifelse(probs >= thr, 1L, 0L)
-      }
-    } else {
-      output$prediction <- aggregated
-      if (type == "class") {
-        output$class <- max.col(aggregated, ties.method = "first")
-      }
+  if (type == "class") {
+    if (!mode %in% c("binary", "multiclass")) {
+      stop("Class predictions are only available for classification modes.", call. = FALSE)
     }
+    thr_used <- threshold %||%
+      attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
+      attr(model, "threshold") %||%
+      .ddesonn_threshold_default(mode)
     
-    if (identical(aggregate, "none")) output$per_model <- preds
-    return(output)
+    if (mode == "binary") {
+      output$class <- ifelse(aggregated >= thr_used, 1L, 0L)
+      output$chosen_threshold <- thr_used
+    } else {
+      output$class <- max.col(aggregated, ties.method = "first")
+    }
   }
   
-  # Regression (unchanged)
-  output <- list(prediction = aggregated)
-  if (identical(aggregate, "none")) output$per_model <- preds
   output
 }
+
 
 
 
@@ -846,38 +656,110 @@ ddesonn_predict <- function(model, new_data, aggregate = c("mean", "median", "no
 }
 
 .build_metrics_row <- function(md, run_index, seed, slot, split = "test") {
-  pm <- .flatten_metric_list(md$performance_metric)
-  rm <- .flatten_metric_list(md$relevance_metric)
+  # ---------- tiny scalars ----------
+  .scalar1 <- function(v) {
+    if (is.null(v) || length(v) == 0) return(NA)
+    if (is.list(v)) v <- unlist(v, use.names = FALSE, recursive = TRUE)
+    if (!length(v)) return(NA)
+    v <- v[[1]]
+    vn <- suppressWarnings(as.numeric(v))
+    if (!is.na(vn)) return(vn)
+    as.character(v)
+  }
+  .num1 <- function(v) { vn <- suppressWarnings(as.numeric(.scalar1(v))); if (is.na(vn)) NA_real_ else vn }
+  .int1 <- function(v) { vi <- suppressWarnings(as.integer(.scalar1(v))); if (is.na(vi)) NA_integer_ else vi }
   
+  # ---------- robust CM -> metrics (handles NULL/short/NA) ----------
+  .cm_to_metrics <- function(TP, FP, TN, FN) {
+    vals <- suppressWarnings(as.numeric(c(TP, FP, TN, FN)))
+    if (length(vals) < 4 || any(is.na(vals))) {
+      return(list(accuracy=NA_real_, precision=NA_real_, recall=NA_real_, f1=NA_real_))
+    }
+    TP <- vals[1]; FP <- vals[2]; TN <- vals[3]; FN <- vals[4]
+    N <- TP + FP + TN + FN
+    if (is.na(N) || N <= 0) {
+      return(list(accuracy=NA_real_, precision=NA_real_, recall=NA_real_, f1=NA_real_))
+    }
+    acc  <- (TP + TN) / N
+    prec <- if ((TP + FP) > 0) TP / (TP + FP) else NA_real_
+    rec  <- if ((TP + FN) > 0) TP / (TP + FN) else NA_real_
+    f1   <- if (!is.na(prec) && !is.na(rec) && (prec + rec) > 0) (2 * prec * rec) / (prec + rec) else NA_real_
+    list(accuracy=acc, precision=prec, recall=rec, f1=f1)
+  }
+  
+  # ---------- robust flattener (length-1 only) ----------
+  .flatten1 <- function(x, prefix = NULL) {
+    out <- list()
+    if (is.null(x)) return(out)
+    if (is.list(x)) {
+      flat <- tryCatch(rapply(x, f=function(z) z, how="unlist"), error=function(e) NULL)
+      if (is.null(flat)) return(out)
+      L <- as.list(flat)
+    } else {
+      L <- as.list(x)
+    }
+    keep <- vapply(L, is.atomic, logical(1)) & (lengths(L) == 1L)
+    L <- L[keep]
+    if (!length(L)) return(out)
+    nm <- names(L); if (is.null(nm)) nm <- rep("", length(L))
+    for (i in seq_along(L)) {
+      key <- nm[i]
+      if (!nzchar(key)) next
+      if (!is.null(prefix)) key <- paste0(prefix, ".", key)
+      v  <- L[[i]]
+      vn <- suppressWarnings(as.numeric(v))
+      out[[key]] <- if (!is.na(vn)) vn else as.character(v)
+    }
+    out
+  }
+  
+  # ---------- collect candidates from md (no predictor!) ----------
+  bags <- list()
+  bags <- c(bags, list(.flatten1(md$performance_metric, "performance_metric")))
+  bags <- c(bags, list(.flatten1(md$relevance_metric,   "relevance_metric")))
+  bags <- c(bags, list(.flatten1(tryCatch(md$performance_relevance_data$performance_metric, error=function(e) NULL),
+                                 "performance_metric")))
+  bags <- c(bags, list(.flatten1(tryCatch(md$metrics$performance_metric, error=function(e) NULL),
+                                 "performance_metric")))
+  # tuned bundle + its CM (if present)
+  if (!is.null(md$accuracy_precision_recall_f1_tuned)) {
+    bags <- c(bags, list(.flatten1(md$accuracy_precision_recall_f1_tuned,
+                                   "accuracy_precision_recall_f1_tuned")))
+    cm_tuned <- tryCatch(md$accuracy_precision_recall_f1_tuned$confusion_matrix, error=function(e) NULL)
+    if (is.list(cm_tuned) && length(cm_tuned)) {
+      bags <- c(bags, list(.flatten1(cm_tuned, "accuracy_precision_recall_f1_tuned.confusion_matrix")))
+    }
+  }
+  # plain CM at top level
+  if (!is.null(md$confusion_matrix)) {
+    bags <- c(bags, list(.flatten1(md$confusion_matrix, "confusion_matrix")))
+  }
+  
+  flat_all <- Reduce(function(a, b) { a[names(b)] <- b; a }, bags, init = list())
+  
+  # ---------- base row ----------
   row <- list(
     run_index = as.integer(run_index),
     seed = as.integer(seed),
     MODEL_SLOT = as.integer(slot),
     model_slot = as.integer(slot),
-    split = .chr(split),
-    serial = .chr(md$model_serial_num %||% NA_character_),
-    model_name = .chr(md$model_name %||% paste0("model_", slot)),
-    best_train_acc = .take1num(md$best_train_acc),
-    best_epoch_train = .int(md$best_epoch_train),
-    best_val_acc = .take1num(md$best_val_acc),
-    best_val_epoch = .int(md$best_val_epoch),
-    best_val_prediction_time = .take1num(md$best_val_prediction_time)
+    split = as.character(split),
+    serial = as.character(md$model_serial_num %||% NA_character_),
+    model_name = as.character(md$model_name %||% paste0("model_", slot)),
+    best_train_acc           = .num1(md$best_train_acc),
+    best_epoch_train         = .int1(md$best_epoch_train),
+    best_val_acc             = .num1(md$best_val_acc),
+    best_val_epoch           = .int1(md$best_val_epoch),
+    best_val_prediction_time = .num1(md$best_val_prediction_time)
   )
   
-  add_flat <- function(src, prefix = NULL) {
-    if (!length(src)) return(NULL)
-    for (nm in names(src)) {
-      key <- if (!is.null(prefix)) paste0(prefix, ".", nm) else nm
-      val <- src[[nm]]
-      vn <- suppressWarnings(as.numeric(val))
-      row[[key]] <- if (!is.na(vn)) vn else as.character(val)
-    }
-    NULL
+  # attach flattened metrics (scalars only)
+  if (length(flat_all)) {
+    for (nm in names(flat_all)) row[[nm]] <- .scalar1(flat_all[[nm]])
   }
-  add_flat(pm, "performance_metric")
-  add_flat(rm, "relevance_metric")
   
-  pref_num <- function(...) {
+  # ---------- preferred numeric pulls ----------
+  .pref_num <- function(...) {
     keys <- c(...)
     for (k in keys) {
       v <- row[[k]]
@@ -889,38 +771,57 @@ ddesonn_predict <- function(model, new_data, aggregate = c("mean", "median", "no
     NA_real_
   }
   
-  row$accuracy <- pref_num(
-    "performance_metric.accuracy",
-    "relevance_metric.accuracy",
-    "accuracy_precision_recall_f1_tuned.accuracy"
-  )
-  row$precision <- pref_num(
-    "performance_metric.precision",
-    "relevance_metric.precision",
-    "accuracy_precision_recall_f1_tuned.precision"
-  )
-  row$recall <- pref_num(
-    "performance_metric.recall",
-    "relevance_metric.recall",
-    "accuracy_precision_recall_f1_tuned.recall"
-  )
-  row$f1 <- pref_num(
-    "performance_metric.f1",
-    "relevance_metric.f1",
-    "accuracy_precision_recall_f1_tuned.f1"
-  )
-  if (is.na(row$f1)) row$f1 <- .compute_f1(row$precision, row$recall)
-  row$f1_score <- pref_num("performance_metric.f1_score", "relevance_metric.f1_score")
+  row$accuracy  <- .pref_num("performance_metric.accuracy",
+                             "relevance_metric.accuracy",
+                             "accuracy_precision_recall_f1_tuned.accuracy")
+  row$precision <- .pref_num("performance_metric.precision",
+                             "relevance_metric.precision",
+                             "accuracy_precision_recall_f1_tuned.precision")
+  row$recall    <- .pref_num("performance_metric.recall",
+                             "relevance_metric.recall",
+                             "accuracy_precision_recall_f1_tuned.recall")
+  row$f1        <- .pref_num("performance_metric.f1",
+                             "relevance_metric.f1",
+                             "accuracy_precision_recall_f1_tuned.f1")
+  row$f1_score  <- .pref_num("performance_metric.f1_score",
+                             "relevance_metric.f1_score",
+                             "accuracy_precision_recall_f1_tuned.f1")
+  
+  # ---------- if missing, compute from confusion matrix (only if all present) ----------
+  if (any(is.na(c(row$accuracy, row$precision, row$recall, row$f1)))) {
+    # Try both base and tuned CM key spaces
+    TP <- row[["confusion_matrix.TP"]]
+    FP <- row[["confusion_matrix.FP"]]
+    TN <- row[["confusion_matrix.TN"]]
+    FN <- row[["confusion_matrix.FN"]]
+    if (any(is.na(c(TP,FP,TN,FN)))) {
+      TP <- row[["accuracy_precision_recall_f1_tuned.confusion_matrix.TP"]]
+      FP <- row[["accuracy_precision_recall_f1_tuned.confusion_matrix.FP"]]
+      TN <- row[["accuracy_precision_recall_f1_tuned.confusion_matrix.TN"]]
+      FN <- row[["accuracy_precision_recall_f1_tuned.confusion_matrix.FN"]]
+    }
+    mets <- .cm_to_metrics(TP, FP, TN, FN)
+    if (is.na(row$accuracy))  row$accuracy  <- mets$accuracy
+    if (is.na(row$precision)) row$precision <- mets$precision
+    if (is.na(row$recall))    row$recall    <- mets$recall
+    if (is.na(row$f1))        row$f1        <- mets$f1
+  }
   if (is.na(row$f1_score)) row$f1_score <- row$f1
   
+  # ---------- copy tuned CM into base if base missing ----------
   for (c0 in c("TP", "FP", "TN", "FN")) {
-    base <- paste0("confusion_matrix.", c0)
+    base  <- paste0("confusion_matrix.", c0)
     tuned <- paste0("accuracy_precision_recall_f1_tuned.confusion_matrix.", c0)
-    if (is.null(row[[base]]) && !is.null(row[[tuned]])) row[[base]] <- .num(row[[tuned]])[1]
+    if (is.null(row[[base]]) && !is.null(row[[tuned]])) row[[base]] <- .num1(row[[tuned]])
   }
+  
+  # ---------- final scalar sweep (guarantee single-row DF) ----------
+  for (nm in names(row)) row[[nm]] <- .scalar1(row[[nm]])
   
   as.data.frame(row, check.names = TRUE, stringsAsFactors = FALSE)
 }
+
+
 
 .write_single_runs_metrics <- function(result, run_dir, ts, seeds_vec) {
   s_chr <- as.character(length(seeds_vec))
@@ -1564,18 +1465,16 @@ ddesonn_run <- function(x,
   
   result
 }
+
 #' @export
 print.ddesonn_run_result <- function(x, ...) {
   cfg <- x$configuration %||% list()
   cat("DDESONN run result\n")
-  
   if (length(cfg)) {
     cat(sprintf("  Mode: %s\n", cfg$classification_mode %||% "unknown"))
-    
     if (!is.null(cfg$hidden_sizes)) {
-      cat(sprintf("  Hidden sizes: %s\n", paste(cfg$hidden_sizes, collapse = ", ")), "\n")
+      cat(sprintf("  Hidden sizes: %s\n", paste(cfg$hidden_sizes, collapse = ", ")))
     }
-    
     cat(sprintf("  Seeds: %s\n", paste(cfg$seeds, collapse = ", ")))
     cat(sprintf(
       "  Ensemble: %s (members = %s, TEMP iterations = %s)\n",
@@ -1584,7 +1483,6 @@ print.ddesonn_run_result <- function(x, ...) {
       cfg$num_temp_iterations %||% 0L
     ))
   }
-  
   cat(sprintf("  Runs captured: %d\n", length(x$runs %||% list())))
   invisible(x)
 }
