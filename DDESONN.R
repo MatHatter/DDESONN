@@ -4399,6 +4399,14 @@ DDESONN <- R6Class(
         # --- Preprocessing
         preprocessScaledData = preprocessScaledData,
         target_transform = preprocessScaledData$target_transform,
+        reg_target_mode = {
+          mode <- preprocessScaledData$reg_target_mode %||%
+            get0("REG_TARGET_MODE", inherits = TRUE, ifnotfound =
+                    get0("reg_target_mode", inherits = TRUE, ifnotfound = "price"))
+          if (is.null(mode) || !nzchar(as.character(mode))) mode <- "price"
+          tolower(as.character(mode))
+        },
+        reg_target_mode_applied = isTRUE(preprocessScaledData$reg_target_mode_applied),
 
         # --- Data
         X = X,
