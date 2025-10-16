@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 # Example workflow using the high-level DDESONN API.
+source("R/api.R")
 
 suppressPackageStartupMessages(source("R/api.R"))
 
@@ -159,13 +160,14 @@ COMPARISON_TEST  <- comparison_test
 # DDESONN Scenario Runner (A–D) — clear, minimal orchestration
 # ------------------------------------------------------------------------------
 scenario_presets <- list(
-  A = list(label="Scenario A", do_ensemble=FALSE, num_networks=1L, num_temp_iterations=0L, aggregate="mean",  prediction_type="class"),
-  B = list(label="Scenario B", do_ensemble=FALSE, num_networks=4L, num_temp_iterations=0L, aggregate="none",  prediction_type="response"),
-  C = list(label="Scenario C", do_ensemble=TRUE,  num_networks=5L, num_temp_iterations=0L, aggregate="mean",  prediction_type="class"),
-  D = list(label="Scenario D", do_ensemble=TRUE,  num_networks=3L, num_temp_iterations=2L, aggregate="mean",  prediction_type="class")
+  A = list(label="Scenario A", do_ensemble=FALSE, num_networks=1L, num_temp_iterations=0L, aggregate="mean",  prediction_type="class", seeds = 1L),
+  B = list(label="Scenario B", do_ensemble=FALSE, num_networks=4L, num_temp_iterations=0L, aggregate="none",  prediction_type="response", seeds = 1:4),
+  C = list(label="Scenario C", do_ensemble=TRUE,  num_networks=5L, num_temp_iterations=0L, aggregate="mean",  prediction_type="class", seeds = 1:5),
+  D = list(label="Scenario D", do_ensemble=TRUE,  num_networks=3L, num_temp_iterations=2L, aggregate="mean",  prediction_type="class", seeds = c(11, 22, 33))
 )
 
-run_scenario <- function(scn = c("A","B","C","D"), output_root = "artifacts") {
+# Default output_root now uses the REPO ROOT so persistence adds "artifacts" exactly once.
+run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_root()) {
   scn <- match.arg(scn)
   cfg <- scenario_presets[[scn]]
   
@@ -173,32 +175,32 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = "artifacts") {
       cfg$label, "\n",
       "==============================\n", sep = "")
   
-  # If you don't want to hardcode prediction_type in presets, uncomment:
-  # pred_type <- if (identical(cfg$aggregate, "none")) "response" else "class"
-  
   run <- ddesonn_run(
     x = train_x,
     y = train_y,
     classification_mode = "binary",
     hidden_sizes = c(32, 16),
-    seeds = 1L,
+    seeds = cfg$seeds,
     do_ensemble = cfg$do_ensemble,
     num_networks = cfg$num_networks,
     num_temp_iterations = cfg$num_temp_iterations,
     validation = list(x = valid_x, y = valid_y),
     training_overrides = list(num_epochs = 2, lr = 0.05, validation_metrics = TRUE, verbose = FALSE),
-    temp_overrides = if (cfg$num_temp_iterations > 0L) list(num_epochs = 1, lr = 0.02, validation_metrics = FALSE, verbose = FALSE) else NULL,
+    temp_overrides = if (cfg$num_temp_iterations > 0L) list(num_epochs = 1, lr = 0.02, validation_metrics = TRUE, verbose = FALSE) else NULL,
     prediction_data = valid_x,
-    prediction_type = cfg$prediction_type, # %||% pred_type
+    prediction_type = cfg$prediction_type,
     aggregate = cfg$aggregate,
     seed_aggregate = "none",
-    output_root = output_root,  # writes artifacts/SingleRuns or /EnsembleRuns automatically
+    output_root = output_root,  # persistence will add artifacts/SingleRuns|EnsembleRuns
     save_models = TRUE
   )
   
-  # Where artifacts went
-  cat("Artifacts root:",
-      normalizePath(file.path(output_root, "artifacts"), winslash="/", mustWork=FALSE), "\n")
+  # Mirror the same guard used in persistence to print the actual artifacts root once.
+  art_root <- {
+    nr <- normalizePath(output_root, winslash = "/", mustWork = FALSE)
+    if (basename(nr) == "artifacts") nr else file.path(output_root, "artifacts")
+  }
+  cat("Artifacts root:", normalizePath(art_root, winslash = "/", mustWork = FALSE), "\n")
   
   # Tiny validation preview (aggregate or first per-model)
   if (!is.null(run$predictions$aggregate)) {
