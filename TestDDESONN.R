@@ -14,16 +14,16 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-source("DDESONN.R")
-source("utils/utils.R")
+source("R/DDESONN.R")
+source("R/utils.R")
 
 # # Define parameters
 ## =========================
 ## Classification mode
 ## =========================
 # CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
-CLASSIFICATION_MODE <- "binary"
-# CLASSIFICATION_MODE <- "regression"
+# CLASSIFICATION_MODE <- "binary"
+CLASSIFICATION_MODE <- "regression"
 self_org <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
@@ -43,18 +43,50 @@ is_training_bn <- TRUE
 beta1 <- .9 # Standard Adam value
 beta2 <- 0.8 # Slightly lower for better adaptability
 
-lr <- .125
+
+if (CLASSIFICATION_MODE == "binary") {
+  lr <- .125
+  lambda <- 0.00028
+  custom_scale <- 1.04349
+  num_epochs <- 200
+  custom_scale <- 1.04349
+} else if (CLASSIFICATION_MODE == "multiclass") {
+  lr <- .001
+} else if (CLASSIFICATION_MODE == "regression") {
+  lr <- .121
+  lambda <- 0.0003
+  custom_scale <- .05
+  num_epochs <- 117
+  custom_scale <- 0.05
+  ## ========= Target toggle =========
+  PREDICT_NEXT_DAY <- TRUE   # TRUE = predict close[t+1]; FALSE = predict close[t]
+
+  ## =========================
+  ## Regression target handling
+  ## =========================
+  REG_TARGET_MODE <- "return_log" # reg_target_mode ∈ {"price","return_log"}
+  if (!REG_TARGET_MODE %in% c("price", "return_log")) {
+    REG_TARGET_MODE <- "price"
+  }
+  assign("REG_TARGET_MODE", REG_TARGET_MODE, inherits = TRUE)
+  if (!exists("reg_target_mode", inherits = TRUE)) {
+    assign("reg_target_mode", REG_TARGET_MODE, inherits = TRUE)
+  }
+  
+}
+
+# lr <- .125
 lr_decay_rate  <- 0.5
 lr_decay_epoch <- 20
 lr_min <- 1e-5
-lambda <- 0.00028
+# lambda <- 0.00028
 # lambda <- 0.00013
-num_epochs <- 200
+# num_epochs <- 200
 validation_metrics <- TRUE
 
 best_weights_on_latest_weights_off <- TRUE
 
-custom_scale <- 1.04349
+# custom_scale <- 1.04349
 
 
 ML_NN <- TRUE
@@ -142,14 +174,20 @@ if (CLASSIFICATION_MODE == "binary") {
   dependent_variable <- "Segmentation"
 } else if (CLASSIFICATION_MODE == "regression") {
   data <- read.csv("data/WMT_1970-10-01_2025-03-15.csv")
-  # --- NEW: enforce time order + create future target (close[t+1]) ---
+  
   stopifnot("date" %in% names(data))
   data <- data %>% arrange(date)
-  data <- data %>% mutate(future_close = dplyr::lead(close, 1L))
-  data <- data %>% filter(!is.na(future_close))
   
-  # --- NEW: set dependent variable to future_close ---
-  dependent_variable <- "future_close"
+  if (isTRUE(PREDICT_NEXT_DAY)) {
+    # Predict next day's close using today's features
+    data <- data %>%
+      mutate(future_close = dplyr::lead(close, 1L)) %>%
+      filter(!is.na(future_close))
+    dependent_variable <- "future_close"
+  } else {
+    # Predict same-day close from same-day features
+    dependent_variable <- "close"
+  }
 } else {
   stop("CLASSIFICATION_MODE must be 'binary' or 'multiclass'")
 }
@@ -313,6 +351,19 @@ if (USE_TIME_SPLIT) {
               nrow(X_train), nrow(X_validation), nrow(X_test)))
 }
 
+# User: set your base numeric feature names here (used for both next-day and same-day modes)
+# Example: numeric_columns_base <- c("date","open","high","low","close","volume")
+# You can include the target (e.g., "close") here — the code below automatically removes it when needed.
+numeric_columns_base <- c("date","open","high","low","close","volume")
+
+# Auto-adjust for current target so BN never includes the label column
+numeric_columns <- setdiff(numeric_columns_base, dependent_variable)
+numeric_columns <- intersect(numeric_columns, colnames(X_train))
+
+if (length(numeric_columns) == 0L)
+  numeric_columns <- names(X_train)[vapply(X_train, is.numeric, TRUE)]
+
+cat("[BN] numeric_columns:", paste(numeric_columns, collapse = ", "), "\n")
 
 
 ## IMPORTANT:
@@ -412,6 +463,85 @@ if (CLASSIFICATION_MODE == "binary") {
   }
   tmp <- impute_with_train_median(X_train, X_validation); X_train <- tmp$train; X_validation <- tmp$other
   tmp <- impute_with_train_median(X_train, X_test);       X_test  <- tmp$other
+  
+  # ---------- D2) Target mode (required) ----------
+  # reg_target_mode ∈ {"price","return_log"}
+  REG_TARGET_MODE <- reg_target_mode
+  
+  # 1) Helpers
+  ## ===== PATCH: tolerant test alignment & guaranteed write =====
+  
+  # 0) Read mode & preprocess from stamped metadata
+  REG_TARGET_MODE <- tolower(get0("reg_target_mode",
+                                  ifnotfound = tolower((md$reg_target_mode %||% "price"))))
+  pp <- md$preprocessScaledData %||% meta$preprocessScaledData
+  stopifnot(!is.null(pp))
+  
+  # 1) Helpers
+  drop_first_row_safe <- function(obj) {
+    if (is.null(obj) || NROW(obj) == 0L) return(obj)
+    if (is.matrix(obj))     return(obj[-1, , drop = FALSE])
+    if (is.data.frame(obj)) return(obj[-1, , drop = FALSE])
+    return(obj[-1])
+  }
+  to_logret <- function(v) {
+    vv <- as.numeric(if (is.matrix(v) || is.data.frame(v)) v[,1] else v)
+    c(NA_real_, diff(log(pmax(vv, 1e-12))))
+  }
+  
+  # 2) Apply same target transform as TRAIN (do this BEFORE scaling)
+  if (REG_TARGET_MODE == "return_log") {
+    y_test_raw <- to_logret(y_test_raw)
+    y_test_raw <- drop_first_row_safe(y_test_raw)
+    X_test_raw <- drop_first_row_safe(X_test_raw)
+  }
+  
+  # 3) Enforce TRAIN feature order (fill missing with 0; drop extras)
+  feat <- as.character(pp$feature_names %||% md$feature_names %||% colnames(X_test_raw))
+  missing <- setdiff(feat, colnames(X_test_raw))
+  if (length(missing)) X_test_raw[missing] <- 0
+  X_test_raw <- X_test_raw[, feat, drop = FALSE]
+  
+  # 4) Scale TEST with TRAIN scalers (+ divide_by_max if used)
+  center <- as.numeric(pp$center[feat]); names(center) <- feat
+  scale_ <- as.numeric(pp$scale[feat]);  names(scale_) <- feat
+  scale_[!is.finite(scale_) | scale_ == 0] <- 1
+  
+  X_test_num    <- as.matrix(X_test_raw)
+  X_test_scaled <- sweep(sweep(X_test_num, 2, center, "-"), 2, scale_, "/")
+  if (isTRUE(pp$divide_by_max_val)) {
+    mv <- as.numeric(pp$max_val %||% 1); if (!is.finite(mv) || mv == 0) mv <- 1
+    X_test_scaled <- X_test_scaled / mv
+  }
+  
+  # 5) Tolerant coerce_align (override; always trims instead of failing)
+  coerce_align <- function(X, y, side = "head") {
+    nx <- NROW(X); ny <- length(y)
+    if (nx == ny) return(list(X = X, y = y))
+    n <- min(nx, ny)
+    if (side == "head") {
+      X <- X[seq_len(n), , drop = FALSE]
+      y <- y[seq_len(n)]
+    } else {
+      X <- X[(nx - n + 1L):nx, , drop = FALSE]
+      y <- y[(ny - n + 1L):ny]
+    }
+    cat(sprintf("[coerce_align] Auto-trimmed to n=%d (nx=%d, ny=%d)\n", n, nx, ny))
+    list(X = X, y = y)
+  }
+  
+  # 6) FINAL guard + call coerce_align (so it cannot error)
+  X <- X_test_scaled
+  y <- y_test_raw
+  if (NROW(X) != length(y)) {
+    cat(sprintf("[test][align] Pre-trim: X=%d, y=%d\n", NROW(X), length(y)))
+  }
+  xy <- coerce_align(X, y)   # WILL NOT FAIL
+  X  <- xy$X; y <- xy$y
+  stopifnot(NROW(X) == length(y))
+  
+  ## ===== END PATCH =====
+  
   
   # Quick predictor type scan
   pred_types <- vapply(X_train, function(col) {
@@ -620,6 +750,46 @@ if (CLASSIFICATION_MODE == "binary") {
   max_val <- suppressWarnings(max(abs(X_train_scaled)))
   if (!is.finite(max_val) || is.na(max_val) || max_val == 0) max_val <- 1
   
+  # ---------- D2) Target mode (required) ----------
+  # reg_target_mode ∈ {"price","return_log"}
+  REG_TARGET_MODE <- reg_target_mode
+  
+  drop_first_row_safe <- function(obj) {
+    if (is.null(obj) || NROW(obj) == 0L) return(obj)
+    if (is.matrix(obj))     return(obj[-1, , drop = FALSE])
+    if (is.data.frame(obj)) return(obj[-1, , drop = FALSE])
+    return(obj[-1])
+  }
+  
+  if (identical(tolower(REG_TARGET_MODE), "return_log")) {
+    # We are switching target from price level to next-step log return.
+    # Convert y_* (current target vector) to log returns; drop first row to align.
+    to_logret <- function(v) {
+      vv <- as.numeric(if (is.matrix(v) || is.data.frame(v)) v[,1] else v)
+      c(NA_real_, diff(log(pmax(vv, 1e-12))))
+    }
+    
+    y_train      <- to_logret(y_train);      y_train      <- drop_first_row_safe(y_train)
+    if (NROW(y_validation)) { y_validation <- to_logret(y_validation); y_validation <- drop_first_row_safe(y_validation) }
+    if (NROW(y_test))       { y_test       <- to_logret(y_test);       y_test       <- drop_first_row_safe(y_test) }
+    
+    # Drop first row of X_* to keep alignment with differenced y
+    X_train      <- drop_first_row_safe(X_train)
+    if (NROW(X_validation)) X_validation <- drop_first_row_safe(X_validation)
+    if (NROW(X_test))       X_test       <- drop_first_row_safe(X_test)
+    
+    # If you had enabled feature differencing elsewhere, disable it for return target to avoid double-diffing.
+    if (exists("feature_autocorr_mode", inherits = TRUE)) {
+      if (tolower(feature_autocorr_mode) %in% c("diff","logret")) {
+        warning("[reg] feature_autocorr_mode disabled for return_log target to avoid double differencing.")
+        feature_autocorr_mode <- "none"
+      }
+    }
+  } else if (!identical(tolower(REG_TARGET_MODE), "price")) {
+    stop("[reg] reg_target_mode must be 'price' or 'return_log'.")
+  }
+  
+  
   # --- Save training-time preprocessing for predict() ---
   feature_names <- colnames(X_train_num)  # exact order used to train
   train_medians <- vapply(as.data.frame(X_train_df[, feature_names, drop = FALSE]),
@@ -778,6 +948,16 @@ if (CLASSIFICATION_MODE == "binary") {
   cat("[reg] Any NAs?  train:", anyNA(X),
       "  val:", anyNA(X_validation),
       "  test:", anyNA(X_test), "\n")
+  
+  # ---------- Fix possible 1-row misalignment ----------
+  if (nrow(X) != nrow(y)) {
+    n <- min(nrow(X), nrow(y))
+    X            <- X[1:n, , drop = FALSE]
+    X_validation <- X_validation[seq_len(min(nrow(X_validation), n)), , drop = FALSE]
+    X_test       <- X_test[seq_len(min(nrow(X_test), n)), , drop = FALSE]
+    y            <- matrix(y[1:n, 1], ncol = 1)
+    cat(sprintf("[reg] Adjusted alignment to n=%d rows to fix mismatch.\n", n))
+  }
   
   # ---------- I) Final wiring into trainer ----------
   Rdata       <- X
@@ -965,8 +1145,28 @@ saveToDisk <- FALSE
 # === Step 1: Hyperparameter setup ===
 hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manually
 
-
-         # MAIN + 1 TEMP pass (set higher for more TEMP passes)
+## =========================
+## DDESONN Runner – Modes
+## =========================
+## SCENARIO A: Single-run only (no ensemble, ONE model)
+do_ensemble         <- FALSE
+num_networks        <- 1L
+num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
+#
+## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
+# do_ensemble         <- FALSE
+# num_networks        <- 4L          # e.g., run 5 models in one DDESONN instance
+# num_temp_iterations <- 0L
+#
+## SCENARIO C: Main ensemble only (no TEMP/prune-add)
+# do_ensemble         <- TRUE
+# num_networks        <- 5L          # example main size
+# num_temp_iterations <- 0L
+#
+## SCENARIO D: Main + TEMP iterations (prune/add enabled)
+# do_ensemble         <- TRUE
+# num_networks        <- 3L          # example main size
+# num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
 #
 ## You can set the above variables BEFORE sourcing this file. The defaults below are fallbacks.
 
