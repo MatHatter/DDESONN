@@ -1456,7 +1456,7 @@ DDESONN_clear_threshold <- function() {
 # accuracy_precision_recall_f1_tuned (revised)
 # =========================
 accuracy_precision_recall_f1_tuned <- function(
-    SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output,
+    SONN, Rdata, labels, CLASSIFICATION_MODE = NULL, predicted_output,
     metric_for_tuning = c("accuracy","f1","precision","recall",
                           "macro_f1","macro_precision","macro_recall"),
     threshold_grid = seq(0.05, 0.95, by = 0.01),
@@ -1465,11 +1465,13 @@ accuracy_precision_recall_f1_tuned <- function(
   dbg <- function(...) {
     if (verbose) message(paste(..., collapse = " "))
   }
+  
   metric_for_tuning <- match.arg(metric_for_tuning)
   
   # --- helpers ---
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
+  
   infer_mode <- function(L, P) if (max(ncol(L), ncol(P)) > 1L) "multiclass" else "binary"
   
   sanitize_grid_simple <- function(g) {
@@ -1544,7 +1546,7 @@ accuracy_precision_recall_f1_tuned <- function(
     tuned_now <- FALSE
     
     if (is.na(global_th)) {
-      dbg("[accuracy_precision_recall_f1_tuned] No global threshold set. Tuning on provided data (use validation here).")
+      dbg("[accuracy_precision_recall_f1_tuned] No global threshold set. Tuning on provided data.")
       metrics <- c("accuracy","f1","precision","recall")
       if (!(metric_for_tuning %in% metrics)) {
         metric_for_tuning <- switch(metric_for_tuning,
@@ -1671,6 +1673,7 @@ accuracy_precision_recall_f1_tuned <- function(
     )
   )
 }
+
 
 
 

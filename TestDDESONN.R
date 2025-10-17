@@ -21,9 +21,9 @@ source("R/utils.R")
 ## =========================
 ## Classification mode
 ## =========================
-# CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
+CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
 # CLASSIFICATION_MODE <- "binary"
-CLASSIFICATION_MODE <- "regression"
+# CLASSIFICATION_MODE <- "regression"
 self_org <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
@@ -191,6 +191,7 @@ if (CLASSIFICATION_MODE == "binary") {
 } else {
   stop("CLASSIFICATION_MODE must be 'binary' or 'multiclass'")
 }
+
 
 
 ## Quick NA check
@@ -463,84 +464,6 @@ if (CLASSIFICATION_MODE == "binary") {
   }
   tmp <- impute_with_train_median(X_train, X_validation); X_train <- tmp$train; X_validation <- tmp$other
   tmp <- impute_with_train_median(X_train, X_test);       X_test  <- tmp$other
-  
-  # ---------- D2) Target mode (required) ----------
-  # reg_target_mode ∈ {"price","return_log"}
-  REG_TARGET_MODE <- reg_target_mode
-  
-  # 1) Helpers
-  ## ===== PATCH: tolerant test alignment & guaranteed write =====
-  
-  # 0) Read mode & preprocess from stamped metadata
-  REG_TARGET_MODE <- tolower(get0("reg_target_mode",
-                                  ifnotfound = tolower((md$reg_target_mode %||% "price"))))
-  pp <- md$preprocessScaledData %||% meta$preprocessScaledData
-  stopifnot(!is.null(pp))
-  
-  # 1) Helpers
-  drop_first_row_safe <- function(obj) {
-    if (is.null(obj) || NROW(obj) == 0L) return(obj)
-    if (is.matrix(obj))     return(obj[-1, , drop = FALSE])
-    if (is.data.frame(obj)) return(obj[-1, , drop = FALSE])
-    return(obj[-1])
-  }
-  to_logret <- function(v) {
-    vv <- as.numeric(if (is.matrix(v) || is.data.frame(v)) v[,1] else v)
-    c(NA_real_, diff(log(pmax(vv, 1e-12))))
-  }
-  
-  # 2) Apply same target transform as TRAIN (do this BEFORE scaling)
-  if (REG_TARGET_MODE == "return_log") {
-    y_test_raw <- to_logret(y_test_raw)
-    y_test_raw <- drop_first_row_safe(y_test_raw)
-    X_test_raw <- drop_first_row_safe(X_test_raw)
-  }
-  
-  # 3) Enforce TRAIN feature order (fill missing with 0; drop extras)
-  feat <- as.character(pp$feature_names %||% md$feature_names %||% colnames(X_test_raw))
-  missing <- setdiff(feat, colnames(X_test_raw))
-  if (length(missing)) X_test_raw[missing] <- 0
-  X_test_raw <- X_test_raw[, feat, drop = FALSE]
-  
-  # 4) Scale TEST with TRAIN scalers (+ divide_by_max if used)
-  center <- as.numeric(pp$center[feat]); names(center) <- feat
-  scale_ <- as.numeric(pp$scale[feat]);  names(scale_) <- feat
-  scale_[!is.finite(scale_) | scale_ == 0] <- 1
-  
-  X_test_num    <- as.matrix(X_test_raw)
-  X_test_scaled <- sweep(sweep(X_test_num, 2, center, "-"), 2, scale_, "/")
-  if (isTRUE(pp$divide_by_max_val)) {
-    mv <- as.numeric(pp$max_val %||% 1); if (!is.finite(mv) || mv == 0) mv <- 1
-    X_test_scaled <- X_test_scaled / mv
-  }
-  
-  # 5) Tolerant coerce_align (override; always trims instead of failing)
-  coerce_align <- function(X, y, side = "head") {
-    nx <- NROW(X); ny <- length(y)
-    if (nx == ny) return(list(X = X, y = y))
-    n <- min(nx, ny)
-    if (side == "head") {
-      X <- X[seq_len(n), , drop = FALSE]
-      y <- y[seq_len(n)]
-    } else {
-      X <- X[(nx - n + 1L):nx, , drop = FALSE]
-      y <- y[(ny - n + 1L):ny]
-    }
-    cat(sprintf("[coerce_align] Auto-trimmed to n=%d (nx=%d, ny=%d)\n", n, nx, ny))
-    list(X = X, y = y)
-  }
-  
-  # 6) FINAL guard + call coerce_align (so it cannot error)
-  X <- X_test_scaled
-  y <- y_test_raw
-  if (NROW(X) != length(y)) {
-    cat(sprintf("[test][align] Pre-trim: X=%d, y=%d\n", NROW(X), length(y)))
-  }
-  xy <- coerce_align(X, y)   # WILL NOT FAIL
-  X  <- xy$X; y <- xy$y
-  stopifnot(NROW(X) == length(y))
-  
-  ## ===== END PATCH =====
   
   
   # Quick predictor type scan
