@@ -2179,15 +2179,20 @@ if(train) {
         
         if (num_networks > 1L) {
           yi <- get0("y_test", inherits=TRUE, ifnotfound=NULL); stopifnot(!is.null(yi))
-          fused <- DDESONN_fuse_from_agg(
-            AGG_PREDICTIONS_FILE = agg_pred_file, RUN_INDEX = i, SEED = s,
-            y_true = yi, methods = c("avg","wavg","vote_soft","vote_hard"),
-            weight_column = "tuned_f1", use_tuned_threshold_for_vote = TRUE,
-            default_threshold = 0.5, classification_mode = CLASSIFICATION_MODE
-          )
-          fused_path <- file.path(RUN_DIR, "fused", sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
-          saveRDS(fused, fused_path)
-          cat("[SAVE] fused → ", fused_path, "\n", sep = "")
+          if (!is.null(agg_pred_file) && is.character(agg_pred_file) &&
+              nzchar(agg_pred_file) && file.exists(agg_pred_file)) {
+            fused <- DDESONN_fuse_from_agg(
+              AGG_PREDICTIONS_FILE = agg_pred_file, RUN_INDEX = i, SEED = s,
+              y_true = yi, methods = c("avg","wavg","vote_soft","vote_hard"),
+              weight_column = "tuned_f1", use_tuned_threshold_for_vote = TRUE,
+              default_threshold = 0.5, classification_mode = CLASSIFICATION_MODE
+            )
+            fused_path <- file.path(RUN_DIR, "fused", sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
+            saveRDS(fused, fused_path)
+            cat("[SAVE] fused → ", fused_path, "\n", sep = "")
+          } else {
+            message("[PRED-EVAL] No AGG_PREDICTIONS_FILE provided or file missing; skipping fuse step.")
+          }
         }
       }
       
@@ -2513,16 +2518,21 @@ if(train) {
           
           if (num_networks > 1L) {
             yi <- get0("y_test", inherits=TRUE, ifnotfound=NULL); stopifnot(!is.null(yi))
-            fused <- DDESONN_fuse_from_agg(
-              AGG_PREDICTIONS_FILE = agg_pred_file, RUN_INDEX = i, SEED = s,
-              y_true = yi, methods = c("avg","wavg","vote_soft","vote_hard"),
-              weight_column = "tuned_f1", use_tuned_threshold_for_vote = TRUE,
-              default_threshold = 0.5, classification_mode = CLASSIFICATION_MODE
-            )
-            fused_path <- file.path(RUN_DIR, "fused",
-                                    sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
-            saveRDS(fused, fused_path)
-            cat("[SAVE] fused → ", fused_path, "\n", sep = "")
+            if (!is.null(agg_pred_file) && is.character(agg_pred_file) &&
+                nzchar(agg_pred_file) && file.exists(agg_pred_file)) {
+              fused <- DDESONN_fuse_from_agg(
+                AGG_PREDICTIONS_FILE = agg_pred_file, RUN_INDEX = i, SEED = s,
+                y_true = yi, methods = c("avg","wavg","vote_soft","vote_hard"),
+                weight_column = "tuned_f1", use_tuned_threshold_for_vote = TRUE,
+                default_threshold = 0.5, classification_mode = CLASSIFICATION_MODE
+              )
+              fused_path <- file.path(RUN_DIR, "fused",
+                                      sprintf("fused_run%03d_seed%s_%s.rds", i, s, ts_stamp))
+              saveRDS(fused, fused_path)
+              cat("[SAVE] fused → ", fused_path, "\n", sep = "")
+            } else {
+              message("[PRED-EVAL] No AGG_PREDICTIONS_FILE provided or file missing; skipping fuse step.")
+            }
           }
         }
       }

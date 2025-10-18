@@ -76,6 +76,82 @@ source("R/activation_functions.R")
 }
 
 
+# -----------------------------------------------------------------
+# Multiclass label normalizer (keeps scopes local; no globals/<<-)
+# -----------------------------------------------------------------
+.normalize_mc_targets <- function(labels, P, meta = NULL) {
+  # Ensure prediction matrix has usable column names
+  if (is.null(colnames(P)) || !ncol(P)) {
+    cls <- NULL
+    if (!is.null(meta) && !is.null(meta$y_train)) {
+      yy <- meta$y_train
+      if (is.factor(yy)) {
+        cls <- levels(yy)
+      } else if (is.character(yy)) {
+        cls <- sort(unique(yy))
+      } else if (is.matrix(yy) && ncol(yy) > 1L && !is.null(colnames(yy))) {
+        cls <- colnames(yy)
+      }
+    }
+    if (is.null(cls) || !length(cls)) {
+      cls <- sprintf("class_%02d", seq_len(ncol(P)))
+    }
+    colnames(P) <- cls[seq_len(ncol(P))]
+  }
+
+  cls <- colnames(P)
+
+  # Coerce labels into factor over cls
+  if (is.matrix(labels) && ncol(labels) > 1L) {
+    L <- labels
+    if (is.null(colnames(L))) {
+      colnames(L) <- sprintf("class_%02d", seq_len(ncol(L)))
+    }
+    keep <- intersect(cls, colnames(L))
+    if (!length(keep)) {
+      stop("[metrics_align] label matrix has no overlapping columns with predictions.")
+    }
+    L <- L[, keep, drop = FALSE]
+    miss <- setdiff(cls, colnames(L))
+    if (length(miss)) {
+      L <- cbind(L, matrix(0, nrow = nrow(L), ncol = length(miss),
+                           dimnames = list(NULL, miss)))
+    }
+    L <- L[, cls, drop = FALSE]
+    y_idx <- max.col(L, ties.method = "first")
+  } else {
+    v <- labels
+    if (is.factor(v)) {
+      v <- as.character(v)
+    } else if (is.numeric(v)) {
+      v <- as.character(v)
+    }
+    v <- as.character(v)
+    ok <- v %in% cls & !is.na(v)
+    if (!any(ok)) {
+      stop(sprintf("[metrics_align] all %d labels are unknown. First few labels: %s | classes: %s",
+                   length(v), paste(utils::head(unique(v), 6), collapse = ","),
+                   paste(cls, collapse = ",")))
+    }
+    dropped <- sum(!ok)
+    if (dropped) {
+      message(sprintf("[metrics_align] dropping %d/%d rows with unknown/NA labels. Examples dropped: %s",
+                      dropped, length(v),
+                      paste(utils::head(unique(v[!ok]), 6), collapse = ", ")))
+    }
+    v <- v[ok]
+    P <- P[ok, , drop = FALSE]
+    y_idx <- match(v, cls)
+  }
+
+  list(
+    P = P,
+    y_idx = y_idx,
+    classes = cls
+  )
+}
+
+
 
 
 
@@ -2762,54 +2838,135 @@ DDESONN_predict_eval <- function(
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
   ## ---------- hard align/sanitize labels vs P (mode-aware) ----------
   mode_low <- tolower(CLASSIFICATION_MODE)
-  
-  # Build a working label vector (mode-aware)
-  labs <- yi
-  if (is.matrix(labs) && ncol(labs) > 1L && mode_low == "multiclass") {
-    labs <- as.integer(max.col(labs, ties.method = "first"))             # one-hot → 1..K
+
+  if (is.null(colnames(P)) || !ncol(P)) {
+    cls <- NULL
+    if (!is.null(meta) && !is.null(meta$y_train)) {
+      yy <- meta$y_train
+      if (is.factor(yy)) {
+        cls <- levels(yy)
+      } else if (is.character(yy)) {
+        cls <- sort(unique(yy))
+      } else if (is.matrix(yy) && ncol(yy) > 1L && !is.null(colnames(yy))) {
+        cls <- colnames(yy)
+      }
+    }
+    if (is.null(cls) || !length(cls)) {
+      cls <- sprintf("class_%02d", seq_len(ncol(P)))
+    }
+    colnames(P) <- cls[seq_len(ncol(P))]
+  }
+
+  yi_vec <- NULL
+
+  if (identical(mode_low, "multiclass")) {
+    labels_input <- yi_raw
+    if (is.data.frame(labels_input)) labels_input <- as.matrix(labels_input)
+    if (is.null(labels_input) || !NROW(labels_input)) labels_input <- yi
+
+    labs_total <- NROW(labels_input)
+    nmin <- min(NROW(P), labs_total)
+    if (nmin <= 0L) {
+      fail("metrics_align", simpleError("[EMPTY-AFTER-ALIGN] labels/preds misaligned to zero"))
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+    if (NROW(P) != nmin) P <- P[seq_len(nmin), , drop = FALSE]
+    if (is.matrix(labels_input)) {
+      if (nrow(labels_input) != nmin) {
+        labels_input <- labels_input[seq_len(nmin), , drop = FALSE]
+      }
+    } else {
+      if (length(labels_input) != nmin) labels_input <- labels_input[seq_len(nmin)]
+    }
+    labs_total <- nmin
+
+    mc <- tryCatch(
+      .normalize_mc_targets(labels = labels_input, P = P, meta = meta),
+      error = function(e) {
+        fail("metrics_align", e)
+        NULL
+      }
+    )
+    if (is.null(mc)) {
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+
+    P <- mc$P
+    yi_vec <- as.integer(mc$y_idx)
+
+    finite_rows <- rowSums(!is.finite(P)) == 0L
+    sumP <- rowSums(P)
+    prob_rows <- is.finite(sumP) & (sumP > 0.999 - 1e-6) & (sumP < 1.001 + 1e-6)
+    keep <- finite_rows & prob_rows
+    if (!any(keep)) {
+      fail(
+        "metrics_align",
+        simpleError(sprintf("[metrics_align] after sanitize, 0 rows remain. counts: n=%d finite=%d probsum≈1=%d",
+                            nrow(P), sum(finite_rows), sum(prob_rows)))
+      )
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+    dropped <- sum(!keep)
+    if (dropped) {
+      message(sprintf("[metrics_align] dropping %d/%d rows failing finite/prob-sum checks.",
+                      dropped, nrow(P)))
+    }
+    P <- P[keep, , drop = FALSE]
+    yi_vec <- yi_vec[keep]
+    base_n <- nrow(P)
+    if (!base_n || !length(yi_vec)) {
+      fail("metrics_align", simpleError("[EMPTY-AFTER-SANITIZE] no valid rows (post keep)."))
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+
+    dropped_labels <- max(0L, labs_total - length(yi_vec))
+    dcat(sprintf("[ALIGN] kept=%d dropped_labels=%d K=%d | classes=%s",
+                base_n, dropped_labels, ncol(P), paste(colnames(P), collapse = ",")),
+         .force = TRUE)
   } else {
+    labs <- yi
     if (is.matrix(labs) && ncol(labs) == 1L) labs <- as.vector(labs)
     if (is.factor(labs)) labs <- as.character(labs)
-    if (mode_low == "multiclass") {
-      if (is.character(labs)) labs <- as.integer(factor(labs)) else labs <- as.integer(labs)
-      if (is.finite(suppressWarnings(min(labs, na.rm = TRUE))) &&
-          suppressWarnings(min(labs, na.rm = TRUE)) == 0L) labs <- labs + 1L
-    } else if (mode_low == "binary") {
+    if (identical(mode_low, "binary")) {
       if (is.character(labs)) {
-        f <- factor(labs); labs <- as.integer(f == levels(f)[length(levels(f))])
+        f <- factor(labs)
+        labs <- as.integer(f == levels(f)[length(levels(f))])
       } else if (is.logical(labs)) {
         labs <- as.integer(labs)
       } else {
         labs <- as.integer(labs)
-        if (any(labs < 0L, na.rm = TRUE)) labs <- as.integer(labs == max(labs, na.rm = TRUE))
-        else labs <- as.integer(labs > min(labs, na.rm = TRUE))
+        if (any(labs < 0L, na.rm = TRUE)) {
+          labs <- as.integer(labs == max(labs, na.rm = TRUE))
+        } else {
+          labs <- as.integer(labs > min(labs, na.rm = TRUE))
+        }
       }
-    } else { # regression
+    } else {
       labs <- suppressWarnings(as.numeric(labs))
     }
+
+    nmin <- min(NROW(P), length(labs))
+    if (nmin <= 0L) {
+      fail("metrics_align", simpleError("[EMPTY-AFTER-ALIGN] labels/preds misaligned to zero"))
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+    if (NROW(P) != nmin) P <- P[seq_len(nmin), , drop = FALSE]
+    if (length(labs) != nmin) labs <- labs[seq_len(nmin)]
+    base_n <- nmin
+
+    keep <- is.finite(labs) & apply(P, 1L, function(r) all(is.finite(r)))
+    if (!all(keep)) {
+      P    <- P[keep, , drop = FALSE]
+      labs <- labs[keep]
+      base_n <- NROW(P)
+    }
+    if (base_n == 0L) {
+      fail("metrics_align", simpleError("[EMPTY-AFTER-SANITIZE] no valid rows"))
+      return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+    }
+    yi_vec <- as.numeric(labs)
   }
-  
-  # Align by length (we don't have stable rownames here)
-  nmin <- min(NROW(P), length(labs))
-  if (nmin <= 0L) { fail("metrics_align", simpleError("[EMPTY-AFTER-ALIGN] labels/preds misaligned to zero")); 
-    return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log)) }
-  if (NROW(P) != nmin) P <- P[seq_len(nmin), , drop = FALSE]
-  if (length(labs) != nmin) labs <- labs[seq_len(nmin)]
-  base_n <- nmin
-  
-  # Drop any rows with non-finite label or probs
-  keep <- is.finite(labs) & apply(P, 1L, function(r) all(is.finite(r)))
-  if (!all(keep)) {
-    P    <- P[keep, , drop = FALSE]
-    labs <- labs[keep]
-    base_n <- NROW(P)
-  }
-  if (base_n == 0L) { fail("metrics_align", simpleError("[EMPTY-AFTER-SANITIZE] no valid rows")); 
-    return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log)) }
-  
-  # Commit aligned labels
-  yi_vec <- as.numeric(labs)
-  
+
   ## ---------- metrics ----------
   if (length(yi_vec) != base_n) {
     nmin <- min(length(yi_vec), base_n)
