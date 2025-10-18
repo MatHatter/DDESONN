@@ -797,11 +797,65 @@ EvaluatePredictionsReport <- function(
     if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")
   }, error = function(e) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))
   
+  cat("=== diagnostics for evaluate_predictions_report ===\n")
+  cat("nrow(X_validation):", NROW(X_validation), "\n")
+  cat("length(y_true_ids):", length(y_true_ids), "\n")
+  cat("length(pred_ids):", length(pred_ids), "\n\n")
+  
+  str(list(
+    X_validation = head(X_validation, 3),
+    y_true_ids   = head(y_true_ids, 10),
+    pred_ids     = head(pred_ids, 10)
+  ))
+  
+  
   wb <- createWorkbook()
   addWorksheet(wb, "Combined")
-  suppressWarnings(writeData(wb, "Combined",
-                             cbind(as.data.frame(X_validation),
-                                   label=y_true_ids, pred=pred_ids)))
+  
+  # helper (define once; if you place it earlier in the file, remove this local copy)
+  combine_for_report <- function(X, y, p, verbose = TRUE) {
+    nX <- NROW(X); ny <- length(y); np <- length(p)
+    if (is.matrix(y) && ncol(y) == 1L) y <- as.vector(y)
+    if (is.matrix(p) && ncol(p) == 1L) p <- as.vector(p)
+    
+    rnx <- rownames(X); ny_names <- names(y); np_names <- names(p)
+    
+    # Try name alignment first (future-proof)
+    if (!is.null(rnx) && (!is.null(ny_names) || !is.null(np_names))) {
+      common <- rnx
+      if (!is.null(ny_names)) common <- intersect(common, ny_names)
+      if (!is.null(np_names)) common <- intersect(common, np_names)
+      if (length(common)) {
+        Xdf <- as.data.frame(X, check.names = FALSE)
+        return(data.frame(
+          Xdf[common, , drop = FALSE],
+          label = y[common],
+          pred  = p[common],
+          check.names = FALSE
+        ))
+      }
+    }
+    
+    # Fallback: truncate to common length so the report still writes
+    m <- min(nX, ny, np)
+    if (verbose && (nX != m || ny != m || np != m)) {
+      message(sprintf(
+        "[EvaluatePredictionsReport] Row mismatch: X=%d, y=%d, p=%d → truncating to %d rows for 'Combined'.",
+        nX, ny, np, m
+      ))
+    }
+    Xdf <- as.data.frame(X, check.names = FALSE)
+    data.frame(
+      Xdf[seq_len(m), , drop = FALSE],
+      label = y[seq_len(m)],
+      pred  = p[seq_len(m)],
+      check.names = FALSE
+    )
+  }
+  
+  combined_df <- combine_for_report(X_validation, y_true_ids, pred_ids, verbose = TRUE)
+  suppressWarnings(writeData(wb, "Combined", combined_df))
+  
   
   addWorksheet(wb, "Metrics_Summary")
   ms <- data.frame(
@@ -823,10 +877,16 @@ EvaluatePredictionsReport <- function(
   
   # Legacy-friendly drop-in: Predictions sheet for multiclass as well
   addWorksheet(wb, "Rdata_Predictions")
-  suppressWarnings(writeData(wb, "Rdata_Predictions",
-                             data.frame(as.data.frame(X_validation),
-                                        label = y_true_ids,
-                                        pred  = pred_ids)))
+  
+  predictions_df <- combine_for_report(X_validation, y_true_ids, pred_ids, verbose = FALSE)
+  
+  # Optional: include a stable row identifier as the first column
+  rid <- rownames(predictions_df)
+  if (is.null(rid)) rid <- seq_len(nrow(predictions_df))
+  predictions_df <- cbind(RowID = rid, predictions_df)
+  
+  suppressWarnings(writeData(wb, "Rdata_Predictions", predictions_df))
+  
   
   saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE)
   if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved. RETURN\n")

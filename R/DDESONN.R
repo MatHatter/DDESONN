@@ -1011,6 +1011,65 @@ SONN <- R6Class(
         }
         
         predicted_output_learn <- hidden_outputs[[self$num_layers]]
+        
+        ## ===== MC OUTPUT QUICK ASSERTS =====
+        if (identical(CLASSIFICATION_MODE, "multiclass")) {
+          P <- predicted_output_learn
+          # 1) Activation name on the *output* layer must be softmax for CE shortcut
+          af_spec_last <- if (is.list(activation_functions)) activation_functions[[self$num_layers]]
+          else if (is.character(activation_functions)) activation_functions[self$num_layers]
+          else if (is.function(activation_functions)) activation_functions else NULL
+          af_last <- .resolve_one(af_spec_last)
+          af_last_name <- if (is.function(af_last)) attr(af_last, "name") else "none"
+          cat("[LEARN-MC] output activation:", af_last_name, "\n")
+          
+          # 2) Non-finite checks and ranges
+          cat("[LEARN-MC] P dims:", nrow(P), "x", ncol(P),
+              " | finite %:", mean(is.finite(P)), "\n")
+          if (any(!is.finite(P))) {
+            bad <- which(!is.finite(P), arr.ind = TRUE)
+            print(head(bad, 10)); stop("[LEARN-MC] non-finite values in P")
+          }
+          pr <- range(P[is.finite(P)])
+          cat("[LEARN-MC] P range:", paste(pr, collapse=" .. "), "\n")
+          
+          # 3) If softmax, rows should sum ≈ 1
+          if (af_last_name == "softmax") {
+            rs <- rowSums(P)
+            cat("[LEARN-MC] rowSums(P) min..max:", min(rs), "..", max(rs),
+                " | %==1 (±1e-6):", mean(abs(rs - 1) < 1e-6), "\n")
+            if (any(!is.finite(rs))) stop("[LEARN-MC] non-finite rowSums(P)")
+          }
+          
+          # 4) Column-order alignment with labels (critical for one-hot)
+          if (!is.null(colnames(P)) && !is.null(colnames(labels))) {
+            if (!identical(colnames(P), colnames(labels))) {
+              cat("[LEARN-MC][WARN] P colnames:", paste(colnames(P), collapse=", "), "\n")
+              cat("[LEARN-MC][WARN] Y colnames:", paste(colnames(labels), collapse=", "), "\n")
+              # Reorder labels to match P (safer than reordering P)
+              common <- intersect(colnames(P), colnames(labels))
+              if (length(common) == ncol(P) && length(common) == ncol(labels)) {
+                labels <- labels[, colnames(P), drop = FALSE]
+                cat("[LEARN-MC] Reordered labels to match P column order.\n")
+              } else {
+                stop("[LEARN-MC] Incompatible class columns between P and labels")
+              }
+            }
+          } else {
+            # If no names, align by index but print class_levels for visibility
+            if (!is.null(self$class_levels)) {
+              cat("[LEARN-MC] class_levels:", paste(self$class_levels, collapse=", "), "\n")
+            }
+          }
+          
+          # 5) Dim checks for sample_weights
+          if (!all(dim(labels) == dim(sample_weights))) {
+            stop(sprintf("[LEARN-MC] labels dims %dx%d != weights dims %dx%d",
+                         nrow(labels), ncol(labels), nrow(sample_weights), ncol(sample_weights)))
+          }
+        }
+        ## ===== END MC OUTPUT QUICK ASSERTS =====
+        
         predicted_output_learn_hidden <- hidden_outputs
         
         # Error (kept as (pred - y) * w so we can reuse as CE delta at output)
@@ -1529,7 +1588,7 @@ SONN <- R6Class(
         
         for (epoch in 1:num_epochs) {
           
-          lr <- lr_scheduler(epoch)
+          # lr <- lr_scheduler(epoch)
           cat("Epoch:", epoch, "| Learning Rate:", lr, "\n")
           num_epochs_check <<- num_epochs
           
@@ -2121,6 +2180,39 @@ SONN <- R6Class(
           
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
+            to_one_hot_matrix <- function(y_vec, levels_ref = NULL) {
+              if (is.matrix(y_vec) && ncol(y_vec) > 1L && all(y_vec %in% c(0, 1, NA))) {
+                Y <- matrix(as.numeric(y_vec), nrow = nrow(y_vec), ncol = ncol(y_vec))
+                storage.mode(Y) <- "double"
+                return(Y)
+              }
+              if (is.matrix(y_vec) && ncol(y_vec) == 1L) {
+                y_vec <- y_vec[, 1]
+              }
+              if (is.factor(y_vec)) {
+                f <- y_vec
+              } else {
+                levs <- levels_ref
+                if (is.null(levs) || !length(levs)) {
+                  levs <- unique(as.character(y_vec))
+                }
+                f <- factor(y_vec, levels = levs)
+              }
+              mm <- model.matrix(~ f - 1)
+              colnames(mm) <- levels(f)
+              if (!is.null(levels_ref) && length(levels_ref)) {
+                missing_cols <- setdiff(levels_ref, colnames(mm))
+                if (length(missing_cols)) {
+                  mm <- cbind(mm, matrix(0, nrow(mm), length(missing_cols),
+                                         dimnames = list(NULL, missing_cols)))
+                }
+                mm <- mm[, levels_ref, drop = FALSE]
+              }
+              storage.mode(mm) <- "double"
+              mm[is.na(mm)] <- 0
+              mm
+            }
+            
             # ensure symbol exists for all return paths
             predicted_output_val <- NULL
             
@@ -2189,26 +2281,48 @@ SONN <- R6Class(
               
               if (identical(CLASSIFICATION_MODE, "multiclass")) {
                 stopifnot(K_val >= 2)
-                val_loss <- if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
-                  .ce_loss_multiclass(probs_val, targs_val$Y)
-                } else {
-                  mean((probs_val - targs_val$Y)^2, na.rm = TRUE)
-                }
-                val_acc <- accuracy(
-                  SONN                = self,
-                  Rdata               = X_validation[seq_len(n_eff), , drop = FALSE],
-                  labels              = y_val_epoch,
-                  CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-                  predicted_output    = probs_val,
-                  verbose             = isTRUE(debug)
-                )
-                val_accuracy_log <- c(val_accuracy_log, val_acc)
-                val_loss_log     <- c(val_loss_log,     val_loss)
                 
+                ## --- Defensive alignment and conversion ---
+                P <- as.matrix(probs_val)
+                Y <- as.matrix(targs_val$Y)
+                
+                if (nrow(P) != nrow(Y) || ncol(P) != ncol(Y)) {
+                  stop(sprintf("[VAL-MC] P dims %dx%d != Y dims %dx%d",
+                               nrow(P), ncol(P), nrow(Y), ncol(Y)))
+                }
+                if (any(!is.finite(P))) stop("[VAL-MC] non-finite in probs_val")
+                if (any(!is.finite(Y))) stop("[VAL-MC] non-finite in targets")
+                
+                # Clamp probabilities for stability
+                eps <- 1e-12
+                P <- pmin(pmax(P, eps), 1 - eps)
+                
+                ## --- Compute loss manually ---
+                if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
+                  # manual multiclass cross-entropy
+                  row_loss <- -rowSums(Y * log(P), na.rm = TRUE)
+                  val_loss <- mean(row_loss, na.rm = TRUE)
+                } else {
+                  # fallback: mean squared error
+                  val_loss <- mean((P - Y)^2, na.rm = TRUE)
+                }
+                
+                ## --- Compute accuracy ---
+                # preds = argmax(P), targs = argmax(Y)
+                preds_idx <- max.col(P, ties.method = "first")
+                targs_idx <- max.col(Y, ties.method = "first")
+                acc_vec   <- as.integer(preds_idx == targs_idx)
+                val_acc   <- mean(acc_vec, na.rm = TRUE)
+                
+                ## --- Append logs ---
+                val_accuracy_log <- c(val_accuracy_log, val_acc)
+                val_loss_log     <- c(val_loss_log, val_loss)
+                
+                ## --- Save best model snapshot ---
                 if (is.na(best_val_acc) || (!is.na(val_acc) && val_acc > best_val_acc)) {
-                  best_val_acc       <- val_acc
-                  best_val_epoch     <- epoch
-                  best_val_n_eff     <- n_eff
+                  best_val_acc   <- val_acc
+                  best_val_epoch <- epoch
+                  best_val_n_eff <- n_eff
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
@@ -2217,16 +2331,17 @@ SONN <- R6Class(
                     best_weights <- as.matrix(self$weights)
                     best_biases  <- as.matrix(self$biases)
                   }
+                  
                   if (!is.null(predicted_output_val$prediction_time)) {
                     best_val_prediction_time <- predicted_output_val$prediction_time
                   }
-                  best_val_probs  <- as.matrix(probs_val)
-                  best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
+                  
+                  best_val_probs  <- as.matrix(P)
+                  best_val_labels <- as.matrix(Y)
                   
                   cat("New best model saved at epoch", epoch,
                       "| Val Acc (0.5 thr):", round(100 * val_acc, 2), "%\n")
                 }
-                
               } else if (identical(CLASSIFICATION_MODE, "binary")) {
                 val_loss <- if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
                   .bce_loss(probs_val, targs_val$y)
@@ -2528,11 +2643,21 @@ SONN <- R6Class(
                   y_val_epoch2 <- y_val_vec2[seq_len(n_eff2)]
                 }
                 
-                best_val_probs  <- probs_val_best
-                best_val_labels <- if (is.matrix(y_val_epoch2)) {
-                  y_val_epoch2
+                best_val_probs  <- as.matrix(probs_val_best)
+                if (identical(CLASSIFICATION_MODE, "multiclass")) {
+                  base_levels <- self$class_levels
+                  best_val_labels <- to_one_hot_matrix(y_val_epoch2, levels_ref = base_levels)
+                  if (!is.null(base_levels) && length(base_levels) && ncol(best_val_probs) == length(base_levels)) {
+                    colnames(best_val_probs) <- base_levels
+                  }
+                } else if (identical(CLASSIFICATION_MODE, "binary")) {
+                  if (is.matrix(y_val_epoch2) && ncol(y_val_epoch2) >= 1L) {
+                    best_val_labels <- matrix(as.numeric(y_val_epoch2[, 1]), ncol = 1L)
+                  } else {
+                    best_val_labels <- matrix(as.numeric(y_val_epoch2), ncol = 1L)
+                  }
                 } else {
-                  matrix(y_val_epoch2, ncol = if (identical(CLASSIFICATION_MODE, "multiclass")) ncol(best_val_probs) else 1L)
+                  best_val_labels <- as.matrix(y_val_epoch2)
                 }
               }
             }
@@ -4822,22 +4947,64 @@ calculate_relevance_grouped <- function(SONN_list, Rdata, labels, CLASSIFICATION
 loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_total, loss_type, verbose) {
   # Default reg_loss_total to 0 if NULL
   if (is.null(reg_loss_total)) reg_loss_total <- 0
-
+  
   if (verbose) {
     print(dim(predictions))
     print(dim(labels))
   }
-
+  
   # Handle missing or NULL loss_type gracefully
   if (is.null(loss_type)) {
     if (verbose) print("Loss type is NULL. Please specify 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
     return(NA)
   }
-
-  # Normalize inputs
+  
   mode <- tolower(as.character(CLASSIFICATION_MODE))
   lt   <- tolower(as.character(loss_type))
-
+  
+  P <- as.matrix(predictions)
+  storage.mode(P) <- "double"
+  Y_raw <- as.matrix(labels)
+  Y_num <- suppressWarnings(matrix(as.numeric(Y_raw), nrow = nrow(Y_raw), ncol = ncol(Y_raw)))
+  
+  # ---- FIX: Sanitize labels/preds before checks ----
+  if (any(!is.finite(P))) stop("[LOSS] non-finite predictions")
+  
+  # Replace non-finite labels with 0 (only for numeric modes)
+  if (any(!is.finite(Y_num))) {
+    bad_rows <- which(!is.finite(rowSums(Y_num)))
+    if (length(bad_rows) > 0L) {
+      if (verbose) message("[LOSS-FIX] Replacing ", length(bad_rows), " non-finite label rows with 0.")
+      Y_num[bad_rows, ] <- 0
+    }
+  }
+  
+  if (nrow(P) != nrow(Y_num)) {
+    stop(sprintf("[LOSS] shape mismatch rows P %d vs Y %d", nrow(P), nrow(Y_num)))
+  }
+  if (identical(mode, "regression")) {
+    if (ncol(P) != ncol(Y_num)) {
+      stop(sprintf("[LOSS] shape mismatch P %dx%d vs Y %dx%d", nrow(P), ncol(P), nrow(Y_num), ncol(Y_num)))
+    }
+  } else {
+    if (!(ncol(Y_num) %in% c(1L, ncol(P)))) {
+      stop(sprintf("[LOSS] unexpected label shape P %dx%d vs Y %dx%d", nrow(P), ncol(P), nrow(Y_num), ncol(Y_num)))
+    }
+  }
+  
+  sample_weights_local <- get0("sample_weights", inherits = TRUE, ifnotfound = NULL)
+  if (!is.null(sample_weights_local)) {
+    W <- as.matrix(sample_weights_local)
+    W_num <- suppressWarnings(matrix(as.numeric(W), nrow = nrow(W), ncol = ncol(W)))
+    if (any(!is.finite(W_num))) stop("[LOSS] non-finite weights")
+    if (nrow(W_num) != nrow(Y_num)) {
+      stop(sprintf("[LOSS] weights shape mismatch W %dx%d vs Y %dx%d", nrow(W_num), ncol(W_num), nrow(Y_num), ncol(Y_num)))
+    }
+    if (!(ncol(W_num) %in% c(1L, ncol(Y_num)))) {
+      stop(sprintf("[LOSS] weights shape mismatch W %dx%d vs Y %dx%d", nrow(W_num), ncol(W_num), nrow(Y_num), ncol(Y_num)))
+    }
+  }
+  
   # ---- Compatibility checks (clear + strict) ----
   if (mode == "regression") {
     if (lt %in% c("crossentropy", "categoricalcrossentropy")) {
@@ -4853,15 +5020,13 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
     }
   } else if (mode == "multiclass") {
     # all four allowed; CE names both valid here
-    # no-op
     ;
   } else {
     stop("Unknown CLASSIFICATION_MODE: must be 'binary', 'multiclass', or 'regression'")
   }
-
-  P <- as.matrix(predictions)
+  
   n <- nrow(P); K <- ncol(P)
-
+  
   # small helpers (kept)
   one_hot <- function(idx, n, K) {
     Y <- matrix(0, n, K)
@@ -4875,34 +5040,42 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
     ex <- exp(sweep(X, 1L, m, "-"))
     ex / rowSums(ex)
   }
-
+  
+  # ---- LOSS COMPUTATION ----
   if (lt == "mse") {
-    loss <- mean((P - as.matrix(labels))^2, na.rm = TRUE)
-
+    
+    loss <- mean((P - Y_num)^2, na.rm = TRUE)
+    
   } else if (lt == "mae") {
-    loss <- mean(abs(P - as.matrix(labels)), na.rm = TRUE)
-
+    
+    loss <- mean(abs(P - Y_num), na.rm = TRUE)
+    
   } else if (lt %in% c("crossentropy", "categoricalcrossentropy")) {
+    
     eps <- 1e-12
-
+    
     if (mode == "binary") {
       # Binary Cross-Entropy
-      y <- if (is.matrix(labels)) labels[,1] else labels
-      y <- suppressWarnings(as.numeric(y))
+      y <- if (ncol(Y_num) >= 1L) Y_num[, 1] else Y_num
       if (all(is.na(y))) y <- as.integer(factor(labels)) - 1L
       y[is.na(y)] <- 0
       y <- pmin(pmax(y, 0), 1)
-
+      
       # assume P is sigmoid probs; clamp
       P <- pmin(pmax(P, eps), 1 - eps)
-      loss <- -mean(y * log(P) + (1 - y) * log(1 - P))
-
+      
+      # numeric guards
+      if (is.matrix(P) && ncol(P) == 1L) P <- as.vector(P)
+      P <- pmin(pmax(P, eps), 1 - eps)
+      y <- as.numeric(y)
+      loss <- -mean(y * log(P) + (1 - y) * log1p(-P))
+      
     } else if (mode == "multiclass") {
       stopifnot(K >= 2)
-      # If labels already one-hot n×K, use them; else factor -> indices -> one-hot
-      if (is.matrix(labels) && nrow(labels) >= n && ncol(labels) == K &&
-          all(labels[seq_len(n), , drop = FALSE] %in% c(0,1))) {
-        Y <- matrix(as.numeric(labels[seq_len(n), , drop = FALSE]), n, K)
+      # FIX: Proper multiclass cross-entropy
+      if (is.matrix(labels) && nrow(labels) == n && ncol(labels) == K &&
+          all(labels %in% c(0, 1))) {
+        Y <- matrix(as.numeric(labels), n, K)
       } else {
         f  <- if (is.factor(labels)) labels else factor(labels)
         ix <- as.integer(f)
@@ -4910,27 +5083,27 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
         if (L > K) ix[ix > K] <- K
         Y <- one_hot(ix, n, K)
       }
-      # ensure probabilities
+      
+      # Ensure valid probability matrix
       if (any(P < 0) || any(P > 1) || any(abs(rowSums(P) - 1) > 1e-6)) {
         P <- row_softmax(P)
       }
+      
       P <- pmin(pmax(P, eps), 1 - eps)
-      loss <- -mean(rowSums(Y * log(P)))
-
+      loss <- -mean(rowSums(Y * log(P)), na.rm = TRUE)
+      
     } else if (mode == "regression") {
-      # Should never get here due to compatibility check above
       stop("Cross-entropy not valid for regression.")
     }
-
+    
   } else {
     if (verbose) print("Invalid loss type. Choose from 'MSE', 'MAE', 'CrossEntropy', or 'CategoricalCrossEntropy'.")
     return(NA)
   }
-
+  
   total_loss <- loss + reg_loss_total
   if (verbose) print(paste("Final loss (with regularization):", total_loss))
-
+  
   return(total_loss)
 }
-
 

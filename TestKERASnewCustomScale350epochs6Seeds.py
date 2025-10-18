@@ -1,6 +1,6 @@
 # ============================================
 # Heart Failure (Binary) — Keras vs DDESONN parity
-# 50-seed run with accuracy table at end
+# 50-seed run with accuracy table at end (+ AUC/AUPRC, losses)
 # ============================================
 
 import os, random
@@ -15,6 +15,7 @@ from tensorflow.keras.optimizers import Adagrad
 from tensorflow.keras import regularizers
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 # ---------- Config ----------
 USE_TIME_SPLIT = True
@@ -45,7 +46,7 @@ y_all = df[target_col].values.astype(int)
 # ---------- Run multiple seeds ----------
 results = []
 
-for seed in range(1, 1000):   # 50 seeds
+for seed in range(1, 51):   # 50 seeds (1..50)
     print(f"\n=== Seed {seed} ===")
 
     # Reproducibility
@@ -120,22 +121,39 @@ for seed in range(1, 1000):   # 50 seeds
         verbose=0
     )
 
-    # Evaluate
+    # Evaluate (include losses, accuracy, and prob-based metrics)
     train_loss, train_acc = model.evaluate(X_train, y_train, verbose=0)
     val_loss,   val_acc   = model.evaluate(X_val,   y_val,   verbose=0)
     test_loss,  test_acc  = model.evaluate(X_test,  y_test,  verbose=0)
 
+    # Probabilities for AUC/AUPRC
+    y_val_probs  = model.predict(X_val,  verbose=0).ravel()
+    y_test_probs = model.predict(X_test, verbose=0).ravel()
+
+    val_auc   = roc_auc_score(y_val,  y_val_probs)
+    val_auprc = average_precision_score(y_val,  y_val_probs)
+    test_auc   = roc_auc_score(y_test, y_test_probs)
+    test_auprc = average_precision_score(y_test, y_test_probs)
+
     results.append({
         "seed": seed,
-        "train_acc": train_acc,
-        "val_acc": val_acc,
-        "test_acc": test_acc
+        "train_loss": train_loss, "train_acc": train_acc,
+        "val_loss":   val_loss,   "val_acc":   val_acc,
+        "val_auc":    val_auc,    "val_auprc": val_auprc,
+        "test_loss":  test_loss,  "test_acc":  test_acc,
+        "test_auc":   test_auc,   "test_auprc": test_auprc
     })
 
 # ---------- Table at end ----------
 acc_table = pd.DataFrame(results)
-print("\n=== Accuracy table over 50 seeds ===")
+
+print("\n=== Accuracy/AUC table over 50 seeds (unsorted) ===")
 print(acc_table.to_string(index=False))
 
-print("\n=== Summary ===")
+print("\n=== Summary (describe) ===")
 print(acc_table.describe().round(4))
+
+# Optional: show top-10 by validation accuracy (useful when picking a seed)
+top10 = acc_table.sort_values("val_acc", ascending=False).head(10)
+print("\n=== Top 10 by validation accuracy ===")
+print(top10.to_string(index=False))

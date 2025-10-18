@@ -1548,9 +1548,12 @@ ddesonn_predict <- function(model, new_data,
 }
 
 .write_temp_agg_predictions <- function(result, run_dir, ts, seeds) {
+  `%||%` <- get0("%||%", ifnotfound = function(x, y) if (is.null(x)) y else x)
+  
   X <- result$`.__prediction_matrix`
   if (is.null(X)) return(invisible(NULL))
   
+  # ---------- how many temp iterations exist across runs ----------
   max_temp <- 0L
   for (i in seq_along(result$runs)) {
     ti <- result$runs[[i]]$temp_iterations
@@ -1558,8 +1561,11 @@ ddesonn_predict <- function(model, new_data,
   }
   if (max_temp == 0L) return(invisible(NULL))
   
-  s_chr <- as.character(length(seeds))
+  s_chr  <- as.character(length(seeds))
+  log_dir <- file.path(run_dir, "logs")
+  dir.create(log_dir, recursive = TRUE, showWarnings = FALSE)
   
+  # ---------- PREDICTIONS per temp_eXX (unchanged behavior) ----------
   for (e in seq_len(max_temp)) {
     temp_dir_e <- file.path(run_dir, sprintf("models/temp_e%02d", e))
     dir.create(temp_dir_e, recursive = TRUE, showWarnings = FALSE)
@@ -1575,16 +1581,14 @@ ddesonn_predict <- function(model, new_data,
       seed_i <- result$runs[[i]]$seed %||% i
       ti <- result$runs[[i]]$temp_iterations
       if (is.null(ti)) next
+      
+      # find entry for this temp iteration e
       entry <- NULL
       for (t in ti) if (identical(as.integer(t$iteration), as.integer(e))) { entry <- t; break }
       if (is.null(entry) || is.null(entry$model)) next
-      tmodel <- entry$model
       
       pr <- try(ddesonn_predict(
-        model = tmodel,
-        new_data = X,
-        aggregate = "none",
-        type = "response"
+        model = entry$model, new_data = X, aggregate = "none", type = "response"
       ), silent = TRUE)
       if (inherits(pr, "try-error") || is.null(pr$per_model)) next
       
@@ -1596,10 +1600,10 @@ ddesonn_predict <- function(model, new_data,
         if (!n) next
         rows[[ptr <- ptr + 1L]] <- data.frame(
           run_index = rep.int(i, n),
-          seed = rep.int(seed_i, n),
+          seed      = rep.int(seed_i, n),
           MODEL_SLOT = rep.int(k, n),
           model_slot = rep.int(k, n),
-          obs = seq_len(n),
+          obs   = seq_len(n),
           split = "test",
           y_pred = y_prob,
           y_true = NA_real_,
@@ -1612,11 +1616,71 @@ ddesonn_predict <- function(model, new_data,
     
     id_order <- c("run_index", "seed", "MODEL_SLOT", "model_slot", "obs", "split")
     rest <- setdiff(names(out), c(id_order, "y_pred", "y_true"))
-    if (ncol(out)) {
-      out <- out[, c(id_order, "y_pred", "y_true", rest), drop = FALSE]
-    }
+    if (ncol(out)) out <- out[, c(id_order, "y_pred", "y_true", rest), drop = FALSE]
     
     saveRDS(out, out_path)
+  }
+  
+  # ---------- NEW: persist movement_log + change_log ----------
+  # We try to use result$runs[[i]]$tables$movement_log / change_log if present,
+  # otherwise we rebuild by collecting logs from each temp iteration entry.
+  build_log_df <- function(run_i, type = c("movement", "change")) {
+    type <- match.arg(type)
+    # Preferred location (mirrors Train flow)
+    tbls <- run_i$tables
+    if (is.list(tbls)) {
+      if (type == "movement" && is.data.frame(tbls$movement_log) && NROW(tbls$movement_log)) {
+        return(tbls$movement_log)
+      }
+      if (type == "change" && is.data.frame(tbls$change_log) && NROW(tbls$change_log)) {
+        return(tbls$change_log)
+      }
+    }
+    # Fallback: gather from temp_iteration entries if they carry rows
+    ti <- run_i$temp_iterations
+    if (is.null(ti) || !length(ti)) return(data.frame())
+    acc <- list(); p <- 0L
+    for (ent in ti) {
+      # allow multiple shapes (movement_log/change_log on the entry itself)
+      if (type == "movement" && is.data.frame(ent$movement_log) && NROW(ent$movement_log)) {
+        acc[[p <- p + 1L]] <- ent$movement_log
+      }
+      if (type == "change" && is.data.frame(ent$change_log) && NROW(ent$change_log)) {
+        acc[[p <- p + 1L]] <- ent$change_log
+      }
+    }
+    if (!length(acc)) return(data.frame())
+    out <- try(do.call(rbind, acc), silent = TRUE)
+    if (inherits(out, "try-error")) out <- data.frame()
+    out
+  }
+  
+  # Write one pair of files per run (consistent naming with TestDDESONN.R)
+  for (i in seq_along(result$runs)) {
+    seed_i <- result$runs[[i]]$seed %||% i
+    
+    mv <- build_log_df(result$runs[[i]], "movement")
+    ch <- build_log_df(result$runs[[i]], "change")
+    
+    # De-dup (sometimes callers accumulate)
+    dedup <- function(df) {
+      if (!is.data.frame(df) || !NROW(df)) return(df)
+      # try best-effort unique on common columns if present
+      key_cols <- intersect(
+        c("iteration","phase","slot","role","serial","metric_name","metric_value","message","timestamp"),
+        names(df)
+      )
+      if (!length(key_cols)) return(unique(df))
+      df[!duplicated(df[, key_cols, drop = FALSE]), , drop = FALSE]
+    }
+    mv <- dedup(mv); ch <- dedup(ch)
+    
+    mv_path <- file.path(log_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
+    ch_path <- file.path(log_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts))
+    
+    # Only write if we actually have rows (exactly like your train flow)
+    if (is.data.frame(mv) && NROW(mv)) saveRDS(mv, mv_path)
+    if (is.data.frame(ch) && NROW(ch)) saveRDS(ch, ch_path)
   }
   
   invisible(NULL)

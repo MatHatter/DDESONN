@@ -11,7 +11,7 @@
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 if (!exists("coerce_to_numeric_matrix", inherits = TRUE)) {
-  source("utils/utils.R")
+  source("R/utils.R")
 }
 
 quantization_error <- function(SONN, Rdata, run_id, verbose) {
@@ -1462,217 +1462,110 @@ accuracy_precision_recall_f1_tuned <- function(
     threshold_grid = seq(0.05, 0.95, by = 0.01),
     verbose = FALSE
 ) {
-  dbg <- function(...) {
-    if (verbose) message(paste(..., collapse = " "))
-  }
-  
   metric_for_tuning <- match.arg(metric_for_tuning)
+  mode <- tolower(if (is.null(CLASSIFICATION_MODE)) "binary" else as.character(CLASSIFICATION_MODE))
   
-  # --- helpers ---
-  is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
-    tolower(x) %in% c("binary","multiclass","regression")
-  
-  infer_mode <- function(L, P) if (max(ncol(L), ncol(P)) > 1L) "multiclass" else "binary"
-  
-  sanitize_grid_simple <- function(g) {
-    if (is.function(g)) {
-      attempt <- try(g(), silent = TRUE)
-      g <- if (!inherits(attempt, "try-error")) attempt else seq(0.05, 0.95, by = 0.01)
-    }
-    if (is.language(g) || is.symbol(g)) {
-      attempt <- try(eval(g, parent.frame()), silent = TRUE)
-      g <- if (!inherits(attempt, "try-error")) attempt else seq(0.05, 0.95, by = 0.01)
-    }
-    if (is.list(g)) g <- unlist(g, use.names = FALSE)
-    g <- suppressWarnings(as.numeric(g))
-    g <- g[is.finite(g)]
-    g <- sort(unique(g))
-    g <- g[g > 0 & g < 1]
-    if (!length(g)) g <- seq(0.05, 0.95, by = 0.01)
-    g
-  }
-  
-  # --- coerce & trim ---
-  L <- coerce_to_numeric_matrix(labels, allow_model_matrix = FALSE)
-  P <- coerce_to_numeric_matrix(predicted_output, allow_model_matrix = FALSE)
-  n <- min(nrow(L), nrow(P))
-  if (n == 0L) stop("[accuracy_precision_recall_f1_tuned] empty inputs after trim.")
-  L <- L[seq_len(n), , drop = FALSE]
-  P <- P[seq_len(n), , drop = FALSE]
-  
-  # --- resolve mode ---
-  mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(L, P)
-  thr_grid <- sanitize_grid_simple(threshold_grid)
-  
-  # =========================
-  # ===== REGRESSION ========
-  # =========================
-  if (identical(mode, "regression")) {
+  # if not binary, threshold is irrelevant; return a safe shell
+  if (!identical(mode, "binary")) {
     return(list(
-      accuracy  = NA_real_,
-      precision = NA_real_,
-      recall    = NA_real_,
-      f1        = NA_real_,
-      confusion_matrix = NULL,
-      details = list(
-        best_threshold = NA_real_,
-        y_pred_class   = NA,
-        grid_used      = thr_grid,
-        tuned_by       = "n/a"
-      )
+      thresholds      = numeric(0),
+      metric_values   = numeric(0),
+      best_threshold  = NA_real_,
+      best_metric     = NA_real_,
+      details         = list(best_threshold = NA_real_, best_metric = NA_real_, by = metric_for_tuning)
     ))
   }
   
-  # ============================
-  # ======== BINARY PATH ========
-  # ============================
-  if (identical(mode, "binary")) {
-    # --- Labels (expecting 0/1) ---
-    y_true <- if (ncol(L) == 1L) {
-      v <- as.numeric(L[,1])
-      if (all(v %in% c(0,1))) as.integer(v) else as.integer(v >= 0.5)
+  P <- as.matrix(predicted_output)
+  if (ncol(P) >= 2L) {
+    # pick positive class column (last as fallback)
+    P <- P[, ncol(P), drop = FALSE]
+  }
+  probs <- as.numeric(P)
+  y     <- as.numeric(as.matrix(labels))
+  # coerce labels to {0,1} when possible
+  if (!all(y %in% c(0,1))) {
+    if (is.factor(labels)) {
+      y <- as.integer(labels) - 1L
+    } else if (is.logical(labels)) {
+      y <- as.integer(labels)
     } else {
-      as.integer(max.col(L, ties.method = "first") - 1L)
-    }
-    
-    # --- Probabilities (1-col sigmoid output) ---
-    if (ncol(P) != 1L) {
-      stop("[accuracy_precision_recall_f1_tuned] Binary mode expects 1-column probabilities (sigmoid). Got ", ncol(P), " columns.")
-    }
-    p_pos <- as.numeric(P[,1])
-    
-    # --- Global threshold logic ---
-    global_th <- DDESONN_get_threshold(default = NA_real_)
-    tuned_now <- FALSE
-    
-    if (is.na(global_th)) {
-      dbg("[accuracy_precision_recall_f1_tuned] No global threshold set. Tuning on provided data.")
-      metrics <- c("accuracy","f1","precision","recall")
-      if (!(metric_for_tuning %in% metrics)) {
-        metric_for_tuning <- switch(metric_for_tuning,
-                                    macro_f1="f1",
-                                    macro_precision="precision",
-                                    macro_recall="recall",
-                                    metric_for_tuning)
+      u <- sort(unique(y[is.finite(y)]))
+      if (length(u) == 2L && !all(u %in% c(0,1))) {
+        y <- ifelse(y == max(u), 1L, ifelse(y == min(u), 0L, NA_real_))
       }
-      
-      best <- list(th = 0.5, score = -Inf)
-      for (th in thr_grid) {
-        preds <- as.integer(p_pos >= th)
-        TP <- sum(preds == 1L & y_true == 1L)
-        FP <- sum(preds == 1L & y_true == 0L)
-        TN <- sum(preds == 0L & y_true == 0L)
-        FN <- sum(preds == 0L & y_true == 1L)
-        
-        acc <- (TP + TN) / length(y_true)
-        pre <- if ((TP + FP) > 0) TP / (TP + FP) else 0
-        rec <- if ((TP + FN) > 0) TP / (TP + FN) else 0
-        f1  <- if ((pre + rec) > 0) 2 * pre * rec / (pre + rec) else 0
-        
-        score <- switch(metric_for_tuning,
-                        accuracy = acc, f1 = f1, precision = pre, recall = rec)
-        if (score > best$score || (abs(score - best$score) < .Machine$double.eps^0.5 &&
-                                   abs(th - 0.5) < abs(best$th - 0.5))) {
-          best <- list(th=th, score=score)
-        }
-      }
-      DDESONN_set_threshold(best$th)
-      global_th <- best$th
-      tuned_now <- TRUE
-      dbg(sprintf("[accuracy_precision_recall_f1_tuned] Tuned global threshold = %.4f (metric=%s)",
-                  global_th, metric_for_tuning))
-    } else {
-      dbg(sprintf("[accuracy_precision_recall_f1_tuned] Using existing global threshold = %.4f.", global_th))
     }
-    
-    # --- Apply chosen threshold (tuned or stored) ---
-    cm <- confusion_matrix(
-      SONN = SONN,
-      labels = matrix(y_true, ncol = 1),
-      CLASSIFICATION_MODE = "binary",
-      predicted_output = matrix(p_pos, ncol = 1),
-      threshold = global_th,
-      verbose = FALSE
-    )
-    
-    TP <- cm$TP; FP <- cm$FP; TN <- cm$TN; FN <- cm$FN
-    
-    total <- length(y_true)
-    acc <- (TP + TN) / total
-    pre <- if ((TP + FP) > 0) TP / (TP + FP) else 0
-    rec <- if ((TP + FN) > 0) TP / (TP + FN) else 0
-    f1  <- if ((pre + rec) > 0) 2 * pre * rec / (pre + rec) else 0
-    
-    y_pred_class <- as.integer(p_pos >= global_th)
-    
+  }
+  keep <- which(is.finite(probs) & is.finite(y))
+  probs <- probs[keep]; y <- y[keep]
+  if (!length(probs)) {
+    # degenerate: nothing to tune
     return(list(
-      accuracy  = as.numeric(acc),
-      precision = as.numeric(pre),
-      recall    = as.numeric(rec),
-      f1        = as.numeric(f1),
-      confusion_matrix = cm,
-      details   = list(
-        best_threshold = as.numeric(global_th),
-        y_pred_class   = y_pred_class,
-        grid_used      = thr_grid,
-        tuned_by       = if (tuned_now) metric_for_tuning else "applied-global"
-      )
+      thresholds      = numeric(0),
+      metric_values   = numeric(0),
+      best_threshold  = 0.5,
+      best_metric     = NA_real_,
+      details         = list(best_threshold = 0.5, best_metric = NA_real_, by = metric_for_tuning)
     ))
   }
   
-  # ===============================
-  # ===== MULTICLASS (argmax) =====
-  # ===============================
-  Kp <- ncol(P); Kl <- ncol(L)
-  if (Kp > 1L && Kl > 1L && Kp != Kl) {
-    K <- min(Kp, Kl)
-    Pk <- P[, seq_len(K), drop = FALSE]
-    Lk <- L[, seq_len(K), drop = FALSE]
-  } else {
-    Pk <- if (Kp > 1L) P else NULL
-    Lk <- if (Kl > 1L) L else NULL
-  }
+  metric_fun <- switch(metric_for_tuning,
+                       accuracy = function(p, y) mean((p == y)),
+                       precision = function(p, y) {
+                         TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0)
+                         if ((TP+FP)==0) 0 else TP/(TP+FP)
+                       },
+                       recall = function(p, y) {
+                         TP <- sum(p==1 & y==1); FN <- sum(p==0 & y==1)
+                         if ((TP+FN)==0) 0 else TP/(TP+FN)
+                       },
+                       f1 = function(p, y) {
+                         TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); FN <- sum(p==0 & y==1)
+                         pre <- if ((TP+FP)==0) 0 else TP/(TP+FP)
+                         rec <- if ((TP+FN)==0) 0 else TP/(TP+FN)
+                         if ((pre+rec)==0) 0 else 2*pre*rec/(pre+rec)
+                       },
+                       # simple macro variants (same here since binary)
+                       macro_precision = function(p,y) {
+                         precision <- function(p, y) { TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); if ((TP+FP)==0) 0 else TP/(TP+FP) }
+                         (precision(p,y) + precision(1-p,1-y))/2
+                       },
+                       macro_recall = function(p,y) {
+                         recall <- function(p, y) { TP <- sum(p==1 & y==1); FN <- sum(p==0 & y==1); if ((TP+FN)==0) 0 else TP/(TP+FN) }
+                         (recall(p,y) + recall(1-p,1-y))/2
+                       },
+                       macro_f1 = function(p,y) {
+                         f1 <- function(p,y){TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); FN <- sum(p==0 & y==1);
+                         pre <- if ((TP+FP)==0) 0 else TP/(TP+FP)
+                         rec <- if ((TP+FN)==0) 0 else TP/(TP+FN)
+                         if ((pre+rec)==0) 0 else 2*pre*rec/(pre+rec)}
+                         (f1(p,y) + f1(1-p,1-y))/2
+                       }
+  )
   
-  true_ids <- if (!is.null(Lk)) {
-    max.col(Lk, ties.method = "first")
-  } else {
-    K <- max(2L, Kp)
-    v <- as.integer(round(L[,1]))
-    if (length(v) && min(v, na.rm = TRUE) == 0L) v <- v + 1L
-    v[v < 1L] <- 1L; v[v > K] <- K
-    v
-  }
-  pred_ids <- if (!is.null(Pk)) max.col(Pk, ties.method = "first") else rep(1L, length(true_ids))
+  if (length(threshold_grid) == 0L) threshold_grid <- 0.5
   
-  acc <- mean(pred_ids == true_ids, na.rm = TRUE)
+  scores <- vapply(threshold_grid, function(th) {
+    pred <- as.integer(probs >= th)
+    metric_fun(pred, y)
+  }, numeric(1))
   
-  # macro precision/recall/F1
-  K <- max(true_ids, pred_ids, na.rm = TRUE)
-  macro_prec <- macro_rec <- macro_f1 <- numeric(K)
-  for (k in seq_len(K)) {
-    TPk <- sum(pred_ids == k & true_ids == k)
-    FPk <- sum(pred_ids == k & true_ids != k)
-    FNk <- sum(pred_ids != k & true_ids == k)
-    prec <- if ((TPk + FPk) > 0) TPk / (TPk + FPk) else 0
-    rec  <- if ((TPk + FNk) > 0) TPk / (TPk + FNk) else 0
-    f1   <- if ((prec + rec) > 0) 2 * prec * rec / (prec + rec) else 0
-    macro_prec[k] <- prec; macro_rec[k] <- rec; macro_f1[k] <- f1
-  }
+  best_idx <- which.max(scores)
+  best_th  <- as.numeric(threshold_grid[best_idx])
+  if (!is.finite(best_th) || length(best_th) != 1L) best_th <- 0.5
   
   list(
-    accuracy  = round(as.numeric(acc), 8),
-    precision = mean(macro_prec),
-    recall    = mean(macro_rec),
-    f1        = mean(macro_f1),
-    confusion_matrix = NULL,   # only binary returns list(TP,FP,TN,FN)
-    details   = list(
-      best_threshold = NA_real_,
-      y_pred_class   = pred_ids,
-      grid_used      = thr_grid,
-      tuned_by       = "argmax-macro"
-    )
+    thresholds      = threshold_grid,
+    metric_values   = scores,
+    best_threshold  = best_th,
+    best_metric     = scores[best_idx],
+    details         = list(best_threshold = best_th, best_metric = scores[best_idx], by = metric_for_tuning)
   )
 }
+
+
+
+
 
 
 
@@ -1803,15 +1696,23 @@ ndcg <- function(SONN, Rdata, CLASSIFICATION_MODE, predicted_output, labels, ver
 #   - binary: per-row error = |1 - p_true|, where p_true = p(pos) if y=1; else 1 - p(pos) if y=0.
 #   - multiclass: per-row error = |1 - p_true| where p_true is probability of the true class.
 # Returns: named LIST of bin means.
-custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, predicted_output, verbose = FALSE) {
+custom_relative_error_binned <- function(
+    SONN,
+    Rdata,
+    labels,
+    CLASSIFICATION_MODE,
+    predicted_output,
+    verbose = FALSE
+) {
   # --- helpers ---
   is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
     tolower(x) %in% c("binary","multiclass","regression")
   infer_mode <- function(L, P) {
     if (max(ncol(L), ncol(P)) > 1L) "multiclass" else "regression"
   }
+  vdbg <- function(...) if (isTRUE(verbose)) message(paste0(..., collapse = ""))
   
-  # bin edges: 0%..100% -> 0..1
+  # bin edges: 0%..100% → 0..1 (values > 100% are assigned to the last bin)
   bins <- c(0, 0.05, 0.10, 0.50, 1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
   brks <- bins / 100
   bin_names <- paste0("rel_", bins[-length(bins)], "_", bins[-1], "pct")
@@ -1824,25 +1725,29 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
   }
   
   # --- coerce & trim to common rows ---
-  L <- coerce_to_numeric_matrix(labels, allow_model_matrix = FALSE)
+  L <- coerce_to_numeric_matrix(labels,           allow_model_matrix = FALSE)
   P <- coerce_to_numeric_matrix(predicted_output, allow_model_matrix = FALSE)
-  n <- min(nrow(L), nrow(P))
-  if (n == 0L) return(empty_out())
   
+  n <- min(nrow(L), nrow(P))
+  if (n == 0L) {
+    vdbg("[CREB] no overlap rows; returning empty bins")
+    return(empty_out())
+  }
   L <- L[seq_len(n), , drop = FALSE]
   P <- P[seq_len(n), , drop = FALSE]
   
   # --- resolve mode ---
   mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(L, P)
+  vdbg("[CREB] mode=", mode, " | dims L=", nrow(L), "x", ncol(L), " P=", nrow(P), "x", ncol(P))
   
-  # --- compute vector of per-sample errors ---
+  # --- compute vector of per-sample errors (fractional) ---
   if (identical(mode, "binary")) {
     # labels -> y_true in {0,1}
     if (ncol(L) == 2L) {
       y_true <- as.integer(L[, 2] >= L[, 1])
     } else {
       v <- as.numeric(L[, 1])
-      if (all(v %in% c(0, 1))) y_true <- as.integer(v) else y_true <- as.integer(v >= 0.5)
+      y_true <- if (all(v %in% c(0, 1))) as.integer(v) else as.integer(v >= 0.5)
     }
     # preds -> p(pos)
     p_pos <- if (ncol(P) >= 2L) as.numeric(P[, 2]) else as.numeric(P[, 1])
@@ -1850,11 +1755,11 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
     
     # p_true = p(pos) if y=1, else 1 - p(pos)
     p_true <- ifelse(y_true == 1L, p_pos, 1 - p_pos)
-    err <- abs(1 - p_true)          # in [0,1]
+    err <- abs(1 - p_true)  # in [0, +inf) but practically [0,1]
     vals <- err[is.finite(err)]
     
   } else if (identical(mode, "multiclass")) {
-    # Determine K (prefer predictions)
+    # Prefer prediction width to define K
     Kp <- ncol(P); Kl <- ncol(L)
     if (Kp > 1L && Kl > 1L && Kp != Kl) {
       K  <- min(Kp, Kl)
@@ -1863,6 +1768,7 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
     } else {
       Pk <- if (Kp > 1L) P else NULL
       Lk <- if (Kl > 1L) L else NULL
+      K  <- max(Kp, Kl, 2L)
     }
     
     # true class id (1..K)
@@ -1870,7 +1776,6 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
       true_ids <- max.col(Lk, ties.method = "first")
       K <- ncol(Lk)
     } else {
-      K <- max(2L, Kp)  # at least 2
       v <- as.integer(round(L[, 1]))
       if (length(v) && min(v, na.rm = TRUE) == 0L) v <- v + 1L
       v[v < 1L] <- 1L; v[v > K] <- K
@@ -1887,7 +1792,7 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
     }
     p_true[!is.finite(p_true)] <- NA_real_
     
-    err  <- abs(1 - p_true)         # in [0,1]
+    err  <- abs(1 - p_true)   # distance from certainty on the true class
     vals <- err[is.finite(err)]
     
   } else {  # regression (default)
@@ -1905,25 +1810,37 @@ custom_relative_error_binned <- function(SONN, Rdata, labels, CLASSIFICATION_MOD
     error_prediction <- Pm - L
     denom <- abs(L)
     denom[denom == 0 | !is.finite(denom)] <- .Machine$double.eps
-    percentage_difference <- as.numeric(abs(error_prediction) / denom)
+    percentage_difference <- as.numeric(abs(error_prediction) / denom)  # relative error (fraction)
     vals <- percentage_difference[is.finite(percentage_difference)]
   }
   
-  # --- binning ---
-  mean_precisions <- numeric(length(brks) - 1)
-  if (length(vals) > 0L) {
-    idx <- findInterval(vals, brks, rightmost.closed = TRUE, all.inside = TRUE)
-    for (j in seq_along(mean_precisions)) {
-      v <- vals[idx == j]
-      mean_precisions[j] <- if (length(v)) mean(v) else 0
-    }
-  } else {
-    mean_precisions[] <- 0
+  if (!length(vals)) {
+    vdbg("[CREB] no finite vals; returning empty bins")
+    return(empty_out())
   }
   
-  names(mean_precisions) <- bin_names
-  list(custom_relative_error_binned = mean_precisions)
+  # --- bin assignment (values > 100% go into the last bin) ---
+  vals_for_bins <- pmin(pmax(vals, 0), 1)  # clamp to [0,1] for binning; stats use original vals
+  
+  # compute means per bin (use the *original* vals; membership decided by clamped version)
+  out <- numeric(length(bin_names))
+  for (i in seq_len(length(brks) - 1L)) {
+    lo <- brks[i]; hi <- brks[i + 1L]
+    if (i < length(brks) - 1L) {
+      mask <- vals_for_bins >= lo & vals_for_bins < hi
+    } else {
+      # last bin includes hi==1.0
+      mask <- vals_for_bins >= lo & vals_for_bins <= hi
+    }
+    vv <- vals[mask]
+    out[i] <- if (length(vv)) mean(vv) else NA_real_
+  }
+  names(out) <- bin_names
+  
+  # return as a named list (not a vector), per your spec
+  as.list(out)
 }
+
 
 
 # Diversity (Shannon entropy) — robust

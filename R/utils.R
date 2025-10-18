@@ -450,7 +450,22 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
 .ce_loss_multiclass <- function(P, Y, eps=1e-12) {
   P <- pmin(pmax(as.matrix(P), eps), 1 - eps)  # n×K
   if (is.vector(Y)) Y <- one_hot_from_ids(as.integer(Y), K=ncol(P), N=nrow(P))
+    # --- numeric guards (multiclass) ---
+    if (!is.matrix(P)) P <- as.matrix(P)
+        P[!is.finite(P)] <- 0
+              P <- pmin(pmax(P, 1e-12), 1 - 1e-12)
+  
+      rs <- rowSums(P)
+      bad <- !is.finite(rs) | rs <= 0
+    if (any(bad)) {
+        K <- ncol(P)
+        P[bad, ] <- 1 / K
+  }
+  P <- P / rowSums(P)
+  
+  if (!is.matrix(Y)) Y <- as.matrix(Y)
   val <- mean(-rowSums(Y * log(P)))
+  
   if (!is.finite(val)) val <- NA_real_
   val
 }
@@ -2548,26 +2563,24 @@ DDESONN_predict_eval <- function(
                  as.character(y_before), as.character(NROW(yi_raw %||% NULL))))
   }
   
-  REG_TARGET_MODE <- ddesonn_resolve_reg_target_mode(meta)
-  reg_mode_applied <- isTRUE(
-    tryCatch(meta$reg_target_mode_applied, error = function(e) NULL) %||%
-      tryCatch(meta$preprocessScaledData$reg_target_mode_applied, error = function(e) NULL)
-  )
-  if (CLASSIFICATION_MODE == "regression" && identical(REG_TARGET_MODE, "return_log") && !reg_mode_applied) {
-    x_before <- NROW(Xi_raw %||% NULL)
-    y_before <- NROW(yi_raw %||% NULL)
-    yi_raw <- ddesonn_drop_first_row(ddesonn_to_log_return(yi_raw))
-    Xi_raw <- ddesonn_drop_first_row(Xi_raw)
-    dcat(sprintf("[RET-LOG] applied predict-time return_log | X rows %s->%s | y len %s->%s",
-                 as.character(x_before), as.character(NROW(Xi_raw %||% NULL)),
-                 as.character(y_before), as.character(NROW(yi_raw %||% NULL))))
-  }
-  
   ## ---------- coerce + align ----------
   Xi <- yi <- NULL
   tryCatch({
     Xi <- .as_numeric_matrix_strict(Xi_raw, nm="X")
-    yi <- .as_numeric_vector_strict(yi_raw,  nm="y")
+    
+    ## --- y handling: keep regression as-is; fix multiclass one-hot → class ids ---
+    if (identical(tolower(CLASSIFICATION_MODE), "multiclass") &&
+        is.matrix(yi_raw) && ncol(yi_raw) > 1L) {
+      ## One-hot labels → class ids (1..K)
+      yi <- as.integer(max.col(yi_raw, ties.method = "first"))
+    } else if (identical(tolower(CLASSIFICATION_MODE), "multiclass") &&
+               is.factor(yi_raw)) {
+      yi <- as.integer(yi_raw)
+    } else {
+      yi <- .as_numeric_vector_strict(yi_raw, nm="y")  ## binary & regression unchanged
+    }
+    
+    ## --- align rows (with special case for regression return_log you already support) ---
     if (nrow(Xi) != length(yi)) {
       nX <- nrow(Xi); ny <- length(yi)
       if (CLASSIFICATION_MODE == "regression" && identical(REG_TARGET_MODE, "return_log")) {
@@ -2587,10 +2600,18 @@ DDESONN_predict_eval <- function(
         yi <- yi[seq_len(nmin)]
       }
     }
-    expected <- tryCatch({ nms <- meta$feature_names %||% meta$input_names %||% meta$colnames; if (is.null(nms)) colnames(Xi) else as.character(nms) }, error=function(e) colnames(Xi))
+    
+    ## --- feature order/expand ---
+    expected <- tryCatch({
+      nms <- meta$feature_names %||% meta$input_names %||% meta$colnames
+      if (is.null(nms)) colnames(Xi) else as.character(nms)
+    }, error=function(e) colnames(Xi))
     miss <- setdiff(expected, colnames(Xi))
-    if (length(miss)) Xi <- cbind(Xi, matrix(0, nrow=nrow(Xi), ncol=length(miss), dimnames=list(NULL, miss)))
+    if (length(miss)) {
+      Xi <- cbind(Xi, matrix(0, nrow=nrow(Xi), ncol=length(miss), dimnames=list(NULL, miss)))
+    }
     Xi <- Xi[, expected, drop=FALSE]
+    
     mark("coerce_align_ok")
   }, error=function(e) fail("coerce_align", e))
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
@@ -2606,27 +2627,104 @@ DDESONN_predict_eval <- function(
       debug   = isTRUE(get0("DEBUG_RUNPRED",   inherits=TRUE, ifnotfound=FALSE))
     )
     prediction_time <- as.numeric((proc.time() - t0)[["elapsed"]])
-    P_raw <- .as_pred_matrix_local(out, mode = if (CLASSIFICATION_MODE=="regression") "regression" else "binary")
-    if (is.null(colnames(P_raw))) colnames(P_raw) <- "pred"
+    
+    ## choose mode correctly (regression|binary|multiclass)
+    pred_mode <- switch(tolower(CLASSIFICATION_MODE),
+                        "regression" = "regression",
+                        "multiclass" = "multiclass",
+                        "binary")
+    P_raw <- .as_pred_matrix_local(out, mode = pred_mode)
+    
+    ## --- safe column names (prevents 'dimnames extent' error) ---
+    if (!is.matrix(P_raw)) P_raw <- as.matrix(P_raw)
+    storage.mode(P_raw) <- "double"
+    n_out <- ncol(P_raw)
+    
+    # Try to infer class names from training labels in metadata
+    cls <- NULL
+    if (!is.null(meta$y_train)) {
+      yy <- meta$y_train
+      if (is.factor(yy)) {
+        cls <- levels(yy)
+      } else if (is.character(yy)) {
+        cls <- sort(unique(yy))
+      } else if (is.matrix(yy) && ncol(yy) > 1L && !is.null(colnames(yy))) {
+        cls <- colnames(yy)
+      }
+    }
+    
+    # Robust fallback: exactly match n_out
+    if (is.null(cls) || !length(cls)) {
+      if (identical(tolower(CLASSIFICATION_MODE), "regression") && n_out == 1L) {
+        cls <- "pred"
+      } else {
+        cls <- sprintf("class_%02d", seq_len(n_out))
+      }
+    } else {
+      # pad or trim to EXACTLY n_out
+      if (length(cls) < n_out) {
+        cls <- c(cls, sprintf("class_%02d", seq(from = length(cls) + 1L, to = n_out)))
+      } else if (length(cls) > n_out) {
+        cls <- cls[seq_len(n_out)]
+      }
+    }
+    
+    colnames(P_raw) <- cls
+    
     mark("predict_ok")
   }, error=function(e) fail("predict", e))
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
-  
   ## ---------- post-process to P (binary/multi/reg) ----------
   P <- NULL
   base_n <- 0L
   tryCatch({
-    if (CLASSIFICATION_MODE == "regression") {
-      P <- P_raw
-    } else if (CLASSIFICATION_MODE == "binary") {
-      P <- if (ncol(P_raw) == 1L) P_raw else {
-        mx <- apply(P_raw, 1, max); ex <- exp(P_raw - mx); sm <- rowSums(ex); matrix((ex/sm)[,2L], ncol=1L)
+    mode_low <- tolower(CLASSIFICATION_MODE)
+    
+    # Start from raw head output
+    P <- as.matrix(P_raw)
+    
+    # Convert logits → probabilities where needed, then sanitize
+    if (mode_low == "multiclass") {
+      if (!is.null(P) && ncol(P) > 1L) {
+        # numerically-stable softmax (row-wise)
+        mx <- apply(P, 1L, max)
+        ex <- exp(P - mx)
+        rs <- rowSums(ex)
+        rs[!is.finite(rs) | rs <= 0] <- 1
+        P <- ex / rs
+      } else {
+        # degenerate: single column → treat as probability; clamp
+        P[!is.finite(P)] <- 0
       }
-    } else {
-      mx <- apply(P_raw, 1, max); ex <- exp(P_raw - mx); sm <- rowSums(ex); P <- ex / sm
+      # clamp to (eps, 1-eps)
+      P[!is.finite(P)] <- 0
+      P <- pmin(pmax(P, .Machine$double.eps), 1 - .Machine$double.eps)
+    } else if (mode_low == "binary") {
+      # ensure a single probability column for the positive class
+      if (ncol(P) == 1L) {
+        # already prob-like; clamp
+        P[!is.finite(P)] <- 0
+        P[,1] <- pmin(pmax(P[,1], .Machine$double.eps), 1 - .Machine$double.eps)
+      } else {
+        # logits (2 cols) → softmax, then take [:,2]
+        mx <- apply(P, 1, max)
+        ex <- exp(P - mx)
+        sm <- rowSums(ex)
+        sm[!is.finite(sm) | sm <= 0] <- 1
+        S  <- ex / sm
+        P  <- matrix(S[, min(2L, ncol(S))], ncol = 1L)  # positive class prob
+        P[!is.finite(P)] <- 0
+        P[,1] <- pmin(pmax(P[,1], .Machine$double.eps), 1 - .Machine$double.eps)
+      }
+    } else { # regression
+      # keep first column as numeric prediction
+      if (ncol(P) > 1L) P <- P[, 1L, drop = FALSE]
+      P[!is.finite(P)] <- NA_real_
     }
+    
     base_n <- nrow(P)
     if (base_n <= 0L) stop("zero predictions")
+    
     mark("postprocess_ok")
   }, error=function(e) fail("postprocess", e))
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
@@ -2662,9 +2760,57 @@ DDESONN_predict_eval <- function(
     mark("fallback_ok")
   }, error=function(e) fail("fallback", e))
   if (!is.null(problem_stage)) return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
+  ## ---------- hard align/sanitize labels vs P (mode-aware) ----------
+  mode_low <- tolower(CLASSIFICATION_MODE)
+  
+  # Build a working label vector (mode-aware)
+  labs <- yi
+  if (is.matrix(labs) && ncol(labs) > 1L && mode_low == "multiclass") {
+    labs <- as.integer(max.col(labs, ties.method = "first"))             # one-hot → 1..K
+  } else {
+    if (is.matrix(labs) && ncol(labs) == 1L) labs <- as.vector(labs)
+    if (is.factor(labs)) labs <- as.character(labs)
+    if (mode_low == "multiclass") {
+      if (is.character(labs)) labs <- as.integer(factor(labs)) else labs <- as.integer(labs)
+      if (is.finite(suppressWarnings(min(labs, na.rm = TRUE))) &&
+          suppressWarnings(min(labs, na.rm = TRUE)) == 0L) labs <- labs + 1L
+    } else if (mode_low == "binary") {
+      if (is.character(labs)) {
+        f <- factor(labs); labs <- as.integer(f == levels(f)[length(levels(f))])
+      } else if (is.logical(labs)) {
+        labs <- as.integer(labs)
+      } else {
+        labs <- as.integer(labs)
+        if (any(labs < 0L, na.rm = TRUE)) labs <- as.integer(labs == max(labs, na.rm = TRUE))
+        else labs <- as.integer(labs > min(labs, na.rm = TRUE))
+      }
+    } else { # regression
+      labs <- suppressWarnings(as.numeric(labs))
+    }
+  }
+  
+  # Align by length (we don't have stable rownames here)
+  nmin <- min(NROW(P), length(labs))
+  if (nmin <= 0L) { fail("metrics_align", simpleError("[EMPTY-AFTER-ALIGN] labels/preds misaligned to zero")); 
+    return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log)) }
+  if (NROW(P) != nmin) P <- P[seq_len(nmin), , drop = FALSE]
+  if (length(labs) != nmin) labs <- labs[seq_len(nmin)]
+  base_n <- nmin
+  
+  # Drop any rows with non-finite label or probs
+  keep <- is.finite(labs) & apply(P, 1L, function(r) all(is.finite(r)))
+  if (!all(keep)) {
+    P    <- P[keep, , drop = FALSE]
+    labs <- labs[keep]
+    base_n <- NROW(P)
+  }
+  if (base_n == 0L) { fail("metrics_align", simpleError("[EMPTY-AFTER-SANITIZE] no valid rows")); 
+    return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log)) }
+  
+  # Commit aligned labels
+  yi_vec <- as.numeric(labs)
   
   ## ---------- metrics ----------
-  yi_vec <- as.numeric(yi)
   if (length(yi_vec) != base_n) {
     nmin <- min(length(yi_vec), base_n)
     if (nmin <= 0L) { fail("metrics_align", simpleError("[EMPTY-AFTER-TRUNC] labels/preds misaligned to zero")); return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log)) }
@@ -2689,7 +2835,7 @@ DDESONN_predict_eval <- function(
       cm_base <- list(TP=TP, FP=FP, TN=TN, FN=FN)
     } else if (CLASSIFICATION_MODE == "multiclass" && base_n > 0) {
       yhat <- max.col(P, ties.method="first")
-      ymc  <- if (is.matrix(yi) && !is.null(ncol(yi)) && ncol(yi)>1) max.col(yi, "first") else as.integer(yi_vec)
+      ymc <- as.integer(yi_vec)  # use the aligned, mode-aware label vector we computed
       ok   <- is.finite(yhat) & is.finite(ymc); yhat <- yhat[ok]; ymc <- ymc[ok]
       acc  <- mean(yhat == ymc)
       K <- max(yhat, ymc, na.rm=TRUE)
@@ -2738,6 +2884,18 @@ DDESONN_predict_eval <- function(
   )
   if (!is.null(problem_stage) && problem_stage == "tuned_metrics") return(list(problem_stage=problem_stage, errors=errors, stage_log=stage_log))
   mark("tuned_ok")
+  
+  # Safely derive chosen_threshold for writing results/preds
+  mode_low <- tolower(as.character(CLASSIFICATION_MODE))
+  bt <- tryCatch(tuned$details$best_threshold,
+                 error = function(e) tuned$best_threshold)
+  
+  if (mode_low == "multiclass") {
+    chosen_threshold <- NA_real_
+  } else {
+    if (!is.numeric(bt) || length(bt) != 1L || !is.finite(bt)) bt <- 0.5
+    chosen_threshold <- as.numeric(bt)
+  }
   
   ## ---------- FULL TEST METRICS (performance + relevance) ----------
   # Pull optional fields (only for computing; not added to table)
@@ -2860,7 +3018,7 @@ DDESONN_predict_eval <- function(
     precision = r6(prec),
     recall = r6(rec),
     f1 = r6(f1s),
-    tuned_threshold = r6(tuned$details$best_threshold),
+    tuned_threshold = r6(chosen_threshold),
     tuned_accuracy  = r6(tuned$accuracy),
     tuned_precision = r6(tuned$precision),
     tuned_recall    = r6(tuned$recall),
