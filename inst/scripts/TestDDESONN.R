@@ -64,7 +64,7 @@ if (CLASSIFICATION_MODE == "binary") {
   lr <- .121
   lambda <- 0.0003
   custom_scale <- .05
-  num_epochs <- 1
+  num_epochs <- 130
   custom_scale <- 0.05
   ## ========= Target toggle =========
   PREDICT_NEXT_DAY <- TRUE   # TRUE = predict close[t+1]; FALSE = predict close[t]
