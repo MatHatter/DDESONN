@@ -2459,49 +2459,155 @@ DDESONN_predict_eval <- function(
     DEBUG                = TRUE,
     OUT_DIR_ASSERT       = NULL
 ) {
-  
-  # ---------- tiny internals ----------
+  ## =========================
+  ## tiny internals (debuggy)
+  ## =========================
   dcat <- function(..., .force = FALSE) if (isTRUE(DEBUG) || isTRUE(.force))
     cat(sprintf("[DSE-DBG %s] ", format(Sys.time(), "%H:%M:%S")), paste0(..., collapse=""), "\n")
+  
   `%||%` <- function(x,y) if (is.null(x)) y else x
-  r6 <- function(x){ if (is.null(x)) return(NA_real_); if (is.list(x)) x <- unlist(x, use.names=FALSE)
-  suppressWarnings({ xn <- as.numeric(x[1]); if (!is.finite(xn)) return(NA_real_); round(xn,6) }) }
-  safe_df <- function(cols, nm="(df)"){
-    lens <- vapply(cols, length, integer(1)); if (!length(lens)) lens <- 0L
-    uq <- unique(lens); if (length(uq) > 1L) stop(sprintf("safe_df[%s]: inconsistent lengths", nm))
-    L <- if (length(uq)) uq[1] else 0L
-    cols <- lapply(cols, function(x) if (is.null(x)) rep(NA, L) else if (!length(x) && L) rep(NA, L) else x)
-    data.frame(cols, stringsAsFactors=FALSE, check.names=TRUE)
+  
+  r6 <- function(x){
+    if (is.null(x)) return(NA_real_)
+    if (is.list(x)) x <- unlist(x, use.names=FALSE)
+    suppressWarnings({
+      xn <- as.numeric(x[1])
+      if (!is.finite(xn)) return(NA_real_)
+      round(xn, 6)
+    })
   }
+  
+  ## type-aware head/skim that won't crash on non-numeric matrices
+  dbg_head <- function(x, n=3, tag="(obj)") {
+    cls <- paste(class(x), collapse=",")
+    typ <- typeof(x)
+    dcat(sprintf("%s class=%s type=%s", tag, cls, typ))
+    if (is.matrix(x)) {
+      nr <- nrow(x); nc <- ncol(x)
+      if (is.numeric(x)) {
+        sm_min <- suppressWarnings(min(x, na.rm=TRUE))
+        sm_mn  <- suppressWarnings(mean(x, na.rm=TRUE))
+        sm_sd  <- suppressWarnings(stats::sd(as.numeric(x), na.rm=TRUE))
+        sm_max <- suppressWarnings(max(x, na.rm=TRUE))
+        dcat(sprintf("%s dims=%d x %d | summary: min=%.6f mean=%.6f sd=%.6f max=%.6f",
+                     tag, nr, nc, sm_min, sm_mn, sm_sd, sm_max))
+      } else {
+        # preview first column values instead of numeric summary
+        ex <- tryCatch(utils::head(unique(as.character(x[,1])), 6L), error=function(e) character(0))
+        ex_str <- if (length(ex)) paste(ex, collapse=", ") else "<no preview>"
+        dcat(sprintf("%s dims=%d x %d | example col1: %s", tag, nr, nc, ex_str))
+      }
+      if (nr > 0 && nc > 0) {
+        print(utils::head(x[, seq_len(min(nc, 6)), drop=FALSE], n))
+      }
+    } else if (is.data.frame(x)) {
+      dcat(sprintf("%s nrow=%d ncol=%d", tag, nrow(x), ncol(x)))
+      print(utils::head(x, n))
+      dcat(sprintf("%s colclasses: %s", tag, paste(vapply(x, function(z) class(z)[1], ""), collapse=", ")))
+      dcat(sprintf("%s NA col counts: %s",
+                   tag,
+                   paste(sprintf("%s:%d", names(x), vapply(x, function(z) sum(is.na(z)), 1L)), collapse=" | ")))
+    } else if (is.vector(x)) {
+      dcat(sprintf("%s length=%d class=%s", tag, length(x), cls))
+      print(utils::head(x, n))
+    } else {
+      dcat(sprintf("%s (unhandled preview type)", tag))
+    }
+  }
+  
+  .na_count_df <- function(df) vapply(df, function(z) sum(is.na(z)), 1L)
+  
+  .dbg_delta_na <- function(before, after, tag="(delta)") {
+    nm <- union(names(before), names(after))
+    b <- before[nm]; a <- after[nm]
+    b[is.na(b)] <- 0L; a[is.na(a)] <- 0L
+    del <- a - b
+    if (any(del != 0L, na.rm=TRUE)) {
+      bad <- nm[del != 0L]
+      dcat(sprintf("[NA-DELTA %s] changes: %s",
+                   tag,
+                   paste(sprintf("%s:%+d", bad, del[bad]), collapse=" | ")), .force=TRUE)
+    } else {
+      dcat(sprintf("[NA-DELTA %s] no NA changes detected", tag))
+    }
+  }
+  
   .as_num_mat <- function(X, nm="X"){
+    dcat(sprintf("[COERCE] .as_num_mat(%s) ENTER", nm))
+    dbg_head(X, tag=sprintf("[COERCE] raw %s", nm))
     if (is.matrix(X) && is.numeric(X)) {
       storage.mode(X) <- "double"
+      dbg_head(X, tag=sprintf("[COERCE] %s OK numeric matrix (no change)", nm))
       return(X)
     }
-    if (is.vector(X) && !is.list(X)) { X <- matrix(X, ncol=1L); colnames(X) <- nm }
+    if (is.vector(X) && !is.list(X)) {
+      X <- matrix(X, ncol=1L); colnames(X) <- nm
+      dcat(sprintf("[COERCE] %s vector->matrix (n=%d)", nm, length(X)))
+    }
     Xdf <- as.data.frame(X, stringsAsFactors=FALSE)
+    na_before <- .na_count_df(Xdf)
     for (cc in names(Xdf)) {
       v <- Xdf[[cc]]
-      if (is.list(v)) v <- vapply(v, function(z){ if (is.null(z)) return(NA_real_); if (is.list(z)) z <- unlist(z, use.names=FALSE); suppressWarnings(as.numeric(if (length(z)) z[1] else NA)) }, numeric(1))
-      else if (is.factor(v)) v <- as.numeric(as.character(v))
-      else if (is.logical(v)) v <- as.integer(v)
-      else if (!is.numeric(v)) suppressWarnings(v <- as.numeric(v))
+      if (is.list(v)) {
+        v <- vapply(
+          v,
+          function(z){
+            if (is.null(z)) return(NA_real_)
+            if (is.list(z)) z <- unlist(z, use.names=FALSE)
+            suppressWarnings(as.numeric(if (length(z)) z[1] else NA))
+          },
+          numeric(1)
+        )
+      } else if (is.factor(v)) {
+        v <- as.character(v)
+        suppressWarnings(v <- as.numeric(v))
+      } else if (is.logical(v)) {
+        v <- as.integer(v)
+      } else if (!is.numeric(v)) {
+        suppressWarnings(v <- as.numeric(v))
+      }
       Xdf[[cc]] <- v
     }
-    X <- as.matrix(Xdf); storage.mode(X) <- "double"; X
+    .dbg_delta_na(na_before, .na_count_df(Xdf), tag=sprintf("%s-num-coerce", nm))
+    X <- as.matrix(Xdf)
+    storage.mode(X) <- "double"
+    dbg_head(X, tag=sprintf("[COERCE] coerced %s", nm))
+    X
   }
+  
   .as_pred_mat <- function(obj, mode=c("binary","multiclass","regression")){
     mode <- match.arg(mode)
-    P <- if (is.list(obj) && !is.null(obj$predicted_output)) obj$predicted_output else obj
-    if (is.data.frame(P)) P <- as.matrix(P)
-    if (is.vector(P))     P <- matrix(as.numeric(P), ncol=1L)
+    dcat(sprintf("[PRED-MAT] ENTER mode=%s", mode))
+    if (is.list(obj) && !is.null(obj$predicted_output)) {
+      P <- obj$predicted_output
+      dcat("[PRED-MAT] using obj$predicted_output")
+    } else {
+      P <- obj
+      dcat("[PRED-MAT] using obj directly")
+    }
+    if (is.data.frame(P)) {
+      dcat("[PRED-MAT] P is data.frame -> matrix(double)")
+      na_before <- .na_count_df(P)
+      P <- as.matrix(P)
+      .dbg_delta_na(na_before, .na_count_df(as.data.frame(P)), tag="pred-df->mat")
+    }
+    if (is.vector(P)) {
+      dcat("[PRED-MAT] P is vector -> matrix(ncol=1)")
+      P <- matrix(as.numeric(P), ncol=1L)
+    }
     if (!is.matrix(P)) stop("[as_pred] unsupported prediction object")
     storage.mode(P) <- "double"
-    if (mode=="regression" && ncol(P)>1L) P <- P[,1,drop=FALSE]
+    if (mode=="regression" && ncol(P)>1L) {
+      dcat("[PRED-MAT] regression & ncol>1 -> keep first col only")
+      P <- P[,1,drop=FALSE]
+    }
+    dbg_head(P, tag="[PRED-MAT] OUT P")
     P
   }
   
-  # ---------- outdir ----------
+  ## =========================
+  ## outdir + config
+  ## =========================
   out_norm <- tryCatch(normalizePath(OUTPUT_DIR, winslash="/", mustWork=FALSE), error=function(e) OUTPUT_DIR)
   dcat("OUTPUT_DIR=", out_norm)
   if (!is.null(OUT_DIR_ASSERT)) {
@@ -2510,15 +2616,15 @@ DDESONN_predict_eval <- function(
   }
   if (!dir.exists(out_norm)) dir.create(out_norm, recursive=TRUE, showWarnings=FALSE)
   
-  # ---------- config ----------
   CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
   if (!CLASSIFICATION_MODE %in% c("binary","multiclass","regression")) stop("bad CLASSIFICATION_MODE")
   CLASS_THRESHOLD <- as.numeric(get0("CLASS_THRESHOLD", inherits=TRUE, ifnotfound=0.5))
   SONN         <- get0("SONN", inherits=TRUE, ifnotfound=NULL)
-  verbose_flag <- isTRUE(get0("verbose", inherits=TRUE, ifnotfound=FALSE))
   dcat("CFG split=", INPUT_SPLIT, " mode=", CLASSIFICATION_MODE, " run=", RUN_INDEX, " seed=", SEED, " slot=", MODEL_SLOT)
   
-  # ---------- load meta ----------
+  ## =========================
+  ## load meta
+  ## =========================
   .resolve_meta <- function(ENV_META_NAME, MODEL_SLOT, SEED, LOAD_FROM_RDS){
     esc <- function(s) gsub("([.()\\[\\]^$+*?{}|\\\\])","\\\\\\1", s)
     cand <- unique(c(
@@ -2528,7 +2634,10 @@ DDESONN_predict_eval <- function(
       sub("(?i)(_seed)\\d+", paste0("\\1", as.character(SEED)), ENV_META_NAME, perl=TRUE),
       sub("(?i)(seed)\\d+",  paste0("\\1", as.character(SEED)), ENV_META_NAME, perl=TRUE)
     ))
-    if (!LOAD_FROM_RDS) for (nm in cand) if (exists(nm, inherits=TRUE)) { m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
+    if (!LOAD_FROM_RDS)
+      for (nm in cand)
+        if (exists(nm, inherits=TRUE)) { m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
+    
     adir <- get0(".BM_DIR", inherits=TRUE, ifnotfound="artifacts")
     files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
     if (!length(files)) stop("no RDS artifacts in ", adir)
@@ -2544,7 +2653,9 @@ DDESONN_predict_eval <- function(
   meta <- .resolve_meta(ENV_META_NAME, MODEL_SLOT, SEED, LOAD_FROM_RDS)
   dcat("LOAD meta via: ", attr(meta, "artifact_path"))
   
-  # ---------- choose split ----------
+  ## =========================
+  ## choose split
+  ## =========================
   sl <- tolower(INPUT_SPLIT)
   if (sl == "test")            { Xi_raw <- meta$X_test;       yi_raw <- meta$y_test;       split_used <- "test" }
   else if (sl == "validation") { Xi_raw <- meta$X_validation; yi_raw <- meta$y_validation; split_used <- "validation" }
@@ -2556,97 +2667,139 @@ DDESONN_predict_eval <- function(
   }
   if (is.null(Xi_raw) || is.null(yi_raw)) stop("Requested split not present in metadata: ", INPUT_SPLIT)
   
-  # ---------- coerce + align ----------
+  dbg_head(Xi_raw, tag="[SPLIT] Xi_raw")
+  dbg_head(yi_raw, tag="[SPLIT] yi_raw")
+  
+  ## =========================
+  ## coerce + align
+  ## =========================
   Xi <- .as_num_mat(Xi_raw, "X")
-  # y: handle multiclass robustly
+  
   if (CLASSIFICATION_MODE == "multiclass") {
     if (is.matrix(yi_raw) && ncol(yi_raw) > 1L) {
+      dcat("[LABEL] multiclass matrix->argmax")
       yi <- as.integer(max.col(yi_raw, ties.method = "first"))
     } else if (is.factor(yi_raw)) {
+      dcat("[LABEL] factor->integer")
       yi <- as.integer(yi_raw)
     } else if (is.character(yi_raw)) {
-      # temporary factor map (stable)
+      dcat("[LABEL] character->factor->integer")
       yi <- as.integer(factor(yi_raw))
     } else {
+      dcat("[LABEL] generic->integer (with 1-based safety)")
       yi <- suppressWarnings(as.integer(yi_raw))
       if (min(yi, na.rm = TRUE) == 0L) yi <- yi + 1L
     }
   } else if (CLASSIFICATION_MODE == "binary") {
-    if (is.factor(yi_raw)) yi <- as.integer(yi_raw == levels(yi_raw)[length(levels(yi_raw))])
-    else if (is.character(yi_raw)) yi <- as.integer(factor(yi_raw) == levels(factor(yi_raw))[length(levels(factor(yi_raw)))])
-    else if (is.logical(yi_raw)) yi <- as.integer(yi_raw)
-    else yi <- as.integer(yi_raw > min(yi_raw, na.rm=TRUE))
+    if (is.factor(yi_raw))         { dcat("[LABEL] binary factor")    ; yi <- as.integer(yi_raw == levels(yi_raw)[length(levels(yi_raw))]) }
+    else if (is.character(yi_raw)) { dcat("[LABEL] binary character") ; yi <- as.integer(factor(yi_raw) == levels(factor(yi_raw))[length(levels(factor(yi_raw)))]) }
+    else if (is.logical(yi_raw))   { dcat("[LABEL] binary logical")   ; yi <- as.integer(yi_raw) }
+    else                           { dcat("[LABEL] binary numeric >min"); yi <- as.integer(yi_raw > min(yi_raw, na.rm=TRUE)) }
   } else {
+    dcat("[LABEL] regression numeric")
     yi <- suppressWarnings(as.numeric(yi_raw))
   }
   
-  # trim if needed
+  dbg_head(yi, tag="[LABEL] yi (aligned vector pre-trim)")
+  
   nX <- nrow(Xi); ny <- length(yi); nmin <- min(nX, ny)
+  dcat(sprintf("[ALIGN] nX=%d ny=%d nmin=%d", nX, ny, nmin))
   if (nmin <= 0L) stop(sprintf("[ALIGN] NROW(X)=%d vs len(y)=%d", nX, ny))
   if (nX != nmin) Xi <- Xi[seq_len(nmin), , drop=FALSE]
   if (ny != nmin) yi <- yi[seq_len(nmin)]
   
-  # ---------- predict ----------
+  dbg_head(Xi, tag="[ALIGN] Xi")
+  dbg_head(yi, tag="[ALIGN] yi")
+  
+  ## =========================
+  ## predict
+  ## =========================
   t0 <- proc.time()
+  dcat("[PRED] calling .safe_run_predict ...")
   out <- .safe_run_predict(
     X = Xi, meta = meta, model_index = as.integer(MODEL_SLOT), ML_NN = ML_NN,
     verbose = isTRUE(get0("VERBOSE_RUNPRED", inherits=TRUE, ifnotfound=FALSE)),
     debug   = isTRUE(get0("DEBUG_RUNPRED",   inherits=TRUE, ifnotfound=FALSE))
   )
   prediction_time <- as.numeric((proc.time() - t0)[["elapsed"]])
+  dcat(sprintf("[PRED] .safe_run_predict done in %.3fs", prediction_time))
   
   pred_mode <- switch(CLASSIFICATION_MODE, regression="regression", multiclass="multiclass", binary="binary")
   P_raw <- .as_pred_mat(out, mode = pred_mode)
   if (!is.matrix(P_raw)) P_raw <- as.matrix(P_raw)
   storage.mode(P_raw) <- "double"
+  dbg_head(P_raw, tag="[PRED] P_raw")
   
-  # ---------- to probabilities ----------
+  ## =========================
+  ## scores -> probabilities
+  ## =========================
   P <- P_raw
   if (CLASSIFICATION_MODE == "multiclass") {
+    dcat("[PROB] multiclass softmax (row-wise)")
     if (ncol(P) > 1L) {
-      mx <- apply(P, 1L, max); ex <- exp(P - mx); rs <- rowSums(ex); rs[!is.finite(rs)|rs<=0] <- 1
+      mx <- apply(P, 1L, max)
+      ex <- exp(P - mx)
+      rs <- rowSums(ex); rs[!is.finite(rs) | rs <= 0] <- 1
       P <- ex / rs
     }
     P[!is.finite(P)] <- 0
     P <- pmin(pmax(P, .Machine$double.eps), 1 - .Machine$double.eps)
   } else if (CLASSIFICATION_MODE == "binary") {
     if (ncol(P) == 1L) {
+      dcat("[PROB] binary single-column -> clamp in (0,1)")
       P[!is.finite(P)] <- 0
       P[,1] <- pmin(pmax(P[,1], .Machine$double.eps), 1 - .Machine$double.eps)
     } else {
-      mx <- apply(P, 1L, max); ex <- exp(P - mx); sm <- rowSums(ex); sm[!is.finite(sm)|sm<=0] <- 1
-      S <- ex / sm; P <- matrix(S[, min(2L, ncol(S))], ncol=1L)
+      dcat("[PROB] binary with 2+ cols -> softmax then take class-2 prob")
+      mx <- apply(P, 1L, max)
+      ex <- exp(P - mx)
+      sm <- rowSums(ex); sm[!is.finite(sm) | sm <= 0] <- 1
+      S <- ex / sm
+      P <- matrix(S[, min(2L, ncol(S))], ncol=1L)
       P[!is.finite(P)] <- 0
       P[,1] <- pmin(pmax(P[,1], .Machine$double.eps), 1 - .Machine$double.eps)
     }
   } else {
+    dcat("[PROB] regression passthrough (1st col if multi)")
     if (ncol(P) > 1L) P <- P[,1,drop=FALSE]
     P[!is.finite(P)] <- NA_real_
   }
+  dbg_head(P, tag="[PROB] P (final)")
   base_n <- nrow(P)
   
-  # ---------- hard MC label normalization ----------
+  ## =========================
+  ## label/P sanitize for metrics
+  ## =========================
   if (CLASSIFICATION_MODE == "multiclass") {
-    # ensure labels are 1..K
     K <- ncol(P)
     yi_vec <- suppressWarnings(as.integer(yi))
     yi_vec[yi_vec < 1L | yi_vec > K] <- NA_integer_
+    
     sumP <- rowSums(P)
     finite_rows <- rowSums(!is.finite(P)) == 0L
     prob_rows <- is.finite(sumP) & (sumP > 0.999 - 1e-6) & (sumP < 1.001 + 1e-6)
     keep <- finite_rows & prob_rows & is.finite(yi_vec)
+    dcat(sprintf("[SAN] MC keep=%d drop=%d of %d", sum(keep), sum(!keep), length(keep)))
     if (!any(keep)) stop("[metrics_align] no valid rows after MC sanitize")
-    dropped <- sum(!keep); if (dropped) message(sprintf("[metrics_align] dropping %d/%d rows", dropped, nrow(P)))
     P <- P[keep,,drop=FALSE]; yi_vec <- yi_vec[keep]
   } else {
     yi_vec <- yi
     keep <- is.finite(yi_vec) & apply(P, 1L, function(r) all(is.finite(r)))
+    dcat(sprintf("[SAN] non-MC keep=%d drop=%d of %d", sum(keep), sum(!keep), length(keep)))
     if (!all(keep)) { P <- P[keep,,drop=FALSE]; yi_vec <- yi_vec[keep] }
   }
   base_n <- nrow(P)
+  dbg_head(yi_vec, tag="[SAN] yi_vec")
+  dbg_head(P, tag="[SAN] P (for metrics)")
   
-  # ---------- base metrics ----------
+  ## =========================
+  ## base metrics
+  ## =========================
   acc <- prec <- rec <- f1s <- NA_real_
+  mc_macro_precision <- mc_macro_recall <- mc_macro_f1 <- NA_real_
+  mc_micro_precision <- mc_micro_recall <- mc_micro_f1 <- NA_real_
+  mc_weighted_precision <- mc_weighted_recall <- mc_weighted_f1 <- NA_real_
+  
   if (CLASSIFICATION_MODE == "binary") {
     y_true <- if (all(yi_vec %in% c(0,1), na.rm=TRUE)) as.integer(yi_vec) else as.integer(yi_vec >= 0.5)
     p_pos  <- as.numeric(P[,1]); ok <- is.finite(y_true) & is.finite(p_pos)
@@ -2659,25 +2812,50 @@ DDESONN_predict_eval <- function(
     prec <- if ((TP+FP)>0) TP/(TP+FP) else 0
     rec  <- if ((TP+FN)>0) TP/(TP+FN) else 0
     f1s  <- if ((prec+rec)>0) 2*prec*rec/(prec+rec) else 0
+    
   } else if (CLASSIFICATION_MODE == "multiclass") {
     yhat <- max.col(P, ties.method="first")
     ymc  <- as.integer(yi_vec)
     ok   <- is.finite(yhat) & is.finite(ymc); yhat <- yhat[ok]; ymc <- ymc[ok]
     acc  <- mean(yhat == ymc)
+    
     K <- max(yhat, ymc, na.rm=TRUE)
-    macro_prec <- macro_rec <- macro_f1 <- numeric(K)
+    TPk <- FPk <- FNk <- support <- numeric(K)
+    pk <- rk <- fk <- numeric(K)
     for (k in seq_len(K)) {
-      TPk <- sum(yhat==k & ymc==k); FPk <- sum(yhat==k & ymc!=k); FNk <- sum(yhat!=k & ymc==k)
-      pk <- if ((TPk+FPk)>0) TPk/(TPk+FPk) else 0
-      rk <- if ((TPk+FNk)>0) TPk/(TPk+FNk) else 0
-      fk <- if ((pk+rk)>0) 2*pk*rk/(pk+rk) else 0
-      macro_prec[k] <- pk; macro_rec[k] <- rk; macro_f1[k] <- fk
+      TPk[k] <- sum(yhat==k & ymc==k)
+      FPk[k] <- sum(yhat==k & ymc!=k)
+      FNk[k] <- sum(yhat!=k & ymc==k)
+      support[k] <- sum(ymc==k)
+      pk[k] <- if ((TPk[k]+FPk[k])>0) TPk[k]/(TPk[k]+FPk[k]) else NA_real_
+      rk[k] <- if ((TPk[k]+FNk[k])>0) TPk[k]/(TPk[k]+FNk[k]) else NA_real_
+      fk[k] <- if (is.finite(pk[k]) && is.finite(rk[k]) && (pk[k]+rk[k])>0) 2*pk[k]*rk[k]/(pk[k]+rk[k]) else NA_real_
     }
-    prec <- mean(macro_prec); rec <- mean(macro_rec); f1s <- mean(macro_f1)
+    mc_macro_precision <- mean(pk, na.rm=TRUE)
+    mc_macro_recall    <- mean(rk, na.rm=TRUE)
+    mc_macro_f1        <- mean(fk, na.rm=TRUE)
+    
+    TPm <- sum(TPk, na.rm=TRUE); FPm <- sum(FPk, na.rm=TRUE); FNm <- sum(FNk, na.rm=TRUE)
+    mc_micro_precision <- if ((TPm+FPm)>0) TPm/(TPm+FPm) else NA_real_
+    mc_micro_recall    <- if ((TPm+FNm)>0) TPm/(TPm+FNm) else NA_real_
+    mc_micro_f1        <- if (is.finite(mc_micro_precision) && is.finite(mc_micro_recall) && (mc_micro_precision+mc_micro_recall)>0)
+      2*mc_micro_precision*mc_micro_recall/(mc_micro_precision+mc_micro_recall) else NA_real_
+    
+    tot_sup <- sum(support, na.rm=TRUE)
+    w <- if (tot_sup > 0) support / tot_sup else rep(0, length(support))
+    mc_weighted_precision <- sum(w * pk, na.rm=TRUE)
+    mc_weighted_recall    <- sum(w * rk, na.rm=TRUE)
+    mc_weighted_f1        <- sum(w * fk, na.rm=TRUE)
+    
+    prec <- mc_macro_precision; rec <- mc_macro_recall; f1s <- mc_macro_f1
   }
-  dcat(sprintf("METR raw: acc=%.6f | prec=%.6f | rec=%.6f | f1=%.6f | base_n=%d", r6(acc), r6(prec), r6(rec), r6(f1s), base_n))
   
-  # ---------- tuned metrics (safe) ----------
+  dcat(sprintf("METR raw: acc=%.6f | prec=%.6f | rec=%.6f | f1=%.6f | base_n=%d",
+               r6(acc), r6(prec), r6(rec), r6(f1s), base_n))
+  
+  ## =========================
+  ## tuned (safe try)
+  ## =========================
   tuned <- tryCatch(
     accuracy_precision_recall_f1_tuned(
       SONN=SONN, Rdata=Xi, labels=yi_vec, CLASSIFICATION_MODE=CLASSIFICATION_MODE, predicted_output=P,
@@ -2685,54 +2863,90 @@ DDESONN_predict_eval <- function(
       threshold_grid=get0("THRESHOLD_GRID", inherits=TRUE, ifnotfound=seq(0.05,0.95,by=0.01)),
       verbose=isTRUE(get0("TUNED_VERBOSE", inherits=TRUE, ifnotfound=FALSE))
     ),
-    error=function(e) list(accuracy=NA_real_, precision=NA_real_, recall=NA_real_, f1=NA_real_, details=list(best_threshold=NA_real_, tuned_by="error"))
+    error=function(e) { dcat(paste0("[TUNED] ERROR: ", conditionMessage(e))); list(accuracy=NA_real_, precision=NA_real_, recall=NA_real_, f1=NA_real_, details=list(best_threshold=NA_real_, tuned_by="error")) }
   )
   chosen_threshold <- if (CLASSIFICATION_MODE=="multiclass") NA_real_ else {
     bt <- tryCatch(tuned$details$best_threshold, error=function(e) tuned$best_threshold)
     if (!is.numeric(bt) || !is.finite(bt)) 0.5 else as.numeric(bt)
   }
+  dcat(sprintf("[TUNED] thr=%s acc=%.6f prec=%.6f rec=%.6f f1=%.6f",
+               ifelse(is.na(chosen_threshold),"NA",format(chosen_threshold)), r6(tuned$accuracy), r6(tuned$precision), r6(tuned$recall), r6(tuned$f1)))
   
-  # ---------- compact results row ----------
-  row_df <- safe_df(list(
+  ## =========================
+  ## compact results row
+  ## =========================
+  row_df <- data.frame(
     run_index=as.integer(RUN_INDEX), seed=as.integer(SEED),
     model_slot=as.integer(MODEL_SLOT), slot=as.integer(MODEL_SLOT),
     split=tolower(split_used), SPLIT=toupper(split_used), .__split__=tolower(split_used),
     CLASSIFICATION_MODE=toupper(CLASSIFICATION_MODE),
     RUN_INDEX=as.integer(RUN_INDEX), SEED=as.integer(SEED), MODEL_SLOT=as.integer(MODEL_SLOT),
-    accuracy=r6(acc), precision=r6(prec), recall=r6(rec), f1=r6(f1s)
-  ), "row_df")
+    accuracy=r6(acc), precision=r6(prec), recall=r6(rec), f1=r6(f1s),
+    precision_macro  = r6(mc_macro_precision),
+    recall_macro     = r6(mc_macro_recall),
+    f1_macro         = r6(mc_macro_f1),
+    precision_micro  = r6(mc_micro_precision),
+    recall_micro     = r6(mc_micro_recall),
+    f1_micro         = r6(mc_micro_f1),
+    precision_weighted = r6(mc_weighted_precision),
+    recall_weighted    = r6(mc_weighted_recall),
+    f1_weighted        = r6(mc_weighted_f1),
+    stringsAsFactors = FALSE, check.names = TRUE
+  )
+  dbg_head(row_df, tag="[WRITE] row_df (metrics row)")
   
-  # ---------- write metrics ----------
+  ## =========================
+  ## write metrics (upsert)
+  ## =========================
   ts_now <- format(Sys.time(), "%Y%m%d_%H%M%S")
   if (isTRUE(SAVE_METRICS_RDS) && is.null(AGG_METRICS_FILE)) {
-    per_seed_metrics_path <- file.path(out_norm, sprintf("%s_run%03d_seed%s_%s_slot%d.rds", METRICS_PREFIX, as.integer(RUN_INDEX), as.character(SEED), ts_now, as.integer(MODEL_SLOT)))
+    per_seed_metrics_path <- file.path(out_norm, sprintf("%s_run%03d_seed%s_%s_slot%d.rds",
+                                                         METRICS_PREFIX, as.integer(RUN_INDEX),
+                                                         as.character(SEED), ts_now, as.integer(MODEL_SLOT)))
     saveRDS(row_df, per_seed_metrics_path)
     dcat("WRITE per-seed metrics: ", per_seed_metrics_path)
   }
   if (!is.null(AGG_METRICS_FILE) && nzchar(AGG_METRICS_FILE)) {
+    dcat("[UPsert-METR] target=", AGG_METRICS_FILE)
     if (file.exists(AGG_METRICS_FILE)) {
       old <- readRDS(AGG_METRICS_FILE); if (!is.data.frame(old)) old <- as.data.frame(old, stringsAsFactors=FALSE)
+      dbg_head(old, tag="[UPsert-METR] old (pre)")
       add_m <- setdiff(names(row_df), names(old)); for (nm in add_m) old[[nm]] <- NA
       add_o <- setdiff(names(old), names(row_df)); for (nm in add_o) row_df[[nm]] <- NA
-      agg_tbl <- rbind(old, row_df[, names(old), drop=FALSE])
-    } else agg_tbl <- row_df
+      keep <- !(old$run_index == as.integer(RUN_INDEX) &
+                  old$seed      == as.integer(SEED) &
+                  (if ("slot" %in% names(old)) old$slot else old$model_slot) == as.integer(MODEL_SLOT) &
+                  tolower(old$split) == tolower(split_used))
+      old2 <- old[keep, , drop = FALSE]
+      agg_tbl <- if (nrow(old2)) rbind(old2, row_df[, names(old2), drop=FALSE]) else row_df[, names(old), drop=FALSE]
+    } else {
+      agg_tbl <- row_df
+    }
+    dbg_head(agg_tbl, tag="[UPsert-METR] agg_tbl (post)")
     saveRDS(agg_tbl, AGG_METRICS_FILE)
-    dcat("WRITE agg metrics append OK → ", AGG_METRICS_FILE)
+    dcat("WRITE agg metrics upsert OK → ", AGG_METRICS_FILE)
   }
   
-  # ---------- write predictions (aggregate) ----------
+  ## =========================
+  ## write predictions (upsert)
+  ## =========================
   if (!is.null(AGG_PREDICTIONS_FILE) && nzchar(AGG_PREDICTIONS_FILE)) {
-    SAVE_PREDICTIONS_COLUMN_IN_RDS <- isTRUE(get0("SAVE_PREDICTIONS_COLUMN_IN_RDS", inherits=TRUE, ifnotfound=FALSE))
+    dcat("[UPsert-PRED] target=", AGG_PREDICTIONS_FILE)
     if (CLASSIFICATION_MODE == "binary") {
       y_prob_vec <- as.numeric(P[,1]); y_pred_vec <- as.integer(y_prob_vec >= CLASS_THRESHOLD)
     } else if (CLASSIFICATION_MODE == "multiclass") {
-      y_prob_vec <- apply(P, 1, max); y_pred_vec <- max.col(P, ties.method="first")
+      y_prob_vec <- apply(P, 1, max)
+      y_pred_vec <- max.col(P, ties.method="first")
     } else {
       y_prob_vec <- as.numeric(P[,1]); y_pred_vec <- y_prob_vec
     }
-    pred_list_col <- if (SAVE_PREDICTIONS_COLUMN_IN_RDS) I(split(P, row(P)[,1])) else NULL
     
-    pred_df <- safe_df(list(
+    SAVE_PREDICTIONS_COLUMN_IN_RDS <- isTRUE(get0("SAVE_PREDICTIONS_COLUMN_IN_RDS", inherits=TRUE, ifnotfound=FALSE))
+    pred_list_col <- if (isTRUE(SAVE_PREDICTIONS_COLUMN_IN_RDS)) lapply(seq_len(base_n), function(i) as.numeric(P[i, , drop = TRUE])) else NULL
+    
+    obs_index <- seq_len(base_n)
+    
+    pred_df <- data.frame(
       run_index = rep.int(as.integer(RUN_INDEX), base_n),
       seed      = rep.int(as.integer(SEED),      base_n),
       model_slot= rep.int(as.integer(MODEL_SLOT),base_n),
@@ -2747,42 +2961,92 @@ DDESONN_predict_eval <- function(
       RUN_INDEX = rep.int(as.integer(RUN_INDEX), base_n),
       SEED      = rep.int(as.integer(SEED),      base_n),
       MODEL_SLOT= rep.int(as.integer(MODEL_SLOT),base_n),
-      y_prob_full = if (SAVE_PREDICTIONS_COLUMN_IN_RDS) pred_list_col else NULL
-    ), "pred_df")
+      obs_index = obs_index,
+      stringsAsFactors = FALSE, check.names = TRUE
+    )
+    if (isTRUE(SAVE_PREDICTIONS_COLUMN_IN_RDS)) pred_df$y_prob_full <- pred_list_col
+    
+    dbg_head(pred_df, tag="[UPsert-PRED] pred_df (new)")
     
     if (file.exists(AGG_PREDICTIONS_FILE)) {
       old <- readRDS(AGG_PREDICTIONS_FILE); if (!is.data.frame(old)) old <- as.data.frame(old, stringsAsFactors=FALSE)
+      dbg_head(old, tag="[UPsert-PRED] old (pre)")
+      
+      ## align columns
       add_m <- setdiff(names(pred_df), names(old)); for (nm in add_m) old[[nm]] <- NA
       add_o <- setdiff(names(old), names(pred_df)); for (nm in add_o) pred_df[[nm]] <- NA
-      agg_pred <- rbind(old, pred_df[, names(old), drop=FALSE])
-    } else agg_pred <- pred_df
+      
+      ## 1) drop all rows in old that match this (run, seed, slot, split)
+      slot_col  <- if ("slot" %in% names(old)) "slot" else if ("model_slot" %in% names(old)) "model_slot" else "slot"
+      split_col <- if ("split" %in% names(old)) "split" else "SPLIT"
+      
+      old_split_norm <- tolower(as.character(old[[split_col]]))
+      keep_old <- !(as.integer(old$run_index) == as.integer(RUN_INDEX) &
+                      as.integer(old$seed)      == as.integer(SEED) &
+                      as.integer(old[[slot_col]]) == as.integer(MODEL_SLOT) &
+                      old_split_norm == tolower(split_used))
+      old2 <- old[keep_old, , drop = FALSE]
+      
+      ## 2) bind
+      agg_pred <- if (nrow(old2)) rbind(old2, pred_df[, names(old2), drop=FALSE]) else pred_df[, names(old), drop=FALSE]
+      
+      ## 3) de-dup on composite key
+      slot_col  <- if ("slot" %in% names(agg_pred)) "slot" else if ("model_slot" %in% names(agg_pred)) "model_slot" else "slot"
+      split_col <- if ("split" %in% names(agg_pred)) "split" else "SPLIT"
+      comp <- paste(
+        as.integer(agg_pred$run_index),
+        as.integer(agg_pred$seed),
+        as.integer(agg_pred[[slot_col]]),
+        tolower(as.character(agg_pred[[split_col]])),
+        as.integer(agg_pred$obs_index),
+        sep="|"
+      )
+      if (any(duplicated(comp))) {
+        dcat(sprintf("[UPsert-PRED] de-dup removed %d rows", sum(duplicated(comp))))
+        agg_pred <- agg_pred[!duplicated(comp), , drop=FALSE]
+      }
+    } else {
+      agg_pred <- pred_df
+    }
     
+    dbg_head(agg_pred, tag="[UPsert-PRED] agg_pred (post)")
     saveRDS(agg_pred, AGG_PREDICTIONS_FILE)
-    dcat("WRITE agg preds append OK: +", nrow(pred_df), " rows")
+    dcat("WRITE agg preds upsert OK: +", base_n, " rows (this slot)")
     
-    # ---- WRITE-CHECK GUARD ----
-    ap <- readRDS(AGG_PREDICTIONS_FILE)
-    if (!"slot" %in% names(ap) && "model_slot" %in% names(ap)) ap$slot <- suppressWarnings(as.integer(ap$model_slot))
+    ## STRICT WRITE-CHECK
+    slot_col  <- if ("slot" %in% names(agg_pred)) "slot" else if ("model_slot" %in% names(agg_pred)) "model_slot" else "slot"
+    split_col <- if ("split" %in% names(agg_pred)) "split" else "SPLIT"
+    ap <- agg_pred
     ap$run_index <- suppressWarnings(as.integer(ap$run_index))
     ap$seed      <- suppressWarnings(as.integer(ap$seed))
-    if ("split" %in% names(ap)) ap$split <- tolower(as.character(ap$split))
-    if ("SPLIT" %in% names(ap)) ap$SPLIT <- toupper(as.character(ap$SPLIT))
+    ap[[slot_col]] <- suppressWarnings(as.integer(ap[[slot_col]]))
+    ap[[split_col]] <- tolower(as.character(ap[[split_col]]))
     
-    hit <- with(ap, sum(
-      run_index == as.integer(RUN_INDEX) &
-        seed      == as.integer(SEED) &
-        slot      == as.integer(MODEL_SLOT) &
-        tolower(split) == tolower(split_used)
-    ))
-    if (hit != base_n) stop(sprintf("[WRITE-CHECK] agg preds missing for (run=%s seed=%s slot=%s split=%s): found %d of %d rows",
-                                    as.character(RUN_INDEX), as.character(SEED), as.character(MODEL_SLOT), split_used,
-                                    as.integer(hit), as.integer(base_n)))
+    hit <- sum(
+      ap$run_index == as.integer(RUN_INDEX) &
+        ap$seed      == as.integer(SEED) &
+        ap[[slot_col]] == as.integer(MODEL_SLOT) &
+        ap[[split_col]] == tolower(split_used)
+    )
+    dcat(sprintf("[WRITE-CHECK] expect base_n=%d found=%d for key(run,seed,slot,split)=(%s,%s,%s,%s)",
+                 base_n, hit, as.character(RUN_INDEX), as.character(SEED), as.character(MODEL_SLOT), split_used))
+    if (hit != base_n) {
+      stop(sprintf(
+        "[WRITE-CHECK] agg preds missing for (run=%s seed=%s slot=%s split=%s): found %d of %d rows",
+        as.character(RUN_INDEX), as.character(SEED), as.character(MODEL_SLOT), split_used,
+        as.integer(hit), as.integer(base_n)
+      ))
+    }
   }
   
-  # ---------- final ----------
-  dcat("[OK] seed=", SEED, " slot=", MODEL_SLOT, " acc=", r6(acc), " prec=", r6(prec), " rec=", r6(rec), " f1=", r6(f1s))
-  list(
-    results_compact = safe_df(list(
+  ## =========================
+  ## final
+  ## =========================
+  dcat("[OK] seed=", SEED, " slot=", MODEL_SLOT,
+       " acc=", r6(acc), " prec=", r6(prec), " rec=", r6(rec), " f1=", r6(f1s))
+  
+  ret <- list(
+    results_compact = data.frame(
       kind = if (LOAD_FROM_RDS) "RDS" else "ENV",
       model = as.integer(MODEL_SLOT),
       split_used = split_used,
@@ -2792,12 +3056,28 @@ DDESONN_predict_eval <- function(
       tuned_accuracy  = r6(tuned$accuracy),
       tuned_precision = r6(tuned$precision),
       tuned_recall    = r6(tuned$recall),
-      tuned_f1        = r6(tuned$f1)
-    ), "results_df"),
+      tuned_f1        = r6(tuned$f1),
+      mc_precision_macro   = r6(mc_macro_precision),
+      mc_recall_macro      = r6(mc_macro_recall),
+      mc_f1_macro          = r6(mc_macro_f1),
+      mc_precision_micro   = r6(mc_micro_precision),
+      mc_recall_micro      = r6(mc_micro_recall),
+      mc_f1_micro          = r6(mc_micro_f1),
+      mc_precision_weighted= r6(mc_weighted_precision),
+      mc_recall_weighted   = r6(mc_weighted_recall),
+      mc_f1_weighted       = r6(mc_weighted_f1),
+      stringsAsFactors = FALSE, check.names = TRUE
+    ),
     probs = P, split_used = split_used,
     out_dir = out_norm, n_rows = base_n
   )
+  dbg_head(ret$results_compact, tag="[RET] results_compact")
+  invisible(ret)
 }
+
+
+
+
 
 
 
@@ -2869,6 +3149,25 @@ DDESONN_fuse_from_agg <- function(
   stopifnot(file.exists(AGG_PREDICTIONS_FILE))
   df <- readRDS(AGG_PREDICTIONS_FILE)
   
+  ## --- MINIMAL NA-PREVENTION & TYPING (drop-in) ---
+  if ("y_prob_full" %in% names(df) && is.list(df$y_prob_full)) df$y_prob_full <- NULL
+  if ("y_prob" %in% names(df)) df$y_prob <- suppressWarnings(as.numeric(df$y_prob))
+  if ("y_true" %in% names(df)) df$y_true <- suppressWarnings(as.numeric(df$y_true))
+  if ("y_pred" %in% names(df)) df$y_pred <- suppressWarnings(as.numeric(df$y_pred))
+  if ("obs_index" %in% names(df)) df$obs_index <- suppressWarnings(as.integer(df$obs_index))
+  if ("run_index" %in% names(df)) df$run_index <- suppressWarnings(as.integer(df$run_index))
+  if ("RUN_INDEX" %in% names(df)) df$RUN_INDEX <- suppressWarnings(as.integer(df$RUN_INDEX))
+  if ("seed" %in% names(df)) df$seed <- suppressWarnings(as.integer(df$seed))
+  if ("SEED" %in% names(df)) df$SEED <- suppressWarnings(as.integer(df$SEED))
+  if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
+  if ("MODEL_SLOT" %in% names(df)) df$MODEL_SLOT <- suppressWarnings(as.integer(df$MODEL_SLOT))
+  if ("split" %in% names(df)) df$split <- tolower(as.character(df$split))
+  if ("SPLIT" %in% names(df)) df$SPLIT <- toupper(as.character(df$SPLIT))
+  if ("CLASSIFICATION_MODE" %in% names(df)) df$CLASSIFICATION_MODE <- toupper(as.character(df$CLASSIFICATION_MODE))
+  if ("y_prob" %in% names(df) && any(!is.finite(df$y_prob))) stop("Non-finite y_prob in aggregate predictions.")
+  if ("y_true" %in% names(df) && any(!is.finite(df$y_true))) stop("Non-finite y_true in aggregate predictions.")
+  ## --- END MINIMAL BLOCK ---
+  
   # ---- normalize id columns & quick debug ----
   run_col  <- if ("run_index" %in% names(df)) "run_index" else if ("RUN_INDEX" %in% names(df)) "RUN_INDEX" else stop("Missing run_index/RUN_INDEX.")
   seed_col <- if ("seed"      %in% names(df)) "seed"      else if ("SEED"      %in% names(df)) "SEED"      else stop("Missing seed/SEED.")
@@ -2897,7 +3196,6 @@ DDESONN_fuse_from_agg <- function(
   
   dfx <- df[keep, , drop = FALSE]
   if (!nrow(dfx)) {
-    # extra diagnostics to show what *does* exist for that run/seed across slots
     message(sprintf("[FUSE-DBG] no rows after filter. Unique runs in file: %s",
                     paste(sort(unique(df[[run_col]])), collapse=", ")))
     message(sprintf("[FUSE-DBG] unique seeds for run=%s: %s",
@@ -2911,7 +3209,6 @@ DDESONN_fuse_from_agg <- function(
                  as.character(RUN_INDEX), as.character(SEED)))
   }
   
-  
   if (!is.data.frame(df) || !nrow(df)) stop("Aggregate predictions file is empty or not a data.frame.")
   
   # ---- column coalescers (accept upper/lower variants) ----
@@ -2922,7 +3219,7 @@ DDESONN_fuse_from_agg <- function(
   }
   has_col <- function(d, nm) nm %in% names(d)
   
-  # Resolve run/seed/split
+  # Resolve run/seed/split (second pass — keep but avoid coercion warnings)
   run_col  <- if (has_col(df,"run_index")) "run_index" else if (has_col(df,"RUN_INDEX")) "RUN_INDEX" else stop("Missing run_index/RUN_INDEX.")
   seed_col <- if (has_col(df,"seed")) "seed" else if (has_col(df,"SEED")) "SEED" else stop("Missing seed/SEED.")
   split_col <- if (has_col(df,"split")) "split" else if (has_col(df,"SPLIT")) "SPLIT" else NA_character_
@@ -2933,10 +3230,11 @@ DDESONN_fuse_from_agg <- function(
     if (length(cm)) classification_mode <- if (cm[1] %in% c("binary","multiclass","regression")) cm[1] else classification_mode
   }
   
-  # Filter rows for this run/seed (+ test split if present)
+  # Filter rows for this run/seed (+ test split if present) — PRE-COERCE to avoid "NAs introduced by coercion"
   df$.__split__ <- if (!is.na(split_col)) tolower(df[[split_col]]) else NA_character_
-  keep <- (as.integer(df[[run_col]])  == as.integer(RUN_INDEX)) &
-    (as.integer(df[[seed_col]]) == as.integer(SEED))
+  rvec <- suppressWarnings(as.integer(df[[run_col]]))
+  svec <- suppressWarnings(as.integer(df[[seed_col]]))
+  keep <- (rvec == as.integer(RUN_INDEX)) & (svec == as.integer(SEED))
   if (!all(is.na(df$.__split__))) keep <- keep & (df$.__split__ %in% c("test","valid","validation","val","holdout"))
   dfx <- df[keep, , drop = FALSE]
   if (!nrow(dfx)) stop("No rows for RUN_INDEX=", RUN_INDEX, " SEED=", SEED, " (check split/RUN/SEED).")
@@ -2945,15 +3243,15 @@ DDESONN_fuse_from_agg <- function(
   prob_vec <- function(d) {
     v <- col_or(d, "y_prob", "y_pred")
     if (is.null(v)) stop("No y_prob/y_pred column found.")
-    as.numeric(v)
+    suppressWarnings(as.numeric(v))
   }
   
   # If caller didn't provide usable y_true, try from df
   if (is.null(y_true) || !length(y_true) || all(is.na(y_true))) {
     if (!has_col(dfx,"y_true")) stop("y_true not provided and y_true column not found.")
-    y_true <- as.numeric(dfx$y_true)
+    y_true <- suppressWarnings(as.numeric(dfx$y_true))
   } else {
-    y_true <- as.numeric(y_true)
+    y_true <- suppressWarnings(as.numeric(y_true))
   }
   
   # Split by model_slot (upper/lower)
@@ -2963,10 +3261,7 @@ DDESONN_fuse_from_agg <- function(
   slots <- as.integer(names(sp))
   
   # Build matrix of per-slot probabilities
-  # Build matrix of per-slot probabilities (robust to 0/1+ slots)
   probs_list <- lapply(sp, prob_vec)
-  
-  # If no slots survived the filtering, stop with a clear error
   if (!length(probs_list)) {
     stop(sprintf("No per-slot predictions for RUN_INDEX=%s, SEED=%s (check split filter and model_slot values).",
                  as.character(RUN_INDEX), as.character(SEED)))
@@ -2978,18 +3273,13 @@ DDESONN_fuse_from_agg <- function(
   if (!is.finite(N) || N <= 0L) stop("No usable prediction vectors after alignment (N <= 0).")
   
   probs_mat <- do.call(cbind, lapply(probs_list, function(v) as.numeric(v)[seq_len(N)]))
-  
-  # Force 2-D if cbind returns a vector (happens with 1 slot sometimes)
   if (is.null(dim(probs_mat))) {
     probs_mat <- matrix(probs_mat, nrow = N, ncol = length(probs_list))
   }
-  
-  # Safe to name columns now
   colnames(probs_mat) <- paste0("slot_", slots)
   
   # Align y_true to N
   y_true <- y_true[seq_len(N)]
-  
   
   # Derive per-slot weights (optional columns; take first non-NA within slot)
   pick_slot_scalar <- function(d, nm) {
@@ -3085,6 +3375,7 @@ DDESONN_fuse_from_agg <- function(
   
   list(metrics = rows_df, predictions = out_preds)
 }
+
 
 
 
