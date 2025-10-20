@@ -1624,7 +1624,7 @@ ddesonn_predict <- function(model, new_data,
   # ---------- NEW: persist movement_log + change_log ----------
   # We try to use result$runs[[i]]$tables$movement_log / change_log if present,
   # otherwise we rebuild by collecting logs from each temp iteration entry.
-  build_log_df <- function(run_i, type = c("movement", "change")) {
+  build_log_df <- function(run_i, type = c("movement", "change", "main")) {
     type <- match.arg(type)
     # Preferred location (mirrors Train flow)
     tbls <- run_i$tables
@@ -1634,6 +1634,9 @@ ddesonn_predict <- function(model, new_data,
       }
       if (type == "change" && is.data.frame(tbls$change_log) && NROW(tbls$change_log)) {
         return(tbls$change_log)
+      }
+      if (type == "main" && is.data.frame(tbls$main_log) && NROW(tbls$main_log)) {
+        return(tbls$main_log)
       }
     }
     # Fallback: gather from temp_iteration entries if they carry rows
@@ -1648,6 +1651,9 @@ ddesonn_predict <- function(model, new_data,
       if (type == "change" && is.data.frame(ent$change_log) && NROW(ent$change_log)) {
         acc[[p <- p + 1L]] <- ent$change_log
       }
+      if (type == "main" && is.data.frame(ent$main_log) && NROW(ent$main_log)) {
+        acc[[p <- p + 1L]] <- ent$main_log
+      }
     }
     if (!length(acc)) return(data.frame())
     out <- try(do.call(rbind, acc), silent = TRUE)
@@ -1661,6 +1667,7 @@ ddesonn_predict <- function(model, new_data,
     
     mv <- build_log_df(result$runs[[i]], "movement")
     ch <- build_log_df(result$runs[[i]], "change")
+    ml <- build_log_df(result$runs[[i]], "main")
     
     # De-dup (sometimes callers accumulate)
     dedup <- function(df) {
@@ -1674,13 +1681,16 @@ ddesonn_predict <- function(model, new_data,
       df[!duplicated(df[, key_cols, drop = FALSE]), , drop = FALSE]
     }
     mv <- dedup(mv); ch <- dedup(ch)
+    ml <- dedup(ml)
     
     mv_path <- file.path(log_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
     ch_path <- file.path(log_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts))
+    ml_path <- file.path(log_dir, sprintf("main_log_run%03d_seed%s_%s.rds",     i, seed_i, ts))
     
     # Only write if we actually have rows (exactly like your train flow)
     if (is.data.frame(mv) && NROW(mv)) saveRDS(mv, mv_path)
     if (is.data.frame(ch) && NROW(ch)) saveRDS(ch, ch_path)
+    if (is.data.frame(ml) && NROW(ml)) saveRDS(ml, ml_path)
   }
   
   invisible(NULL)
@@ -1824,9 +1834,14 @@ ddesonn_predict <- function(model, new_data,
   dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
   for (i in seq_along(seeds)) {
     seed_i <- seeds[[i]]
-    saveRDS(data.frame(), file.path(logs_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts)))
-    saveRDS(data.frame(), file.path(logs_dir, sprintf("change_log_run%03d_seed%s_%s.rds", i, seed_i, ts)))
-    saveRDS(data.frame(), file.path(logs_dir, sprintf("main_log_run%03d_seed%s_%s.rds", i, seed_i, ts)))
+    paths <- c(
+      movement = file.path(logs_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts)),
+      change   = file.path(logs_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts)),
+      main     = file.path(logs_dir, sprintf("main_log_run%03d_seed%s_%s.rds",     i, seed_i, ts))
+    )
+    for (p in paths) {
+      if (!file.exists(p)) saveRDS(data.frame(), p)
+    }
   }
   
   saveRDS(list(
@@ -1964,10 +1979,255 @@ ddesonn_run <- function(x,
     prediction_matrix <- .as_numeric_matrix(prediction_data)
   }
   
+  target_metric <- {
+    default_metric <- if (identical(classification_mode, "regression")) "MSE" else "accuracy"
+    get0(
+      "metric_name",
+      inherits = TRUE,
+      ifnotfound = get0("TARGET_METRIC", inherits = TRUE, ifnotfound = default_metric)
+    )
+  }
+  
+  metric_minimize <- function(metric) {
+    m <- tolower(as.character(metric %||% ""))
+    if (!nzchar(m)) return(FALSE)
+    m %in% c(
+      "mse", "mae", "rmse", "r2", "mape", "smape", "wmape", "mase",
+      "logloss", "brier", "quantization_error", "topographic_error",
+      "clustering_quality_db", "generalization_ability", "loss"
+    )
+  }
+  
+  main_meta_var <- function(i) sprintf("Ensemble_Main_1_model_%d_metadata", as.integer(i))
+  temp_meta_var <- function(e, i) sprintf("Ensemble_Temp_%d_model_%d_metadata", as.integer(e), as.integer(i))
+  
+  snapshot_main_serials_meta <- function() {
+    vars <- grep("^Ensemble_Main_(0|1)_model_\\d+_metadata$", ls(.GlobalEnv), value = TRUE)
+    if (!length(vars)) return(character())
+    ord <- suppressWarnings(as.integer(sub("^Ensemble_Main_(?:0|1)_model_(\\d+)_metadata$", "\\1", vars)))
+    vars <- vars[order(ord)]
+    vapply(vars, function(v) {
+      md <- get(v, envir = .GlobalEnv)
+      as.character(md$model_serial_num %||% NA_character_)
+    }, character(1))
+  }
+  
+  get_metric_by_serial <- function(serial, metric_name) {
+    vars <- grep(
+      "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
+      ls(.GlobalEnv), value = TRUE
+    )
+    if (!length(vars)) return(NA_real_)
+    for (v in vars) {
+      md <- get(v, envir = .GlobalEnv)
+      if (identical(as.character(md$model_serial_num %||% NA_character_), as.character(serial))) {
+        val <- tryCatch(md$performance_metric[[metric_name]], error = function(e) NULL)
+        if (is.null(val)) {
+          val <- tryCatch(md$relevance_metric[[metric_name]], error = function(e) NULL)
+        }
+        vn <- suppressWarnings(as.numeric(val))
+        if (length(vn) && is.finite(vn[1])) return(vn[1])
+        return(NA_real_)
+      }
+    }
+    NA_real_
+  }
+  
+  get_temp_serials_meta <- function(iter_j) {
+    e <- as.integer(iter_j) + 1L
+    vars <- grep(sprintf("^Ensemble_Temp_%d_model_\\d+_metadata$", e), ls(.GlobalEnv), value = TRUE)
+    if (!length(vars)) return(character())
+    ord <- suppressWarnings(as.integer(sub(sprintf("^Ensemble_Temp_%d_model_(\\d+)_metadata$", e), "\\1", vars)))
+    vars <- vars[order(ord)]
+    vapply(vars, function(v) {
+      md <- get(v, envir = .GlobalEnv)
+      s <- md$model_serial_num
+      if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
+    }, character(1))
+  }
+  
+  empty_log_tables <- function() {
+    list(
+      main_log = data.frame(
+        iteration = integer(), phase = character(), slot = integer(),
+        serial = character(), metric_name = character(),
+        metric_value = numeric(), message = character(),
+        timestamp = as.POSIXct(character()), stringsAsFactors = FALSE
+      ),
+      movement_log = data.frame(
+        iteration = integer(), phase = character(), slot = integer(),
+        role = character(), serial = character(), metric_name = character(),
+        metric_value = numeric(), message = character(),
+        timestamp = as.POSIXct(character()), stringsAsFactors = FALSE
+      ),
+      change_log = data.frame(
+        iteration = integer(), role = character(), serial = character(),
+        metric_name = character(), metric_value = numeric(),
+        message = character(), timestamp = as.POSIXct(character()),
+        stringsAsFactors = FALSE
+      )
+    )
+  }
+  
+  record_main_snapshot <- function(log_tables, iteration, phase) {
+    serials <- snapshot_main_serials_meta()
+    if (!length(serials)) return(log_tables)
+    vals <- vapply(serials, get_metric_by_serial, numeric(1), metric_name = target_metric)
+    rows <- data.frame(
+      iteration = if (is.null(iteration)) NA_integer_ else as.integer(iteration),
+      phase = as.character(phase),
+      slot = seq_along(serials),
+      serial = as.character(serials),
+      metric_name = rep.int(target_metric, length(serials)),
+      metric_value = suppressWarnings(as.numeric(vals)),
+      message = rep.int("", length(serials)),
+      timestamp = rep.int(Sys.time(), length(serials)),
+      stringsAsFactors = FALSE
+    )
+    log_tables$main_log <- rbind(log_tables$main_log, rows)
+    log_tables
+  }
+  
+  append_movement_entries <- function(log_tables, iteration, removed_info, added_slot, added_serial) {
+    ts <- Sys.time()
+    if (!is.null(removed_info) && !is.null(removed_info$worst_serial)) {
+      row_removed <- data.frame(
+        iteration = as.integer(iteration),
+        phase = "removed",
+        slot = as.integer(removed_info$worst_slot %||% removed_info$worst_model_index %||% NA_integer_),
+        role = "removed",
+        serial = as.character(removed_info$worst_serial %||% NA_character_),
+        metric_name = target_metric,
+        metric_value = suppressWarnings(as.numeric(removed_info$worst_value %||% NA_real_)),
+        message = if (!is.null(added_slot)) sprintf("%s replaced", removed_info$worst_serial) else "removed (no replacement)",
+        timestamp = ts,
+        stringsAsFactors = FALSE
+      )
+      log_tables$movement_log <- rbind(log_tables$movement_log, row_removed)
+      log_tables$change_log <- rbind(
+        log_tables$change_log,
+        data.frame(
+          iteration = as.integer(iteration),
+          role = "removed",
+          serial = as.character(removed_info$worst_serial %||% NA_character_),
+          metric_name = target_metric,
+          metric_value = suppressWarnings(as.numeric(removed_info$worst_value %||% NA_real_)),
+          message = "model removed from main",
+          timestamp = ts,
+          stringsAsFactors = FALSE
+        )
+      )
+    }
+    if (!is.null(added_slot)) {
+      row_added <- data.frame(
+        iteration = as.integer(iteration),
+        phase = "added",
+        slot = as.integer(added_slot),
+        role = "added",
+        serial = as.character(added_serial %||% NA_character_),
+        metric_name = target_metric,
+        metric_value = NA_real_,
+        message = "candidate moved into main",
+        timestamp = ts,
+        stringsAsFactors = FALSE
+      )
+      log_tables$movement_log <- rbind(log_tables$movement_log, row_added)
+      log_tables$change_log <- rbind(
+        log_tables$change_log,
+        data.frame(
+          iteration = as.integer(iteration),
+          role = "added",
+          serial = as.character(added_serial %||% NA_character_),
+          metric_name = target_metric,
+          metric_value = NA_real_,
+          message = sprintf("slot %s filled from TEMP", as.integer(added_slot)),
+          timestamp = ts,
+          stringsAsFactors = FALSE
+        )
+      )
+    }
+    log_tables
+  }
+  
+  prune_network_from_main <- function(main_model, target_metric_name) {
+    main_serials <- snapshot_main_serials_meta()
+    if (!length(main_serials)) return(NULL)
+    vals <- vapply(main_serials, get_metric_by_serial, numeric(1), metric_name = target_metric_name)
+    if (all(!is.finite(vals))) return(NULL)
+    minimize <- metric_minimize(target_metric_name)
+    worst_idx <- if (minimize) which.max(vals) else which.min(vals)
+    worst_idx <- worst_idx[1]
+    if (!length(main_model$ensemble) || worst_idx < 1L || worst_idx > length(main_model$ensemble)) {
+      return(NULL)
+    }
+    list(
+      removed_network = main_model$ensemble[[worst_idx]],
+      worst_model_index = as.integer(worst_idx),
+      worst_slot = as.integer(worst_idx),
+      worst_serial = as.character(main_serials[worst_idx]),
+      worst_value = as.numeric(vals[worst_idx])
+    )
+  }
+  
+  add_network_to_main <- function(main_model,
+                                  temp_model,
+                                  iteration_index,
+                                  target_metric_name,
+                                  worst_slot) {
+    temp_serials <- get_temp_serials_meta(iteration_index)
+    if (!length(temp_serials)) {
+      return(list(model = main_model, slot = NULL, serial = NULL))
+    }
+    vals <- vapply(temp_serials, get_metric_by_serial, numeric(1), metric_name = target_metric_name)
+    if (all(!is.finite(vals))) {
+      return(list(model = main_model, slot = NULL, serial = NULL))
+    }
+    minimize <- metric_minimize(target_metric_name)
+    best_idx <- if (minimize) which.min(vals) else which.max(vals)
+    best_idx <- best_idx[1]
+    best_serial <- as.character(temp_serials[best_idx])
+    parts <- strsplit(best_serial, "\\.")[[1]]
+    temp_model_index <- suppressWarnings(as.integer(tail(parts, 1)))
+    if (!is.finite(temp_model_index) || temp_model_index < 1L) {
+      return(list(model = main_model, slot = NULL, serial = NULL))
+    }
+    if (temp_model_index > length(temp_model$ensemble)) {
+      return(list(model = main_model, slot = NULL, serial = NULL))
+    }
+    candidate <- temp_model$ensemble[[temp_model_index]]
+    if (is.null(candidate)) {
+      return(list(model = main_model, slot = NULL, serial = NULL))
+    }
+    main_model$ensemble[[worst_slot]] <- candidate
+    temp_env <- temp_meta_var(iteration_index + 1L, temp_model_index)
+    main_env <- main_meta_var(worst_slot)
+    if (exists(temp_env, envir = .GlobalEnv)) {
+      md <- get(temp_env, envir = .GlobalEnv)
+      md$model_serial_num <- best_serial
+      assign(main_env, md, envir = .GlobalEnv)
+    }
+    list(model = main_model, slot = as.integer(worst_slot), serial = best_serial)
+  }
+  
   # Per-seed main runs
   runs <- lapply(seq_along(seeds), function(i) {
     set.seed(seeds[[i]])
-    mdl <- do.call(ddesonn_model, base_model_args)
+    if (isTRUE(do_ensemble)) {
+      vars <- grep(
+        "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
+        ls(.GlobalEnv), value = TRUE
+      )
+      if (length(vars)) rm(list = vars, envir = .GlobalEnv)
+    }
+    
+    log_tables <- empty_log_tables()
+    
+    main_model_args <- base_model_args
+    if (isTRUE(do_ensemble)) {
+      main_model_args$ensemble_number <- 1L
+    }
+    
+    mdl <- do.call(ddesonn_model, main_model_args)
     val <- NULL
     if (!is.null(validation)) {
       val <- list(x = validation$x, y = validation$y)
@@ -1982,12 +2242,16 @@ ddesonn_run <- function(x,
     }
     
     temp_summary <- list()
+    temp_models <- vector("list", length = if (isTRUE(do_ensemble)) num_temp_iterations else 0L)
     if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
       tmp_overrides <- temp_overrides %||% base_train_overrides
       temp_list <- vector("list", length = num_temp_iterations)
       for (iter in seq_len(num_temp_iterations)) {
+        log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_before")
         # TEMP iteration: clone model or reuse with potential tweaks
-        tmp_model <- do.call(ddesonn_model, base_model_args)
+        temp_model_args <- base_model_args
+        temp_model_args$ensemble_number <- iter + 1L
+        tmp_model <- do.call(ddesonn_model, temp_model_args)
         # training for TEMP
         do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val), tmp_overrides))
         
@@ -2000,14 +2264,36 @@ ddesonn_run <- function(x,
         }
         
         temp_list[[iter]] <- list(iteration = iter, model = tmp_model, per_seed = per_seed, aggregate = aggregate_tmp)
-      }
+        temp_models[[iter]] <- tmp_model
+        
+        removed <- prune_network_from_main(mdl, target_metric)
+        added <- list(model = mdl, slot = NULL, serial = NULL)
+        if (!is.null(removed)) {
+          added <- add_network_to_main(mdl, tmp_model, iteration_index = iter, target_metric_name = target_metric, worst_slot = removed$worst_slot)
+          mdl <- added$model
+        }
+        log_tables <- append_movement_entries(log_tables, iter, removed, added$slot, added$serial)
+        log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_after")      
+        }
       temp_summary <- temp_list
+    }
+    
+    if (isTRUE(do_ensemble) && num_temp_iterations == 0L) {
+      log_tables <- record_main_snapshot(log_tables, iteration = NULL, phase = "main_only")
+    }
+    
+    if (!is.null(prediction_matrix)) {
+      if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
+        preds <- ddesonn_predict(mdl, prediction_matrix, aggregate = aggregate, type = prediction_type, threshold = threshold)
+        main_pred <- preds
+      }
     }
     
     list(
       seed = seeds[[i]],
       main = list(model = mdl, predictions = main_pred),
-      temp_iterations = temp_summary
+      temp_iterations = temp_summary,
+      tables = log_tables
     )
   })
   
