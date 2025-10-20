@@ -223,10 +223,10 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_r
 # invisible(run_scenario("A"))
 
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
-invisible(run_scenario("B"))
+# invisible(run_scenario("B"))
 
 ## SCENARIO C: Main ensemble only (no TEMP/prune-add)
 # invisible(run_scenario("C"))
 
 ## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-# invisible(run_scenario("D"))
+invisible(run_scenario("D"))

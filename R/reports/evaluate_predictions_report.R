@@ -140,13 +140,15 @@ EvaluatePredictionsReport <- function(
   L <- L[seq_len(n_eff), , drop = FALSE]
   P <- P[seq_len(n_eff), , drop = FALSE]
   
-  # ------------------------- Mode inference ---------------------------
-  infer_mode <- function(L, P, fallback = "binary") {
-    if (tolower(CLASSIFICATION_MODE) %in% c("binary","multiclass","regression")) return(tolower(CLASSIFICATION_MODE))
-    if (max(ncol(L), ncol(P)) > 1L) "multiclass" else fallback
+  # ------------------------- Mode selection (explicit param only) ---------------------------
+  mode <- tolower(trimws(if (length(CLASSIFICATION_MODE)) CLASSIFICATION_MODE else ""))
+  valid_modes <- c("binary","multiclass","regression")
+  if (!nzchar(mode) || !(mode %in% valid_modes)) {
+    stop(sprintf("[EvaluatePredictionsReport] Invalid CLASSIFICATION_MODE='%s'. Expected one of: %s.",
+                 as.character(CLASSIFICATION_MODE), paste(valid_modes, collapse = ", ")))
   }
-  mode <- infer_mode(L, P, "binary")
-  if (isTRUE(verbose)) cat(sprintf("[Eval] mode=%s | n_eff=%d | ncol(L)=%d | ncol(P)=%d\n", mode, n_eff, ncol(L), ncol(P)))
+  if (isTRUE(verbose)) cat(sprintf("[Eval] mode=%s | n_eff=%d | ncol(L)=%d | ncol(P)=%d\n",
+                                   mode, n_eff, ncol(L), ncol(P)))
   
   # ------------------------- Regression branch ------------------------
   if (identical(mode, "regression")) {

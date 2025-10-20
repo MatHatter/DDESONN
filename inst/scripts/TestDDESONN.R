@@ -21,9 +21,9 @@ source("R/utils.R")
 ## =========================
 ## Classification mode
 ## =========================
-CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
+# CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
 # CLASSIFICATION_MODE <- "binary"
-# CLASSIFICATION_MODE <- "regression"
+CLASSIFICATION_MODE <- "regression"
 self_org <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
@@ -911,6 +911,14 @@ if (CLASSIFICATION_MODE == "binary") {
     stop(sprintf("[reg][FATAL] Row mismatch: nrow(Rdata)=%d vs nrow(labels)=%d.", nrow(Rdata), nrow(labels)))
   }
   
+  # ---------- Compute N now that sizes are final ----------
+  if (!ML_NN) {
+    N <- input_size + output_size
+  } else {
+    N <- input_size + sum(hidden_sizes) + output_size
+  }
+  
+  
   cat("[reg] N =", N, "\n")
   cat("==================== [REG] END ====================\n\n")
 }
@@ -1087,9 +1095,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 ## DDESONN Runner – Modes
 ## =========================
 ## SCENARIO A: Single-run only (no ensemble, ONE model)
-# do_ensemble         <- FALSE
-# num_networks        <- 1L
-# num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
+do_ensemble         <- FALSE
+num_networks        <- 1L
+num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
 #
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
 # do_ensemble         <- FALSE
@@ -1102,9 +1110,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 # num_temp_iterations <- 0L
 #
 ## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-do_ensemble         <- TRUE
-num_networks        <- 3L          # example main size
-num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
+# do_ensemble         <- TRUE
+# num_networks        <- 3L          # example main size
+# num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
 #
 ## You can set the above variables BEFORE sourcing this file. The defaults below are fallbacks.
 
