@@ -3140,6 +3140,13 @@ DDESONN_fuse_from_agg <- function(
     vote_quorum = NULL,                 # NULL = majority
     classification_mode = c("binary","multiclass","regression")
 ) {
+  ## ===================== DEBUG HELPERS =====================
+  DEBUG <- TRUE
+  dts <- function() format(Sys.time(), "%H:%M:%S")
+  dcat <- function(...) if (isTRUE(DEBUG)) cat(sprintf("[FUSE-DBG %s] ", dts()), paste0(..., collapse=""), "\n")
+  dhead <- function(x, n=5) { if (isTRUE(DEBUG)) { dcat("head():"); print(utils::head(x, n)); } }
+  ## ========================================================
+  
   `%||%` <- function(x,y) if (is.null(x)) y else x
   r6 <- function(x) ifelse(is.finite(x), round(x,6), NA_real_)
   weight_column <- match.arg(weight_column)
@@ -3148,166 +3155,109 @@ DDESONN_fuse_from_agg <- function(
   
   stopifnot(file.exists(AGG_PREDICTIONS_FILE))
   df <- readRDS(AGG_PREDICTIONS_FILE)
+  if (!is.data.frame(df) || !nrow(df)) stop("Aggregate predictions file is empty or not a data.frame.")
+  dcat("Loaded agg file:", AGG_PREDICTIONS_FILE, " rows=", nrow(df))
   
-  ## --- MINIMAL NA-PREVENTION & TYPING (drop-in) ---
-  if ("y_prob_full" %in% names(df) && is.list(df$y_prob_full)) df$y_prob_full <- NULL
-  if ("y_prob" %in% names(df)) df$y_prob <- suppressWarnings(as.numeric(df$y_prob))
-  if ("y_true" %in% names(df)) df$y_true <- suppressWarnings(as.numeric(df$y_true))
-  if ("y_pred" %in% names(df)) df$y_pred <- suppressWarnings(as.numeric(df$y_pred))
+  ## ---- MINIMAL NA-PREVENTION & TYPING ----
+  # keep y_prob_full for MC fusion if present
+  if ("y_prob" %in% names(df))  df$y_prob  <- suppressWarnings(as.numeric(df$y_prob))
+  if ("y_true" %in% names(df))  df$y_true  <- suppressWarnings(as.numeric(df$y_true))
+  if ("y_pred" %in% names(df))  df$y_pred  <- suppressWarnings(as.numeric(df$y_pred))
   if ("obs_index" %in% names(df)) df$obs_index <- suppressWarnings(as.integer(df$obs_index))
   if ("run_index" %in% names(df)) df$run_index <- suppressWarnings(as.integer(df$run_index))
   if ("RUN_INDEX" %in% names(df)) df$RUN_INDEX <- suppressWarnings(as.integer(df$RUN_INDEX))
-  if ("seed" %in% names(df)) df$seed <- suppressWarnings(as.integer(df$seed))
-  if ("SEED" %in% names(df)) df$SEED <- suppressWarnings(as.integer(df$SEED))
+  if ("seed" %in% names(df))      df$seed      <- suppressWarnings(as.integer(df$seed))
+  if ("SEED" %in% names(df))      df$SEED      <- suppressWarnings(as.integer(df$SEED))
   if ("model_slot" %in% names(df)) df$model_slot <- suppressWarnings(as.integer(df$model_slot))
   if ("MODEL_SLOT" %in% names(df)) df$MODEL_SLOT <- suppressWarnings(as.integer(df$MODEL_SLOT))
-  if ("split" %in% names(df)) df$split <- tolower(as.character(df$split))
-  if ("SPLIT" %in% names(df)) df$SPLIT <- toupper(as.character(df$SPLIT))
-  if ("CLASSIFICATION_MODE" %in% names(df)) df$CLASSIFICATION_MODE <- toupper(as.character(df$CLASSIFICATION_MODE))
+  if ("split" %in% names(df))     df$split    <- tolower(as.character(df$split))
+  if ("SPLIT" %in% names(df))     df$SPLIT    <- toupper(as.character(df$SPLIT))
+  if ("CLASSIFICATION_MODE" %in% names(df)) df$CLASSIFICATION_MODE <- tolower(as.character(df$CLASSIFICATION_MODE))
+  
   if ("y_prob" %in% names(df) && any(!is.finite(df$y_prob))) stop("Non-finite y_prob in aggregate predictions.")
   if ("y_true" %in% names(df) && any(!is.finite(df$y_true))) stop("Non-finite y_true in aggregate predictions.")
-  ## --- END MINIMAL BLOCK ---
   
-  # ---- normalize id columns & quick debug ----
-  run_col  <- if ("run_index" %in% names(df)) "run_index" else if ("RUN_INDEX" %in% names(df)) "RUN_INDEX" else stop("Missing run_index/RUN_INDEX.")
-  seed_col <- if ("seed"      %in% names(df)) "seed"      else if ("SEED"      %in% names(df)) "SEED"      else stop("Missing seed/SEED.")
-  slot_col <- if ("model_slot"%in% names(df)) "model_slot" else if ("MODEL_SLOT" %in% names(df)) "MODEL_SLOT" else stop("Missing model_slot/MODEL_SLOT.")
+  has_col <- function(d, nm) nm %in% names(d)
+  pick_col <- function(d, a, b) if (has_col(d, a)) a else if (has_col(d, b)) b else NA_character_
   
-  # force numeric ints for matching (robust to factors/characters)
-  suppressWarnings({
-    df[[run_col]]  <- as.integer(as.character(df[[run_col]]))
-    df[[seed_col]] <- as.integer(as.character(df[[seed_col]]))
-    df[[slot_col]] <- as.integer(as.character(df[[slot_col]]))
-  })
+  run_col  <- pick_col(df, "run_index",  "RUN_INDEX")
+  seed_col <- pick_col(df, "seed",       "SEED")
+  slot_col <- pick_col(df, "model_slot", "MODEL_SLOT")
+  split_col<- pick_col(df, "split",      "SPLIT")
   
-  # optional split; do NOT drop rows if split is absent or NA
-  split_col <- if ("split" %in% names(df)) "split" else if ("SPLIT" %in% names(df)) "SPLIT" else NA_character_
-  if (!is.na(split_col)) {
-    df$.__split__ <- tolower(as.character(df[[split_col]]))
-  } else {
-    df$.__split__ <- NA_character_
-  }
+  if (is.na(run_col))  stop("Missing run_index/RUN_INDEX.")
+  if (is.na(seed_col)) stop("Missing seed/SEED.")
+  if (is.na(slot_col)) stop("Missing model_slot/MODEL_SLOT.")
   
-  # build filter (only apply split if there are any non-NA values)
-  keep <- (df[[run_col]] == as.integer(RUN_INDEX)) & (df[[seed_col]] == as.integer(SEED))
+  # Build split for filtering
+  df$.__split__ <- if (!is.na(split_col)) tolower(as.character(df[[split_col]])) else NA_character_
+  
+  keep <- (suppressWarnings(as.integer(df[[run_col]]))  == as.integer(RUN_INDEX)) &
+    (suppressWarnings(as.integer(df[[seed_col]])) == as.integer(SEED))
+  # Only apply split filter if split exists
   if (any(!is.na(df$.__split__))) {
     keep <- keep & (df$.__split__ %in% c("test","valid","validation","val","holdout"))
   }
-  
   dfx <- df[keep, , drop = FALSE]
+  dcat("Filtered rows for RUN=", RUN_INDEX, " SEED=", SEED, " -> rows=", nrow(dfx))
   if (!nrow(dfx)) {
-    message(sprintf("[FUSE-DBG] no rows after filter. Unique runs in file: %s",
-                    paste(sort(unique(df[[run_col]])), collapse=", ")))
-    message(sprintf("[FUSE-DBG] unique seeds for run=%s: %s",
-                    as.integer(RUN_INDEX),
-                    paste(sort(unique(df[df[[run_col]]==as.integer(RUN_INDEX), seed_col, drop=TRUE])), collapse=", ")))
-    message(sprintf("[FUSE-DBG] example rows for run=%s seed=%s:",
-                    as.integer(RUN_INDEX), as.integer(SEED)))
-    print(utils::head(df[df[[run_col]]==as.integer(RUN_INDEX) & df[[seed_col]]==as.integer(SEED),
-                         c(run_col, seed_col, slot_col, ".__split__"), drop = FALSE], 10))
+    dcat("Unique runs:", paste(sort(unique(df[[run_col]])), collapse=", "))
+    dcat(
+      "Unique seeds @run ", RUN_INDEX, ": ",
+      paste(
+        sort(unique(df[df[[run_col]] == as.integer(RUN_INDEX), seed_col, drop = TRUE])),
+        collapse = ", "
+      )
+    )
     stop(sprintf("No per-slot predictions for RUN_INDEX=%s, SEED=%s (id/split mismatch).",
                  as.character(RUN_INDEX), as.character(SEED)))
   }
+  dhead(dfx[, c(run_col, seed_col, slot_col, split_col)[c(TRUE,TRUE,TRUE,!is.na(split_col))], drop=FALSE])
   
-  if (!is.data.frame(df) || !nrow(df)) stop("Aggregate predictions file is empty or not a data.frame.")
-  
-  # ---- column coalescers (accept upper/lower variants) ----
-  col_or <- function(d, ...) {
-    cands <- c(...)
-    hit <- cands[cands %in% names(d)]
-    if (length(hit)) d[[hit[1]]] else NULL
-  }
-  has_col <- function(d, nm) nm %in% names(d)
-  
-  # Resolve run/seed/split (second pass — keep but avoid coercion warnings)
-  run_col  <- if (has_col(df,"run_index")) "run_index" else if (has_col(df,"RUN_INDEX")) "RUN_INDEX" else stop("Missing run_index/RUN_INDEX.")
-  seed_col <- if (has_col(df,"seed")) "seed" else if (has_col(df,"SEED")) "SEED" else stop("Missing seed/SEED.")
-  split_col <- if (has_col(df,"split")) "split" else if (has_col(df,"SPLIT")) "SPLIT" else NA_character_
-  
-  # Prefer CLASSIFICATION_MODE if present for mode selection
-  if (has_col(df,"CLASSIFICATION_MODE")) {
-    cm <- tolower(unique(df$CLASSIFICATION_MODE))
-    if (length(cm)) classification_mode <- if (cm[1] %in% c("binary","multiclass","regression")) cm[1] else classification_mode
-  }
-  
-  # Filter rows for this run/seed (+ test split if present) — PRE-COERCE to avoid "NAs introduced by coercion"
-  df$.__split__ <- if (!is.na(split_col)) tolower(df[[split_col]]) else NA_character_
-  rvec <- suppressWarnings(as.integer(df[[run_col]]))
-  svec <- suppressWarnings(as.integer(df[[seed_col]]))
-  keep <- (rvec == as.integer(RUN_INDEX)) & (svec == as.integer(SEED))
-  if (!all(is.na(df$.__split__))) keep <- keep & (df$.__split__ %in% c("test","valid","validation","val","holdout"))
-  dfx <- df[keep, , drop = FALSE]
-  if (!nrow(dfx)) stop("No rows for RUN_INDEX=", RUN_INDEX, " SEED=", SEED, " (check split/RUN/SEED).")
-  
-  # Determine probability column & y_true
-  prob_vec <- function(d) {
-    v <- col_or(d, "y_prob", "y_pred")
-    if (is.null(v)) stop("No y_prob/y_pred column found.")
-    suppressWarnings(as.numeric(v))
-  }
-  
-  # If caller didn't provide usable y_true, try from df
-  if (is.null(y_true) || !length(y_true) || all(is.na(y_true))) {
-    if (!has_col(dfx,"y_true")) stop("y_true not provided and y_true column not found.")
+  # y_true source
+  if (missing(y_true) || is.null(y_true) || !length(y_true) || all(is.na(y_true))) {
+    if (!has_col(dfx, "y_true")) stop("y_true not provided and y_true column not found.")
     y_true <- suppressWarnings(as.numeric(dfx$y_true))
+    dcat("Using y_true from file; length=", length(y_true))
   } else {
     y_true <- suppressWarnings(as.numeric(y_true))
+    dcat("Using y_true passed by caller; length=", length(y_true))
   }
   
-  # Split by model_slot (upper/lower)
-  slot_col <- if (has_col(dfx,"model_slot")) "model_slot" else if (has_col(dfx,"MODEL_SLOT")) "MODEL_SLOT" else NA_character_
-  if (is.na(slot_col)) stop("Missing model_slot/MODEL_SLOT column.")
+  # --- RESCUE: if caller's y_true is unusable, fall back to file ---
+  y_true_finite_n <- sum(is.finite(y_true))
+  if (y_true_finite_n == 0L) {
+    dcat("WARNING: caller y_true is all NA/non-finite; falling back to dfx$y_true")
+    if (!("y_true" %in% names(dfx))) {
+      stop("y_true provided is all NA and dfx has no y_true column to rescue from.")
+    }
+    y_true <- suppressWarnings(as.integer(dfx$y_true))
+    dcat("Rescued y_true from file; length=", length(y_true),
+         " | unique labels: ", paste(sort(unique(na.omit(y_true))), collapse=", "))
+  } else {
+    dcat("Caller y_true finite count=", y_true_finite_n,
+         " | unique labels: ", paste(sort(unique(na.omit(y_true))), collapse=", "))
+  }
+  
+  # Mode auto-detect if CLASSIFICATION_MODE present or if unique labels suggest MC
+  cm_hint <- if (has_col(dfx, "CLASSIFICATION_MODE")) unique(dfx$CLASSIFICATION_MODE) else NULL
+  if (length(cm_hint)) {
+    if (cm_hint[1] %in% c("binary","multiclass","regression")) classification_mode <- cm_hint[1]
+  } else {
+    if (classification_mode != "regression") {
+      uy <- sort(unique(na.omit(y_true)))
+      if (length(uy) > 2) classification_mode <- "multiclass"
+      if (length(uy) == 2 && all(uy %in% c(0,1))) classification_mode <- "binary"
+    }
+  }
+  dcat("classification_mode:", classification_mode)
+  
+  # Split by slot
   sp <- split(dfx, dfx[[slot_col]])
   slots <- as.integer(names(sp))
+  dcat("Detected slots:", paste(slots, collapse=", "))
   
-  # Build matrix of per-slot probabilities
-  probs_list <- lapply(sp, prob_vec)
-  if (!length(probs_list)) {
-    stop(sprintf("No per-slot predictions for RUN_INDEX=%s, SEED=%s (check split filter and model_slot values).",
-                 as.character(RUN_INDEX), as.character(SEED)))
-  }
-  
-  # Determine common length N, truncate each vector to N
-  lens <- vapply(probs_list, length, integer(1))
-  N <- min(c(length(y_true), lens))
-  if (!is.finite(N) || N <= 0L) stop("No usable prediction vectors after alignment (N <= 0).")
-  
-  probs_mat <- do.call(cbind, lapply(probs_list, function(v) as.numeric(v)[seq_len(N)]))
-  if (is.null(dim(probs_mat))) {
-    probs_mat <- matrix(probs_mat, nrow = N, ncol = length(probs_list))
-  }
-  colnames(probs_mat) <- paste0("slot_", slots)
-  
-  # Align y_true to N
-  y_true <- y_true[seq_len(N)]
-  
-  # Derive per-slot weights (optional columns; take first non-NA within slot)
-  pick_slot_scalar <- function(d, nm) {
-    if (!has_col(d, nm)) return(NA_real_)
-    v <- suppressWarnings(as.numeric(d[[nm]]))
-    v[which(is.finite(v))[1]] %||% NA_real_
-  }
-  w_vec <- switch(weight_column,
-                  "tuned_f1" = vapply(sp, pick_slot_scalar, numeric(1), nm="tuned_f1"),
-                  "f1"       = vapply(sp, pick_slot_scalar, numeric(1), nm="f1"),
-                  "accuracy" = vapply(sp, pick_slot_scalar, numeric(1), nm="accuracy"))
-  if (!any(is.finite(w_vec))) {
-    w_vec[] <- 1
-  } else {
-    w_vec[!is.finite(w_vec)] <- 0
-    if (sum(w_vec) == 0) w_vec[] <- 1
-  }
-  w_norm <- w_vec / sum(w_vec)
-  
-  # Per-slot tuned threshold (optional; else default)
-  thr_vec <- if (isTRUE(use_tuned_threshold_for_vote) && has_col(dfx,"tuned_threshold")) {
-    vapply(sp, pick_slot_scalar, numeric(1), nm="tuned_threshold")
-  } else {
-    rep(NA_real_, ncol(probs_mat))
-  }
-  thr_vec[!is.finite(thr_vec)] <- default_threshold
-  
-  # ---- metrics (binary) ----
+  # ===== Helper metrics =====
   bin_metrics <- function(p, y, thr=0.5) {
     y01 <- as.integer(y > 0)
     yhat <- as.integer(p >= thr)
@@ -3320,61 +3270,350 @@ DDESONN_fuse_from_agg <- function(
     list(acc=r6(acc), precision=r6(prec), recall=r6(rec), f1=r6(f1), TP=TP, FP=FP, FN=FN, TN=TN)
   }
   
+  mc_metrics <- function(y_pred, y_true, labels=NULL) {
+    y <- as.integer(y_true)
+    yp <- as.integer(y_pred)
+    labs <- sort(unique(c(labels, y[is.finite(y)], yp[is.finite(yp)])))
+    K <- length(labs)
+    if (K < 2) return(list(acc=NA, precision=NA, recall=NA, f1=NA, K=K,
+                           conf_mat=NA, per_class=NA))
+    
+    # Map to 1..K
+    y_m  <- match(y,  labs)
+    yp_m <- match(yp, labs)
+    
+    conf <- matrix(0L, nrow=K, ncol=K, dimnames=list(true=labs, pred=labs))
+    for (i in seq_along(y_m)) {
+      if (is.na(y_m[i]) || is.na(yp_m[i])) next
+      conf[y_m[i], yp_m[i]] <- conf[y_m[i], yp_m[i]] + 1L
+    }
+    acc <- sum(diag(conf)) / sum(conf)
+    
+    # per-class counts + metrics (includes TN)
+    per_class <- lapply(seq_len(K), function(k){
+      TP <- conf[k,k]
+      FP <- sum(conf[,k]) - TP
+      FN <- sum(conf[k,]) - TP
+      TN <- sum(conf) - TP - FP - FN
+      P  <- if ((TP+FP)>0) TP/(TP+FP) else 0
+      R  <- if ((TP+FN)>0) TP/(TP+FN) else 0
+      F1 <- if ((P+R)>0) 2*P*R/(P+R) else 0
+      data.frame(class=labs[k], TP=TP, FP=FP, FN=FN, TN=TN,
+                 precision=r6(P), recall=r6(R), f1=r6(F1),
+                 stringsAsFactors = FALSE)
+    })
+    per_class <- do.call(rbind, per_class)
+    
+    list(
+      acc = r6(acc),
+      precision = r6(mean(per_class$precision)),
+      recall    = r6(mean(per_class$recall)),
+      f1        = r6(mean(per_class$f1)),
+      conf_mat  = conf,
+      per_class = per_class,
+      K = K
+    )
+  }
+  
+  # ===== Build per-slot prediction containers =====
+  N0 <- length(y_true)
+  dcat("Initial y_true length:", N0, " unique labels:", paste(sort(unique(na.omit(y_true))), collapse=", "))
+  
+  slot_lengths <- vapply(sp, nrow, integer(1))
+  dcat("Slot row counts:", paste(paste0(names(slot_lengths), "=", slot_lengths), collapse=", "))
+  
+  # ----- Binary containers -----
+  get_prob_vec <- function(d) {
+    if (has_col(d, "y_prob")) return(suppressWarnings(as.numeric(d$y_prob)))
+    if (has_col(d, "y_pred")) return(suppressWarnings(as.numeric(d$y_pred))) # allow if already prob
+    stop("No y_prob or y_pred column found for binary mode.")
+  }
+  
+  # ----- Multiclass containers -----
+  get_prob_mat_mc <- function(d, labels_ref=NULL) {
+    N <- nrow(d)
+    # 1) list-col y_prob_full
+    if (has_col(d, "y_prob_full") && is.list(d$y_prob_full)) {
+      nm_pool <- unique(unlist(lapply(utils::head(d$y_prob_full, 20), names)))
+      if (is.null(labels_ref) && length(nm_pool)) {
+        labs <- as.integer(sort(as.numeric(nm_pool)))
+      } else if (!is.null(labels_ref)) {
+        labs <- sort(unique(as.integer(labels_ref)))
+      } else {
+        labs <- sort(unique(as.integer(unlist(d$y_prob_full))))
+      }
+      K <- length(labs)
+      P <- matrix(0, nrow=N, ncol=K, dimnames=list(NULL, paste0(labs)))
+      for (i in seq_len(N)) {
+        vi <- d$y_prob_full[[i]]
+        if (is.null(vi)) next
+        if (!is.null(names(vi))) {
+          idx <- match(as.integer(names(vi)), labs)
+          ok <- which(is.finite(idx))
+          P[i, idx[ok]] <- as.numeric(vi[ok])
+        } else {
+          if (length(vi) == K) P[i,] <- as.numeric(vi)
+        }
+      }
+      return(list(P=P, labels=labs))
+    }
+    
+    # 2) wide columns prob_1..prob_K
+    prob_cols <- grep("^prob_\\d+$", names(d), value = TRUE)
+    if (length(prob_cols) > 0) {
+      labs <- as.integer(sub("^prob_", "", prob_cols))
+      ord <- order(labs); labs <- labs[ord]; prob_cols <- prob_cols[ord]
+      P <- as.matrix(d[, prob_cols, drop=FALSE])
+      storage.mode(P) <- "double"
+      colnames(P) <- paste0(labs)
+      return(list(P=P, labels=labs))
+    }
+    
+    # 3) fallback to one-hot from y_pred
+    if (has_col(d, "y_pred")) {
+      yp <- as.integer(d$y_pred)
+      labs <- sort(unique(na.omit(yp)))
+      if (!is.null(labels_ref)) labs <- sort(unique(c(labels_ref, labs)))
+      K <- length(labs)
+      P <- matrix(0, nrow=N, ncol=K, dimnames=list(NULL, paste0(labs)))
+      idx <- match(yp, labs)
+      ok <- which(is.finite(idx))
+      P[cbind(ok, idx[ok])] <- 1
+      return(list(P=P, labels=labs))
+    }
+    
+    stop("For multiclass, need y_prob_full, prob_* columns, or y_pred.")
+  }
+  
   out_rows <- list()
   out_preds <- list()
   
-  # 1) AVG
-  if ("avg" %in% methods) {
-    p_avg <- rowMeans(probs_mat, na.rm = TRUE)
-    m <- if (classification_mode=="binary") bin_metrics(p_avg, y_true, default_threshold) else list()
-    out_rows[["Ensemble_avg"]] <- c(list(kind="Ensemble_avg", n=N, slots=paste(slots, collapse=",")), m)
-    out_preds[["Ensemble_avg"]] <- matrix(p_avg, ncol=1, dimnames=list(NULL, "pred"))
-  }
-  
-  # 2) WAVG
-  if ("wavg" %in% methods) {
-    p_w <- as.numeric(probs_mat %*% w_norm)
-    m <- if (classification_mode=="binary") bin_metrics(p_w, y_true, default_threshold) else list()
-    out_rows[["Ensemble_wavg"]] <- c(list(kind="Ensemble_wavg", n=N, slots=paste(slots, collapse=","), weights=w_norm), m)
-    out_preds[["Ensemble_wavg"]] <- matrix(p_w, ncol=1, dimnames=list(NULL, "pred"))
-  }
-  
-  # 3) VOTE (soft/hard)
-  if ("vote_soft" %in% methods || "vote_hard" %in% methods) {
-    use_thr <- thr_vec
-    vote_mat <- sweep(probs_mat, 2, use_thr, FUN = ">=") * 1L
-    vote_frac <- rowMeans(vote_mat, na.rm = TRUE)
-    q <- vote_quorum %||% ceiling(ncol(probs_mat)/2)
-    vote_hard <- as.integer(rowSums(vote_mat, na.rm = TRUE) >= q)
+  if (classification_mode == "binary") {
+    probs_list <- lapply(sp, get_prob_vec)
+    lens <- vapply(probs_list, length, integer(1))
+    N <- min(c(length(y_true), lens))
+    if (!is.finite(N) || N <= 0L) stop("No usable prediction vectors after alignment (N <= 0).")
+    
+    probs_mat <- do.call(cbind, lapply(probs_list, function(v) as.numeric(v)[seq_len(N)]))
+    if (is.null(dim(probs_mat))) probs_mat <- matrix(probs_mat, nrow = N, ncol = length(probs_list))
+    colnames(probs_mat) <- paste0("slot_", slots)
+    y <- y_true[seq_len(N)]
+    dcat("BINARY N=", N, " S=", ncol(probs_mat))
+    
+    pick_slot_scalar <- function(d, nm) {
+      if (!has_col(d, nm)) return(NA_real_)
+      v <- suppressWarnings(as.numeric(d[[nm]]))
+      v[which(is.finite(v))[1]] %||% NA_real_
+    }
+    w_vec <- switch(weight_column,
+                    "tuned_f1" = vapply(sp, pick_slot_scalar, numeric(1), nm="tuned_f1"),
+                    "f1"       = vapply(sp, pick_slot_scalar, numeric(1), nm="f1"),
+                    "accuracy" = vapply(sp, pick_slot_scalar, numeric(1), nm="accuracy"))
+    if (!any(is.finite(w_vec))) w_vec[] <- 1 else { w_vec[!is.finite(w_vec)] <- 0; if (sum(w_vec)==0) w_vec[] <- 1 }
+    w_norm <- w_vec / sum(w_vec)
+    dcat("Weights:", paste(r6(w_norm), collapse=", "))
+    
+    thr_vec <- if (isTRUE(use_tuned_threshold_for_vote) && has_col(dfx, "tuned_threshold")) {
+      vapply(sp, pick_slot_scalar, numeric(1), nm="tuned_threshold")
+    } else rep(NA_real_, ncol(probs_mat))
+    thr_vec[!is.finite(thr_vec)] <- default_threshold
+    dcat("Vote thresholds per slot:", paste(r6(thr_vec), collapse=", "))
+    
+    if ("avg" %in% methods) {
+      p_avg <- rowMeans(probs_mat, na.rm = TRUE)
+      m <- bin_metrics(p_avg, y, default_threshold)
+      out_rows[["Ensemble_avg"]] <- c(list(kind="Ensemble_avg", n=N, slots=paste(slots, collapse=","), mc_conf_mat=NA, mc_per_class=NA), m)
+      out_preds[["Ensemble_avg"]] <- matrix(p_avg, ncol=1, dimnames=list(NULL, "pred"))
+      dcat("AVG done.")
+    }
+    
+    if ("wavg" %in% methods) {
+      p_w <- as.numeric(probs_mat %*% w_norm)
+      m <- bin_metrics(p_w, y, default_threshold)
+      out_rows[["Ensemble_wavg"]] <- c(list(kind="Ensemble_wavg", n=N, slots=paste(slots, collapse=","), weights=w_norm, mc_conf_mat=NA, mc_per_class=NA), m)
+      out_preds[["Ensemble_wavg"]] <- matrix(p_w, ncol=1, dimnames=list(NULL, "pred"))
+      dcat("WAVG done.")
+    }
+    
+    if ("vote_soft" %in% methods || "vote_hard" %in% methods) {
+      vote_mat <- sweep(probs_mat, 2, thr_vec, FUN = ">=") * 1L
+      vote_frac <- rowMeans(vote_mat, na.rm = TRUE)
+      q <- vote_quorum %||% ceiling(ncol(probs_mat)/2)
+      vote_hard <- as.integer(rowSums(vote_mat, na.rm = TRUE) >= q)
+      
+      if ("vote_soft" %in% methods) {
+        m <- bin_metrics(vote_frac, y, default_threshold)
+        out_rows[["Ensemble_vote_soft"]] <- c(list(kind="Ensemble_vote_soft", n=N, slots=paste(slots, collapse=","), quorum=q, mc_conf_mat=NA, mc_per_class=NA), m)
+        out_preds[["Ensemble_vote_soft"]] <- matrix(vote_frac, ncol=1, dimnames=list(NULL, "pred"))
+        dcat("VOTE_SOFT done.")
+      }
+      if ("vote_hard" %in% methods) {
+        m <- bin_metrics(as.numeric(vote_hard), y, default_threshold)
+        out_rows[["Ensemble_vote_hard"]] <- c(list(kind="Ensemble_vote_hard", n=N, slots=paste(slots, collapse=","), quorum=q, mc_conf_mat=NA, mc_per_class=NA), m)
+        out_preds[["Ensemble_vote_hard"]] <- matrix(as.numeric(vote_hard), ncol=1, dimnames=list(NULL, "pred"))
+        dcat("VOTE_HARD done.")
+      }
+    }
+    
+  } else if (classification_mode == "multiclass") {
+    mats <- lapply(sp, get_prob_mat_mc, labels_ref = sort(unique(na.omit(y_true))))
+    all_labs <- sort(unique(unlist(lapply(mats, function(x) as.integer(colnames(x$P))))))
+    dcat("MC labels (union):", paste(all_labs, collapse=", "))
+    
+    lens <- vapply(mats, function(m) nrow(m$P), integer(1))
+    N <- min(c(length(y_true), lens))
+    if (!is.finite(N) || N <= 0L) stop("No usable rows after alignment for MC (N <= 0).")
+    y <- as.integer(y_true[seq_len(N)])
+    
+    align_to <- function(P, labs_target) {
+      labs_src <- as.integer(colnames(P))
+      idx <- match(labs_target, labs_src)
+      Q <- matrix(0, nrow = min(nrow(P), N), ncol = length(labs_target))
+      colnames(Q) <- paste0(labs_target)
+      ok <- which(is.finite(idx))
+      if (length(ok)) Q[, ok] <- P[seq_len(nrow(Q)), idx[ok], drop=FALSE]
+      Q
+    }
+    P_slots <- lapply(mats, function(m) align_to(m$P, all_labs))
+    S <- length(P_slots)
+    dcat("MC N=", N, " K=", length(all_labs), " S=", S)
+    
+    pick_slot_scalar <- function(d, nm) {
+      if (!has_col(d, nm)) return(NA_real_)
+      v <- suppressWarnings(as.numeric(d[[nm]]))
+      v[which(is.finite(v))[1]] %||% NA_real_
+    }
+    w_vec <- switch(weight_column,
+                    "tuned_f1" = vapply(sp, pick_slot_scalar, numeric(1), nm="tuned_f1"),
+                    "f1"       = vapply(sp, pick_slot_scalar, numeric(1), nm="f1"),
+                    "accuracy" = vapply(sp, pick_slot_scalar, numeric(1), nm="accuracy"))
+    if (!any(is.finite(w_vec))) w_vec[] <- 1 else { w_vec[!is.finite(w_vec)] <- 0; if (sum(w_vec)==0) w_vec[] <- 1 }
+    w_norm <- w_vec / sum(w_vec)
+    dcat("Weights:", paste(r6(w_norm), collapse=", "))
+    
+    argmax_idx <- function(M) max.col(M, ties.method = "first")
+    labs_vec <- as.integer(all_labs)
+    
+    # helper to pack mc diagnostics into out_rows
+    pack_mc <- function(yp_labels_vec, kind_label, extra=list()) {
+      m <- mc_metrics(yp_labels_vec, y, labels = labs_vec)
+      row <- c(
+        list(kind=kind_label, n=length(yp_labels_vec), slots=paste(slots, collapse=",")),
+        extra,
+        list(mc_conf_mat = list(m$conf_mat), mc_per_class = list(m$per_class)),
+        m[setdiff(names(m), c("conf_mat", "per_class"))]
+      )
+      list(row=row, m=m)
+    }
+    
+    if ("avg" %in% methods) {
+      P_avg <- Reduce("+", P_slots) / S
+      yp <- labs_vec[argmax_idx(P_avg)]
+      res <- pack_mc(yp, "Ensemble_avg")
+      out_rows[["Ensemble_avg"]] <- res$row
+      out_preds[["Ensemble_avg"]] <- matrix(yp, ncol=1, dimnames=list(NULL, "y_pred"))
+      dcat("AVG done. acc=", res$m$acc, " f1=", res$m$f1)
+    }
+    
+    if ("wavg" %in% methods) {
+      P_w <- P_slots[[1]] * w_norm[1]
+      if (S > 1) for (i in 2:S) P_w <- P_w + P_slots[[i]] * w_norm[i]
+      yp <- labs_vec[argmax_idx(P_w)]
+      res <- pack_mc(yp, "Ensemble_wavg", list(weights=list(w_norm)))
+      out_rows[["Ensemble_wavg"]] <- res$row
+      out_preds[["Ensemble_wavg"]] <- matrix(yp, ncol=1, dimnames=list(NULL, "y_pred"))
+      dcat("WAVG done. acc=", res$m$acc, " f1=", res$m$f1)
+    }
     
     if ("vote_soft" %in% methods) {
-      m <- if (classification_mode=="binary") bin_metrics(vote_frac, y_true, default_threshold) else list()
-      out_rows[["Ensemble_vote_soft"]] <- c(list(kind="Ensemble_vote_soft", n=N, slots=paste(slots, collapse=","), quorum=q), m)
-      out_preds[["Ensemble_vote_soft"]] <- matrix(vote_frac, ncol=1, dimnames=list(NULL, "pred"))
+      P_vs <- Reduce("+", P_slots) / S
+      yp <- labs_vec[argmax_idx(P_vs)]
+      res <- pack_mc(yp, "Ensemble_vote_soft")
+      out_rows[["Ensemble_vote_soft"]] <- res$row
+      out_preds[["Ensemble_vote_soft"]] <- matrix(yp, ncol=1, dimnames=list(NULL, "y_pred"))
+      dcat("VOTE_SOFT done. acc=", res$m$acc, " f1=", res$m$f1)
     }
+    
     if ("vote_hard" %in% methods) {
-      m <- if (classification_mode=="binary") bin_metrics(as.numeric(vote_hard), y_true, default_threshold) else list()
-      out_rows[["Ensemble_vote_hard"]] <- c(list(kind="Ensemble_vote_hard", n=N, slots=paste(slots, collapse=","), quorum=q), m)
-      out_preds[["Ensemble_vote_hard"]] <- matrix(as.numeric(vote_hard), ncol=1, dimnames=list(NULL, "pred"))
+      yps <- lapply(P_slots, function(P) labs_vec[argmax_idx(P)])
+      Yvote <- do.call(cbind, yps)  # N x S
+      q <- vote_quorum %||% ceiling(ncol(Yvote)/2)
+      vote_label <- integer(N)
+      for (i in seq_len(N)) {
+        cnt <- tabulate(match(Yvote[i,], labs_vec), nbins=length(labs_vec))
+        if (max(cnt) >= q) {
+          vote_label[i] <- labs_vec[which.max(cnt)]
+        } else {
+          vote_label[i] <- labs_vec[which.max(cnt)]
+        }
+      }
+      res <- pack_mc(vote_label, "Ensemble_vote_hard", list(quorum=q))
+      out_rows[["Ensemble_vote_hard"]] <- res$row
+      out_preds[["Ensemble_vote_hard"]] <- matrix(vote_label, ncol=1, dimnames=list(NULL, "y_pred"))
+      dcat("VOTE_HARD done. acc=", res$m$acc, " f1=", res$m$f1)
     }
+    
+  } else if (classification_mode == "regression") {
+    dcat("Regression mode: returning predictions only; metrics placeholders.")
+    get_reg_vec <- function(d) {
+      if (has_col(d, "y_pred")) return(suppressWarnings(as.numeric(d$y_pred)))
+      if (has_col(d, "y_prob")) return(suppressWarnings(as.numeric(d$y_prob)))
+      stop("No y_pred/y_prob numeric column for regression.")
+    }
+    preds_list <- lapply(sp, get_reg_vec)
+    lens <- vapply(preds_list, length, integer(1))
+    N <- min(c(length(y_true), lens))
+    preds_mat <- do.call(cbind, lapply(preds_list, function(v) as.numeric(v)[seq_len(N)]))
+    colnames(preds_mat) <- paste0("slot_", slots)
+    if ("avg" %in% methods) {
+      p_avg <- rowMeans(preds_mat, na.rm = TRUE)
+      out_rows[["Ensemble_avg"]] <- list(kind="Ensemble_avg", n=N, slots=paste(slots, collapse=","), acc=NA, precision=NA, recall=NA, f1=NA, TP=NA, FP=NA, FN=NA, TN=NA, mc_conf_mat=NA, mc_per_class=NA)
+      out_preds[["Ensemble_avg"]] <- matrix(p_avg, ncol=1, dimnames=list(NULL, "pred"))
+    }
+    if ("wavg" %in% methods) {
+      w_vec <- rep(1, ncol(preds_mat)); w_norm <- w_vec/sum(w_vec)
+      p_w <- as.numeric(preds_mat %*% w_norm)
+      out_rows[["Ensemble_wavg"]] <- list(kind="Ensemble_wavg", n=N, slots=paste(slots, collapse=","), weights=w_norm, acc=NA, precision=NA, recall=NA, f1=NA, TP=NA, FP=NA, FN=NA, TN=NA, mc_conf_mat=NA, mc_per_class=NA)
+      out_preds[["Ensemble_wavg"]] <- matrix(p_w, ncol=1, dimnames=list(NULL, "pred"))
+    }
+  } else {
+    stop("Unknown classification_mode: ", classification_mode)
   }
   
-  # ---- format metrics df ----
+  # ---- format metrics df (now with list-columns for MC) ----
   rows_df <- do.call(rbind, lapply(names(out_rows), function(k) {
     r <- out_rows[[k]]
+    # make sure list-cols stay list-cols
+    mc_conf <- if (!is.null(r$mc_conf_mat)) r$mc_conf_mat else list(NA)
+    mc_pc   <- if (!is.null(r$mc_per_class)) r$mc_per_class else list(NA)
     data.frame(
-      kind = k, n = as.integer(r$n %||% NA), slots = as.character(r$slots %||% NA),
-      accuracy = r6(r$acc %||% NA), precision = r6(r$precision %||% NA),
-      recall = r6(r$recall %||% NA), f1 = r6(r$f1 %||% NA),
-      TP = as.integer(r$TP %||% NA), FP = as.integer(r$FP %||% NA),
-      FN = as.integer(r$FN %||% NA), TN = as.integer(r$TN %||% NA),
+      kind = as.character(r$kind %||% k),
+      n = as.integer(r$n %||% NA),
+      slots = as.character(r$slots %||% NA),
+      accuracy = r6(r$acc %||% NA),
+      precision = r6(r$precision %||% NA),
+      recall = r6(r$recall %||% NA),
+      f1 = r6(r$f1 %||% NA),
+      TP = as.integer(r$TP %||% NA),
+      FP = as.integer(r$FP %||% NA),
+      FN = as.integer(r$FN %||% NA),
+      TN = as.integer(r$TN %||% NA),
+      mc_conf_mat = I(mc_conf),    # list-column
+      mc_per_class = I(mc_pc),     # list-column (data.frame)
       stringsAsFactors = FALSE
     )
   }))
   rownames(rows_df) <- NULL
   
+  dcat("Final metrics table:")
+  dhead(rows_df, 10)
+  
   list(metrics = rows_df, predictions = out_preds)
 }
+
+
+
+
 
 
 
