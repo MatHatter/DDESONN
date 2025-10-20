@@ -1462,106 +1462,214 @@ accuracy_precision_recall_f1_tuned <- function(
     threshold_grid = seq(0.05, 0.95, by = 0.01),
     verbose = FALSE
 ) {
+  dbg <- function(...) if (verbose) message(paste(..., collapse = " "))
   metric_for_tuning <- match.arg(metric_for_tuning)
-  mode <- tolower(if (is.null(CLASSIFICATION_MODE)) "binary" else as.character(CLASSIFICATION_MODE))
   
-  # if not binary, threshold is irrelevant; return a safe shell
-  if (!identical(mode, "binary")) {
-    return(list(
-      thresholds      = numeric(0),
-      metric_values   = numeric(0),
-      best_threshold  = NA_real_,
-      best_metric     = NA_real_,
-      details         = list(best_threshold = NA_real_, best_metric = NA_real_, by = metric_for_tuning)
-    ))
-  }
+  # --- helpers ---
+  is_valid_mode <- function(x) is.character(x) && length(x) == 1L &&
+    tolower(x) %in% c("binary","multiclass","regression")
+  infer_mode <- function(L, P) if (max(ncol(L), ncol(P)) > 1L) "multiclass" else "binary"
   
-  P <- as.matrix(predicted_output)
-  if (ncol(P) >= 2L) {
-    # pick positive class column (last as fallback)
-    P <- P[, ncol(P), drop = FALSE]
-  }
-  probs <- as.numeric(P)
-  y     <- as.numeric(as.matrix(labels))
-  # coerce labels to {0,1} when possible
-  if (!all(y %in% c(0,1))) {
-    if (is.factor(labels)) {
-      y <- as.integer(labels) - 1L
-    } else if (is.logical(labels)) {
-      y <- as.integer(labels)
-    } else {
-      u <- sort(unique(y[is.finite(y)]))
-      if (length(u) == 2L && !all(u %in% c(0,1))) {
-        y <- ifelse(y == max(u), 1L, ifelse(y == min(u), 0L, NA_real_))
-      }
+  sanitize_grid_simple <- function(g) {
+    if (is.function(g)) {
+      attempt <- try(g(), silent = TRUE)
+      g <- if (!inherits(attempt, "try-error")) attempt else seq(0.05, 0.95, by = 0.01)
     }
+    if (is.language(g) || is.symbol(g)) {
+      attempt <- try(eval(g, parent.frame()), silent = TRUE)
+      g <- if (!inherits(attempt, "try-error")) attempt else seq(0.05, 0.95, by = 0.01)
+    }
+    if (is.list(g)) g <- unlist(g, use.names = FALSE)
+    g <- suppressWarnings(as.numeric(g))
+    g <- g[is.finite(g)]
+    g <- sort(unique(g))
+    g <- g[g > 0 & g < 1]
+    if (!length(g)) g <- seq(0.05, 0.95, by = 0.01)
+    g
   }
-  keep <- which(is.finite(probs) & is.finite(y))
-  probs <- probs[keep]; y <- y[keep]
-  if (!length(probs)) {
-    # degenerate: nothing to tune
+  
+  # --- coerce & trim ---
+  L <- coerce_to_numeric_matrix(labels, allow_model_matrix = FALSE)
+  P <- coerce_to_numeric_matrix(predicted_output, allow_model_matrix = FALSE)
+  n <- min(nrow(L), nrow(P))
+  if (n == 0L) stop("[accuracy_precision_recall_f1_tuned] empty inputs after trim.")
+  L <- L[seq_len(n), , drop = FALSE]
+  P <- P[seq_len(n), , drop = FALSE]
+  
+  # --- resolve mode ---
+  mode <- if (is_valid_mode(CLASSIFICATION_MODE)) tolower(CLASSIFICATION_MODE) else infer_mode(L, P)
+  thr_grid <- sanitize_grid_simple(threshold_grid)
+  
+  # =========================
+  # ===== REGRESSION ========
+  # =========================
+  if (identical(mode, "regression")) {
     return(list(
-      thresholds      = numeric(0),
-      metric_values   = numeric(0),
-      best_threshold  = 0.5,
-      best_metric     = NA_real_,
-      details         = list(best_threshold = 0.5, best_metric = NA_real_, by = metric_for_tuning)
+      accuracy  = NA_real_,
+      precision = NA_real_,
+      recall    = NA_real_,
+      f1        = NA_real_,
+      confusion_matrix = NULL,
+      details = list(
+        best_threshold = NA_real_,
+        y_pred_class   = NA,
+        grid_used      = thr_grid,
+        tuned_by       = "n/a"
+      )
     ))
   }
   
-  metric_fun <- switch(metric_for_tuning,
-                       accuracy = function(p, y) mean((p == y)),
-                       precision = function(p, y) {
-                         TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0)
-                         if ((TP+FP)==0) 0 else TP/(TP+FP)
-                       },
-                       recall = function(p, y) {
-                         TP <- sum(p==1 & y==1); FN <- sum(p==0 & y==1)
-                         if ((TP+FN)==0) 0 else TP/(TP+FN)
-                       },
-                       f1 = function(p, y) {
-                         TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); FN <- sum(p==0 & y==1)
-                         pre <- if ((TP+FP)==0) 0 else TP/(TP+FP)
-                         rec <- if ((TP+FN)==0) 0 else TP/(TP+FN)
-                         if ((pre+rec)==0) 0 else 2*pre*rec/(pre+rec)
-                       },
-                       # simple macro variants (same here since binary)
-                       macro_precision = function(p,y) {
-                         precision <- function(p, y) { TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); if ((TP+FP)==0) 0 else TP/(TP+FP) }
-                         (precision(p,y) + precision(1-p,1-y))/2
-                       },
-                       macro_recall = function(p,y) {
-                         recall <- function(p, y) { TP <- sum(p==1 & y==1); FN <- sum(p==0 & y==1); if ((TP+FN)==0) 0 else TP/(TP+FN) }
-                         (recall(p,y) + recall(1-p,1-y))/2
-                       },
-                       macro_f1 = function(p,y) {
-                         f1 <- function(p,y){TP <- sum(p==1 & y==1); FP <- sum(p==1 & y==0); FN <- sum(p==0 & y==1);
-                         pre <- if ((TP+FP)==0) 0 else TP/(TP+FP)
-                         rec <- if ((TP+FN)==0) 0 else TP/(TP+FN)
-                         if ((pre+rec)==0) 0 else 2*pre*rec/(pre+rec)}
-                         (f1(p,y) + f1(1-p,1-y))/2
-                       }
-  )
+  # ============================
+  # ======== BINARY PATH ========
+  # ============================
+  if (identical(mode, "binary")) {
+    # --- Labels (expecting 0/1) ---
+    y_true <- if (ncol(L) == 1L) {
+      v <- as.numeric(L[,1])
+      if (all(v %in% c(0,1))) as.integer(v) else as.integer(v >= 0.5)
+    } else {
+      as.integer(max.col(L, ties.method = "first") - 1L)
+    }
+    
+    # --- Probabilities (1-col sigmoid output) ---
+    if (ncol(P) != 1L) {
+      stop("[accuracy_precision_recall_f1_tuned] Binary mode expects 1-column probabilities (sigmoid). Got ", ncol(P), " columns.")
+    }
+    p_pos <- as.numeric(P[,1])
+    
+    # --- Global threshold logic ---
+    global_th <- DDESONN_get_threshold(default = NA_real_)
+    tuned_now <- FALSE
+    
+    if (is.na(global_th)) {
+      dbg("[accuracy_precision_recall_f1_tuned] No global threshold set. Tuning on provided data (use validation here).")
+      metrics <- c("accuracy","f1","precision","recall")
+      if (!(metric_for_tuning %in% metrics)) {
+        metric_for_tuning <- switch(metric_for_tuning,
+                                    macro_f1="f1",
+                                    macro_precision="precision",
+                                    macro_recall="recall",
+                                    metric_for_tuning)
+      }
+      
+      best <- list(th = 0.5, score = -Inf)
+      for (th in thr_grid) {
+        preds <- as.integer(p_pos >= th)
+        TP <- sum(preds == 1L & y_true == 1L)
+        FP <- sum(preds == 1L & y_true == 0L)
+        TN <- sum(preds == 0L & y_true == 0L)
+        FN <- sum(preds == 0L & y_true == 1L)
+        
+        acc <- (TP + TN) / length(y_true)
+        pre <- if ((TP + FP) > 0) TP / (TP + FP) else 0
+        rec <- if ((TP + FN) > 0) TP / (TP + FN) else 0
+        f1  <- if ((pre + rec) > 0) 2 * pre * rec / (pre + rec) else 0
+        
+        score <- switch(metric_for_tuning,
+                        accuracy = acc, f1 = f1, precision = pre, recall = rec)
+        if (score > best$score || (abs(score - best$score) < .Machine$double.eps^0.5 &&
+                                   abs(th - 0.5) < abs(best$th - 0.5))) {
+          best <- list(th=th, score=score)
+        }
+      }
+      DDESONN_set_threshold(best$th)
+      global_th <- best$th
+      tuned_now <- TRUE
+      dbg(sprintf("[accuracy_precision_recall_f1_tuned] Tuned global threshold = %.4f (metric=%s)",
+                  global_th, metric_for_tuning))
+    } else {
+      dbg(sprintf("[accuracy_precision_recall_f1_tuned] Using existing global threshold = %.4f.", global_th))
+    }
+    
+    # --- Apply chosen threshold (tuned or stored) ---
+    cm <- confusion_matrix(
+      SONN = SONN,
+      labels = matrix(y_true, ncol = 1),
+      CLASSIFICATION_MODE = "binary",
+      predicted_output = matrix(p_pos, ncol = 1),
+      threshold = global_th,
+      verbose = FALSE
+    )
+    
+    TP <- cm$TP; FP <- cm$FP; TN <- cm$TN; FN <- cm$FN
+    
+    total <- length(y_true)
+    acc <- (TP + TN) / total
+    pre <- if ((TP + FP) > 0) TP / (TP + FP) else 0
+    rec <- if ((TP + FN) > 0) TP / (TP + FN) else 0
+    f1  <- if ((pre + rec) > 0) 2 * pre * rec / (pre + rec) else 0
+    
+    y_pred_class <- as.integer(p_pos >= global_th)
+    
+    return(list(
+      accuracy  = as.numeric(acc),
+      precision = as.numeric(pre),
+      recall    = as.numeric(rec),
+      f1        = as.numeric(f1),
+      confusion_matrix = cm,
+      details   = list(
+        best_threshold = as.numeric(global_th),
+        y_pred_class   = y_pred_class,
+        grid_used      = thr_grid,
+        tuned_by       = if (tuned_now) metric_for_tuning else "applied-global"
+      )
+    ))
+  }
   
-  if (length(threshold_grid) == 0L) threshold_grid <- 0.5
+  # ===============================
+  # ===== MULTICLASS (argmax) =====
+  # ===============================
+  Kp <- ncol(P); Kl <- ncol(L)
+  if (Kp > 1L && Kl > 1L && Kp != Kl) {
+    K <- min(Kp, Kl)
+    Pk <- P[, seq_len(K), drop = FALSE]
+    Lk <- L[, seq_len(K), drop = FALSE]
+  } else {
+    Pk <- if (Kp > 1L) P else NULL
+    Lk <- if (Kl > 1L) L else NULL
+  }
   
-  scores <- vapply(threshold_grid, function(th) {
-    pred <- as.integer(probs >= th)
-    metric_fun(pred, y)
-  }, numeric(1))
+  true_ids <- if (!is.null(Lk)) {
+    max.col(Lk, ties.method = "first")
+  } else {
+    K <- max(2L, Kp)
+    v <- as.integer(round(L[,1]))
+    if (length(v) && min(v, na.rm = TRUE) == 0L) v <- v + 1L
+    v[v < 1L] <- 1L; v[v > K] <- K
+    v
+  }
+  pred_ids <- if (!is.null(Pk)) max.col(Pk, ties.method = "first") else rep(1L, length(true_ids))
   
-  best_idx <- which.max(scores)
-  best_th  <- as.numeric(threshold_grid[best_idx])
-  if (!is.finite(best_th) || length(best_th) != 1L) best_th <- 0.5
+  acc <- mean(pred_ids == true_ids, na.rm = TRUE)
+  
+  # macro precision/recall/F1
+  K <- max(true_ids, pred_ids, na.rm = TRUE)
+  macro_prec <- macro_rec <- macro_f1 <- numeric(K)
+  for (k in seq_len(K)) {
+    TPk <- sum(pred_ids == k & true_ids == k)
+    FPk <- sum(pred_ids == k & true_ids != k)
+    FNk <- sum(pred_ids != k & true_ids == k)
+    prec <- if ((TPk + FPk) > 0) TPk / (TPk + FPk) else 0
+    rec  <- if ((TPk + FNk) > 0) TPk / (TPk + FNk) else 0
+    f1   <- if ((prec + rec) > 0) 2 * prec * rec / (prec + rec) else 0
+    macro_prec[k] <- prec; macro_rec[k] <- rec; macro_f1[k] <- f1
+  }
   
   list(
-    thresholds      = threshold_grid,
-    metric_values   = scores,
-    best_threshold  = best_th,
-    best_metric     = scores[best_idx],
-    details         = list(best_threshold = best_th, best_metric = scores[best_idx], by = metric_for_tuning)
+    accuracy  = round(as.numeric(acc), 8),
+    precision = mean(macro_prec),
+    recall    = mean(macro_rec),
+    f1        = mean(macro_f1),
+    confusion_matrix = NULL,
+    details   = list(
+      best_threshold = NA_real_,
+      y_pred_class   = pred_ids,
+      grid_used      = thr_grid,
+      tuned_by       = "argmax-macro"
+    )
   )
 }
+
 
 
 
