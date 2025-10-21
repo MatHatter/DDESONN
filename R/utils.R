@@ -151,7 +151,75 @@ source("R/activation_functions.R")
   )
 }
 
-
+maybe_scale_y <- function(y, transform = NULL) {
+  if (is.null(y)) {
+    return(list(values = NULL, transform = transform))
+  }
+  
+  if (is.matrix(y)) {
+    mat <- y
+  } else if (is.data.frame(y)) {
+    mat <- as.matrix(y)
+  } else {
+    mat <- matrix(y, ncol = 1L)
+  }
+  storage.mode(mat) <- "double"
+  vec <- as.numeric(mat)
+  
+  make_identity <- function(center = NA_real_, scale = NA_real_) {
+    list(
+      type = "identity",
+      params = list(center = center, scale = scale),
+      apply = function(x) as.numeric(x),
+      invert = function(x) as.numeric(x)
+    )
+  }
+  
+  apply_transform <- function(vec, tr) {
+    fn <- tr$apply %||% tr$forward %||% tr$scale
+    if (!is.function(fn)) {
+      center <- tr$params$center %||% 0
+      scale <- tr$params$scale %||% 1
+      if (!is.numeric(scale) || length(scale) != 1 || !is.finite(scale) || identical(scale, 0)) {
+        fn <- function(x) as.numeric(x)
+      } else {
+        fn <- function(x) (as.numeric(x) - center) / scale
+      }
+    }
+    tr$apply <- fn
+    list(values = fn(vec), transform = tr)
+  }
+  
+  if (!is.null(transform)) {
+    applied <- apply_transform(vec, transform)
+    vals <- matrix(as.numeric(applied$values), nrow = nrow(mat), ncol = ncol(mat))
+    transform$apply <- applied$transform$apply
+    return(list(values = vals, transform = transform))
+  }
+  
+  finite <- is.finite(vec)
+  if (!any(finite)) {
+    tf <- make_identity()
+    return(list(values = mat, transform = tf))
+  }
+  
+  mu <- mean(vec[finite])
+  sdv <- stats::sd(vec[finite])
+  if (!is.finite(sdv) || sdv <= sqrt(.Machine$double.eps)) {
+    tf <- make_identity(center = mu, scale = sdv)
+    return(list(values = mat, transform = tf))
+  }
+  
+  scaled_vec <- (vec - mu) / sdv
+  vals <- matrix(as.numeric(scaled_vec), nrow = nrow(mat), ncol = ncol(mat))
+  tf <- list(
+    type = "zscore",
+    params = list(center = mu, scale = sdv),
+    apply = function(x) (as.numeric(x) - mu) / sdv,
+    invert = function(x) mu + as.numeric(x) * sdv
+  )
+  list(values = vals, transform = tf)
+}
 
 
 

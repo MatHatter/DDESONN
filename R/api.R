@@ -152,6 +152,49 @@ ddesonn_activation_defaults <- function(mode = c("binary", "multiclass", "regres
   c(hidden_fns, list(fetch_activation(defaults$output)))
 }
 
+.get_output_head_from_mode <- function(mode, num_classes = NULL) {
+  mode <- tolower(mode %||% "")
+  .ddesonn_source_legacy()
+  
+  fetch_activation <- function(name) {
+    fn <- get0(name, envir = .ddesonn_env, inherits = TRUE)
+    if (!is.function(fn)) {
+      fn <- get0(name, envir = baseenv(), inherits = TRUE)
+    }
+    if (!is.function(fn)) {
+      stop(sprintf("Activation '%s' is not available.", name), call. = FALSE)
+    }
+    if (is.null(attr(fn, "name"))) attr(fn, "name") <- name
+    fn
+  }
+  
+  res <- switch(
+    mode,
+    binary = list(act = fetch_activation("sigmoid"), loss = "bce"),
+    multiclass = list(act = fetch_activation("softmax"), loss = "cce"),
+    regression = list(act = fetch_activation("identity"), loss = "mse"),
+    stop(sprintf("Unsupported mode '%s'", mode), call. = FALSE)
+  )
+  
+  res$num_classes <- if (!is.null(num_classes)) as.integer(num_classes) else NULL
+  res
+}
+
+.loss_name_to_training <- function(loss_name) {
+  if (is.null(loss_name) || !length(loss_name)) return(NULL)
+  key <- tolower(as.character(loss_name[[1]]))
+  switch(
+    key,
+    bce = "CrossEntropy",
+    "binary_crossentropy" = "CrossEntropy",
+    cce = "CategoricalCrossEntropy",
+    "categorical_crossentropy" = "CategoricalCrossEntropy",
+    mse = "MSE",
+    mae = "MAE",
+    loss_name
+  )
+}
+
 #' Default dropout configuration.
 #'
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -199,7 +242,7 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
   mode <- match.arg(mode)
   .ddesonn_source_legacy()
   
-  list(
+  defaults <- list(
     lr = 0.125,
     lr_decay_rate = 0.5,
     lr_decay_epoch = 20L,
@@ -208,6 +251,7 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     self_org = FALSE,
     threshold = .ddesonn_threshold_default(mode),
     reg_type = "L1",
+    lambda = NA_real_,
     numeric_columns = NULL,
     activation_functions = NULL,
     activation_functions_predict = NULL,
@@ -237,6 +281,21 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     viewTables = FALSE,
     verbose = FALSE
   )
+  
+  if (identical(mode, "regression")) {
+    len_hidden <- length(hidden_sizes %||% integer())
+    defaults$lr <- 1e-3
+    defaults$lr_decay_rate <- 0
+    defaults$lr_decay_epoch <- 0L
+    defaults$lr_min <- 0
+    defaults$num_epochs <- max(as.integer(defaults$num_epochs), 50L)
+    defaults$reg_type <- "none"
+    defaults$lambda <- 0
+    defaults$dropout_rates <- if (len_hidden) as.list(rep(0, len_hidden)) else list()
+    defaults$optimizer <- "adam"
+  }
+  
+  defaults
 }
 
 .as_matrix <- function(x) {
@@ -331,6 +390,21 @@ ddesonn_model <- function(input_size,
   attr(model, "hidden_sizes") <- hidden_sizes
   attr(model, "lambda") <- lambda
   attr(model, "ML_NN") <- ML_NN
+  attr(model, "output_size") <- output_size
+  
+  head_info <- .get_output_head_from_mode(classification_mode, output_size)
+  model$output_activation <- head_info$act
+  model$loss_name <- head_info$loss
+  attr(model, "output_activation") <- head_info$act
+  attr(model, "loss_name") <- head_info$loss
+  model$target_transform <- NULL
+  attr(model, "target_transform") <- NULL
+  
+  if (length(model$ensemble)) {
+    for (net in model$ensemble) {
+      try(net$output_activation <- head_info$act, silent = TRUE)
+      try(net$loss_name <- head_info$loss, silent = TRUE)
+    }
   class(model) <- unique(c("ddesonn_model", class(model)))
   model
 }
@@ -374,6 +448,23 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   mode <- tolower(overrides$classification_mode %||% attr(model, "classification_mode") %||% "binary")
   hidden_sizes <- attr(model, "hidden_sizes") %||% NULL
   
+  model_mode <- attr(model, "classification_mode") %||% "binary"
+  if (!identical(model_mode, mode)) {
+    attr(model, "classification_mode") <- mode
+  }
+  output_size <- attr(model, "output_size") %||%
+    tryCatch(model$ensemble[[1]]$output_size, error = function(e) NULL)
+  head_info <- .get_output_head_from_mode(mode, output_size)
+  model$output_activation <- head_info$act
+  model$loss_name <- head_info$loss
+  attr(model, "output_activation") <- head_info$act
+  attr(model, "loss_name") <- head_info$loss
+  if (length(model$ensemble)) {
+    for (net in model$ensemble) {
+      try(net$output_activation <- head_info$act, silent = TRUE)
+      try(net$loss_name <- head_info$loss, silent = TRUE)
+    }
+  }
   # --- Coerce TRAIN labels by mode (no external helpers) ---
   y_in <- if (is.list(y) && !is.data.frame(y)) unlist(y, use.names = FALSE) else y
   labels <- NULL
@@ -453,6 +544,10 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cfg$activation_functions_predict <- cfg$activation_functions_predict %||% attr(model, "activation_functions_predict")
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
+  cfg$loss_type <- overrides$loss_type %||% .loss_name_to_training(head_info$loss) %||% cfg$loss_type
+  if (mode == "regression") {
+    cfg$threshold <- NA_real_
+  }
   
   # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
   if (identical(mode, "binary")) {
@@ -463,6 +558,17 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   
   cfg$ML_NN <- isTRUE(cfg$ML_NN %||% attr(model, "ML_NN"))
   cfg$ensemble_number <- overrides$ensemble_number %||% cfg$ensemble_number %||% 0L
+  
+  lambda_override <- overrides$lambda %||% cfg$lambda
+  if (!is.null(lambda_override) && length(lambda_override) && is.finite(lambda_override)) {
+    try(model$lambda <- lambda_override, silent = TRUE)
+    attr(model, "lambda") <- lambda_override
+    if (length(model$ensemble)) {
+      for (net in model$ensemble) {
+        try(net$lambda <- lambda_override, silent = TRUE)
+      }
+    }
+  }
   
   # VALID labels (if present) — coerce by mode
   if (!is.null(validation)) {
@@ -525,6 +631,31 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       }
     }
   }
+  
+  target_transform <- NULL
+  if (mode == "regression") {
+    scaled_train <- maybe_scale_y(labels)
+    labels <- scaled_train$values
+    target_transform <- scaled_train$transform
+    
+    if (!is.null(cfg$y_validation)) {
+      scaled_val <- maybe_scale_y(cfg$y_validation, transform = target_transform)
+      cfg$y_validation <- scaled_val$values
+    }
+    
+    preprocess <- cfg$preprocessScaledData %||% list()
+    preprocess$target_transform <- target_transform
+    preprocess$reg_target_mode <- target_transform$type %||% "identity"
+    preprocess$reg_target_mode_applied <- !identical(preprocess$reg_target_mode, "identity")
+    cfg$preprocessScaledData <- preprocess
+    
+    model$target_transform <- target_transform
+    attr(model, "target_transform") <- target_transform
+    meta_preprocess <- attr(model, "preprocess") %||% list()
+    meta_preprocess$target_transform <- target_transform
+    attr(model, "preprocess") <- meta_preprocess
+  }
+  
   
   # derive from model unless overridden
   model_num_networks <- tryCatch(model$num_networks, error = function(e) NULL)
@@ -742,6 +873,17 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     y_train_vec <- as.numeric(labels[, 1])
     y_valid_vec <- if (!is.null(cfg$y_validation)) as.numeric(cfg$y_validation[, 1]) else NULL
     
+    inverse_labels <- NULL
+    if (is.list(target_transform)) {
+      inverse_labels <- target_transform$invert %||% target_transform$inverse %||% target_transform$restore
+    }
+    if (is.function(inverse_labels)) {
+      y_train_vec <- inverse_labels(y_train_vec)
+      if (!is.null(y_valid_vec)) {
+        y_valid_vec <- inverse_labels(y_valid_vec)
+      }
+    }
+    
     compute_regression_metrics <- function(y_true, y_hat) {
       y_true <- as.numeric(y_true); y_hat <- as.numeric(y_hat)
       ok <- is.finite(y_true) & is.finite(y_hat)
@@ -849,6 +991,23 @@ ddesonn_predict <- function(model, new_data,
   X <- .as_numeric_matrix(new_data)
   mode <- attr(model, "classification_mode") %||% "binary"
   
+  target_transform <- attr(model, "target_transform") %||%
+    model$target_transform %||%
+    ((attr(model, "preprocess") %||% list())$target_transform %||% NULL)
+  inverse_transform <- NULL
+  if (is.list(target_transform)) {
+    inverse_transform <- target_transform$invert %||%
+      target_transform$inverse %||%
+      target_transform$restore
+    if (!is.function(inverse_transform)) {
+      center <- target_transform$params$center %||% 0
+      scale  <- target_transform$params$scale %||% 1
+      if (is.numeric(scale) && length(scale) == 1 && is.finite(scale) && !identical(scale, 0)) {
+        inverse_transform <- function(v) center + as.numeric(v) * scale
+      }
+    }
+  }
+  
   preds <- lapply(seq_along(model$ensemble), function(i) {
     net <- model$ensemble[[i]]
     
@@ -875,7 +1034,9 @@ ddesonn_predict <- function(model, new_data,
     )
     
     out <- res$predicted_output %||% res$prediction %||% res
-    .as_numeric_matrix(out)
+    mat <- .as_numeric_matrix(out)
+    storage.mode(mat) <- "double"
+    mat
   })
   
   # aggregate
@@ -886,6 +1047,31 @@ ddesonn_predict <- function(model, new_data,
                           c(1, 2), stats::median),
            none   = preds[[1]]
     )
+  
+  if (identical(mode, "regression")) {
+    preds <- lapply(preds, function(mat) {
+      mat_num <- matrix(as.numeric(mat), nrow = nrow(mat), ncol = ncol(mat))
+      if (is.function(inverse_transform)) {
+        mat_num <- matrix(inverse_transform(as.numeric(mat_num)), nrow = nrow(mat_num), ncol = ncol(mat_num))
+      }
+      mat_num
+    })
+    
+    agg_nrow <- nrow(aggregated)
+    agg_ncol <- ncol(aggregated)
+    if (is.null(agg_nrow) || is.null(agg_ncol)) {
+      agg_len <- length(aggregated)
+      agg_nrow <- agg_len
+      agg_ncol <- 1L
+    }
+    aggregated <- matrix(as.numeric(aggregated), nrow = agg_nrow, ncol = agg_ncol)
+    if (is.function(inverse_transform)) {
+      aggregated <- matrix(inverse_transform(as.numeric(aggregated)), nrow = agg_nrow, ncol = agg_ncol)
+    }
+    if (aggregate == "none") {
+      aggregated <- preds[[1]]
+    }
+  }
   
   output <- list(prediction = aggregated, per_model = if (aggregate == "none") preds else preds)
   

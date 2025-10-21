@@ -2056,6 +2056,33 @@ SONN <- R6Class(
             verbose             = verbose
           )
           
+          if (epoch %% 5 == 0 & verbose == TRUE) {
+            loss_val <- suppressWarnings(as.numeric(losses[[epoch]]))
+            weight_list <- if (is.list(self$weights)) self$weights else list(self$weights)
+            bias_list   <- if (is.list(self$biases))  self$biases  else list(self$biases)
+            weight_norms <- vapply(weight_list, function(W) {
+              if (is.null(W)) return(NA_real_)
+              w <- as.numeric(W)
+              if (!length(w) || all(!is.finite(w))) return(NA_real_)
+              sqrt(mean(w^2, na.rm = TRUE))
+            }, numeric(1))
+            bias_means <- vapply(bias_list, function(b) {
+              if (is.null(b)) return(NA_real_)
+              bv <- as.numeric(b)
+              if (!length(bv) || all(!is.finite(bv))) return(NA_real_)
+              mean(bv, na.rm = TRUE)
+            }, numeric(1))
+            avg_weight_norm <- if (all(is.na(weight_norms))) NA_real_ else mean(weight_norms, na.rm = TRUE)
+            avg_bias_mean   <- if (all(is.na(bias_means)))   NA_real_ else mean(bias_means,   na.rm = TRUE)
+            cat(sprintf(
+              "[dbg] Epoch %d summary: loss=%s | avg_weight_norm=%s | bias_mean=%s\n",
+              epoch,
+              if (is.finite(loss_val)) sprintf("%.6f", loss_val) else "NA",
+              if (is.finite(avg_weight_norm)) sprintf("%.6f", avg_weight_norm) else "NA",
+              if (is.finite(avg_bias_mean)) sprintf("%.6f", avg_bias_mean) else "NA"
+            ))
+          }
+          
           # ===== Initialize records and optimizer params (unchanged) =====
           if (self$ML_NN) {
             weights_record <- vector("list", self$num_layers)
