@@ -3505,759 +3505,713 @@ DDESONN <- R6Class(
     }
     , # Method for updating performance and relevance metrics
 
-    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
-      if(verbose){print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")}
+    update_performance_and_relevance = function(
+  Rdata, labels, num_networks, update_weights, update_biases,
+  preprocessScaledData,
+  X_validation, y_validation, validation_metrics,
+  lr, CLASSIFICATION_MODE,
+  ensemble_number, model_iter_num, num_epochs,
+  threshold, threshold_function,
+  learn_results, predicted_output_list,
+  all_best_val_probs, all_best_val_labels, all_best_val_prediction_time,
+  learn_time, prediction_time_list, run_id, all_predicted_outputAndTime,
+  all_weights, all_biases,
+  all_activation_functions, all_activation_functions_predict,
+  all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss,
+  all_best_val_acc, all_best_val_epoch,
+  best_weights_on_latest_weights_off,
+  ML_NN, train, grouped_metrics, viewTables, verbose
+) {
+  if (verbose) {
+    print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")
+  }
 
-      # Initialize lists to store performance and relevance metrics for each SONN
-      performance_list <- list()
-      relevance_list <- list()
-      model_name_list <-  list()
-      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+  # Initialize lists to store performance and relevance metrics for each SONN
+  performance_list <- list()
+  relevance_list   <- list()
+  model_name_list  <- list()
 
-      # Calculate performance and relevance for each SONN in the ensemble
+  # Helper: robust numeric extraction (keeps regression outputs usable)
+  .extract_numeric_matrix <- function(obj) {
+    if (is.null(obj) || inherits(obj, "try-error")) return(NULL)
+    if (is.list(obj) && !is.data.frame(obj)) {
+      for (nm in c("predicted_output", "preds", "output", "yhat", "values")) {
+        if (!is.null(obj[[nm]])) { obj <- obj[[nm]]; break }
+      }
+    }
+    if (is.data.frame(obj)) {
+      obj <- as.matrix(obj)
+    } else if (is.matrix(obj)) {
+      # keep
+    } else if (is.atomic(obj)) {
+      obj <- matrix(obj, ncol = 1L)
+    } else if (is.list(obj)) {
+      obj <- matrix(unlist(obj, use.names = FALSE), ncol = 1L)
+    } else {
+      return(NULL)
+    }
+    storage.mode(obj) <- "double"
+    obj
+  }
 
-      for (i in 1:length(self$ensemble)) {
+  # Safe ncol helper (handles lists from self$predict)
+  safe_ncol <- function(x) {
+    if (is.null(x)) return(0L)
+    if (is.list(x)) {
+      if (!is.null(x$predicted_output)) return(safe_ncol(x$predicted_output))
+      if (!is.null(x$preds))            return(safe_ncol(x$preds))
+      if (!is.null(x$output))           return(safe_ncol(x$output))
+      if (!is.null(dim(x)))             return(ncol(x))
+      return(0L)
+    }
+    if (is.matrix(x))     return(ncol(x))
+    if (is.data.frame(x)) return(ncol(x))
+    if (!is.null(dim(x))) return(dim(x)[2])
+    if (is.atomic(x))     return(1L)
+    0L
+  }
 
+  #████████████████████████████████████████████████████████████████████████████████████████████████
 
-        best_val_probs <- all_best_val_probs[[i]]
-        best_val_labels <- all_best_val_labels[[i]]
-        best_val_prediction_time <- all_best_val_prediction_time[[i]]
+  # Calculate performance and relevance for each SONN in the ensemble
+  for (i in 1:length(self$ensemble)) {
 
-        best_train_acc <- all_best_train_acc[[i]]
-        best_epoch_train <- all_best_epoch_train[[i]]
-        best_train_loss <- all_best_train_loss[[i]]
-        best_epoch_train_loss <- all_best_epoch_train_loss[[i]]
-        best_val_acc <- all_best_val_acc[[i]]
-        best_val_epoch <- all_best_val_epoch[[i]]
+    best_val_probs           <- all_best_val_probs[[i]]
+    best_val_labels          <- all_best_val_labels[[i]]
+    best_val_prediction_time <- all_best_val_prediction_time[[i]]
 
-        single_predicted_outputAndTime <- all_predicted_outputAndTime[[i]]  # metadata
-        single_predicted_output <- predicted_output_list[[i]]
-        single_ensemble_name_model_name <- run_id[[i]]
-        
-        single_activation_functions <- all_activation_functions[[i]]
-        single_activation_functions_predict <- all_activation_functions_predict[[i]]
-        
-        # might remove if, but keep contents
-        if (train) {
+    best_train_acc        <- all_best_train_acc[[i]]
+    best_epoch_train      <- all_best_epoch_train[[i]]
+    best_train_loss       <- all_best_train_loss[[i]]
+    best_epoch_train_loss <- all_best_epoch_train_loss[[i]]
+    best_val_acc          <- all_best_val_acc[[i]]
+    best_val_epoch        <- all_best_val_epoch[[i]]
 
+    single_predicted_outputAndTime  <- all_predicted_outputAndTime[[i]]  # metadata
+    single_predicted_output         <- predicted_output_list[[i]]
+    single_ensemble_name_model_name <- run_id[[i]]
 
-          cat("___________________________________________________________________________\n")
-          cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
+    single_activation_functions         <- all_activation_functions[[i]]
+    single_activation_functions_predict <- all_activation_functions_predict[[i]]
 
-          single_prediction_time <- prediction_time_list[[i]]
+    # might remove if, but keep contents
+    if (train) {
+      cat("___________________________________________________________________________\n")
+      cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
 
-          #brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
-          if (validation_metrics){
-            Rdata = X_validation
-            labels = y_validation
-          }
+      single_prediction_time <- prediction_time_list[[i]]
 
-          # ---- PRE-REPORT TUNING (binary only) ----
-          tuned <- NULL
-          best_threshold <- NA_real_
-          # need to figure out if I need to add is.null(predicted_output_val) && to the ifs below
-          if ( !is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            # choose snapshot to tune: prefer best_val_*; else last-epoch predictions
-            if (!is.null(best_val_probs) && !is.null(best_val_labels)) {
-              probs_for_tuning  <- as.matrix(best_val_probs)
-              labels_for_tuning <- if (is.matrix(best_val_labels)) best_val_labels[, 1] else best_val_labels
-              labels_for_tuning <- as.integer(labels_for_tuning)
-            } else {
-              fallback_probs <- single_predicted_output
-              if (is.list(fallback_probs) && !is.null(fallback_probs$predicted_output)) {
-                fallback_probs <- fallback_probs$predicted_output
-              }
-              probs_for_tuning <- as.matrix(fallback_probs)
-              n_eff <- min(NROW(probs_for_tuning), if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation))
-              y_val_vec <- if (is.matrix(y_validation)) {
-                y_validation[seq_len(n_eff), 1]
-              } else {
-                y_validation[seq_len(n_eff)]
-              }
-              labels_for_tuning <- as.integer(y_val_vec)
-            }
-
-            tuned <- accuracy_precision_recall_f1_tuned(
-              SONN                = self$ensemble[[i]],
-              Rdata               = tryCatch(X_validation, error = function(e) NULL),
-              labels              = matrix(labels_for_tuning, ncol = 1L),
-              CLASSIFICATION_MODE = "binary",
-              predicted_output    = probs_for_tuning,
-              metric_for_tuning   = "accuracy",
-              threshold_grid      = seq(0.05, 0.95, by = 0.01),
-              verbose             = isTRUE(verbose)
-            )
-
-            chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
-            if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
-
-            best_threshold <- chosen_threshold
-            self$ensemble[[i]]$chosen_threshold <- chosen_threshold
-          }
-
-          # === Evaluate Prediction Diagnostics ===
-          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            eval_result <- EvaluatePredictionsReport(
-              X_validation = X_validation,
-              y_validation = y_validation,
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              probs = single_predicted_output,
-              predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,    # still accepted, no-op
-              all_best_val_probs = best_val_probs,
-              all_best_val_labels = best_val_labels,
-              verbose = verbose,
-              # --- NEW: pass tuned scalar to skip sweep ---
-              accuracy_plot = "both",                    # or "default" or "both"
-              tuned_threshold_override = best_threshold,
-              SONN = self$ensemble[[i]]
-            )
-            # Mirror back for downstream readers that expect the report field
-            if (is.finite(best_threshold)) {
-              eval_result$best_threshold <- best_threshold
-            }
-          } else {
-            # Ensure eval_result exists for later fields even if no validation path
-            eval_result <- list(best_threshold = NA_real_, best_thresholds = NULL, accuracy = NA_real_, accuracy_percent = NA_real_, metrics = NULL, misclassified = NULL)
-          }
-
-          # Safely get number of columns from many shapes
-          safe_ncol <- function(x) {
-            if (is.null(x)) return(0L)
-            # If it's a list from self$predict, try common fields first
-            if (is.list(x)) {
-              if (!is.null(x$predicted_output)) return(safe_ncol(x$predicted_output))
-              if (!is.null(x$preds))            return(safe_ncol(x$preds))
-              if (!is.null(x$output))           return(safe_ncol(x$output))
-              # last resort: if it still has a dim attribute
-              if (!is.null(dim(x))) return(ncol(x))
-              return(0L)
-            }
-            if (is.matrix(x))      return(ncol(x))
-            if (is.data.frame(x))  return(ncol(x))
-            if (!is.null(dim(x)))  return(dim(x)[2])
-            # vectors/scalars count as 1 col (binary probs)
-            if (is.atomic(x))      return(1L)
-            0L
-          }
-
-          k_labels <- safe_ncol(y_validation)
-          k_probs  <- safe_ncol(single_predicted_output)
-
-          # Prefer label-driven K when available; otherwise use predictions
-          K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
-
-
-          # Pull out both fields (back-compat + multiclass)
-          best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
-          best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
-
-          # Decide what to store/use
-          if (K == 1L) {
-            # Binary: prefer tuned scalar; fallback to 0.5 if NA
-            threshold_used   <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
-            thresholds_used  <- best_thresholds_vec  # length-1 vector (kept for consistency)
-          } else {
-            # Multiclass: no single scalar; keep the whole vector
-            threshold_used   <- NA_real_
-            # if somehow missing, fallback to 0.5 per class
-            thresholds_used  <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
-              best_thresholds_vec
-            } else {
-              rep(0.5, K)
-            }
-          }
-
-          # Optional: logs
-          if (isTRUE(verbose)) {
-            if (K == 1L) {
-              message(sprintf("[train] Using tuned binary threshold: %.3f", threshold_used))
-            } else {
-              message(sprintf("[train] Using tuned per-class thresholds: %s",
-                              paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
-            }
-          }
-
-
-          if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
-            probs   <- best_val_probs
-            targets <- best_val_labels
-            prediction_time <- best_val_prediction_time
-            cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
-          } else {
-            probs   <- single_predicted_output
-            targets <- labels
-            prediction_time <- single_prediction_time
-            cat("[calculate_performance] Using last-epoch predictions\n")
-          }
-
-          if (identical(CLASSIFICATION_MODE, "regression")) {
-            X_eval <- NULL
-            y_eval <- NULL
-
-            if (best_weights_on_latest_weights_off && isTRUE(validation_metrics) &&
-                !is.null(X_validation) && !is.null(y_validation)) {
-              X_eval <- X_validation
-              y_eval <- y_validation
-            } else if (!is.null(Rdata)) {
-              X_eval <- Rdata
-              y_eval <- targets
-            }
-
-            weights_eval <- if (!is.null(all_weights[[i]])) all_weights[[i]] else self$ensemble[[i]]$weights
-            biases_eval  <- if (!is.null(all_biases[[i]]))  all_biases[[i]]  else self$ensemble[[i]]$biases
-
-            act_eval <- single_activation_functions_predict
-            if (is.null(act_eval) || !length(act_eval)) act_eval <- single_activation_functions
-
-            if (!is.null(X_eval)) {
-              reg_predict <- tryCatch(
-                self$ensemble[[i]]$predict(
-                  Rdata                        = X_eval,
-                  weights                      = weights_eval,
-                  biases                       = biases_eval,
-                  activation_functions_predict = act_eval,
-                  verbose                      = FALSE,
-                  debug                        = FALSE
-                ),
-                error = function(e) {
-                  if (isTRUE(verbose)) message("[regression] predict() refresh failed: ", e$message)
-                  NULL
-                }
-              )
-
-              if (!is.null(reg_predict)) {
-                preds_mat <- reg_predict
-                if (!is.null(reg_predict$predicted_output)) preds_mat <- reg_predict$predicted_output
-                preds_mat <- as.matrix(preds_mat)
-
-                if (nrow(preds_mat) > 0) {
-                  n_eff_reg <- nrow(preds_mat)
-
-                  if (!is.null(y_eval)) {
-                    if (is.matrix(y_eval)) {
-                      n_eff_reg <- min(n_eff_reg, nrow(y_eval))
-                      y_eval <- y_eval[seq_len(n_eff_reg), , drop = FALSE]
-                    } else {
-                      n_eff_reg <- min(n_eff_reg, length(y_eval))
-                      y_eval <- y_eval[seq_len(n_eff_reg)]
-                    }
-                  }
-
-                  preds_mat <- preds_mat[seq_len(n_eff_reg), , drop = FALSE]
-                  storage.mode(preds_mat) <- "double"
-
-                  probs   <- preds_mat
-                  if (!is.null(y_eval)) targets <- y_eval
-
-                  if (!is.null(reg_predict$prediction_time)) {
-                    prediction_time <- reg_predict$prediction_time
-                  }
-
-                  if (isTRUE(verbose)) {
-                    message(sprintf("[regression] predict() refresh -> n=%d | sd=%.6f",
-                                     n_eff_reg, stats::sd(as.numeric(preds_mat))))
-                  }
-                }
-              }
-            }
-          }
-
-
-
-
-          performance_list[[i]] <- calculate_performance(
-            SONN = self$ensemble[[i]],
-            Rdata = Rdata,
-            labels = targets,
-            lr = lr,
-            CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-            model_iter_num = i,
-            num_epochs = num_epochs,
-            threshold = if (K == 1L) threshold_used else threshold,
-            learn_time = learn_time,
-            predicted_output = probs,
-            prediction_time = prediction_time,
-            ensemble_number = ensemble_number,
-            run_id = run_id,
-            weights = all_weights[[i]],
-            biases = all_biases[[i]],
-            activation_functions = all_activation_functions[[i]],
-            ML_NN = ML_NN,
-            verbose = verbose
-          )
-
-          relevance_list[[i]] <- calculate_relevance(
-            self$ensemble[[i]],
-            Rdata = Rdata,
-            labels = targets,
-            CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-            model_iter_num = i,
-            predicted_output = probs,
-            ensemble_number = ensemble_number,
-            weights = self$ensemble[[i]]$weights,
-            biases = self$ensemble[[i]]$biases,
-            activation_functions = self$ensemble[[i]]$activation_functions,
-            ML_NN = ML_NN,
-            verbose = verbose
-          )
-
-          performance_metric <- performance_list[[i]]$metrics
-
-          # Fill tuned columns directly from the pre-report tuning pass
-          if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
-            performance_metric$accuracy_tuned  <- tuned$accuracy
-            performance_metric$precision_tuned <- tuned$precision
-            performance_metric$recall_tuned    <- tuned$recall
-            performance_metric$f1_tuned        <- tuned$f1
-          }
-
-          relevance_metric <- relevance_list[[i]]$metrics
-
-          if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
-            if (verbose || viewTables) {
-              message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
-              emit_table(
-                performance_metric,
-                title = "[PERFORMANCE metrics]",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-              emit_table(
-                relevance_metric,
-                title = "[RELEVANCE metrics]",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-
-          }
-
-        }
-
-
-        if (verbose) {
-          message("\n=============================================")
-          message("DEBUG: Preparing to store metadata (Network Container)")
-          message(sprintf("Ensemble number: %s", ensemble_number))
-          message(sprintf("Model iteration: %s", i))
-          message(sprintf("Run ID: %s", single_ensemble_name_model_name))
-          pred_shape <- tryCatch(paste(dim(single_predicted_output), collapse = " × "), error = function(...) "<unknown>")
-          message(sprintf("Predicted output shape: %s", pred_shape))
-          message(sprintf("Checking self$ensemble[[%s]]", i))
-          captured <- utils::capture.output(str(self$ensemble[[i]]))
-          for (line in captured) message(line)
-          message("=============================================\n")
-        }
-
-
-        self$store_metadata(
-          single_predicted_outputAndTime, actual_values = NULL, do_ensemble = NULL, self$input_size, self$output_size, self$N,
-          total_num_samples = NULL, num_test_samples = NULL, num_training_samples = NULL, num_validation_samples = NULL,
-          num_networks, update_weights, update_biases, lr, self$lambda, num_epochs,
-          run_id = single_ensemble_name_model_name, ensemble_number, model_iter_num = i,
-          model_serial_num = sprintf("%d.0.%d", ensemble_number, i),
-          threshold = if (exists("threshold_used") && isTRUE(is.finite(threshold_used))) threshold_used else NULL,
-          CLASSIFICATION_MODE, predicted_output = single_predicted_output, preprocessScaledData,
-          X = NULL, y = NULL, X_test_scaled = NULL, y_test = NULL, all_weights, all_biases, artifact_names, artifact_paths,
-          validation_metrics = validation_metrics, single_activation_functions, single_activation_functions_predict,
-          self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc,
-          best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL
-        )
-
+      # bring X_validation and y_validation close to metrics without doubling vars
+      if (validation_metrics) {
+        Rdata  <- X_validation
+        labels <- y_validation
       }
 
+      single_predicted_output_numeric <- single_predicted_output
+      best_val_probs_numeric          <- best_val_probs
+      best_val_labels_numeric         <- best_val_labels
+      labels_numeric                  <- labels
 
-      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-
-      # Extract names and metrics for performance and relevance
-      performance_metrics <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$metrics) #<<-
-      performance_names <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$names) #<<-
-
-      relevance_metrics <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$metrics) #<<-
-      relevance_names <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$names) #<<-
-
-      # Check for NULL values in performance_metrics and relevance_metrics
-      check_null <- function(metrics_list) {
-        unlist(lapply(seq_along(metrics_list), function(i) {
-          if (is.null(metrics_list[[i]])) {
-            return(paste0("NULL at index: ", i))
-          } else {
-            return(paste0("Not NULL at index: ", i))
-          }
-        }))
-      }
-      check_null(performance_metrics)
-      null_check_performance <- check_null(performance_metrics) #<<-
-      check_null(relevance_metrics)
-      null_check_relevance <- check_null(relevance_metrics) #<<-
-
-
-
-
-      # Convert the matrix to a data frame without modifying row names
-      # Initialize empty vectors to store values and row names
-
-      # Function to process performance metrics
-      process_performance <- function(metrics_data, model_names, high_threshold = 10, verbose = FALSE) {
-        EXCLUDE_METRICS_REGEX <- paste(
-          c(
-            "^accuracy_precision_recall_f1_tuned_details_accuracy_percent$",
-            "^accuracy_percent$",
-            "^accuracy_precision_recall_f1_tuned_details_y_pred_class",
-            "^y_pred_class",
-            "^accuracy_precision_recall_f1_tuned_details_grid_used",
-            "^grid_used"
-          ),
-          collapse = "|"
-        )
-
-        # ---- model names handling ----
-        if (length(model_names) == 1L && length(metrics_data) > 1L) {
-          model_names <- rep(model_names, length(metrics_data))
+      if (identical(CLASSIFICATION_MODE, "regression")) {
+        # Restore original target scale and feed pure numerics to downstream metrics.
+        target_transform <- NULL
+        if (!is.null(preprocessScaledData) && is.list(preprocessScaledData)) {
+          target_transform <- preprocessScaledData$target_transform %||% target_transform
         }
-        if (is.null(model_names) || length(model_names) != length(metrics_data)) {
-          model_names <- paste0("Model_", seq_along(metrics_data))
+        target_transform <- target_transform %||% attr(self, "target_transform")
+        if (is.null(target_transform)) {
+          meta_preprocess <- attr(self, "preprocess")
+          if (is.list(meta_preprocess)) target_transform <- meta_preprocess$target_transform
         }
 
-        # ---- helpers ----
-        to_numeric_safely <- function(v) {
-          v <- as.character(v)
-          cleaned <- gsub("[^0-9eE+\\-\\.]", "", v)
-          suppressWarnings(as.numeric(cleaned))
-        }
-        norm_atom <- function(x) {
-          if (inherits(x, "Duration"))  return(as.numeric(x))                 # seconds
-          if (inherits(x, "difftime"))  return(as.numeric(x, units = "secs")) # seconds
-          if (inherits(x, "POSIXct") || inherits(x, "POSIXt")) return(as.numeric(x))
-          if (inherits(x, "Date"))      return(as.numeric(x))
-          if (is.logical(x))            return(as.numeric(x))
-          if (is.factor(x))             return(as.character(x))
-          x
-        }
-        # Flatten into named atomic elements (as list of scalars/vectors)
-        flatten_metrics <- function(x, prefix = NULL) {
-          out <- list()
-          nm_prefix <- function(base, name) if (is.null(base) || base == "") name else paste0(base, "_", name)
-
-          if (is.null(x)) return(out)
-
-          if (is.atomic(x) && length(x) >= 1L) {
-            # keep vectors; caller will split to rows
-            nm <- if (is.null(prefix)) "value" else prefix
-            out[[nm]] <- x
-            return(out)
-          }
-
-          if (is.data.frame(x)) {
-            for (nm in names(x)) {
-              out <- c(out, flatten_metrics(x[[nm]], nm_prefix(prefix, nm)))
-            }
-            return(out)
-          }
-
-          if (is.list(x)) {
-            nms <- names(x)
-            for (i in seq_along(x)) {
-              nm <- if (!is.null(nms) && nzchar(nms[i])) nms[i] else as.character(i)
-              out <- c(out, flatten_metrics(x[[i]], nm_prefix(prefix, nm)))
-            }
-            return(out)
-          }
-
-          out  # unknown type -> ignore
-        }
-
-        build_long_df <- function(lst, model_name) {
-          if (is.null(lst) || length(lst) == 0L) {
-            if (verbose) message("[process_performance] empty metrics for ", model_name)
-            return(data.frame(Model_Name = character(0), Metric = character(0), Value = numeric(0)))
-          }
-          rows <- list()
-          idx <- 1L
-          for (nm in names(lst)) {
-            val <- lst[[nm]]
-            if (length(val) == 0L) next
-            val <- norm_atom(val)
-            if (length(val) == 0L) next
-
-            # split vectors to multiple rows with indexed metric names (stable & unique)
-            if (length(val) > 1L) {
-              for (k in seq_along(val)) {
-                rows[[idx]] <- data.frame(
-                  Model_Name = model_name,
-                  Metric     = paste0(nm, "_", k),
-                  Value      = as.character(val[[k]]),
-                  stringsAsFactors = FALSE, check.names = FALSE
-                )
-                idx <- idx + 1L
-              }
-            } else {
-              rows[[idx]] <- data.frame(
-                Model_Name = model_name,
-                Metric     = nm,
-                Value      = as.character(val),
-                stringsAsFactors = FALSE, check.names = FALSE
-              )
-              idx <- idx + 1L
+        inverse_fn <- NULL
+        if (is.list(target_transform)) {
+          inverse_fn <- target_transform$invert %||% target_transform$inverse %||% target_transform$restore
+          if (!is.function(inverse_fn)) {
+            center <- target_transform$params$center %||% 0
+            scale  <- target_transform$params$scale  %||% 1
+            if (is.numeric(scale) && length(scale) == 1 && is.finite(scale) && !identical(scale, 0)) {
+              inverse_fn <- function(v) center + as.numeric(v) * scale
             }
           }
-          if (length(rows) == 0L) {
-            data.frame(Model_Name = character(0), Metric = character(0), Value = numeric(0))
-          } else {
-            do.call(rbind, rows)
+        }
+
+        apply_inverse <- function(mat) {
+          if (is.null(mat)) return(NULL)
+          if (!is.function(inverse_fn)) return(mat)
+          dims <- dim(mat)
+          if (is.null(dims)) {
+            vals <- inverse_fn(as.numeric(mat))
+            return(matrix(as.numeric(vals), ncol = 1L))
           }
+          matrix(as.numeric(inverse_fn(as.numeric(mat))), nrow = dims[1], ncol = dims[2])
         }
 
-        high_mean_df <- NULL
-        low_mean_df  <- NULL
+        single_predicted_output_numeric <- .extract_numeric_matrix(single_predicted_output) %||% single_predicted_output
+        best_val_probs_numeric          <- .extract_numeric_matrix(best_val_probs)          %||% best_val_probs
+        best_val_labels_numeric         <- .extract_numeric_matrix(best_val_labels)         %||% best_val_labels
+        labels_numeric                  <- .extract_numeric_matrix(labels)                  %||% labels
 
-        for (i in seq_along(metrics_data)) {
-          mdl_name <- model_names[[i]]
-          met_raw  <- metrics_data[[i]]
-
-          flat <- flatten_metrics(met_raw, NULL)
-          long <- build_long_df(flat, mdl_name)
-
-          if (!nrow(long)) next
-
-          # drop unwanted metrics
-          long <- long[!grepl(EXCLUDE_METRICS_REGEX, long$Metric), , drop = FALSE]
-          if (!nrow(long)) next
-
-          # numeric coercion
-          long$Value <- to_numeric_safely(long$Value)
-          long <- long[is.finite(long$Value), , drop = FALSE]
-          if (!nrow(long)) next
-
-          mean_metrics <- long |>
-            dplyr::group_by(Metric) |>
-            dplyr::summarise(mean_value = mean(Value, na.rm = TRUE), .groups = "drop")
-
-          high_metrics <- mean_metrics |>
-            dplyr::filter(mean_value > high_threshold) |>
-            dplyr::pull(Metric)
-
-          high_mean_df <- dplyr::bind_rows(high_mean_df, long[long$Metric %in% high_metrics, , drop = FALSE])
-          low_mean_df  <- dplyr::bind_rows(low_mean_df,  long[!long$Metric %in% high_metrics, , drop = FALSE])
-        }
-
-        list(high_mean_df = high_mean_df, low_mean_df = low_mean_df)
+        single_predicted_output_numeric <- apply_inverse(single_predicted_output_numeric)
+        best_val_probs_numeric          <- apply_inverse(best_val_probs_numeric)
+        best_val_labels_numeric         <- apply_inverse(best_val_labels_numeric)
+        labels_numeric                  <- apply_inverse(labels_numeric)
       }
 
-      # Assuming performance_metrics and relevance_metrics are already defined
-      performance_results <- process_performance(performance_metrics, run_id) #<<-
-      relevance_results <- process_performance(relevance_metrics, run_id) #<<-
+      # ---- PRE-REPORT TUNING (binary only) ----
+      tuned <- NULL
+      best_threshold <- NA_real_
+      if (identical(CLASSIFICATION_MODE, "binary") &&
+          !is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
 
-      performance_high_mean_df <- performance_results$high_mean_df #<<-
-      performance_low_mean_df <- performance_results$low_mean_df #<<-
-
-      relevance_high_mean_df <- relevance_results$high_mean_df #<<-
-      relevance_low_mean_df <- relevance_results$low_mean_df #<<-
-
-      # Function to check and print if a dataframe is NULL
-      check_and_print_null <- function(df, df_name) {
-        if (is.null(df)) {
-          print(paste(df_name, "is NULL"))
-          return(TRUE)
+        # choose snapshot to tune: prefer best_val_*; else last-epoch predictions
+        if (!is.null(best_val_probs_numeric) && !is.null(best_val_labels_numeric)) {
+          probs_for_tuning  <- as.matrix(best_val_probs_numeric)
+          labels_for_tuning <- if (is.matrix(best_val_labels_numeric)) best_val_labels_numeric[, 1] else best_val_labels_numeric
+          labels_for_tuning <- as.integer(labels_for_tuning)
         } else {
-          print(paste(df_name, "is not NULL"))
-          return(FALSE)
+          fallback_probs <- single_predicted_output_numeric
+          if (is.list(fallback_probs) && !is.null(fallback_probs$predicted_output)) {
+            fallback_probs <- fallback_probs$predicted_output
+          }
+          probs_for_tuning <- as.matrix(fallback_probs)
+          n_eff <- min(NROW(probs_for_tuning), if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation))
+          y_val_vec <- if (is.matrix(y_validation)) y_validation[seq_len(n_eff), 1] else y_validation[seq_len(n_eff)]
+          labels_for_tuning <- as.integer(y_val_vec)
+        }
+
+        tuned <- accuracy_precision_recall_f1_tuned(
+          SONN                = self$ensemble[[i]],
+          Rdata               = tryCatch(X_validation, error = function(e) NULL),
+          labels              = matrix(labels_for_tuning, ncol = 1L),
+          CLASSIFICATION_MODE = "binary",
+          predicted_output    = probs_for_tuning,
+          metric_for_tuning   = "accuracy",
+          threshold_grid      = seq(0.05, 0.95, by = 0.01),
+          verbose             = isTRUE(verbose)
+        )
+
+        chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
+        if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
+
+        best_threshold <- chosen_threshold
+        self$ensemble[[i]]$chosen_threshold <- chosen_threshold
+      }
+
+      # === Evaluate Prediction Diagnostics ===
+      if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+        y_validation_eval <- if (identical(CLASSIFICATION_MODE, "regression")) labels_numeric else y_validation
+        eval_result <- EvaluatePredictionsReport(
+          X_validation = X_validation,
+          y_validation = y_validation_eval,
+          CLASSIFICATION_MODE = CLASSIFICATION_MODE,
+          probs = single_predicted_output_numeric,
+          predicted_outputAndTime = single_predicted_outputAndTime,
+          threshold_function = threshold_function,    # still accepted, no-op
+          all_best_val_probs = best_val_probs_numeric,
+          all_best_val_labels = best_val_labels_numeric,
+          verbose = verbose,
+          # --- NEW: pass tuned scalar to skip sweep ---
+          accuracy_plot = "both",                    # or "default" or "both"
+          tuned_threshold_override = best_threshold,
+          SONN = self$ensemble[[i]]
+        )
+        # Mirror back for downstream readers that expect the report field
+        if (is.finite(best_threshold)) {
+          eval_result$best_threshold <- best_threshold
+        }
+      } else {
+        # Ensure eval_result exists for later fields even if no validation path
+        eval_result <- list(
+          best_threshold = NA_real_,
+          best_thresholds = NULL,
+          accuracy = NA_real_,
+          accuracy_percent = NA_real_,
+          metrics = NULL,
+          misclassified = NULL
+        )
+      }
+
+      # Decide K from labels or probs
+      k_labels <- safe_ncol(y_validation)
+      k_probs  <- safe_ncol(single_predicted_output)
+      K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
+
+      # Pull out both fields (back-compat + multiclass)
+      best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
+      best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
+
+      # Decide what to store/use
+      if (K == 1L) {
+        # Binary: prefer tuned scalar; fallback to 0.5 if NA
+        threshold_used   <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
+        thresholds_used  <- best_thresholds_vec  # length-1 vector (kept for consistency)
+      } else {
+        # Multiclass: no single scalar; keep the whole vector
+        threshold_used   <- NA_real_
+        # if somehow missing, fallback to 0.5 per class
+        thresholds_used  <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
+          best_thresholds_vec
+        } else {
+          rep(0.5, K)
         }
       }
 
-      # Check and print if any of the dataframes are NULL
-      performance_high_mean_is_null <- check_and_print_null(performance_high_mean_df, "performance_high_mean_df")
-      performance_low_mean_is_null <- check_and_print_null(performance_low_mean_df, "performance_low_mean_df")
-      relevance_high_mean_is_null <- check_and_print_null(relevance_high_mean_df, "relevance_high_mean_df")
-      relevance_low_mean_is_null <- check_and_print_null(relevance_low_mean_df, "relevance_low_mean_df")
-
-      # Call the functions and get the plots only if the dataframes are not NULL
-      # print("Calling Performance update_performance_and_relevance_high")
-      performance_high_mean_plots <- if (!performance_high_mean_is_null) {
-        self$update_performance_and_relevance_high(performance_high_mean_df)
-      } else {
-        NULL
-      }
-      performance_low_mean_plots <- if (!performance_low_mean_is_null) {
-        self$update_performance_and_relevance_low(performance_low_mean_df)
-      } else {
-        NULL
-      }
-      # print("Finished Performance update_performance_and_relevance_low")
-      # print("Calling Relevance update_performance_and_relevance_high")
-      relevance_high_mean_plots <- if (!relevance_high_mean_is_null) {
-        self$update_performance_and_relevance_high(relevance_high_mean_df)
-      } else {
-        NULL
-      }
-      # print("Finished Relevance update_performance_and_relevance_high")
-      # print("Calling Relevance update_performance_and_relevance_low")
-      relevance_low_mean_plots <- if (!relevance_low_mean_is_null) {
-        self$update_performance_and_relevance_low(relevance_low_mean_df)
-      } else {
-        NULL
-      }
-
-
-      # =====================================================================
-      # GROUPED METRICS  ≠  FUSED ENSEMBLE
-      #
-      # Audience (plain English):
-      # - "Fused" means we COMBINE outputs from multiple models into ONE
-      #   consensus prediction stream (used for final decisions/evaluation).
-      #   Examples: average, weighted-average, majority vote.
-      #
-      # What THIS block does:
-      # - Provides convenient, experimental insight / reporting across multiple models.
-      # - Two modes:
-      #     (A) "aggregate_predictions+rep_sonn":
-      #         We first call aggregate_predictions() to create a temporary
-      #         aggregated prediction vector (mean/median/vote), then score it
-      #         with ONE representative SONN to reuse metric code.
-      #         • More appropriate when you want a single *proxy* view of the
-      #           ensemble’s output (close to how fusion works, but reporting-only).
-      #     (B) "average_per_model":
-      #         Compute metrics for each model separately, then average the
-      #         metric values numerically.
-      #         • More of an experimental “sampling pulse” — tells you the
-      #           typical performance level across models, not a consensus output.
-      #
-      # What this is NOT:
-      # - NOT the fused-ensemble decision path (avg / wavg / vote_soft /
-      #   vote_hard) implemented in DDESONN_fuse_from_agg(), which creates the
-      #   SINGLE prediction stream used downstream.
-      #
-      # Side note:
-      # - aggregate_predictions() supports mean/median/vote for reporting use.
-      #   The true decision fusion (with weights and soft/hard voting) lives in
-      #   DDESONN_fuse_from_agg().
-      # =====================================================================
-
-      # Predeclare so they're always in scope
-      perf_df <- relev_df <- NULL
-      perf_group_summary <- relev_group_summary <- NULL
-      group_perf <- group_relev <- NULL
-
-      if(grouped_metrics) {
-
-        # Build per-model long DFs (works for 1+ models)
-        perf_df  <- flatten_metrics_to_df(performance_list, run_id)
-        relev_df <- flatten_metrics_to_df(relevance_list,     run_id)
-
-        # # --- Vanilla group summaries (across models) ---
-        perf_group_summary  <- summarize_grouped(perf_df)
-        relev_group_summary <- summarize_grouped(relev_df)
-
-        # --- Optional notify user ---
-        if (!verbose && !viewTables) {
-          message("[ℹ] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
+      # Optional: logs
+      if (isTRUE(verbose)) {
+        if (K == 1L) {
+          message(sprintf("[train] Using tuned binary threshold: %.3f", threshold_used))
+        } else {
+          message(sprintf("[train] Using tuned per-class thresholds: %s",
+                          paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
         }
+      }
 
-        # Grouped metrics (run whenever you have ≥1 model)
-        if (ensemble_number >= 1 && length(self$ensemble) > 1) {
-          group_perf <- calculate_performance_grouped(
-            SONN_list             = self$ensemble,
-            Rdata                 = Rdata,
-            labels                = labels,
-            lr                    = lr,
-            CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
-            num_epochs            = num_epochs,
-            threshold             = threshold,
-            predicted_output_list = predicted_output_list,
-            prediction_time_list  = prediction_time_list,
-            ensemble_number       = ensemble_number,
-            run_id                = run_id,
-            ML_NN                 = ML_NN,
-            verbose               = verbose,
-            agg_method            = "mean",
-            metric_mode           = "aggregate_predictions+rep_sonn",
-            weights_list          = NULL,
-            biases_list           = NULL,
-            act_list              = NULL
-          )
+      if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
+        probs   <- best_val_probs_numeric
+        targets <- best_val_labels_numeric
+        prediction_time <- best_val_prediction_time
+        cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
+      } else {
+        probs   <- single_predicted_output_numeric
+        targets <- labels_numeric
+        prediction_time <- single_prediction_time
+        cat("[calculate_performance] Using last-epoch predictions\n")
+      }
 
-          group_relev <- calculate_relevance_grouped(
-            SONN_list             = self$ensemble,
-            Rdata                 = Rdata,
-            labels                = labels,
-            CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
-            predicted_output_list = predicted_output_list,
-            ensemble_number       = ensemble_number,
-            run_id                = run_id,
-            ML_NN                 = ML_NN,
-            verbose               = verbose,
-            agg_method            = "mean",
-            metric_mode           = "aggregate_predictions+rep_sonn"
-          )
-
-          # ---------- Printing policy ----------
-          # Tables (DF heads) print if EITHER verbose OR viewTables
-          if (verbose || viewTables) {
-            if (!is.null(perf_df)) {
-              emit_table(
-                utils::head(perf_df, 12),
-                title = "--- performance_long_df (head) ---",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-            if (!is.null(relev_df)) {
-              emit_table(
-                utils::head(relev_df, 12),
-                title = "--- relevance_long_df (head) ---",
-                verbose = verbose,
-                viewTables = viewTables
-              )
+      if (identical(CLASSIFICATION_MODE, "regression")) {
+        # Emit regression diagnostics to surface collapsed heads.
+        probs   <- .extract_numeric_matrix(probs)   %||% probs
+        targets <- .extract_numeric_matrix(targets) %||% targets
+        if (isTRUE(verbose) && !is.null(probs)) {
+          p_vec <- suppressWarnings(as.numeric(probs))
+          if (length(p_vec)) {
+            p_sd <- suppressWarnings(stats::sd(p_vec, na.rm = TRUE))
+            cat(sprintf("[DBG][reg] preds: min=%.6f max=%.6f mean=%.6f sd=%.6f\n",
+                        suppressWarnings(min(p_vec, na.rm = TRUE)),
+                        suppressWarnings(max(p_vec, na.rm = TRUE)),
+                        suppressWarnings(mean(p_vec, na.rm = TRUE)),
+                        if (is.finite(p_sd)) p_sd else NA_real_))
+          }
+        }
+        if (isTRUE(verbose) && !is.null(targets)) {
+          t_vec <- suppressWarnings(as.numeric(targets))
+          if (length(t_vec)) {
+            t_sd <- suppressWarnings(stats::sd(t_vec, na.rm = TRUE))
+            cat(sprintf("[DBG][reg] labels: min=%.6f max=%.6f mean=%.6f sd=%.6f\n",
+                        suppressWarnings(min(t_vec, na.rm = TRUE)),
+                        suppressWarnings(max(t_vec, na.rm = TRUE)),
+                        suppressWarnings(mean(t_vec, na.rm = TRUE)),
+                        if (is.finite(t_sd)) t_sd else NA_real_))
+            p_sd_chk <- suppressWarnings(stats::sd(as.numeric(probs), na.rm = TRUE))
+            if (is.finite(p_sd_chk) && p_sd_chk < 1e-8 &&
+                is.finite(t_sd) && t_sd > 1e-4) {
+              cat("[DBG][reg] Prediction variance is ~0 while labels vary; check head/loss/recipe upstream.\n")
             }
           }
-
-          # Summaries + grouped metrics print ONLY when verbose = verbose
-          if (verbose) {
-            if (!is.null(perf_group_summary)) {
-              emit_table(
-                perf_group_summary,
-                title = "=== PERFORMANCE group summary ===",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-            if (!is.null(relev_group_summary)) {
-              emit_table(
-                relev_group_summary,
-                title = "=== RELEVANCE group summary ===",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-            if (!is.null(group_perf)) {
-              emit_table(
-                group_perf$metrics,
-                title = "=== GROUPED PERFORMANCE metrics ===",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-            if (!is.null(group_relev)) {
-              emit_table(
-                group_relev$metrics,
-                title = "=== GROUPED RELEVANCE metrics ===",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-            }
-          }
-
         }
+      }
 
-      } #end of if(grouped_metrics)
+      performance_list[[i]] <- calculate_performance(
+        SONN = self$ensemble[[i]],
+        Rdata = Rdata,
+        labels = targets,
+        lr = lr,
+        CLASSIFICATION_MODE = CLASSIFICATION_MODE,
+        model_iter_num = i,
+        num_epochs = num_epochs,
+        threshold = if (K == 1L) threshold_used else threshold,
+        learn_time = learn_time,
+        predicted_output = probs,
+        prediction_time = prediction_time,
+        ensemble_number = ensemble_number,
+        run_id = run_id,
+        weights = all_weights[[i]],
+        biases = all_biases[[i]],
+        activation_functions = all_activation_functions[[i]],
+        ML_NN = ML_NN,
+        verbose = verbose
+      )
 
-      if(verbose){print("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
-      # Return the lists of plots
-      return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL))
+      relevance_list[[i]] <- calculate_relevance(
+        self$ensemble[[i]],
+        Rdata = Rdata,
+        labels = targets,
+        CLASSIFICATION_MODE = CLASSIFICATION_MODE,
+        model_iter_num = i,
+        predicted_output = probs,
+        ensemble_number = ensemble_number,
+        weights = self$ensemble[[i]]$weights,
+        biases = self$ensemble[[i]]$biases,
+        activation_functions = self$ensemble[[i]]$activation_functions,
+        ML_NN = ML_NN,
+        verbose = verbose
+      )
 
+      performance_metric <- performance_list[[i]]$metrics
 
-    },
+      # Fill tuned columns directly from the pre-report tuning pass
+      if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
+        performance_metric$accuracy_tuned  <- tuned$accuracy
+        performance_metric$precision_tuned <- tuned$precision
+        performance_metric$recall_tuned    <- tuned$recall
+        performance_metric$f1_tuned        <- tuned$f1
+      }
+
+      relevance_metric <- relevance_list[[i]]$metrics
+
+      if (ensemble_number < 1 && length(self$ensemble) >= 1 ||
+          (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
+        if (verbose || viewTables) {
+          message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
+          emit_table(
+            performance_metric,
+            title = "[PERFORMANCE metrics]",
+            verbose = verbose,
+            viewTables = viewTables
+          )
+          emit_table(
+            relevance_metric,
+            title = "[RELEVANCE metrics]",
+            verbose = verbose,
+            viewTables = viewTables
+          )
+        }
+      }
+
+      if (verbose) {
+        message("\n=============================================")
+        message("DEBUG: Preparing to store metadata (Network Container)")
+        message(sprintf("Ensemble number: %s", ensemble_number))
+        message(sprintf("Model iteration: %s", i))
+        message(sprintf("Run ID: %s", single_ensemble_name_model_name))
+        pred_shape <- tryCatch(paste(dim(single_predicted_output), collapse = " × "), error = function(...) "<unknown>")
+        message(sprintf("Predicted output shape: %s", pred_shape))
+        message(sprintf("Checking self$ensemble[[%s]]", i))
+        captured <- utils::capture.output(str(self$ensemble[[i]]))
+        for (line in captured) message(line)
+        message("=============================================\n")
+      }
+
+      self$store_metadata(
+        single_predicted_outputAndTime, actual_values = NULL, do_ensemble = NULL, self$input_size, self$output_size, self$N,
+        total_num_samples = NULL, num_test_samples = NULL, num_training_samples = NULL, num_validation_samples = NULL,
+        num_networks, update_weights, update_biases, lr, self$lambda, num_epochs,
+        run_id = single_ensemble_name_model_name, ensemble_number, model_iter_num = i,
+        model_serial_num = sprintf("%d.0.%d", ensemble_number, i),
+        threshold = if (exists("threshold_used") && isTRUE(is.finite(threshold_used))) threshold_used else NULL,
+        CLASSIFICATION_MODE, predicted_output = single_predicted_output, preprocessScaledData,
+        X = NULL, y = NULL, X_test_scaled = NULL, y_test = NULL, all_weights, all_biases, artifact_names, artifact_paths,
+        validation_metrics = validation_metrics, single_activation_functions, single_activation_functions_predict,
+        self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc,
+        best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL
+      )
+    } # end if(train)
+
+  } # end for i in ensemble
+
+  #████████████████████████████████████████████████████████████████████████████████████████████████
+  #============================== POST-PASS: flatten + grouped metrics ==============================
+  performance_metrics <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$metrics)
+  performance_names   <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$names)
+
+  relevance_metrics   <- lapply(seq_along(relevance_list),   function(i) relevance_list[[i]]$metrics)
+  relevance_names     <- lapply(seq_along(relevance_list),   function(i) relevance_list[[i]]$names)
+
+  # Check for NULL values in performance_metrics and relevance_metrics
+  check_null <- function(metrics_list) {
+    unlist(lapply(seq_along(metrics_list), function(i) {
+      if (is.null(metrics_list[[i]])) paste0("NULL at index: ", i) else paste0("Not NULL at index: ", i)
+    }))
+  }
+  null_check_performance <- check_null(performance_metrics)
+  null_check_relevance   <- check_null(relevance_metrics)
+
+  # Process performance/relevance metrics into long DFs + high/low mean splits
+  process_performance <- function(metrics_data, model_names, high_threshold = 10, verbose = FALSE) {
+    EXCLUDE_METRICS_REGEX <- paste(
+      c(
+        "^accuracy_precision_recall_f1_tuned_details_accuracy_percent$",
+        "^accuracy_percent$",
+        "^accuracy_precision_recall_f1_tuned_details_y_pred_class",
+        "^y_pred_class",
+        "^accuracy_precision_recall_f1_tuned_details_grid_used",
+        "^grid_used"
+      ),
+      collapse = "|"
+    )
+
+    # model names handling
+    if (length(model_names) == 1L && length(metrics_data) > 1L) {
+      model_names <- rep(model_names, length(metrics_data))
+    }
+    if (is.null(model_names) || length(model_names) != length(metrics_data)) {
+      model_names <- paste0("Model_", seq_along(metrics_data))
+    }
+
+    to_numeric_safely <- function(v) {
+      v <- as.character(v)
+      cleaned <- gsub("[^0-9eE+\\-\\.]", "", v)
+      suppressWarnings(as.numeric(cleaned))
+    }
+    norm_atom <- function(x) {
+      if (inherits(x, "Duration"))  return(as.numeric(x))                 # seconds
+      if (inherits(x, "difftime"))  return(as.numeric(x, units = "secs")) # seconds
+      if (inherits(x, "POSIXct") || inherits(x, "POSIXt")) return(as.numeric(x))
+      if (inherits(x, "Date"))      return(as.numeric(x))
+      if (is.logical(x))            return(as.numeric(x))
+      if (is.factor(x))             return(as.character(x))
+      x
+    }
+    # Flatten into named atomic elements (as list of scalars/vectors)
+    flatten_metrics <- function(x, prefix = NULL) {
+      out <- list()
+      nm_prefix <- function(base, name) if (is.null(base) || base == "") name else paste0(base, "_", name)
+
+      if (is.null(x)) return(out)
+
+      if (is.atomic(x) && length(x) >= 1L) {
+        nm <- if (is.null(prefix)) "value" else prefix
+        out[[nm]] <- x
+        return(out)
+      }
+
+      if (is.data.frame(x)) {
+        for (nm in names(x)) out <- c(out, flatten_metrics(x[[nm]], nm_prefix(prefix, nm)))
+        return(out)
+      }
+
+      if (is.list(x)) {
+        nms <- names(x)
+        for (ii in seq_along(x)) {
+          nm <- if (!is.null(nms) && nzchar(nms[ii])) nms[ii] else as.character(ii)
+          out <- c(out, flatten_metrics(x[[ii]], nm_prefix(prefix, nm)))
+        }
+        return(out)
+      }
+
+      out  # unknown type -> ignore
+    }
+
+    build_long_df <- function(lst, model_name) {
+      if (is.null(lst) || length(lst) == 0L) {
+        return(data.frame(Model_Name = character(0), Metric = character(0), Value = numeric(0)))
+      }
+      rows <- list()
+      idx <- 1L
+      for (nm in names(lst)) {
+        val <- lst[[nm]]
+        if (length(val) == 0L) next
+        val <- norm_atom(val)
+        if (length(val) == 0L) next
+
+        # split vectors to multiple rows with indexed metric names (stable & unique)
+        if (length(val) > 1L) {
+          for (k in seq_along(val)) {
+            rows[[idx]] <- data.frame(
+              Model_Name = model_name,
+              Metric     = paste0(nm, "_", k),
+              Value      = as.character(val[[k]]),
+              stringsAsFactors = FALSE, check.names = FALSE
+            )
+            idx <- idx + 1L
+          }
+        } else {
+          rows[[idx]] <- data.frame(
+            Model_Name = model_name,
+            Metric     = nm,
+            Value      = as.character(val),
+            stringsAsFactors = FALSE, check.names = FALSE
+          )
+          idx <- idx + 1L
+        }
+      }
+      if (length(rows) == 0L) {
+        data.frame(Model_Name = character(0), Metric = character(0), Value = numeric(0))
+      } else {
+        do.call(rbind, rows)
+      }
+    }
+
+    high_mean_df <- NULL
+    low_mean_df  <- NULL
+
+    for (ii in seq_along(metrics_data)) {
+      mdl_name <- model_names[[ii]]
+      met_raw  <- metrics_data[[ii]]
+
+      flat <- flatten_metrics(met_raw, NULL)
+      long <- build_long_df(flat, mdl_name)
+
+      if (!nrow(long)) next
+
+      # drop unwanted metrics
+      long <- long[!grepl(EXCLUDE_METRICS_REGEX, long$Metric), , drop = FALSE]
+      if (!nrow(long)) next
+
+      # numeric coercion
+      long$Value <- to_numeric_safely(long$Value)
+      long <- long[is.finite(long$Value), , drop = FALSE]
+      if (!nrow(long)) next
+
+      mean_metrics <- long |>
+        dplyr::group_by(Metric) |>
+        dplyr::summarise(mean_value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+      high_metrics <- mean_metrics |>
+        dplyr::filter(mean_value > high_threshold) |>
+        dplyr::pull(Metric)
+
+      high_mean_df <- dplyr::bind_rows(high_mean_df, long[long$Metric %in% high_metrics, , drop = FALSE])
+      low_mean_df  <- dplyr::bind_rows(low_mean_df,  long[!long$Metric %in% high_metrics, , drop = FALSE])
+    }
+
+    list(high_mean_df = high_mean_df, low_mean_df = low_mean_df)
+  }
+
+  performance_results      <- process_performance(performance_metrics, run_id)
+  relevance_results        <- process_performance(relevance_metrics,   run_id)
+  performance_high_mean_df <- performance_results$high_mean_df
+  performance_low_mean_df  <- performance_results$low_mean_df
+  relevance_high_mean_df   <- relevance_results$high_mean_df
+  relevance_low_mean_df    <- relevance_results$low_mean_df
+
+  # Null checks (optional prints)
+  check_and_print_null <- function(df, df_name) {
+    if (is.null(df)) {
+      print(paste(df_name, "is NULL")); TRUE
+    } else {
+      print(paste(df_name, "is not NULL")); FALSE
+    }
+  }
+  performance_high_mean_is_null <- check_and_print_null(performance_high_mean_df, "performance_high_mean_df")
+  performance_low_mean_is_null  <- check_and_print_null(performance_low_mean_df,  "performance_low_mean_df")
+  relevance_high_mean_is_null   <- check_and_print_null(relevance_high_mean_df,   "relevance_high_mean_df")
+  relevance_low_mean_is_null    <- check_and_print_null(relevance_low_mean_df,    "relevance_low_mean_df")
+
+  # Plot calls (guarded)
+  performance_high_mean_plots <- if (!performance_high_mean_is_null) self$update_performance_and_relevance_high(performance_high_mean_df) else NULL
+  performance_low_mean_plots  <- if (!performance_low_mean_is_null)  self$update_performance_and_relevance_low(performance_low_mean_df)  else NULL
+  relevance_high_mean_plots   <- if (!relevance_high_mean_is_null)   self$update_performance_and_relevance_high(relevance_high_mean_df)  else NULL
+  relevance_low_mean_plots    <- if (!relevance_low_mean_is_null)    self$update_performance_and_relevance_low(relevance_low_mean_df)    else NULL
+
+  # =====================================================================
+  # GROUPED METRICS  ≠  FUSED ENSEMBLE (reporting-only helpers)
+  # =====================================================================
+  perf_df <- relev_df <- NULL
+  perf_group_summary <- relev_group_summary <- NULL
+  group_perf <- group_relev <- NULL
+
+  if (grouped_metrics) {
+    # Build per-model long DFs (works for 1+ models)
+    perf_df  <- flatten_metrics_to_df(performance_list, run_id)
+    relev_df <- flatten_metrics_to_df(relevance_list,   run_id)
+
+    # Vanilla group summaries (across models)
+    perf_group_summary  <- summarize_grouped(perf_df)
+    relev_group_summary <- summarize_grouped(relev_df)
+
+    if (!verbose && !viewTables) {
+      message("[ℹ] Group summaries computed silently. Set `verbose = TRUE` to print data frames, or `viewTables = TRUE` to see tables.")
+    }
+
+    # Grouped metrics when you have >1 model
+    if (ensemble_number >= 1 && length(self$ensemble) > 1) {
+      group_perf <- calculate_performance_grouped(
+        SONN_list             = self$ensemble,
+        Rdata                 = Rdata,
+        labels                = labels,
+        lr                    = lr,
+        CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
+        num_epochs            = num_epochs,
+        threshold             = threshold,
+        predicted_output_list = predicted_output_list,
+        prediction_time_list  = prediction_time_list,
+        ensemble_number       = ensemble_number,
+        run_id                = run_id,
+        ML_NN                 = ML_NN,
+        verbose               = verbose,
+        agg_method            = "mean",
+        metric_mode           = "aggregate_predictions+rep_sonn",
+        weights_list          = NULL,
+        biases_list           = NULL,
+        act_list              = NULL
+      )
+
+      group_relev <- calculate_relevance_grouped(
+        SONN_list             = self$ensemble,
+        Rdata                 = Rdata,
+        labels                = labels,
+        CLASSIFICATION_MODE   = CLASSIFICATION_MODE,
+        predicted_output_list = predicted_output_list,
+        ensemble_number       = ensemble_number,
+        run_id                = run_id,
+        ML_NN                 = ML_NN,
+        verbose               = verbose,
+        agg_method            = "mean",
+        metric_mode           = "aggregate_predictions+rep_sonn"
+      )
+
+      # Printing policy
+      if (verbose || viewTables) {
+        if (!is.null(perf_df)) {
+          emit_table(utils::head(perf_df, 12),
+                     title = "--- performance_long_df (head) ---",
+                     verbose = verbose, viewTables = viewTables)
+        }
+        if (!is.null(relev_df)) {
+          emit_table(utils::head(relev_df, 12),
+                     title = "--- relevance_long_df (head) ---",
+                     verbose = verbose, viewTables = viewTables)
+        }
+      }
+      if (verbose) {
+        if (!is.null(perf_group_summary)) {
+          emit_table(perf_group_summary, title = "=== PERFORMANCE group summary ===",
+                     verbose = verbose, viewTables = viewTables)
+        }
+        if (!is.null(relev_group_summary)) {
+          emit_table(relev_group_summary, title = "=== RELEVANCE group summary ===",
+                     verbose = verbose, viewTables = viewTables)
+        }
+        if (!is.null(group_perf)) {
+          emit_table(group_perf$metrics, title = "=== GROUPED PERFORMANCE metrics ===",
+                     verbose = verbose, viewTables = viewTables)
+        }
+        if (!is.null(group_relev)) {
+          emit_table(group_relev$metrics, title = "=== GROUPED RELEVANCE metrics ===",
+                     verbose = verbose, viewTables = viewTables)
+        }
+      }
+    }
+  } # end grouped_metrics
+
+  if (verbose) {
+    print("----------------------------------------update_performance_and_relevance-end----------------------------------------")
+  }
+
+  return(list(
+    performance_metric          = performance_metric,
+    relevance_metric            = relevance_metric,
+    performance_high_mean_plots = performance_high_mean_plots,
+    performance_low_mean_plots  = performance_low_mean_plots,
+    relevance_high_mean_plots   = relevance_high_mean_plots,
+    relevance_low_mean_plots    = relevance_low_mean_plots,
+    performance_group_summary   = perf_group_summary,
+    relevance_group_summary     = relev_group_summary,
+    performance_long_df         = perf_df,
+    relevance_long_df           = relev_df,
+    performance_grouped         = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL,
+    relevance_grouped           = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL,
+    threshold                   = if (exists("threshold_used")) threshold_used else NA_real_,
+    thresholds                  = if (exists("thresholds_used")) thresholds_used else NULL,
+    accuracy                    = eval_result$accuracy,
+    accuracy_percent            = eval_result$accuracy_percent,
+    metrics                     = if (!is.null(eval_result$metrics))       eval_result$metrics       else NULL,
+    misclassified               = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL
+  ))
+},
+
     # Function to identify outliers
     identify_outliers = function(y) {
       o <- boxplot.stats(y)$out
