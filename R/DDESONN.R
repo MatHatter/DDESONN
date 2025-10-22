@@ -3691,6 +3691,78 @@ DDESONN <- R6Class(
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
 
+          if (identical(CLASSIFICATION_MODE, "regression")) {
+            X_eval <- NULL
+            y_eval <- NULL
+
+            if (best_weights_on_latest_weights_off && isTRUE(validation_metrics) &&
+                !is.null(X_validation) && !is.null(y_validation)) {
+              X_eval <- X_validation
+              y_eval <- y_validation
+            } else if (!is.null(Rdata)) {
+              X_eval <- Rdata
+              y_eval <- targets
+            }
+
+            weights_eval <- if (!is.null(all_weights[[i]])) all_weights[[i]] else self$ensemble[[i]]$weights
+            biases_eval  <- if (!is.null(all_biases[[i]]))  all_biases[[i]]  else self$ensemble[[i]]$biases
+
+            act_eval <- single_activation_functions_predict
+            if (is.null(act_eval) || !length(act_eval)) act_eval <- single_activation_functions
+
+            if (!is.null(X_eval)) {
+              reg_predict <- tryCatch(
+                self$ensemble[[i]]$predict(
+                  Rdata                        = X_eval,
+                  weights                      = weights_eval,
+                  biases                       = biases_eval,
+                  activation_functions_predict = act_eval,
+                  verbose                      = FALSE,
+                  debug                        = FALSE
+                ),
+                error = function(e) {
+                  if (isTRUE(verbose)) message("[regression] predict() refresh failed: ", e$message)
+                  NULL
+                }
+              )
+
+              if (!is.null(reg_predict)) {
+                preds_mat <- reg_predict
+                if (!is.null(reg_predict$predicted_output)) preds_mat <- reg_predict$predicted_output
+                preds_mat <- as.matrix(preds_mat)
+
+                if (nrow(preds_mat) > 0) {
+                  n_eff_reg <- nrow(preds_mat)
+
+                  if (!is.null(y_eval)) {
+                    if (is.matrix(y_eval)) {
+                      n_eff_reg <- min(n_eff_reg, nrow(y_eval))
+                      y_eval <- y_eval[seq_len(n_eff_reg), , drop = FALSE]
+                    } else {
+                      n_eff_reg <- min(n_eff_reg, length(y_eval))
+                      y_eval <- y_eval[seq_len(n_eff_reg)]
+                    }
+                  }
+
+                  preds_mat <- preds_mat[seq_len(n_eff_reg), , drop = FALSE]
+                  storage.mode(preds_mat) <- "double"
+
+                  probs   <- preds_mat
+                  if (!is.null(y_eval)) targets <- y_eval
+
+                  if (!is.null(reg_predict$prediction_time)) {
+                    prediction_time <- reg_predict$prediction_time
+                  }
+
+                  if (isTRUE(verbose)) {
+                    message(sprintf("[regression] predict() refresh -> n=%d | sd=%.6f",
+                                     n_eff_reg, stats::sd(as.numeric(preds_mat))))
+                  }
+                }
+              }
+            }
+          }
+
 
 
 

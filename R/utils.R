@@ -18,6 +18,17 @@ source("R/activation_functions.R")
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
 
 
+.get_output_head_from_mode <- function(mode, num_classes = NULL) {
+  # NOTE [2025-02]: Centralised mapping of heads/losses to keep modes aligned.
+  mode <- match.arg(mode, c("binary", "multiclass", "regression"))
+  switch(mode,
+    "binary"     = list(activation = "sigmoid",  loss = "bce"),
+    "multiclass" = list(activation = "softmax",  loss = "cce"),
+    "regression" = list(activation = "identity", loss = "mse")
+  )
+}
+
+
 # ============================================================
 # Activation Normalization Utility
 # Converts strings or mixed specs into callable functions

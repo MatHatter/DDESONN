@@ -150,41 +150,45 @@ EvaluatePredictionsReport <- function(
   
   # ------------------------- Regression branch ------------------------
   if (identical(mode, "regression")) {
+    # NOTE [2025-02]: Regression path now reports RMSE/MAE/R2 only and skips classification artefacts.
     if (isTRUE(verbose)) cat("[Eval-Regression] Enter\n")
     y    <- suppressWarnings(as.numeric(L[,1]))
     yhat <- suppressWarnings(as.numeric(P[,1]))
     keep <- is.finite(y) & is.finite(yhat)
     y    <- y[keep]; yhat <- yhat[keep]
     if (!length(y)) stop("Regression mode: no finite overlapping y / yhat.")
-    
+
     residuals <- yhat - y
-    SSE  <- sum(residuals^2)
-    SST  <- sum((y - mean(y))^2)
     RMSE <- sqrt(mean(residuals^2))
     MAE  <- mean(abs(residuals))
-    MAPE <- if (any(y != 0)) mean(abs(residuals / y)) else NA_real_
+    y_mean <- mean(y)
+    SST  <- sum((y - y_mean)^2)
+    SSE  <- sum(residuals^2)
     R2   <- if (SST > 0) 1 - SSE/SST else NA_real_
-    Corr <- suppressWarnings(stats::cor(y, yhat))
-    if (isTRUE(verbose)) cat("[Eval-Regression] RMSE:", RMSE, "  MAE:", MAE, "  R2:", R2, "  Corr:", Corr, "\n")
-    
-    # === Workbook (regression) ===
+    if (isTRUE(verbose)) {
+      cat(sprintf("[Eval-Regression] RMSE=%.6f MAE=%.6f R2=%.6f\n",
+                  RMSE, MAE, ifelse(is.finite(R2), R2, NA_real_)))
+    }
+
+    reg_metrics <- list(RMSE = RMSE, MAE = MAE, R2 = R2)
+
     wb <- createWorkbook()
     addWorksheet(wb, "Metrics_Summary")
     suppressWarnings(writeData(wb, "Metrics_Summary",
-                               data.frame(Metric=c("RMSE","MAE","MAPE","R2","Correlation"),
-                                          Value=c(RMSE,MAE,MAPE,R2,Corr))))
-    
-    # Legacy-style Rdata_Predictions sheet for regression
+                               data.frame(Metric = names(reg_metrics),
+                                          Value = unname(unlist(reg_metrics)))))
+
     addWorksheet(wb, "Rdata_Predictions")
     legacy_df <- data.frame(
-      y_true = y, y_pred = yhat,
-      residual = yhat - y
+      y_true = y,
+      y_pred = yhat,
+      residual = residuals
     )
     suppressWarnings(writeData(wb, "Rdata_Predictions", legacy_df))
-    
+
     saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE)
     if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
-    
+
     return(list(
       best_threshold  = NA_real_,
       accuracy        = NA_real_,
@@ -199,7 +203,9 @@ EvaluatePredictionsReport <- function(
       y_pred_class     = NULL,
       y_pred_class_tuned = NULL,
       auc = NA_real_,
-      roc_curve = NULL
+      roc_curve = NULL,
+      metrics = list(regression = reg_metrics),
+      regression_metrics = reg_metrics
     ))
   }
   
