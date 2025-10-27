@@ -78,7 +78,7 @@ ddesonn_fit(
   train_x,
   train_y,
   validation = list(x = valid_x, y = valid_y),
-  num_epochs = 300,
+  num_epochs = 3,
   lr = 0.02,
   validation_metrics = TRUE,
   verbose = TRUE,
@@ -220,10 +220,10 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_r
 ## Pick ONE to run now by uncommenting the call(s) below.
 
 ## SCENARIO A: Single-run only (no ensemble, ONE model)
-# invisible(run_scenario("A"))
+invisible(run_scenario("A"))
 
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
-invisible(run_scenario("B"))
+# invisible(run_scenario("B"))
 
 ## SCENARIO C: Main ensemble only (no TEMP/prune-add)
 # invisible(run_scenario("C"))

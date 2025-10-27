@@ -1,0 +1,168 @@
+import {
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Account } from '../../accounts/entities/account.entity';
+
+@Entity('users')
+export class User {
+  // Use UUIDs in Postgres (matches common setup with uuid-ossp)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column()
+  passwordHash: string;
+
+  // Identity
+  @Column({ name: 'first_name', length: 50, default: '' })
+  firstName: string;
+
+  @Column({ name: 'last_name', length: 50, default: '' })
+  lastName: string;
+
+  @Column({ length: 20, nullable: true })
+  phone?: string;
+
+  @Column({ type: 'date', nullable: true })
+  dob?: Date | null;
+
+  // Address
+  @Column({ name: 'address_line1', type: 'text', nullable: true })
+  addressLine1?: string;
+
+  @Column({ name: 'address_line2', type: 'text', nullable: true })
+  addressLine2?: string;
+
+  @Column({ length: 100, nullable: true })
+  city?: string;
+
+  @Column({ length: 50, nullable: true })
+  state?: string;
+
+  @Column({ name: 'postal_code', length: 20, nullable: true })
+  postalCode?: string;
+
+  @Column({ length: 50, nullable: true })
+  country?: string;
+
+  // KYC / IDs (consider encryption at-rest for SSN)
+  @Column({ length: 11, nullable: true })
+  ssn?: string;
+
+  @Column({ name: 'kyc_status', length: 20, default: 'pending' })
+  kycStatus: string;
+
+  @Column({ name: 'id_document_type', length: 50, nullable: true })
+  idDocumentType?: string;
+
+  @Column({ name: 'id_document_number', length: 50, nullable: true })
+  idDocumentNumber?: string;
+
+  @Column({ name: 'id_document_expiry', type: 'date', nullable: true })
+  idDocumentExpiry?: Date | null;
+
+  // Employment & suitability
+  @Column({ name: 'employment_status', length: 50, nullable: true })
+  employmentStatus?: string;
+
+  @Column({ name: 'employer_name', length: 100, nullable: true })
+  employerName?: string;
+
+  @Column({ length: 100, nullable: true })
+  occupation?: string;
+
+  @Column({ length: 100, nullable: true })
+  industry?: string;
+
+  @Column({ name: 'annual_income', length: 50, nullable: true })
+  annualIncome?: string;
+
+  @Column({ name: 'net_worth', length: 50, nullable: true })
+  netWorth?: string;
+
+  @Column({ name: 'liquid_net_worth', length: 50, nullable: true })
+  liquidNetWorth?: string;
+
+  @Column({ name: 'investment_experience', length: 50, nullable: true })
+  investmentExperience?: string;
+
+  @Column({ name: 'risk_tolerance', length: 50, nullable: true })
+  riskTolerance?: string;
+
+  // Licensed / affiliations
+  @Column({ name: 'is_licensed_professional', type: 'boolean', default: false })
+  isLicensedProfessional: boolean;
+
+  @Column({ name: 'is_affiliated_exchange', type: 'boolean', default: false })
+  isAffiliatedExchange: boolean;
+
+  @Column({ name: 'is_politically_exposed', type: 'boolean', default: false })
+  isPoliticallyExposed: boolean;
+
+  @Column({ name: 'broker_dealer_name', length: 120, nullable: true })
+  brokerDealerName?: string;
+
+  @Column({ name: 'regulatory_id', length: 50, nullable: true })
+  regulatoryId?: string;
+
+  // Trading experience
+  @Column({ name: 'years_experience_equities', type: 'int', nullable: true })
+  yearsExperienceEquities?: number;
+
+  @Column({ name: 'years_experience_options', type: 'int', nullable: true })
+  yearsExperienceOptions?: number;
+
+  @Column({ name: 'years_experience_futures', type: 'int', nullable: true })
+  yearsExperienceFutures?: number;
+
+  @Column({ name: 'trade_frequency', length: 50, nullable: true })
+  tradeFrequency?: string;
+
+  @Column({ name: 'options_approval_level', length: 20, nullable: true })
+  optionsApprovalLevel?: string;
+
+  @Column({ name: 'futures_approval', type: 'boolean', default: false })
+  futuresApproval: boolean;
+
+  // Consent fields (camelCase props mapped to snake_case columns)
+  @Column({
+    name: 'terms_version',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  termsVersion?: string | null;
+
+  @Column({ name: 'terms_agreed_at', type: 'timestamptz', nullable: true })
+  termsAgreedAt?: Date | null;
+
+  @Column({ name: 'terms_ip', type: 'inet', nullable: true })
+  termsIp?: string | null;
+
+  @Column({
+    name: 'privacy_version',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  privacyVersion?: string | null;
+
+  @Column({ name: 'privacy_agreed_at', type: 'timestamptz', nullable: true })
+  privacyAgreedAt?: Date | null;
+
+  @CreateDateColumn({ name: 'createdAt', type: 'timestamp' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updatedAt', type: 'timestamp' })
+  updatedAt: Date;
+
+  @OneToMany(() => Account, account => account.user, { cascade: true })
+  accounts: Account[];
+}

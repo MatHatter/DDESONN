@@ -1,168 +1,438 @@
 #!/usr/bin/env Rscript
-# Example workflow using the high-level DDESONN API (REGRESSION version).
-source("R/api.R")
+
 suppressPackageStartupMessages(source("R/api.R"))
 
 `%||%` <- function(x, y) if (is.null(x) || !length(x)) y else x
 
-# ------------------------------------------------------------------------------
-# Dataset & splits (mtcars → regression on 'mpg')
-# ------------------------------------------------------------------------------
-data <- mtcars
-target <- "mpg"
-features <- setdiff(colnames(data), target)
+CLASSIFICATION_MODE <- "regression"
+PREDICT_NEXT_DAY    <- TRUE
+REG_TARGET_MODE     <- "return_log"
+REDUCE_DATA         <- TRUE
 
-set.seed(42)
-n <- nrow(data)
-all_idx <- seq_len(n)
+num_epochs <- 200
+lr         <- 0.01
+hidden_sizes <- c(128, 64, 32)
+RESTORE_BEST_WEIGHTS <- TRUE
 
-# 60/20/20 split
-idx_train <- sample(all_idx, floor(0.6 * n))
-remain1   <- setdiff(all_idx, idx_train)
-idx_valid <- sample(remain1, floor(0.2 * n))
-idx_test  <- setdiff(remain1, idx_valid)
+suppressPackageStartupMessages({
+  library(dplyr)
+})
 
-# Build X/Y frames BEFORE scaling
-train_x <- data[idx_train, features, drop = FALSE]
-train_y <- data[idx_train, target,   drop = FALSE]
-valid_x <- data[idx_valid, features, drop = FALSE]
-valid_y <- data[idx_valid, target,   drop = FALSE]
-test_x  <- data[idx_test,  features, drop = FALSE]
-test_y  <- data[idx_test,  target,   drop = FALSE]
+data <- read.csv("data/WMT_1970-10-01_2025-03-15.csv", stringsAsFactors = FALSE)
+stopifnot("date" %in% names(data))
+data <- data %>% arrange(date)
 
-# ------------------------------------------------------------------------------
-# Scaling helpers (fit on TRAIN only)
-# ------------------------------------------------------------------------------
-scale_fit <- function(X) {
-  num_cols <- names(which(sapply(X, is.numeric)))
-  if (length(num_cols) == 0) stop("No numeric columns to scale.")
-  mu <- vapply(X[num_cols], function(col) mean(col, na.rm = TRUE), numeric(1))
-  sd <- vapply(X[num_cols], function(col) stats::sd(col, na.rm = TRUE), numeric(1))
-  sd[is.na(sd) | sd == 0] <- 1
-  list(mu = mu, sd = sd, num_cols = num_cols)
-}
-scale_apply <- function(X, s) {
-  Xs <- X
-  for (nm in s$num_cols) Xs[[nm]] <- (Xs[[nm]] - s$mu[[nm]]) / s$sd[[nm]]
-  Xs
+if (isTRUE(PREDICT_NEXT_DAY)) {
+  data <- data %>%
+    mutate(future_close = dplyr::lead(close, 1L)) %>%
+    filter(!is.na(future_close))
+  dependent_variable <- "future_close"
+} else {
+  dependent_variable <- "close"
 }
 
-# Fit scaler on TRAIN, apply to all splits
-scaler  <- scale_fit(train_x)
-train_x <- scale_apply(train_x, scaler)
-valid_x <- scale_apply(valid_x, scaler)
-test_x  <- scale_apply(test_x,  scaler)
+if (CLASSIFICATION_MODE == "regression" && isTRUE(REDUCE_DATA)) {
+  base_keep <- c("date", "open", "high", "low", "close", "volume")
+  keep_cols <- unique(c(base_keep, dependent_variable))
+  data_reduced <- data %>% dplyr::select(dplyr::any_of(keep_cols))
+  X_full <- data_reduced %>% dplyr::select(-dplyr::all_of(dependent_variable))
+  y_full <- data_reduced %>% dplyr::select(dplyr::all_of(dependent_variable))
+} else {
+  X_full <- data %>% dplyr::select(-dplyr::all_of(dependent_variable))
+  y_full <- data %>% dplyr::select(dplyr::all_of(dependent_variable))
+}
 
-# Quick sanity check
-# str(train_x); str(valid_x); str(test_x)
+colname_y <- colnames(y_full)
 
-# ------------------------------------------------------------------------------
-# Single-model example fit (REGRESSION baseline)
-# ------------------------------------------------------------------------------
-model <- ddesonn_model(
-  input_size = ncol(train_x),
-  output_size = 1,
-  hidden_sizes = c(32, 16),
-  classification_mode = "regression",                   # ← regression
-  activation_functions = c("relu", "relu", "linear"),   # ← linear head
-  activation_functions_predict = c("relu", "relu", "linear"),
-  num_networks = 1
+stopifnot(nrow(X_full) == nrow(y_full))
+total_num_samples <- nrow(X_full)
+
+p_train <- 0.70
+p_val   <- 0.15
+
+num_training_samples   <- max(1L, floor(p_train * total_num_samples))
+num_validation_samples <- max(1L, floor(p_val   * total_num_samples))
+num_test_samples       <- max(
+  0L,
+  total_num_samples - num_training_samples - num_validation_samples
 )
 
-# Restore best weights toggle (same flag used in your classification script)
-RESTORE_BEST_WEIGHTS <- TRUE  # set FALSE to keep final-epoch weights
+train_indices      <- seq_len(num_training_samples)
+validation_indices <- if (num_validation_samples > 0L) {
+  seq(from = max(train_indices) + 1L, length.out = num_validation_samples)
+} else integer()
+
+test_indices <- if (num_test_samples > 0L) {
+  seq(from = max(c(train_indices, validation_indices)) + 1L,
+      length.out = num_test_samples)
+} else integer()
+
+X_train      <- X_full[train_indices,      , drop = FALSE]
+X_validation <- X_full[validation_indices, , drop = FALSE]
+X_test       <- X_full[test_indices,       , drop = FALSE]
+
+y_train      <- y_full[train_indices,      , drop = FALSE]
+y_validation <- y_full[validation_indices, , drop = FALSE]
+y_test       <- y_full[test_indices,       , drop = FALSE]
+
+cat(sprintf("[SPLIT chrono] train=%d val=%d test=%d\n",
+            nrow(X_train), nrow(X_validation), nrow(X_test)))
+
+if (!identical(tolower(CLASSIFICATION_MODE), "regression")) {
+  stop("regression mode only script")
+}
+
+make_date_numeric <- function(df) {
+  if (!"date" %in% names(df)) return(df)
+  d <- df[["date"]]
+  if (inherits(d, "POSIXt")) {
+    df[["date"]] <- as.numeric(as.Date(d))
+  } else if (inherits(d, "Date")) {
+    df[["date"]] <- as.numeric(d)
+  } else {
+    suppressWarnings({ parsed <- as.Date(d) })
+    if (all(is.na(parsed))) {
+      df[["date"]] <- NA_real_
+    } else {
+      df[["date"]] <- as.numeric(parsed)
+    }
+  }
+  df
+}
+
+X_train      <- make_date_numeric(X_train)
+X_validation <- make_date_numeric(X_validation)
+X_test       <- make_date_numeric(X_test)
+
+impute_with_train_median <- function(df_train, df_other) {
+  num_cols <- names(df_train)[vapply(df_train, is.numeric, TRUE)]
+  for (nm in num_cols) {
+    med <- suppressWarnings(median(df_train[[nm]], na.rm = TRUE))
+    if (!is.finite(med) || is.na(med)) med <- 0
+    if (nm %in% names(df_train))  df_train[[nm]][is.na(df_train[[nm]])]  <- med
+    if (nm %in% names(df_other))  df_other[[nm]][is.na(df_other[[nm]])]  <- med
+  }
+  list(train = df_train, other = df_other)
+}
+
+tmp <- impute_with_train_median(X_train, X_validation)
+X_train      <- tmp$train
+X_validation <- tmp$other
+tmp <- impute_with_train_median(X_train, X_test)
+X_test       <- tmp$other
+
+X_train_df <- as.data.frame(X_train)
+X_val_df   <- as.data.frame(X_validation)
+X_test_df  <- as.data.frame(X_test)
+
+num_mask <- vapply(X_train_df, is.numeric, TRUE)
+if (!any(num_mask)) stop("no numeric predictors")
+
+X_train_num <- as.matrix(X_train_df[, num_mask, drop = FALSE])
+X_val_num   <- as.matrix(X_val_df[,   num_mask, drop = FALSE])
+X_test_num  <- as.matrix(X_test_df[,  num_mask, drop = FALSE])
+
+X_train_scaled <- scale(X_train_num)
+center <- attr(X_train_scaled, "scaled:center")
+scale_ <- attr(X_train_scaled, "scaled:scale")
+scale_[!is.finite(scale_) | scale_ == 0] <- 1
+
+X_validation_scaled <- sweep(
+  sweep(X_val_num,  2, center, "-"),
+  2, scale_, "/"
+)
+X_test_scaled <- sweep(
+  sweep(X_test_num, 2, center, "-"),
+  2, scale_, "/"
+)
+
+max_val <- suppressWarnings(max(abs(X_train_scaled)))
+if (!is.finite(max_val) || is.na(max_val) || max_val == 0) max_val <- 1
+
+drop_first_row_safe <- function(obj) {
+  if (is.null(obj) || NROW(obj) == 0L) return(obj)
+  if (is.matrix(obj))     return(obj[-1, , drop = FALSE])
+  if (is.data.frame(obj)) return(obj[-1, , drop = FALSE])
+  obj[-1]
+}
+
+to_logret <- function(v) {
+  vv <- as.numeric(if (is.matrix(v) || is.data.frame(v)) v[,1] else v)
+  c(NA_real_, diff(log(pmax(vv, 1e-12))))
+}
+
+if (identical(tolower(REG_TARGET_MODE), "return_log")) {
+  y_train      <- to_logret(y_train);      y_train      <- drop_first_row_safe(y_train)
+  if (NROW(y_validation)) {
+    y_validation <- to_logret(y_validation); y_validation <- drop_first_row_safe(y_validation)
+  }
+  if (NROW(y_test)) {
+    y_test <- to_logret(y_test); y_test <- drop_first_row_safe(y_test)
+  }
+  
+  X_train_scaled      <- drop_first_row_safe(X_train_scaled)
+  X_validation_scaled <- drop_first_row_safe(X_validation_scaled)
+  X_test_scaled       <- drop_first_row_safe(X_test_scaled)
+} else if (!identical(tolower(REG_TARGET_MODE), "price")) {
+  stop("REG_TARGET_MODE must be price or return_log")
+}
+
+X_train_scaled_final      <- X_train_scaled      / max_val
+X_validation_scaled_final <- X_validation_scaled / max_val
+X_test_scaled_final       <- X_test_scaled       / max_val
+
+SCALE_Y_WITH_ZSCORE <- FALSE
+
+y_vec_train <- if (is.matrix(y_train) || is.data.frame(y_train)) {
+  as.numeric(y_train[,1])
+} else {
+  as.numeric(y_train)
+}
+
+stopifnot(length(y_vec_train) == NROW(X_train_scaled_final))
+
+if (isTRUE(SCALE_Y_WITH_ZSCORE)) {
+  y_center <- mean(y_vec_train, na.rm = TRUE)
+  y_scale  <- stats::sd(y_vec_train, na.rm = TRUE)
+  if (!is.finite(y_scale) || y_scale == 0) y_scale <- 1
+  y_vec_scaled <- (y_vec_train - y_center) / y_scale
+  target_transform <- list(
+    type   = "zscore",
+    params = list(center = y_center, scale = y_scale)
+  )
+  y_trained_scaled <- TRUE
+} else {
+  y_vec_scaled <- y_vec_train
+  target_transform <- list(
+    type   = "identity",
+    params = list(center = 0, scale = 1)
+  )
+  y_trained_scaled <- FALSE
+}
+
+y_train_mat <- matrix(as.numeric(y_vec_scaled), ncol = 1L)
+storage.mode(y_train_mat) <- "double"
+colnames(y_train_mat) <- colname_y
+
+# ---------------------------------------------------------------
+# SCALE UP TARGETS to strengthen gradient signal
+# ---------------------------------------------------------------
+TARGET_SCALE <- 1  # <<< new hyperparam
+
+y_train_mat <- y_train_mat * TARGET_SCALE
+
+if (NROW(y_validation)) {
+  if (is.matrix(y_validation) || is.data.frame(y_validation)) {
+    y_validation <- as.matrix(y_validation)
+  }
+  y_validation <- y_validation * TARGET_SCALE
+}
+if (NROW(y_test)) {
+  if (is.matrix(y_test) || is.data.frame(y_test)) {
+    y_test <- as.matrix(y_test)
+  }
+  y_test <- y_test * TARGET_SCALE
+}
+
+align_n <- min(
+  nrow(X_train_scaled_final),
+  nrow(y_train_mat)
+)
+
+if (align_n != nrow(X_train_scaled_final) ||
+    align_n != nrow(y_train_mat)) {
+  X_train_scaled_final      <- X_train_scaled_final[seq_len(align_n), , drop = FALSE]
+  y_train_mat               <- y_train_mat[seq_len(align_n), , drop = FALSE]
+  X_validation_scaled_final <- X_validation_scaled_final[
+    seq_len(min(nrow(X_validation_scaled_final), align_n)), , drop = FALSE
+  ]
+  y_validation <- y_validation[
+    seq_len(min(nrow(as.data.frame(y_validation)), align_n)), , drop = FALSE
+  ]
+  X_test_scaled_final <- X_test_scaled_final[
+    seq_len(min(nrow(X_test_scaled_final), align_n)), , drop = FALSE
+  ]
+  y_test <- y_test[
+    seq_len(min(nrow(as.data.frame(y_test)), align_n)), , drop = FALSE
+  ]
+  cat(sprintf("[reg] Adjusted alignment to n=%d rows\n", align_n))
+}
+
+train_x <- as.matrix(X_train_scaled_final)
+train_y <- y_train_mat
+
+valid_x <- as.matrix(X_validation_scaled_final)
+valid_y <- as.matrix(y_validation)
+
+test_x  <- as.matrix(X_test_scaled_final)
+test_y  <- as.matrix(y_test)
+
+input_size  <- ncol(train_x)
+output_size <- 1L
+
+feature_names <- colnames(X_train_num)
+center_vec <- setNames(as.numeric(center[feature_names]), feature_names)
+scale_vec  <- setNames(as.numeric(scale_[feature_names]), feature_names)
+
+train_medians <- vapply(
+  as.data.frame(X_train_df[, feature_names, drop = FALSE]),
+  function(col) suppressWarnings(median(col, na.rm = TRUE)),
+  numeric(1)
+)
+train_medians[!is.finite(train_medians)] <- 0
+
+preprocessScaledData <- list(
+  feature_names     = as.character(feature_names),
+  center            = center_vec,
+  scale             = scale_vec,
+  max_val           = as.numeric(max_val),
+  divide_by_max_val = TRUE,
+  train_medians     = setNames(as.numeric(train_medians[feature_names]), feature_names),
+  date_policy       = "date->numeric",
+  used_scaled_X     = TRUE,
+  scaler            = "standardize+divide_by_max",
+  imputer           = "train_median",
+  input_size        = input_size,
+  target_transform  = target_transform,
+  y_trained_scaled  = isTRUE(y_trained_scaled)
+)
+
+assign("preprocessScaledData", preprocessScaledData, inherits = TRUE)
+assign("target_transform",     target_transform,     inherits = TRUE)
+
+cat("=== [reg] Diagnostics ===\n")
+cat("train_x dim:", paste(dim(train_x), collapse="x"), "\n")
+cat("valid_x dim:", paste(dim(valid_x), collapse="x"), "\n")
+cat("test_x  dim:", paste(dim(test_x),  collapse="x"), "\n")
+cat("NAs? train:", anyNA(train_x), " val:", anyNA(valid_x), " test:", anyNA(test_x), "\n")
+
+model <- ddesonn_model(
+  input_size          = input_size,
+  output_size         = output_size,
+  hidden_sizes        = hidden_sizes,
+  num_networks        = 1L,
+  classification_mode = "regression",
+  ML_NN               = TRUE,
+  custom_scale = 10
+)
 
 ddesonn_fit(
   model,
   train_x,
   train_y,
   validation = list(x = valid_x, y = valid_y),
-  num_epochs = 300,
-  lr = 0.02,
+  num_epochs = num_epochs,
+  lr = lr,
   validation_metrics = TRUE,
   verbose = TRUE,
-  best_weights_on_latest_weights_off = RESTORE_BEST_WEIGHTS
+  best_weights_on_latest_weights_off = RESTORE_BEST_WEIGHTS,
+  classification_mode = "regression",
+  batch_normalize_data = FALSE
 )
 
-# ------------------------------------------------------------------------------
-# VALIDATION EVALUATION (RMSE / MAE / R²)
-# ------------------------------------------------------------------------------
-pred <- ddesonn_predict(model, valid_x, aggregate = "mean")
+pred_valid <- ddesonn_predict(model, valid_x, aggregate = "mean")
 
-y_hat <- as.numeric(pred$prediction)
-y_true <- as.numeric(valid_y[[1]])
+y_hat_val  <- as.numeric(pred_valid$prediction)
+y_true_val <- as.numeric(valid_y[,1])
 
-stopifnot(length(y_hat) == length(y_true))
+stopifnot(length(y_hat_val) == length(y_true_val))
 
-mse  <- mean((y_hat - y_true)^2)
-rmse <- sqrt(mse)
-mae  <- mean(abs(y_hat - y_true))
-r2   <- 1 - sum((y_true - y_hat)^2) / sum((y_true - mean(y_true))^2)
+mse_val  <- mean((y_hat_val - y_true_val)^2)
+rmse_val <- sqrt(mse_val)
+mae_val  <- mean(abs(y_hat_val - y_true_val))
+r2_val   <- 1 - sum((y_true_val - y_hat_val)^2) /
+  sum((y_true_val - mean(y_true_val))^2)
 
 cat("\n--- VALIDATION METRICS (regression) ---\n")
-cat("RMSE:", round(rmse, 4), " | MAE:", round(mae, 4), " | R²:", round(r2, 4), "\n")
+cat("RMSE:", round(rmse_val, 4),
+    " MAE:", round(mae_val, 4),
+    " R2:",  round(r2_val, 4), "\n")
 
 comparison_valid <- data.frame(
-  actual = round(y_true, 3),
-  predicted = round(y_hat, 3),
-  error = round(y_hat - y_true, 3)
+  actual    = round(y_true_val, 6),
+  predicted = round(y_hat_val, 6),
+  error     = round(y_hat_val - y_true_val, 6)
 )
-print(utils::head(comparison_valid, 10))
+print(utils::head(comparison_valid, 20))
 
-cat("First few predictions:\n");  print(utils::head(pred$prediction))
-cat("Summary predictions:\n");     print(summary(pred$prediction))
+cat("\nValidation pred mean/sd:\n")
+cat(mean(y_hat_val), sd(y_hat_val), "\n")
+cat("Validation true mean/sd:\n")
+cat(mean(y_true_val), sd(y_true_val), "\n")
+cat("Validation cor(pred,true):\n")
+cat(cor(y_hat_val, y_true_val), "\n")
 
-# ------------------------------------------------------------------------------
-# TEST EVALUATION (true hold-out, 20% split)
-# ------------------------------------------------------------------------------
 pred_test <- ddesonn_predict(model, test_x, aggregate = "mean")
 
-y_hat_t <- as.numeric(pred_test$prediction)
-y_true_t <- as.numeric(test_y[[1]])
+y_hat_test  <- as.numeric(pred_test$prediction)
+y_true_test <- as.numeric(test_y[,1])
 
-stopifnot(length(y_hat_t) == length(y_true_t))
+stopifnot(length(y_hat_test) == length(y_true_test))
 
-mse_t  <- mean((y_hat_t - y_true_t)^2)
-rmse_t <- sqrt(mse_t)
-mae_t  <- mean(abs(y_hat_t - y_true_t))
-r2_t   <- 1 - sum((y_true_t - y_hat_t)^2) / sum((y_true_t - mean(y_true_t))^2)
+mse_test  <- mean((y_hat_test - y_true_test)^2)
+rmse_test <- sqrt(mse_test)
+mae_test  <- mean(abs(y_hat_test - y_true_test))
+r2_test   <- 1 - sum((y_true_test - y_hat_test)^2) /
+  sum((y_true_test - mean(y_true_test))^2)
 
-cat("\n--- TEST METRICS (regression, true hold-out) ---\n")
-cat("RMSE:", round(rmse_t, 4), " | MAE:", round(mae_t, 4), " | R²:", round(r2_t, 4), "\n")
+cat("\n--- TEST METRICS (regression, hold-out) ---\n")
+cat("RMSE:", round(rmse_test, 4),
+    " MAE:", round(mae_test, 4),
+    " R2:",  round(r2_test, 4), "\n")
 
 comparison_test <- data.frame(
-  actual = round(y_true_t, 3),
-  predicted = round(y_hat_t, 3),
-  error = round(y_hat_t - y_true_t, 3)
+  actual    = round(y_true_test, 6),
+  predicted = round(y_hat_test, 6),
+  error     = round(y_hat_test - y_true_test, 6)
 )
-print(utils::head(comparison_test, 10))
+print(utils::head(comparison_test, 20))
 
-# Handy globals for quick review after run
-VALID_RMSE <- rmse
-VALID_MAE  <- mae
-VALID_R2   <- r2
-TEST_RMSE  <- rmse_t
-TEST_MAE   <- mae_t
-TEST_R2    <- r2_t
+VALID_RMSE <- rmse_val
+VALID_MAE  <- mae_val
+VALID_R2   <- r2_val
+TEST_RMSE  <- rmse_test
+TEST_MAE   <- mae_test
+TEST_R2    <- r2_test
 COMPARISON_VALID <- comparison_valid
 COMPARISON_TEST  <- comparison_test
 
-# ------------------------------------------------------------------------------
-# DDESONN Scenario Runner (A–D) — regression orchestration
-# ------------------------------------------------------------------------------
-# Notes:
-# - classification_mode = "regression"
-# - prediction_type     = "response" (numeric)
-# - aggregate           = "mean" (for ensembles)
 scenario_presets <- list(
-  A = list(label="Scenario A", do_ensemble=FALSE, num_networks=1L, num_temp_iterations=0L, aggregate="mean",  prediction_type="response", seeds = 1L),
-  B = list(label="Scenario B", do_ensemble=FALSE, num_networks=4L, num_temp_iterations=0L, aggregate="mean",  prediction_type="response", seeds = 1:4),
-  C = list(label="Scenario C", do_ensemble=TRUE,  num_networks=5L, num_temp_iterations=0L, aggregate="mean",  prediction_type="response", seeds = 1:5),
-  D = list(label="Scenario D", do_ensemble=TRUE,  num_networks=3L, num_temp_iterations=2L, aggregate="mean",  prediction_type="response", seeds = c(11, 22, 33))
+  A = list(
+    label="Scenario A",
+    do_ensemble=FALSE,
+    num_networks=1L,
+    aggregate="mean",
+    prediction_type="response",
+    seeds = 1L
+  ),
+  B = list(
+    label="Scenario B",
+    do_ensemble=FALSE,
+    num_networks=4L,
+    aggregate="mean",
+    prediction_type="response",
+    seeds = 1:4
+  ),
+  C = list(
+    label="Scenario C",
+    do_ensemble=TRUE,
+    num_networks=5L,
+    aggregate="mean",
+    prediction_type="response",
+    seeds = 1:5
+  ),
+  D = list(
+    label="Scenario D",
+    do_ensemble=TRUE,
+    num_networks=3L,
+    aggregate="mean",
+    prediction_type="response",
+    seeds = c(11,22,33)
+  )
 )
 
-# Default output_root uses the REPO ROOT so persistence adds "artifacts" exactly once.
-run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_root()) {
+run_scenario <- function(scn = c("A","B","C","D"),
+                         output_root = .ddesonn_find_root()) {
   scn <- match.arg(scn)
   cfg <- scenario_presets[[scn]]
   
@@ -173,42 +443,106 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_r
   run <- ddesonn_run(
     x = train_x,
     y = train_y,
-    classification_mode = "regression",          # ← regression mode
-    hidden_sizes = c(32, 16),
+    classification_mode = "regression",
+    hidden_sizes = hidden_sizes,
     seeds = cfg$seeds,
     do_ensemble = cfg$do_ensemble,
     num_networks = cfg$num_networks,
-    num_temp_iterations = cfg$num_temp_iterations,
     validation = list(x = valid_x, y = valid_y),
+    
     training_overrides = list(
-      num_epochs = 2,
-      lr = 0.05,
+      num_epochs = num_epochs,
+      lr = lr,
       validation_metrics = TRUE,
-      verbose = FALSE
+      verbose = FALSE,
+      classification_mode = "regression"
     ),
-    temp_overrides = if (cfg$num_temp_iterations > 0L)
-      list(num_epochs = 1, lr = 0.02, validation_metrics = TRUE, verbose = FALSE)
-    else NULL,
+    
     prediction_data = valid_x,
-    prediction_type = cfg$prediction_type,       # "response"
-    aggregate = cfg$aggregate,                   # "mean"
+    prediction_type = cfg$prediction_type,
+    aggregate = cfg$aggregate,
     seed_aggregate = "none",
-    output_root = output_root,                   # persistence will add artifacts/SingleRuns|EnsembleRuns
+    output_root = output_root,
     save_models = TRUE
   )
   
-  # Mirror the same guard used in persistence to print the actual artifacts root once.
   art_root <- {
     nr <- normalizePath(output_root, winslash = "/", mustWork = FALSE)
     if (basename(nr) == "artifacts") nr else file.path(output_root, "artifacts")
   }
-  cat("Artifacts root:", normalizePath(art_root, winslash = "/", mustWork = FALSE), "\n")
+  cat("Artifacts root:",
+      normalizePath(art_root, winslash = "/", mustWork = FALSE), "\n")
   
-  # Tiny validation preview (aggregate or first per-model)
   if (!is.null(run$predictions$aggregate)) {
-    cat("Validation preview (aggregate head):\n"); print(utils::head(run$predictions$aggregate))
-  } else if (length(run$runs) && !is.null(run$runs[[1]]$main$predictions$per_model)) {
-    cat("Validation preview (first model head):\n"); print(utils::head(run$runs[[1]]$main$predictions$per_model[[1]]))
+    cat("Validation preview (aggregate head):\n")
+    print(utils::head(run$predictions$aggregate, 20))
+  } else if (
+    length(run$runs) &&
+    !is.null(run$runs[[1]]$main$predictions$per_model)
+  ) {
+    model_pred_obj <- run$runs[[1]]$main$predictions$per_model[[1]]
+    
+    cat("Validation preview (first model head):\n")
+    print(utils::head(model_pred_obj, 20))
+    
+    if (is.data.frame(model_pred_obj)) {
+      if ("prediction" %in% names(model_pred_obj)) {
+        pred_vec <- as.numeric(model_pred_obj[["prediction"]])
+      } else if ("pred" %in% names(model_pred_obj)) {
+        pred_vec <- as.numeric(model_pred_obj[["pred"]])
+      } else {
+        pred_vec <- as.numeric(model_pred_obj[[1]])
+      }
+    } else if (is.matrix(model_pred_obj)) {
+      pred_vec <- as.numeric(model_pred_obj[,1])
+    } else {
+      pred_vec <- as.numeric(model_pred_obj)
+    }
+    
+    if (is.matrix(valid_y) || is.data.frame(valid_y)) {
+      actual_vec <- as.numeric(valid_y[,1])
+    } else {
+      actual_vec <- as.numeric(valid_y)
+    }
+    
+    n <- min(length(pred_vec), length(actual_vec))
+    pred_vec   <- pred_vec[seq_len(n)]
+    actual_vec <- actual_vec[seq_len(n)]
+    
+    compare_df <- data.frame(
+      actual    = actual_vec,
+      predicted = pred_vec,
+      error     = pred_vec - actual_vec
+    )
+    
+    cat("\n[COMPARE] predicted vs actual (first 20 rows):\n")
+    print(utils::head(compare_df, 20))
+    
+    run_dir <- NULL
+    if (!is.null(run$meta) && !is.null(run$meta$root_dir)) {
+      run_dir <- run$meta$root_dir
+    } else if (!is.null(run$runs) &&
+               length(run$runs) &&
+               !is.null(run$runs[[1]]$meta$root_dir)) {
+      run_dir <- run$runs[[1]]$meta$root_dir
+    }
+    if (is.null(run_dir)) {
+      run_dir <- art_root
+    }
+    
+    results_dir <- file.path(run_dir, "results")
+    dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
+    
+    tstamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    compare_path <- file.path(
+      results_dir,
+      paste0("validation_compare_", cfg$label, "_", tstamp, ".rds")
+    )
+    
+    saveRDS(compare_df, compare_path)
+    cat("\n[SAVED] validation comparison RDS:\n",
+        normalizePath(compare_path), "\n")
+    
   } else {
     cat("[no predictions found in run object]\n")
   }
@@ -216,19 +550,4 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_r
   invisible(run)
 }
 
-## =========================
-## DDESONN Runner – Modes
-## =========================
-## Pick ONE to run now by uncommenting the call(s) below.
-
-## SCENARIO A: Single-run only (no ensemble, ONE model)
-# invisible(run_scenario("A"))
-
-## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
-invisible(run_scenario("B"))
-
-## SCENARIO C: Main ensemble only (no TEMP/prune-add)
-# invisible(run_scenario("C"))
-
-## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-# invisible(run_scenario("D"))
+invisible(run_scenario("A"))

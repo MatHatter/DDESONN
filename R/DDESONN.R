@@ -3594,7 +3594,9 @@ DDESONN <- R6Class(
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-
+# print(head(single_predicted_output))
+# print(head(y_validation))
+# stop()
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             eval_result <- EvaluatePredictionsReport(
@@ -3690,8 +3692,6 @@ DDESONN <- R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-
-
 
 
           performance_list[[i]] <- calculate_performance(
@@ -4345,6 +4345,7 @@ DDESONN <- R6Class(
     ,
     store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
 
+
       # ---------------- helpers (lightweight; keep most original structure) ----------------
       to_num_mat <- function(x) {
         # Guard: never allow functions/closures through
@@ -4568,8 +4569,6 @@ DDESONN <- R6Class(
       # keep alias if referenced elsewhere
       t_paths <- artifact_paths
       
-      
-
       # --- Create metadata list (preserved, using explicit CLASSIFICATION_MODE) ---
       metadata <- list(
         input_size = input_size,
@@ -4603,15 +4602,15 @@ DDESONN <- R6Class(
 
         # --- Preprocessing
         preprocessScaledData = preprocessScaledData,
-        target_transform = preprocessScaledData$target_transform,
-        reg_target_mode = {
+        target_transform = if (CLASSIFICATION_MODE == "regression") {preprocessScaledData$target_transform} else NULL,
+        reg_target_mode = if (CLASSIFICATION_MODE == "regression") {{
           mode <- preprocessScaledData$reg_target_mode %||%
             get0("REG_TARGET_MODE", inherits = TRUE, ifnotfound =
                    get0("reg_target_mode", inherits = TRUE, ifnotfound = "price"))
           if (is.null(mode) || !nzchar(as.character(mode))) mode <- "price"
           tolower(as.character(mode))
-        },
-        reg_target_mode_applied = isTRUE(preprocessScaledData$reg_target_mode_applied),
+        }} else NULL,
+        reg_target_mode_applied = if (CLASSIFICATION_MODE == "regression") {isTRUE(preprocessScaledData$reg_target_mode_applied)} else NULL,
 
         # --- Data
         X = X,
