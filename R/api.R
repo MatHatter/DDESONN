@@ -1353,38 +1353,51 @@ ddesonn_predict <- function(model, new_data,
   )
 }
 
-
 .write_single_runs_metrics <- function(result, run_dir, ts, seeds) {
   s_chr <- as.character(length(seeds))
+  
+  ## existing outputs
   pretty_test_path <- file.path(run_dir, sprintf("SingleRun_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  test_path <- file.path(run_dir, sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  train_path <- file.path(run_dir, sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  test_path        <- file.path(run_dir, sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
+  train_path       <- file.path(run_dir, sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  
+  ## NEW: pretty-only outputs
+  pretty_train_path <- file.path(run_dir, sprintf("SingleRun_Pretty_Train_Metrics_%s_seeds_%s.rds",      s_chr, ts))
+  pretty_val_path   <- file.path(run_dir, sprintf("SingleRun_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts))
   
   rows_train <- list()
-  rows_test <- list()
+  rows_val   <- list()
+  rows_test  <- list()
   ptr_tr <- 0L
+  ptr_va <- 0L
   ptr_te <- 0L
   
   for (i in seq_along(result$runs)) {
     seed_i <- result$runs[[i]]$seed %||% i
     main_model <- result$runs[[i]]$main$model
-
     if (is.null(main_model)) next
+    
     K <- length(main_model$ensemble) %||% 0L
     if (K < 1L) next
     
     for (k in seq_len(K)) {
       slot_obj <- try(main_model$ensemble[[k]], silent = TRUE)
-      str(slot_obj)
       if (inherits(slot_obj, "try-error") || is.null(slot_obj)) next
+      
       md <- try(slot_obj$metadata, silent = TRUE)
       if (inherits(md, "try-error") || is.null(md)) md <- list()
       md$model_serial_num <- md$model_serial_num %||% sprintf("0.main.%d", k)
-      md$model_name <- md$model_name %||% paste0("model_", k)
+      md$model_name       <- md$model_name       %||% paste0("model_", k)
       
+      ## TRAIN row
       ptr_tr <- ptr_tr + 1L
       rows_train[[ptr_tr]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "train")
       
+      ## VALIDATION row (NEW)
+      ptr_va <- ptr_va + 1L
+      rows_val[[ptr_va]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "validation")
+      
+      ## TEST row
       ptr_te <- ptr_te + 1L
       rows_test[[ptr_te]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "test")
     }
@@ -1392,13 +1405,14 @@ ddesonn_predict <- function(model, new_data,
   
   bind <- function(lst) if (!length(lst)) data.frame() else do.call(rbind, lst)
   df_train <- bind(rows_train)
-  df_test <- bind(rows_test)
+  df_val   <- bind(rows_val)
+  df_test  <- bind(rows_test)
   
   id_order <- c("run_index", "seed", "model_slot", "MODEL_SLOT", "split", "serial", "model_name")
   metric_pref <- c(
-    # classification-first (kept)
+    # classification-first
     "accuracy", "precision", "recall", "f1", "f1_score",
-    # add regression here:
+    # regression
     "MSE", "MAE", "RMSE", "R2",
     # CM + best_* as you already have
     "confusion_matrix.TP", "confusion_matrix.FP", "confusion_matrix.TN", "confusion_matrix.FN",
@@ -1411,29 +1425,46 @@ ddesonn_predict <- function(model, new_data,
     intersect(metric_pref, names(df)),
     setdiff(names(df), c(id_order, metric_pref))
   )
-  if (ncol(df_train)) df_train <- df_train[, ord(df_train), drop = FALSE]
-  if (ncol(df_test)) df_test <- df_test[, ord(df_test), drop = FALSE]
   
-  saveRDS(df_test, pretty_test_path)
-  saveRDS(df_test, test_path)
-  saveRDS(df_train, train_path)
+  if (ncol(df_train)) df_train <- df_train[, ord(df_train), drop = FALSE]
+  if (ncol(df_val))   df_val   <- df_val[,   ord(df_val),   drop = FALSE]
+  if (ncol(df_test))  df_test  <- df_test[,  ord(df_test),  drop = FALSE]
+  
+  ## writes
+  saveRDS(df_test,  pretty_test_path)   # pretty TEST
+  saveRDS(df_test,  test_path)          # legacy TEST (kept)
+  saveRDS(df_train, train_path)         # legacy TRAIN (kept)
+  
+  ## NEW: pretty TRAIN and VALIDATION
+  saveRDS(df_train, pretty_train_path)
+  saveRDS(df_val,   pretty_val_path)
 }
+
 
 .write_ensemble_runs_metrics <- function(result, run_dir, ts, seeds) {
   s_chr <- as.character(length(seeds))
+  
+  ## existing outputs
   pretty_test_path <- file.path(run_dir, sprintf("Ensemble_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  test_path        <- file.path(run_dir, sprintf("Ensemble_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  test_path        <- file.path(run_dir, sprintf("Ensemble_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
   train_path       <- file.path(run_dir, sprintf("Ensemble_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
   
+  ## NEW: pretty-only outputs
+  pretty_train_path <- file.path(run_dir, sprintf("Ensemble_Pretty_Train_Metrics_%s_seeds_%s.rds",      s_chr, ts))
+  pretty_val_path   <- file.path(run_dir, sprintf("Ensemble_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  
   rows_train <- list()
+  rows_val   <- list()
   rows_test  <- list()
   ptr_tr <- 0L
+  ptr_va <- 0L
   ptr_te <- 0L
   
   for (i in seq_along(result$runs)) {
     seed_i <- result$runs[[i]]$seed %||% i
     main_model <- result$runs[[i]]$main$model
     if (is.null(main_model)) next
+    
     K <- length(main_model$ensemble) %||% 0L
     if (K < 1L) next
     
@@ -1444,24 +1475,25 @@ ddesonn_predict <- function(model, new_data,
       md <- try(slot_obj$metadata, silent = TRUE)
       if (inherits(md, "try-error") || is.null(md)) md <- list()
       md$model_serial_num <- md$model_serial_num %||% sprintf("1.main.%d", k)
-      md$model_name       <- md$model_name %||% paste0("model_", k)
+      md$model_name       <- md$model_name       %||% paste0("model_", k)
       
-      # Train metrics
+      ## TRAIN
       ptr_tr <- ptr_tr + 1L
-      rows_train[[ptr_tr]] <- .build_metrics_row(
-        md, run_index = i, seed = seed_i, slot = k, split = "train"
-      )
+      rows_train[[ptr_tr]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "train")
       
-      # Test metrics
+      ## VALIDATION (NEW)
+      ptr_va <- ptr_va + 1L
+      rows_val[[ptr_va]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "validation")
+      
+      ## TEST
       ptr_te <- ptr_te + 1L
-      rows_test[[ptr_te]] <- .build_metrics_row(
-        md, run_index = i, seed = seed_i, slot = k, split = "test"
-      )
+      rows_test[[ptr_te]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "test")
     }
   }
   
   bind <- function(lst) if (!length(lst)) data.frame() else do.call(rbind, lst)
   df_train <- bind(rows_train)
+  df_val   <- bind(rows_val)
   df_test  <- bind(rows_test)
   
   id_order <- c("run_index", "seed", "model_slot", "MODEL_SLOT", "split", "serial", "model_name")
@@ -1472,7 +1504,8 @@ ddesonn_predict <- function(model, new_data,
     "confusion_matrix.TP", "confusion_matrix.FP", "confusion_matrix.TN", "confusion_matrix.FN",
     "generalization_ability", "speed", "speed_learn1", "speed_learn2",
     "memory_usage", "robustness", "hit_rate", "ndcg", "diversity", "serendipity",
-    "best_train_acc", "best_epoch_train", "best_train_loss", "best_epoch_train_loss", "best_val_acc", "best_val_epoch", "best_val_prediction_time"
+    "best_train_acc", "best_epoch_train", "best_train_loss", "best_epoch_train_loss",
+    "best_val_acc", "best_val_epoch", "best_val_prediction_time"
   )
   
   ord <- function(df) c(
@@ -1482,11 +1515,16 @@ ddesonn_predict <- function(model, new_data,
   )
   
   if (ncol(df_train)) df_train <- df_train[, ord(df_train), drop = FALSE]
+  if (ncol(df_val))   df_val   <- df_val[,   ord(df_val),   drop = FALSE]
   if (ncol(df_test))  df_test  <- df_test[,  ord(df_test),  drop = FALSE]
   
-  saveRDS(df_test,  pretty_test_path)
-  saveRDS(df_test,  test_path)
-  saveRDS(df_train, train_path)
+  ## writes (keep legacy paths + new pretty outputs)
+  saveRDS(df_test,  pretty_test_path)   # pretty TEST
+  saveRDS(df_test,  test_path)          # legacy TEST
+  saveRDS(df_train, train_path)         # legacy TRAIN+VAL aggregate (kept)
+  
+  saveRDS(df_train, pretty_train_path)  # NEW pretty TRAIN
+  saveRDS(df_val,   pretty_val_path)    # NEW pretty VALIDATION
 }
 
 .write_agg_predictions <- function(result, run_dir, ts, seeds) {
