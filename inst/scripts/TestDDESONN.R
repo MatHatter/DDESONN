@@ -2488,7 +2488,7 @@ if(train) {
           best_val_acc_tmp       <- try(model_results_temp$predicted_outputAndTime$best_val_acc,             silent=TRUE); if (inherits(best_val_acc_tmp,"try-error")) best_val_acc_tmp <- NA_real_
           best_val_epoch_tmp     <- try(model_results_temp$predicted_outputAndTime$best_val_epoch,           silent=TRUE); if (inherits(best_val_epoch_tmp,"try-error")) best_val_epoch_tmp <- NA_integer_
           best_val_pred_time_tmp <- try(model_results_temp$predicted_outputAndTime$best_val_prediction_time, silent=TRUE); if (inherits(best_val_pred_time_tmp,"try-error")) best_val_pred_time_tmp <- NA_real_
-
+          
           for (k in seq_len(K)) {
             tvar <- temp_meta_var(j + 1L, k)
             if (!exists(tvar, envir = .GlobalEnv)) next
@@ -2927,6 +2927,29 @@ if(train) {
       saveRDS(df, agg_path)
       cat("Reindexed (by serial) AGG file:", agg_path, " | rows=", nrow(df), "\n")
     }
+    
+    ## ============================
+    ## NEW: normalize TRAIN / VAL pretty agg files (restore y_prob etc.)
+    ## ============================
+    if (file.exists(agg_pred_file_train)) {
+      .fix_agg_layout_for_fuser(
+        agg_pred_file_train,
+        run_index = NULL,
+        seed = NULL,
+        split = "train",
+        classification_mode = CLASSIFICATION_MODE
+      )
+    }
+    if (file.exists(agg_pred_file_val)) {
+      .fix_agg_layout_for_fuser(
+        agg_pred_file_val,
+        run_index = NULL,
+        seed = NULL,
+        split = "validation",
+        classification_mode = CLASSIFICATION_MODE
+      )
+    }
+    
   }
   
   
@@ -2941,8 +2964,8 @@ if(train) {
   
   
   
+  
 }
-
 
 
 
