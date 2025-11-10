@@ -1558,16 +1558,62 @@ ddesonn_predict <- function(model, new_data,
   .log("Expected TRAIN pretty file: ", agg_pred_file_train)
   .log("Expected VAL pretty file:   ", agg_pred_file_val)
   
-  # aggregated metrics that api.R already writes
-  test_metrics_file <- file.path(
-    run_dir,
-    sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds", s_chr, ts)
-  )
-  train_metrics_file <- file.path(
-    run_dir,
-    sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts)
-  )
-  
+  predictions_main_file <- file.path(run_dir, "predictions_main.rds")
+  if (!file.exists(predictions_main_file)) {
+    stop("[BuildPretty] predictions_main.rds not present; cannot build pretty tables without stored per-observation predictions.")
+  }
+
+  .log("Found predictions_main.rds at ", predictions_main_file)
+  pred_obj <- try(readRDS(predictions_main_file), silent = TRUE)
+  if (inherits(pred_obj, "try-error")) {
+    err <- attr(pred_obj, "condition")
+    msg <- if (inherits(err, "condition")) conditionMessage(err) else as.character(pred_obj)
+    stop("[BuildPretty] Unable to read predictions_main.rds: ", msg)
+  }
+  if (!is.list(pred_obj)) {
+    stop("[BuildPretty] predictions_main.rds did not contain a list structure.")
+  }
+
+  per_seed_predictions <- pred_obj$per_seed_tables %||% pred_obj$per_seed %||% pred_obj$tables
+  if (!length(per_seed_predictions)) {
+    stop("[BuildPretty] predictions_main.rds does not contain per-seed per-split tables.")
+  }
+
+  per_seed_predictions <- lapply(per_seed_predictions, function(seed_entry) {
+    if (!is.list(seed_entry)) return(NULL)
+    valid <- vapply(seed_entry, function(df) is.data.frame(df) && NROW(df), logical(1))
+    if (!any(valid)) return(NULL)
+    seed_entry[valid]
+  })
+  per_seed_predictions <- Filter(Negate(is.null), per_seed_predictions)
+  if (!length(per_seed_predictions)) {
+    stop("[BuildPretty] No usable per-observation predictions found in predictions_main.rds.")
+  }
+
+  .gather_split_df <- function(split_label) {
+    if (is.null(per_seed_predictions) || !length(per_seed_predictions)) return(NULL)
+    rows <- list()
+    ptr <- 0L
+    for (i in seq_along(per_seed_predictions)) {
+      run_pred <- per_seed_predictions[[i]]
+      if (!is.list(run_pred)) next
+      df <- run_pred[[split_label]]
+      if (!is.data.frame(df) || !NROW(df)) next
+      rows[[ptr <- ptr + 1L]] <- df
+    }
+    if (!length(rows)) return(NULL)
+    cols <- unique(unlist(lapply(rows, names)))
+    rows <- lapply(rows, function(df) {
+      miss <- setdiff(cols, names(df))
+      for (nm in miss) df[[nm]] <- NA
+      df[, cols, drop = FALSE]
+    })
+    out <- try(do.call(rbind, rows), silent = TRUE)
+    if (inherits(out, "try-error")) return(NULL)
+    rownames(out) <- NULL
+    out
+  }
+
   .df_info <- function(d, label) {
     if (!is.data.frame(d)) {
       .log("    [", label, "] not a data.frame")
@@ -1578,28 +1624,13 @@ ddesonn_predict <- function(model, new_data,
   }
   
   # Normalizer shared by all splits
-  .normalize_and_rewrite <- function(path, split_label, df = NULL) {
+  .normalize_and_rewrite <- function(path, split_label, df) {
     up <- toupper(split_label)
-    
-    if (is.null(df)) {
-      if (!file.exists(path)) {
-        .log("  !! ", up, " pretty file does NOT exist; skipping: ", path)
-        return(invisible(FALSE))
-      }
-      df <- try(readRDS(path), silent = TRUE)
-      if (inherits(df, "try-error") || !is.data.frame(df)) {
-        .log("  !! ", up, " file exists but could not be read as data.frame; skipping.")
-        return(invisible(FALSE))
-      }
-      .log("  .. ", up, " loaded from disk for normalization.")
-    } else {
-      if (!is.data.frame(df)) {
-        .log("  !! ", up, " supplied object is not a data.frame; skipping.")
-        return(invisible(FALSE))
-      }
-      .log("  .. ", up, " synthesized from metrics; normalizing and writing to: ", path)
+
+    if (!is.data.frame(df)) {
+      stop("[BuildPretty] ", up, " supplied object is not a data.frame.")
     }
-    
+
     if (!NROW(df)) {
       .log("  !! ", up, " df has zero rows; writing back as-is.")
       saveRDS(df, path)
@@ -1684,108 +1715,31 @@ ddesonn_predict <- function(model, new_data,
     }
     
     .df_info(df, paste0(up, "_final"))
-    .log("  -> Rewriting ", up, " pretty file to: ", path)
+    .log("  -> Writing ", up, " pretty file to: ", path)
     saveRDS(df, path)
     invisible(TRUE)
   }
-  
-  # ------------------------------------------------------------------
-  # Helper: synthesize minimal "pretty" tables from aggregated metrics
-  # ------------------------------------------------------------------
-  .ensure_pretty_from_metrics <- function(split_label) {
-    up <- toupper(split_label)
-    target_path <- switch(
-      split_label,
-      test       = agg_pred_file_test,
-      train      = agg_pred_file_train,
-      validation = agg_pred_file_val,
-      agg_pred_file_test
-    )
-    
-    if (file.exists(target_path)) {
-      .log("  .. ", up, " pretty file already exists: ", target_path)
-      return(invisible(TRUE))
-    }
-    
-    # choose source metrics file
-    src_path <- switch(
-      split_label,
-      test       = test_metrics_file,
-      train      = train_metrics_file,
-      validation = train_metrics_file,
-      train_metrics_file
-    )
-    
-    if (!file.exists(src_path)) {
-      .log("  !! No metrics source for ", up, " at: ", src_path)
-      return(invisible(FALSE))
-    }
-    
-    dfm <- try(readRDS(src_path), silent = TRUE)
-    if (inherits(dfm, "try-error") || !is.data.frame(dfm)) {
-      .log("  !! Metrics file for ", up, " is not a usable data.frame: ", src_path)
-      return(invisible(FALSE))
-    }
-    if (!NROW(dfm)) {
-      .log("  !! Metrics file for ", up, " has zero rows: ", src_path)
-      return(invisible(FALSE))
-    }
-    
-    .df_info(dfm, paste0(up, "_metrics_source"))
-    
-    # Make a shallow copy and tag with split;
-    # this is a *per-model* summary, not per-observation predictions.
-    dfp <- dfm
-    dfp$split <- tolower(split_label)
-    
-    # No y_true / y_pred / y_prob info in metrics → leave as NA columns
-    if (!"y_true" %in% names(dfp)) dfp$y_true <- NA_real_
-    if (!"y_pred" %in% names(dfp)) dfp$y_pred <- NA_real_
-    if (!"y_prob" %in% names(dfp)) dfp$y_prob <- NA_real_
-    
-    # obs_index = 1..nrow (per-metric-row)
-    if (!"obs_index" %in% names(dfp)) {
-      dfp$obs_index <- seq_len(NROW(dfp))
-    }
-    
-    .log("  .. Synthesizing minimal ", up, " pretty df from metrics: ", src_path)
-    saveRDS(dfp, target_path)
-    invisible(TRUE)
-  }
-  
+
   # make sure base dir exists
   if (!dir.exists(run_dir)) dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  # --------------------------------------------------------
-  # 1) If pretty files are missing, synthesize them from metrics
-  # --------------------------------------------------------
-  if (!file.exists(agg_pred_file_test) &&
-      !file.exists(agg_pred_file_train) &&
-      !file.exists(agg_pred_file_val)) {
-    .log("No existing SingleRun_Pretty_*.rds found; synthesizing minimal versions from metrics.")
-  } else {
-    .log("Some SingleRun_Pretty_*.rds already exist; will keep them and normalize.")
+
+  write_split <- function(split_label, target_path) {
+    up <- toupper(split_label)
+    df <- .gather_split_df(split_label)
+    if (!is.data.frame(df) || !NROW(df)) {
+      stop("[BuildPretty] No stored predictions available for ", up, ".")
+    }
+    .log("  .. Using stored per-observation predictions for ", up, ".")
+    .normalize_and_rewrite(target_path, split_label, df)
   }
-  
-  .ensure_pretty_from_metrics("test")
-  .ensure_pretty_from_metrics("train")
-  .ensure_pretty_from_metrics("validation")
-  
-  # --------------------------------------------------------
-  # 2) Final pass: normalize whatever pretty files now exist
-  # --------------------------------------------------------
-  .log("---- Normalizing TEST pretty file ----")
-  .normalize_and_rewrite(agg_pred_file_test, "test")
-  
-  .log("---- Normalizing TRAIN pretty file ----")
-  .normalize_and_rewrite(agg_pred_file_train, "train")
-  
-  .log("---- Normalizing VALIDATION pretty file ----")
-  .normalize_and_rewrite(agg_pred_file_val, "validation")
-  
+
+  write_split("test", agg_pred_file_test)
+  write_split("train", agg_pred_file_train)
+  write_split("validation", agg_pred_file_val)
+
   .log("EXIT .build_single_pretty_tables")
   .log("------------------------------------------------------------")
-  
+
   invisible(list(
     run_dir = run_dir,
     ts      = ts,
@@ -2610,7 +2564,109 @@ ddesonn_run <- function(x,
       if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
     }, character(1))
   }
-  
+
+  extract_y_true <- function(y_source) {
+    if (is.null(y_source)) return(NULL)
+    y_mat <- try(.as_numeric_matrix(y_source), silent = TRUE)
+    if (inherits(y_mat, "try-error") || !is.matrix(y_mat) || !nrow(y_mat)) {
+      return(NULL)
+    }
+    if (classification_mode == "binary") {
+      return(as.numeric(y_mat[, 1]))
+    }
+    if (classification_mode == "multiclass") {
+      if (ncol(y_mat) <= 1L) {
+        return(suppressWarnings(as.integer(y_mat[, 1])))
+      }
+      return(max.col(y_mat, ties.method = "first"))
+    }
+    as.numeric(y_mat[, 1])
+  }
+
+  build_split_predictions <- function(model,
+                                      new_data,
+                                      y_source,
+                                      split_label,
+                                      run_idx,
+                                      seed_val) {
+    if (is.null(new_data)) return(NULL)
+
+    pr <- try(
+      ddesonn_predict(model, new_data, aggregate = "none", type = "response"),
+      silent = TRUE
+    )
+    if (inherits(pr, "try-error") || is.null(pr$per_model) || !length(pr$per_model)) {
+      return(NULL)
+    }
+
+    y_true_vec <- extract_y_true(y_source)
+    rows <- list()
+    ptr <- 0L
+
+    for (k in seq_along(pr$per_model)) {
+      mat <- try(.as_numeric_matrix(pr$per_model[[k]]), silent = TRUE)
+      if (inherits(mat, "try-error") || !is.matrix(mat)) next
+
+      n <- nrow(mat)
+      if (!n) next
+
+      if (!is.null(y_true_vec) && length(y_true_vec) != n) {
+        y_slot <- rep(NA_real_, n)
+      } else if (!is.null(y_true_vec)) {
+        y_slot <- as.numeric(y_true_vec)
+      } else {
+        y_slot <- rep(NA_real_, n)
+      }
+
+      if (classification_mode == "binary") {
+        y_prob <- as.numeric(mat[, 1])
+        thr <- threshold %||% attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
+          attr(model, "threshold") %||% .ddesonn_threshold_default(classification_mode)
+        y_pred <- ifelse(is.na(y_prob), NA_integer_, as.integer(y_prob >= thr))
+      } else if (classification_mode == "multiclass") {
+        y_prob <- apply(mat, 1, max)
+        y_pred <- max.col(mat, ties.method = "first")
+      } else {
+        y_prob <- as.numeric(mat[, 1])
+        y_pred <- y_prob
+      }
+
+      obs_idx <- seq_len(n)
+
+      df <- data.frame(
+        run_index = rep.int(as.integer(run_idx), n),
+        RUN_INDEX = rep.int(as.integer(run_idx), n),
+        seed = rep.int(as.integer(seed_val), n),
+        SEED = rep.int(as.integer(seed_val), n),
+        model_slot = rep.int(as.integer(k), n),
+        MODEL_SLOT = rep.int(as.integer(k), n),
+        slot = rep.int(as.integer(k), n),
+        obs_index = obs_idx,
+        obs = obs_idx,
+        split = tolower(split_label),
+        SPLIT = toupper(split_label),
+        `.__split__` = tolower(split_label),
+        CLASSIFICATION_MODE = toupper(classification_mode),
+        y_true = y_slot,
+        y_prob = y_prob,
+        y_pred = y_pred,
+        stringsAsFactors = FALSE
+      )
+
+      if (classification_mode == "multiclass") {
+        df$y_prob_full <- lapply(seq_len(n), function(i) as.numeric(mat[i, , drop = TRUE]))
+      }
+
+      rows[[ptr <- ptr + 1L]] <- df
+    }
+
+    if (!length(rows)) return(NULL)
+    out <- try(do.call(rbind, rows), silent = TRUE)
+    if (inherits(out, "try-error")) return(NULL)
+    rownames(out) <- NULL
+    out
+  }
+
   empty_log_tables <- function() {
     list(
       main_log = data.frame(
@@ -2776,7 +2832,11 @@ ddesonn_run <- function(x,
   
   # Per-seed main runs
   runs <- lapply(seq_along(seeds), function(i) {
-    set.seed(seeds[[i]])
+    seed_i <- seeds[[i]]
+    if (is.null(seed_i) || length(seed_i) == 0L) {
+      seed_i <- i
+    }
+    set.seed(seed_i)
     if (isTRUE(do_ensemble)) {
       vars <- grep(
         "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
@@ -2853,12 +2913,27 @@ ddesonn_run <- function(x,
         main_pred <- preds
       }
     }
-    
+
+    run_predictions <- list(
+      train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
+      validation = if (!is.null(validation) && !is.null(validation$x)) {
+        build_split_predictions(mdl, validation$x, validation$y, "validation", i, seed_i)
+      } else {
+        NULL
+      },
+      test = if (!is.null(prediction_matrix)) {
+        build_split_predictions(mdl, prediction_matrix, NULL, "test", i, seed_i)
+      } else {
+        NULL
+      }
+    )
+
     list(
-      seed = seeds[[i]],
+      seed = seed_i,
       main = list(model = mdl, predictions = main_pred),
       temp_iterations = temp_summary,
-      tables = log_tables
+      tables = log_tables,
+      predictions = run_predictions
     )
   })
   
@@ -2945,15 +3020,34 @@ ddesonn_run <- function(x,
     ),
     runs = runs
   )
-  
+
+  per_seed_tables <- lapply(runs, function(run) {
+    preds <- run$predictions
+    if (!is.list(preds) || !length(preds)) {
+      return(NULL)
+    }
+    # keep splits that produced concrete data.frames
+    keep <- vapply(preds, function(x) is.data.frame(x) && NROW(x), logical(1))
+    if (!any(keep)) {
+      return(NULL)
+    }
+    preds[keep]
+  })
+  per_seed_tables <- Filter(Negate(is.null), per_seed_tables)
+
+  predictions_payload <- list()
   if (!is.null(prediction_matrix)) {
-    result$predictions <- list(
-      per_seed = main_seed_predictions,
-      aggregate = main_aggregate
-    )
+    predictions_payload$per_seed_raw <- main_seed_predictions
+    predictions_payload$aggregate <- main_aggregate
     result$`.__prediction_matrix` <- prediction_matrix
   }
-  
+  if (length(per_seed_tables)) {
+    predictions_payload$per_seed_tables <- per_seed_tables
+  }
+  if (length(predictions_payload)) {
+    result$predictions <- predictions_payload
+  }
+
   if (length(temp_summary)) {
     result$temp_predictions <- temp_summary
   }
