@@ -21,8 +21,8 @@ source("R/utils.R")
 ## =========================
 ## Classification mode
 ## =========================
-CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
-# CLASSIFICATION_MODE <- "binary"
+# CLASSIFICATION_MODE <- "multiclass"   # "binary" | "multiclass" | "regression"
+CLASSIFICATION_MODE <- "binary"
 # CLASSIFICATION_MODE <- "regression"
 self_org <- FALSE
 set.seed(111)
@@ -49,7 +49,7 @@ if (CLASSIFICATION_MODE == "binary") {
   optimizer <- "adagrad"
   lr <- .125
   lambda <- 0.00028
-  num_epochs <- 1
+  num_epochs <- 3
   custom_scale <- 1.04349
 } else if (CLASSIFICATION_MODE == "multiclass") {
   init_method <- "he"
@@ -1087,9 +1087,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 ## DDESONN Runner – Modes
 ## =========================
 ## SCENARIO A: Single-run only (no ensemble, ONE model)
-# do_ensemble         <- FALSE
-# num_networks        <- 1L
-# num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
+do_ensemble         <- FALSE
+num_networks        <- 1L
+num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
 #
 ## SCENARIO B: Single-run, MULTI-MODEL (no ensemble)
 # do_ensemble         <- FALSE
@@ -1102,9 +1102,9 @@ hyperparameter_grid_setup <- FALSE  # Set to FALSE to run a single combo manuall
 # num_temp_iterations <- 0L
 #
 ## SCENARIO D: Main + TEMP iterations (prune/add enabled)
-do_ensemble         <- TRUE
-num_networks        <- 3L          # example main size
-num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
+# do_ensemble         <- TRUE
+# num_networks        <- 3L          # example main size
+# num_temp_iterations <- 2L          # MAIN + 1 TEMP pass (set higher for more TEMP passes)
 #
 ## You can set the above variables BEFORE sourcing this file. The defaults below are fallbacks.
 

@@ -1356,14 +1356,9 @@ ddesonn_predict <- function(model, new_data,
 .write_single_runs_metrics <- function(result, run_dir, ts, seeds) {
   s_chr <- as.character(length(seeds))
   
-  ## existing outputs
-  pretty_test_path <- file.path(run_dir, sprintf("SingleRun_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  test_path        <- file.path(run_dir, sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
-  train_path       <- file.path(run_dir, sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  
-  ## NEW: pretty-only outputs
-  pretty_train_path <- file.path(run_dir, sprintf("SingleRun_Pretty_Train_Metrics_%s_seeds_%s.rds",      s_chr, ts))
-  pretty_val_path   <- file.path(run_dir, sprintf("SingleRun_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  ## existing outputs (legacy)
+  test_path  <- file.path(run_dir, sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
+  train_path <- file.path(run_dir, sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
   
   rows_train <- list()
   rows_val   <- list()
@@ -1393,7 +1388,7 @@ ddesonn_predict <- function(model, new_data,
       ptr_tr <- ptr_tr + 1L
       rows_train[[ptr_tr]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "train")
       
-      ## VALIDATION row (NEW)
+      ## VALIDATION row
       ptr_va <- ptr_va + 1L
       rows_val[[ptr_va]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "validation")
       
@@ -1430,28 +1425,17 @@ ddesonn_predict <- function(model, new_data,
   if (ncol(df_val))   df_val   <- df_val[,   ord(df_val),   drop = FALSE]
   if (ncol(df_test))  df_test  <- df_test[,  ord(df_test),  drop = FALSE]
   
-  ## writes
-  saveRDS(df_test,  pretty_test_path)   # pretty TEST
-  saveRDS(df_test,  test_path)          # legacy TEST (kept)
-  saveRDS(df_train, train_path)         # legacy TRAIN (kept)
-  
-  ## NEW: pretty TRAIN and VALIDATION
-  saveRDS(df_train, pretty_train_path)
-  saveRDS(df_val,   pretty_val_path)
+  ## writes (legacy only)
+  saveRDS(df_test,  test_path)   # TEST metrics
+  saveRDS(df_train, train_path)  # TRAIN/VAL aggregate as before
 }
-
 
 .write_ensemble_runs_metrics <- function(result, run_dir, ts, seeds) {
   s_chr <- as.character(length(seeds))
   
-  ## existing outputs
-  pretty_test_path <- file.path(run_dir, sprintf("Ensemble_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  test_path        <- file.path(run_dir, sprintf("Ensemble_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
-  train_path       <- file.path(run_dir, sprintf("Ensemble_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
-  
-  ## NEW: pretty-only outputs
-  pretty_train_path <- file.path(run_dir, sprintf("Ensemble_Pretty_Train_Metrics_%s_seeds_%s.rds",      s_chr, ts))
-  pretty_val_path   <- file.path(run_dir, sprintf("Ensemble_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts))
+  ## existing outputs (legacy)
+  test_path  <- file.path(run_dir, sprintf("Ensemble_Test_Metrics_%s_seeds_%s.rds",        s_chr, ts))
+  train_path <- file.path(run_dir, sprintf("Ensemble_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts))
   
   rows_train <- list()
   rows_val   <- list()
@@ -1481,7 +1465,7 @@ ddesonn_predict <- function(model, new_data,
       ptr_tr <- ptr_tr + 1L
       rows_train[[ptr_tr]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "train")
       
-      ## VALIDATION (NEW)
+      ## VALIDATION
       ptr_va <- ptr_va + 1L
       rows_val[[ptr_va]] <- .build_metrics_row(md, run_index = i, seed = seed_i, slot = k, split = "validation")
       
@@ -1518,14 +1502,542 @@ ddesonn_predict <- function(model, new_data,
   if (ncol(df_val))   df_val   <- df_val[,   ord(df_val),   drop = FALSE]
   if (ncol(df_test))  df_test  <- df_test[,  ord(df_test),  drop = FALSE]
   
-  ## writes (keep legacy paths + new pretty outputs)
-  saveRDS(df_test,  pretty_test_path)   # pretty TEST
-  saveRDS(df_test,  test_path)          # legacy TEST
-  saveRDS(df_train, train_path)         # legacy TRAIN+VAL aggregate (kept)
-  
-  saveRDS(df_train, pretty_train_path)  # NEW pretty TRAIN
-  saveRDS(df_val,   pretty_val_path)    # NEW pretty VALIDATION
+  ## writes (legacy only)
+  saveRDS(df_test,  test_path)   # TEST metrics
+  saveRDS(df_train, train_path)  # TRAIN/VAL aggregate as before
 }
+
+.build_single_pretty_tables <- function(
+    run_dir,
+    ts,
+    seeds,
+    CLASSIFICATION_MODE = NULL,
+    model_slot = 1L
+) {
+  .log <- function(...) cat("[BuildPretty] ", paste0(..., collapse = ""), "\n")
+  
+  .log("------------------------------------------------------------")
+  .log("ENTER .build_single_pretty_tables")
+  .log("run_dir = ", run_dir)
+  .log("ts      = ", ts)
+  .log("seeds   = ", paste(seeds, collapse = ","))
+  .log("CLASSIFICATION_MODE (in) = ", CLASSIFICATION_MODE)
+  .log("model_slot = ", model_slot)
+  .log("------------------------------------------------------------")
+  
+  # derive n_seeds and s_chr for filenames
+  n_seeds <- if (!missing(seeds) && length(seeds)) length(seeds) else 1L
+  s_chr   <- as.character(n_seeds)
+  
+  # resolve CLASSIFICATION_MODE
+  if (is.null(CLASSIFICATION_MODE)) {
+    CLASSIFICATION_MODE <- get0("CLASSIFICATION_MODE",
+                                ifnotfound = "regression",
+                                inherits   = TRUE)
+    .log("CLASSIFICATION_MODE (resolved from global) = ", CLASSIFICATION_MODE)
+  } else {
+    .log("CLASSIFICATION_MODE (explicit) = ", CLASSIFICATION_MODE)
+  }
+  CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
+  
+  # expected pretty files
+  agg_pred_file_test <- file.path(
+    run_dir,
+    sprintf("SingleRun_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  agg_pred_file_train <- file.path(
+    run_dir,
+    sprintf("SingleRun_Pretty_Train_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  agg_pred_file_val <- file.path(
+    run_dir,
+    sprintf("SingleRun_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  
+  .log("Expected TEST pretty file:  ", agg_pred_file_test)
+  .log("Expected TRAIN pretty file: ", agg_pred_file_train)
+  .log("Expected VAL pretty file:   ", agg_pred_file_val)
+  
+  # aggregated metrics that api.R already writes
+  test_metrics_file <- file.path(
+    run_dir,
+    sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  train_metrics_file <- file.path(
+    run_dir,
+    sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  
+  .df_info <- function(d, label) {
+    if (!is.data.frame(d)) {
+      .log("    [", label, "] not a data.frame")
+      return()
+    }
+    .log("    [", label, "] nrow = ", NROW(d), ", ncol = ", NCOL(d))
+    .log("    [", label, "] names = ", paste(names(d), collapse = ", "))
+  }
+  
+  # Normalizer shared by all splits
+  .normalize_and_rewrite <- function(path, split_label, df = NULL) {
+    up <- toupper(split_label)
+    
+    if (is.null(df)) {
+      if (!file.exists(path)) {
+        .log("  !! ", up, " pretty file does NOT exist; skipping: ", path)
+        return(invisible(FALSE))
+      }
+      df <- try(readRDS(path), silent = TRUE)
+      if (inherits(df, "try-error") || !is.data.frame(df)) {
+        .log("  !! ", up, " file exists but could not be read as data.frame; skipping.")
+        return(invisible(FALSE))
+      }
+      .log("  .. ", up, " loaded from disk for normalization.")
+    } else {
+      if (!is.data.frame(df)) {
+        .log("  !! ", up, " supplied object is not a data.frame; skipping.")
+        return(invisible(FALSE))
+      }
+      .log("  .. ", up, " synthesized from metrics; normalizing and writing to: ", path)
+    }
+    
+    if (!NROW(df)) {
+      .log("  !! ", up, " df has zero rows; writing back as-is.")
+      saveRDS(df, path)
+      return(invisible(TRUE))
+    }
+    
+    .df_info(df, paste0(up, "_raw"))
+    
+    # run_index / RUN_INDEX
+    if (!"run_index" %in% names(df) && "RUN_INDEX" %in% names(df)) {
+      df$run_index <- suppressWarnings(as.integer(df$RUN_INDEX))
+    }
+    if (!"RUN_INDEX" %in% names(df) && "run_index" %in% names(df)) {
+      df$RUN_INDEX <- suppressWarnings(as.integer(df$run_index))
+    }
+    
+    # seed / SEED
+    if (!"seed" %in% names(df) && "SEED" %in% names(df)) {
+      df$seed <- suppressWarnings(as.integer(df$SEED))
+    }
+    if (!"SEED" %in% names(df) && "seed" %in% names(df)) {
+      df$SEED <- suppressWarnings(as.integer(df$seed))
+    }
+    
+    # model_slot / MODEL_SLOT
+    if (!"model_slot" %in% names(df) && "MODEL_SLOT" %in% names(df)) {
+      df$model_slot <- suppressWarnings(as.integer(df$MODEL_SLOT))
+    }
+    if (!"MODEL_SLOT" %in% names(df) && "model_slot" %in% names(df)) {
+      df$MODEL_SLOT <- suppressWarnings(as.integer(df$model_slot))
+    }
+    
+    # split / SPLIT
+    if (!"split" %in% names(df)) {
+      if ("SPLIT" %in% names(df)) {
+        df$split <- tolower(as.character(df$SPLIT))
+      } else {
+        df$split <- tolower(split_label)
+      }
+    } else {
+      df$split <- tolower(as.character(df$split))
+    }
+    df$SPLIT <- toupper(df$split)
+    
+    # ensure .__split__ for backwards compatibility
+    if (!".__split__" %in% names(df)) {
+      df$.__split__ <- df$split
+    }
+    
+    # CLASSIFICATION_MODE
+    if (!"CLASSIFICATION_MODE" %in% names(df)) {
+      df$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
+    } else {
+      df$CLASSIFICATION_MODE <- toupper(as.character(df$CLASSIFICATION_MODE))
+    }
+    
+    # y_prob / y_pred / y_true numeric (placeholder: keep NA if missing)
+    if (!"y_prob" %in% names(df) && "y_pred" %in% names(df)) {
+      df$y_prob <- suppressWarnings(as.numeric(df$y_pred))
+    }
+    if ("y_prob" %in% names(df)) {
+      df$y_prob <- suppressWarnings(as.numeric(df$y_prob))
+    }
+    if ("y_true" %in% names(df)) {
+      df$y_true <- suppressWarnings(as.numeric(df$y_true))
+    }
+    if (!"y_pred" %in% names(df) && "y_prob" %in% names(df)) {
+      df$y_pred <- df$y_prob
+    } else if ("y_pred" %in% names(df)) {
+      df$y_pred <- suppressWarnings(as.numeric(df$y_pred))
+    } else {
+      df$y_pred <- NA_real_
+    }
+    
+    # obs_index (if missing, create simple 1:n)
+    if (!"obs_index" %in% names(df)) {
+      df$obs_index <- seq_len(NROW(df))
+    } else {
+      df$obs_index <- suppressWarnings(as.integer(df$obs_index))
+      na_obs <- is.na(df$obs_index)
+      if (any(na_obs)) df$obs_index[na_obs] <- seq_len(sum(na_obs))
+    }
+    
+    .df_info(df, paste0(up, "_final"))
+    .log("  -> Rewriting ", up, " pretty file to: ", path)
+    saveRDS(df, path)
+    invisible(TRUE)
+  }
+  
+  # ------------------------------------------------------------------
+  # Helper: synthesize minimal "pretty" tables from aggregated metrics
+  # ------------------------------------------------------------------
+  .ensure_pretty_from_metrics <- function(split_label) {
+    up <- toupper(split_label)
+    target_path <- switch(
+      split_label,
+      test       = agg_pred_file_test,
+      train      = agg_pred_file_train,
+      validation = agg_pred_file_val,
+      agg_pred_file_test
+    )
+    
+    if (file.exists(target_path)) {
+      .log("  .. ", up, " pretty file already exists: ", target_path)
+      return(invisible(TRUE))
+    }
+    
+    # choose source metrics file
+    src_path <- switch(
+      split_label,
+      test       = test_metrics_file,
+      train      = train_metrics_file,
+      validation = train_metrics_file,
+      train_metrics_file
+    )
+    
+    if (!file.exists(src_path)) {
+      .log("  !! No metrics source for ", up, " at: ", src_path)
+      return(invisible(FALSE))
+    }
+    
+    dfm <- try(readRDS(src_path), silent = TRUE)
+    if (inherits(dfm, "try-error") || !is.data.frame(dfm)) {
+      .log("  !! Metrics file for ", up, " is not a usable data.frame: ", src_path)
+      return(invisible(FALSE))
+    }
+    if (!NROW(dfm)) {
+      .log("  !! Metrics file for ", up, " has zero rows: ", src_path)
+      return(invisible(FALSE))
+    }
+    
+    .df_info(dfm, paste0(up, "_metrics_source"))
+    
+    # Make a shallow copy and tag with split;
+    # this is a *per-model* summary, not per-observation predictions.
+    dfp <- dfm
+    dfp$split <- tolower(split_label)
+    
+    # No y_true / y_pred / y_prob info in metrics → leave as NA columns
+    if (!"y_true" %in% names(dfp)) dfp$y_true <- NA_real_
+    if (!"y_pred" %in% names(dfp)) dfp$y_pred <- NA_real_
+    if (!"y_prob" %in% names(dfp)) dfp$y_prob <- NA_real_
+    
+    # obs_index = 1..nrow (per-metric-row)
+    if (!"obs_index" %in% names(dfp)) {
+      dfp$obs_index <- seq_len(NROW(dfp))
+    }
+    
+    .log("  .. Synthesizing minimal ", up, " pretty df from metrics: ", src_path)
+    saveRDS(dfp, target_path)
+    invisible(TRUE)
+  }
+  
+  # make sure base dir exists
+  if (!dir.exists(run_dir)) dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # --------------------------------------------------------
+  # 1) If pretty files are missing, synthesize them from metrics
+  # --------------------------------------------------------
+  if (!file.exists(agg_pred_file_test) &&
+      !file.exists(agg_pred_file_train) &&
+      !file.exists(agg_pred_file_val)) {
+    .log("No existing SingleRun_Pretty_*.rds found; synthesizing minimal versions from metrics.")
+  } else {
+    .log("Some SingleRun_Pretty_*.rds already exist; will keep them and normalize.")
+  }
+  
+  .ensure_pretty_from_metrics("test")
+  .ensure_pretty_from_metrics("train")
+  .ensure_pretty_from_metrics("validation")
+  
+  # --------------------------------------------------------
+  # 2) Final pass: normalize whatever pretty files now exist
+  # --------------------------------------------------------
+  .log("---- Normalizing TEST pretty file ----")
+  .normalize_and_rewrite(agg_pred_file_test, "test")
+  
+  .log("---- Normalizing TRAIN pretty file ----")
+  .normalize_and_rewrite(agg_pred_file_train, "train")
+  
+  .log("---- Normalizing VALIDATION pretty file ----")
+  .normalize_and_rewrite(agg_pred_file_val, "validation")
+  
+  .log("EXIT .build_single_pretty_tables")
+  .log("------------------------------------------------------------")
+  
+  invisible(list(
+    run_dir = run_dir,
+    ts      = ts,
+    n_seeds = n_seeds,
+    CLASSIFICATION_MODE = CLASSIFICATION_MODE,
+    files   = list(
+      test  = agg_pred_file_test,
+      train = agg_pred_file_train,
+      val   = agg_pred_file_val
+    )
+  ))
+}
+
+
+
+
+
+
+
+
+
+
+
+.build_ensemble_run_pretty_metrics_rds <- function(run_dir,
+                                                   ts,
+                                                   seeds,
+                                                   CLASSIFICATION_MODE = NULL) {
+  ## number of seeds for filename stamp
+  n_seeds <- if (!missing(seeds) && length(seeds)) length(seeds) else 1L
+  s_chr   <- as.character(n_seeds)
+  
+  ## classification mode fallback (match train code)
+  if (is.null(CLASSIFICATION_MODE)) {
+    CLASSIFICATION_MODE <- get0("CLASSIFICATION_MODE",
+                                ifnotfound = "binary",
+                                inherits   = TRUE)
+  }
+  
+  ## Ensemble pretty prediction Metrics paths
+  agg_pred_file_test  <- file.path(
+    run_dir,
+    sprintf("Ensemble_Pretty_Test_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  agg_pred_file_train <- file.path(
+    run_dir,
+    sprintf("Ensemble_Pretty_Train_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  agg_pred_file_val   <- file.path(
+    run_dir,
+    sprintf("Ensemble_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts)
+  )
+  
+  ## Helper: choose a source path (metrics file if it exists, otherwise
+  ## any Ensemble_Pretty_<SPLIT>_* file that matches this ts).
+  .pick_source <- function(target_path, split_label) {
+    if (file.exists(target_path)) {
+      return(target_path)
+    }
+    patt <- sprintf("^Ensemble_Pretty_%s_.*%s\\.rds$", split_label, ts)
+    cand <- list.files(run_dir, pattern = patt, full.names = TRUE)
+    if (length(cand)) cand[[1L]] else NULL
+  }
+  
+  ## ------------------------------
+  ## TEST PREDICTIONS (Ensemble_Pretty_Test_Metrics_*.rds)
+  ## ------------------------------
+  src_test <- .pick_source(agg_pred_file_test, "Test")
+  if (!is.null(src_test)) {
+    dfp <- try(readRDS(src_test), silent = TRUE)
+    if (!inherits(dfp, "try-error") && is.data.frame(dfp) && NROW(dfp)) {
+      if (!"run_index" %in% names(dfp) && "RUN_INDEX" %in% names(dfp)) {
+        dfp$run_index <- suppressWarnings(as.integer(dfp$RUN_INDEX))
+      }
+      if (!"RUN_INDEX" %in% names(dfp) && "run_index" %in% names(dfp)) {
+        dfp$RUN_INDEX <- suppressWarnings(as.integer(dfp$run_index))
+      }
+      
+      if (!"seed" %in% names(dfp) && "SEED" %in% names(dfp)) {
+        dfp$seed <- suppressWarnings(as.integer(dfp$SEED))
+      }
+      if (!"SEED" %in% names(dfp) && "seed" %in% names(dfp)) {
+        dfp$SEED <- suppressWarnings(as.integer(dfp$seed))
+      }
+      
+      if (!"model_slot" %in% names(dfp) && "MODEL_SLOT" %in% names(dfp)) {
+        dfp$model_slot <- suppressWarnings(as.integer(dfp$MODEL_SLOT))
+      }
+      if (!"MODEL_SLOT" %in% names(dfp) && "model_slot" %in% names(dfp)) {
+        dfp$MODEL_SLOT <- suppressWarnings(as.integer(dfp$model_slot))
+      }
+      
+      if (!"split" %in% names(dfp)) {
+        if ("SPLIT" %in% names(dfp)) {
+          dfp$split <- tolower(as.character(dfp$SPLIT))
+        } else {
+          dfp$split <- "test"
+        }
+      } else {
+        dfp$split <- tolower(as.character(dfp$split))
+      }
+      dfp$SPLIT <- toupper(dfp$split)
+      
+      if (!"CLASSIFICATION_MODE" %in% names(dfp)) {
+        dfp$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
+      } else {
+        dfp$CLASSIFICATION_MODE <- toupper(as.character(dfp$CLASSIFICATION_MODE))
+      }
+      
+      if (!"y_prob" %in% names(dfp) && "y_pred" %in% names(dfp)) {
+        dfp$y_prob <- suppressWarnings(as.numeric(dfp$y_pred))
+      }
+      if ("y_prob" %in% names(dfp)) {
+        dfp$y_prob <- suppressWarnings(as.numeric(dfp$y_prob))
+      }
+      if ("y_true" %in% names(dfp)) {
+        dfp$y_true <- suppressWarnings(as.numeric(dfp$y_true))
+      }
+      if (!"y_pred" %in% names(dfp) && "y_prob" %in% names(dfp)) {
+        dfp$y_pred <- dfp$y_prob
+      }
+      
+      ## Always save to the Metrics path (creates if missing)
+      saveRDS(dfp, agg_pred_file_test)
+    }
+  }
+  
+  ## ------------------------------
+  ## TRAIN PREDICTIONS (Ensemble_Pretty_Train_Metrics_*.rds)
+  ## ------------------------------
+  src_train <- .pick_source(agg_pred_file_train, "Train")
+  if (!is.null(src_train)) {
+    dfp_tr <- try(readRDS(src_train), silent = TRUE)
+    if (!inherits(dfp_tr, "try-error") && is.data.frame(dfp_tr) && NROW(dfp_tr)) {
+      if (!"run_index" %in% names(dfp_tr) && "RUN_INDEX" %in% names(dfp_tr)) {
+        dfp_tr$run_index <- suppressWarnings(as.integer(dfp_tr$RUN_INDEX))
+      }
+      if (!"RUN_INDEX" %in% names(dfp_tr) && "run_index" %in% names(dfp_tr)) {
+        dfp_tr$RUN_INDEX <- suppressWarnings(as.integer(dfp_tr$run_index))
+      }
+      
+      if (!"seed" %in% names(dfp_tr) && "SEED" %in% names(dfp_tr)) {
+        dfp_tr$seed <- suppressWarnings(as.integer(dfp_tr$SEED))
+      }
+      if (!"SEED" %in% names(dfp_tr) && "seed" %in% names(dfp_tr)) {
+        dfp_tr$SEED <- suppressWarnings(as.integer(dfp_tr$seed))
+      }
+      
+      if (!"model_slot" %in% names(dfp_tr) && "MODEL_SLOT" %in% names(dfp_tr)) {
+        dfp_tr$model_slot <- suppressWarnings(as.integer(dfp_tr$MODEL_SLOT))
+      }
+      if (!"MODEL_SLOT" %in% names(dfp_tr) && "model_slot" %in% names(dfp_tr)) {
+        dfp_tr$MODEL_SLOT <- suppressWarnings(as.integer(dfp_tr$model_slot))
+      }
+      
+      if (!"split" %in% names(dfp_tr)) {
+        if ("SPLIT" %in% names(dfp_tr)) {
+          dfp_tr$split <- tolower(as.character(dfp_tr$SPLIT))
+        } else {
+          dfp_tr$split <- "train"
+        }
+      } else {
+        dfp_tr$split <- tolower(as.character(dfp_tr$split))
+      }
+      dfp_tr$SPLIT <- toupper(dfp_tr$split)
+      
+      if (!"CLASSIFICATION_MODE" %in% names(dfp_tr)) {
+        dfp_tr$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
+      } else {
+        dfp_tr$CLASSIFICATION_MODE <- toupper(as.character(dfp_tr$CLASSIFICATION_MODE))
+      }
+      
+      if (!"y_prob" %in% names(dfp_tr) && "y_pred" %in% names(dfp_tr)) {
+        dfp_tr$y_prob <- suppressWarnings(as.numeric(dfp_tr$y_pred))
+      }
+      if ("y_prob" %in% names(dfp_tr)) {
+        dfp_tr$y_prob <- suppressWarnings(as.numeric(dfp_tr$y_prob))
+      }
+      if ("y_true" %in% names(dfp_tr)) {
+        dfp_tr$y_true <- suppressWarnings(as.numeric(dfp_tr$y_true))
+      }
+      if (!"y_pred" %in% names(dfp_tr) && "y_prob" %in% names(dfp_tr)) {
+        dfp_tr$y_pred <- dfp_tr$y_prob
+      }
+      
+      saveRDS(dfp_tr, agg_pred_file_train)
+    }
+  }
+  
+  ## ------------------------------
+  ## VALIDATION PREDICTIONS (Ensemble_Pretty_Validation_Metrics_*.rds)
+  ## ------------------------------
+  src_val <- .pick_source(agg_pred_file_val, "Validation")
+  if (!is.null(src_val)) {
+    dfp_val <- try(readRDS(src_val), silent = TRUE)
+    if (!inherits(dfp_val, "try-error") && is.data.frame(dfp_val) && NROW(dfp_val)) {
+      if (!"run_index" %in% names(dfp_val) && "RUN_INDEX" %in% names(dfp_val)) {
+        dfp_val$run_index <- suppressWarnings(as.integer(dfp_val$RUN_INDEX))
+      }
+      if (!"RUN_INDEX" %in% names(dfp_val) && "run_index" %in% names(dfp_val)) {
+        dfp_val$RUN_INDEX <- suppressWarnings(as.integer(dfp_val$run_index))
+      }
+      
+      if (!"seed" %in% names(dfp_val) && "SEED" %in% names(dfp_val)) {
+        dfp_val$seed <- suppressWarnings(as.integer(dfp$SEED))
+      }
+      if (!"SEED" %in% names(dfp_val) && "seed" %in% names(dfp_val)) {
+        dfp_val$SEED <- suppressWarnings(as.integer(dfp_val$seed))
+      }
+      
+      if (!"model_slot" %in% names(dfp_val) && "MODEL_SLOT" %in% names(dfp_val)) {
+        dfp_val$model_slot <- suppressWarnings(as.integer(dfp_val$MODEL_SLOT))
+      }
+      if (!"MODEL_SLOT" %in% names(dfp_val) && "model_slot" %in% names(dfp_val)) {
+        dfp_val$MODEL_SLOT <- suppressWarnings(as.integer(dfp_val$model_slot))
+      }
+      
+      if (!"split" %in% names(dfp_val)) {
+        if ("SPLIT" %in% names(dfp_val)) {
+          dfp_val$split <- tolower(as.character(dfp_val$SPLIT))
+        } else {
+          dfp_val$split <- "validation"
+        }
+      } else {
+        dfp_val$split <- tolower(as.character(dfp_val$split))
+      }
+      dfp_val$SPLIT <- toupper(dfp_val$split)
+      
+      if (!"CLASSIFICATION_MODE" %in% names(dfp_val)) {
+        dfp_val$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
+      } else {
+        dfp_val$CLASSIFICATION_MODE <- toupper(as.character(dfp_val$CLASSIFICATION_MODE))
+      }
+      
+      if (!"y_prob" %in% names(dfp_val) && "y_pred" %in% names(dfp_val)) {
+        dfp_val$y_prob <- suppressWarnings(as.numeric(dfp_val$y_pred))
+      }
+      if ("y_prob" %in% names(dfp_val)) {
+        dfp_val$y_prob <- suppressWarnings(as.numeric(dfp_val$y_prob))
+      }
+      if ("y_true" %in% names(dfp_val)) {
+        dfp_val$y_true <- suppressWarnings(as.numeric(dfp_val$y_true))
+      }
+      if (!"y_pred" %in% names(dfp_val) && "y_prob" %in% names(dfp_val)) {
+        dfp_val$y_pred <- dfp_val$y_prob
+      }
+      
+      saveRDS(dfp_val, agg_pred_file_val)
+    }
+  }
+}
+
+
 
 .write_agg_predictions <- function(result, run_dir, ts, seeds) {
   s_chr <- as.character(length(seeds))
@@ -1755,7 +2267,6 @@ ddesonn_predict <- function(model, new_data,
       seed_tag <- "wSeeds"
     }
     
-    
     root_dir <- "SingleRuns"
     run_tag  <- sprintf("%s__m%d__%s", ts_stamp, as.integer(cfg$num_networks %||% 1L), seed_tag)
   } else {
@@ -1856,10 +2367,25 @@ ddesonn_predict <- function(model, new_data,
     saveRDS(result$temp_predictions, file.path(run_dir, "predictions_temp.rds"))
   }
   
+  ## local classification mode for pretty-builder functions
+  classification_mode <- cfg$classification_mode %||% "binary"
+  
   if (isTRUE(cfg$do_ensemble)) {
     .write_ensemble_runs_metrics(result, run_dir, ts, seeds)
+    .build_ensemble_pretty_tables(
+      run_dir             = run_dir,
+      ts                  = ts,
+      seeds               = seeds,
+      CLASSIFICATION_MODE = classification_mode
+    )
   } else {
     .write_single_runs_metrics(result, run_dir, ts, seeds)
+    .build_single_pretty_tables(
+      run_dir             = run_dir,
+      ts                  = ts,
+      seeds               = seeds,
+      CLASSIFICATION_MODE = classification_mode
+    )
   }
   
   if (isTRUE(cfg$do_ensemble)) {
@@ -1894,6 +2420,7 @@ ddesonn_predict <- function(model, new_data,
   
   invisible(run_dir)
 }
+
 
 #' Run DDESONN across common ensemble scenarios.
 #'
