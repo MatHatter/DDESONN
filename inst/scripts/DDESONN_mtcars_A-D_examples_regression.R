@@ -831,33 +831,13 @@ run_scenario <- function(scn = c("A","B","C","D"),
         error     = pred_vec - actual_vec
       )
       
+      assign(".ddesonn_last_validation_compare", compare_df, envir = .GlobalEnv)
+      
       cat("\n[COMPARE] predicted vs actual (first 20 rows):\n")
       print(utils::head(compare_df, 20))
       
-      run_dir <- NULL
-      if (!is.null(run$meta) && !is.null(run$meta$root_dir)) {
-        run_dir <- run$meta$root_dir
-      } else if (!is.null(run$runs) &&
-                 length(run$runs) &&
-                 !is.null(run$runs[[1]]$meta$root_dir)) {
-        run_dir <- run$runs[[1]]$meta$root_dir
-      }
-      if (is.null(run_dir)) {
-        run_dir <- art_root
-      }
-      
-      results_dir <- file.path(run_dir, "results")
-      dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
-      
-      tstamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-      compare_path <- file.path(
-        results_dir,
-        paste0("validation_compare_", cfg$label, "_", tstamp, ".rds")
-      )
-      
-      saveRDS(compare_df, compare_path)
-      cat("\n[SAVED] validation comparison RDS:\n",
-          normalizePath(compare_path), "\n")
+      cat("\n[STORED] Full comparison saved in .GlobalEnv as `.ddesonn_last_validation_compare`.\n")
+      cat("         → To inspect: head(.ddesonn_last_validation_compare) or tail(.ddesonn_last_validation_compare)\n")
     } else {
       cat("[no predictions found in run object]\n")
     }
@@ -867,6 +847,7 @@ run_scenario <- function(scn = c("A","B","C","D"),
   
   invisible(run)
 }
+
 
 # Run default scenario
 invisible(run_scenario("A"))
