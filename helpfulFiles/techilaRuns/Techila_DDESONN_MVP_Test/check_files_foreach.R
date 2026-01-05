@@ -16,17 +16,7 @@ suppressPackageStartupMessages({
 
 read_file_text <- function(path) paste(readLines(path, warn = FALSE), collapse = "\n")
 
-files_to_test <- c(
-  "R/utils.R",
-  "R/activation_functions.R",
-  "R/optimizers.R",
-  "R/performance_relevance_metrics.R",
-  "R/update_weights_block.R",
-  "R/update_biases_block.R",
-  "R/api.R",
-  "R/DDESONN.R",
-  "Reports/EvaluatePredictionsReport.R"
-)
+files_to_test <- list.files("R", pattern = "\\.R$", recursive = TRUE)
 
 test_code_list <- lapply(files_to_test, read_file_text)
 seed_for_test <- 1L

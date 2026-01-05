@@ -1,7 +1,5 @@
-source("R/utils.R")
-
 #' Internal package environment used to lazily load the legacy DDESONN stack.
-.ddesonn_env <- new.env(parent = .GlobalEnv)
+.ddesonn_env <- NULL
 
 #' Null-coalescing helper used across the high-level API.
 `%||%` <- function(x, y) {
@@ -15,36 +13,12 @@ source("R/utils.R")
 }
 
 .ddesonn_source_legacy <- function() {
-  if (exists("DDESONN", envir = .ddesonn_env, inherits = FALSE)) {
+  if (is.environment(.ddesonn_env)) {
     return(invisible(.ddesonn_env))
   }
-  
-  root <- .ddesonn_find_root()
-  
-  # now expect DDESONN.R inside R/
-  target <- file.path(root, "R", "DDESONN.R")
-  if (!file.exists(target)) {
-    stop("Unable to locate 'R/DDESONN.R'. Set options(DDESONN_ROOT=...) to the repository root before calling the API.")
-  }
-  
-  base_source <- base::source
-  assign(
-    "source",
-    function(file, ...) {
-      # resolve to R/<file> first, then fallback to root/<file>
-      cand1 <- file.path(root, "R", file)
-      cand2 <- file.path(root, file)
-      resolved <- if (file.exists(cand1)) cand1 else cand2
-      if (!file.exists(resolved)) {
-        stop(sprintf("Unable to locate dependency file '%s' under '%s' or '%s'",
-                     file, file.path(root, "R"), root), call. = FALSE)
-      }
-      base_source(resolved, local = .ddesonn_env, ...)
-    },
-    envir = .ddesonn_env
-  )
-  
-  sys.source(target, envir = .ddesonn_env, chdir = FALSE)
+
+  ns <- getNamespace("DDESONN")
+  .ddesonn_env <<- ns
   invisible(.ddesonn_env)
 }
 
@@ -110,7 +84,9 @@ normalize_architecture <- function(architecture = c("auto", "single", "multi"), 
   }
 }
 
-#' Default activation sequences used by the high-level helpers.
+#' @title Default activation sequences for DDESONN helpers
+#' @description Compute sensible activation functions for hidden and output
+#'   layers based on the modelling mode and stage (training or prediction).
 #'
 #' @param mode Problem mode. One of `"binary"`, `"multiclass"`, or `"regression"`.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -118,11 +94,12 @@ normalize_architecture <- function(architecture = c("auto", "single", "multi"), 
 #'
 #' @return A list of activation functions suitable for passing into the
 #'   underlying R6 classes.
-#' @export
 #'
 #' @examples
 #' ddesonn_activation_defaults("binary", hidden_sizes = c(32, 16))
 #' ddesonn_activation_defaults("regression", hidden_sizes = 64, stage = "predict")
+#'
+#' @export
 ddesonn_activation_defaults <- function(mode = c("binary", "multiclass", "regression"),
                                         hidden_sizes = NULL,
                                         stage = c("train", "predict")) {
@@ -152,15 +129,18 @@ ddesonn_activation_defaults <- function(mode = c("binary", "multiclass", "regres
   c(hidden_fns, list(fetch_activation(defaults$output)))
 }
 
-#' Default dropout configuration.
+#' @title Default dropout configuration
+#' @description Produce a simple dropout configuration matching the supplied
+#'   hidden layer sizes.
 #'
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
 #'
 #' @return A list of dropout rates for each hidden layer.
-#' @export
 #'
 #' @examples
 #' ddesonn_dropout_defaults(c(64, 32))
+#'
+#' @export
 ddesonn_dropout_defaults <- function(hidden_sizes) {
   hidden_sizes <- hidden_sizes %||% integer()
   if (!length(hidden_sizes)) {
@@ -169,13 +149,16 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
   as.list(rep(0.1, length(hidden_sizes)))
 }
 
-#' Optimiser options understood by the legacy training loop.
+#' @title Supported optimizer identifiers
+#' @description List the optimizer strings understood by the legacy DDESONN
+#'   training loop.
 #'
 #' @return A character vector of supported optimiser identifiers.
-#' @export
 #'
 #' @examples
 #' ddesonn_optimizer_options()
+#'
+#' @export
 ddesonn_optimizer_options <- function() {
   c("adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead")
 }
@@ -184,16 +167,19 @@ ddesonn_optimizer_options <- function() {
   if (mode %in% c("binary", "multiclass")) 0.5 else NA_real_
 }
 
-#' Construct the default training control list.
+#' @title Construct default training controls
+#' @description Build a list of training hyperparameters that mirror the
+#'   expectations of the legacy DDESONN training loop.
 #'
 #' @param mode Problem mode used to determine sensible defaults.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
 #'
 #' @return A named list that can be modified and supplied to [ddesonn_fit()].
-#' @export
 #'
 #' @examples
 #' ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
+#'
+#' @export
 ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regression"),
                                       hidden_sizes = NULL) {
   mode <- match.arg(mode)
@@ -252,7 +238,10 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
   m
 }
 
-#' Create a high-level DDESONN model wrapper.
+#' @title Create a high-level DDESONN model wrapper
+#' @description Initialise a `ddesonn_model` (R6) instance backed by the legacy
+#'   `DDESONN` class, while handling sensible defaults for activations and node
+#'   counts.
 #'
 #' @param input_size Number of input features.
 #' @param output_size Number of outputs.
@@ -270,7 +259,6 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param ensemble_number Identifier used when combining multiple ensembles.
 #'
 #' @return A `ddesonn_model` (R6) instance ready for training.
-#' @export
 #'
 #' @examples
 #' model <- ddesonn_model(
@@ -279,6 +267,9 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #'   hidden_sizes = c(32, 16),
 #'   classification_mode = "binary"
 #' )
+#'
+#' @seealso [DDESONN]
+#' @export
 ddesonn_model <- function(input_size,
                           output_size,
                           hidden_sizes = c(64, 32),
@@ -344,7 +335,10 @@ ddesonn_model <- function(input_size,
   )
 }
 
-#' Fit a `ddesonn_model` using data frames or matrices.
+#' @title Fit a `ddesonn_model` with tidy inputs
+#' @description Train a `ddesonn_model` (backed by `DDESONN`) using matrices or
+#'   data frames, handling label coercion, validation data, and training control
+#'   defaults.
 #'
 #' @param model A model created by [ddesonn_model()].
 #' @param x Training features.
@@ -354,7 +348,6 @@ ddesonn_model <- function(input_size,
 #'
 #' @return The trained model (invisibly). The underlying R6 object is modified
 #'   in-place and the last training result is stored under `model$last_training`.
-#' @export
 #'
 #' @examples
 #' data <- mtcars
@@ -362,6 +355,9 @@ ddesonn_model <- function(input_size,
 #' y <- data$am
 #' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
 #' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+#'
+#' @seealso [DDESONN]
+#' @export
 ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
@@ -814,7 +810,10 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   }
 }
 
-#' Generate predictions from a fitted `ddesonn_model`.
+#' @title Generate predictions from a fitted `ddesonn_model`
+#' @description Produce ensemble or per-model predictions from a trained
+#'   `ddesonn_model`, optionally returning class labels for classification
+#'   problems.
 #'
 #' @param model A trained model produced by [ddesonn_model()].
 #' @param new_data New feature matrix or data frame.
@@ -826,7 +825,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.
-#' @export
 #'
 #' @examples
 #' data <- mtcars
@@ -836,6 +834,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
 #' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
 #' preds <- ddesonn_predict(model, x)
 #' head(preds$prediction)
+#'
+#' @seealso [DDESONN]
+#' @export
 ddesonn_predict <- function(model, new_data,
                             aggregate = c("mean", "median", "none"),
                             type = c("response", "class"),

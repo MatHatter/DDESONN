@@ -8,15 +8,8 @@ suppressPackageStartupMessages({
 })
 
 ## 1. Load your code -------------------------------------------------
-source("R/utils.R")
-source("R/optimizers.R")
-source("R/activation_functions.R")
-source("R/update_weights_block.R")
-source("R/update_biases_block.R")
-source("R/performance_relevance_metrics.R")
-source("R/reports/evaluate_predictions_report.R")
-source("R/api.R")
-source("R/DDESONN.R")
+r_files <- list.files("R", pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+invisible(lapply(r_files, sys.source, envir = environment()))
 
 ## 2. Minimal hyperparameters ---------------------------------------
 CLASSIFICATION_MODE <- "binary"

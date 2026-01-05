@@ -14,13 +14,8 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-source("R/utils.R")
-source("R/optimizers.R")
-source("R/activation_functions.R")
-source("R/update_weights_block.R")
-source("R/update_biases_block.R")
-source("R/performance_relevance_metrics.R")
-source("R/reports/evaluate_predictions_report.R")
+r_files <- list.files("R", pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+invisible(lapply(r_files, sys.source, envir = environment()))
 
 .required_pkgs <- c(
   "R6", "cluster", "fpc", "tibble", "dplyr", "tidyverse",
@@ -5106,4 +5101,3 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
   
   return(total_loss)
 }
-

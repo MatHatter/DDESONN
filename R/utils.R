@@ -12,9 +12,6 @@
 # past, present, and future, including legacy releases.
 #
 # Intended future distribution: CRAN package.
-# ===============================================================
-source("R/activation_functions.R")
-
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
 
 
@@ -3657,4 +3654,3 @@ emit_table <- function(x,
   
   invisible(x)
 }
-

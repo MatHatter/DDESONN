@@ -16,19 +16,6 @@
 # ================================================================
 # evaluate_predictions_report.R  (FULL - accuracy + accuracy_tuned + ROC/AUC)
 # ================================================================
-source("R/utils.R")
-
-suppressPackageStartupMessages({
-  library(ggplot2)
-  library(dplyr)
-  library(tidyr)
-  library(gridExtra)
-  library(grid)
-  library(pROC)
-  library(PRROC)
-  library(ggplotify)
-  library(openxlsx)
-})
 
 # ----------------------------------------------------------------
 # EvaluatePredictionsReport
@@ -62,6 +49,18 @@ EvaluatePredictionsReport <- function(
     grid = NULL,
     learn_time = NULL
 ) {
+  required_pkgs <- c("ggplot2", "dplyr", "tidyr", "openxlsx", "pROC", "PRROC")
+  missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(missing_pkgs)) {
+    stop(
+      sprintf(
+        "The following packages are required but not installed: %s",
+        paste(missing_pkgs, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+
   accuracy_plot <- match.arg(accuracy_plot)
   if (isTRUE(verbose)) cat("[Eval] Begin EvaluatePredictionsReport()\n")
   
@@ -475,7 +474,7 @@ EvaluatePredictionsReport <- function(
       try({
         png(pr_png, width = 800, height = 600)
         plot(pr_obj, main = "Precision-Recall Curve - Neural Network", lwd = 2)
-        grid()
+        graphics::grid()
         dev.off()
       }, silent = TRUE)
     }

@@ -14,49 +14,6 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-source("R/utils.R")
-source("R/optimizers.R")
-source("R/activation_functions.R")
-source("R/update_weights_block.R")
-source("R/update_biases_block.R")
-source("R/performance_relevance_metrics.R")
-source("R/reports/evaluate_predictions_report.R")
-
-.required_pkgs <- c(
-  "R6", "cluster", "fpc", "tibble", "dplyr", "tidyverse",
-  "ggplot2", "plotly", "gridExtra", "rlist", "writexl", "readxl",
-  "tidyr", "purrr", "pracma", "openxlsx", "pROC", "ggplotify"
-)
-.missing <- setdiff(.required_pkgs, rownames(installed.packages()))
-if (length(.missing)) install.packages(.missing, dependencies = TRUE)
-invisible(lapply(.required_pkgs, function(p) suppressPackageStartupMessages(library(p, character.only = TRUE))))
-rm(.required_pkgs, .missing)
-
-
-## ====== REQUIRED PACKAGES ======
-pkgs <- c(
-  "R6", "cluster", "fpc", "tibble", "dplyr", "tidyverse",
-  "ggplot2", "plotly", "gridExtra", "rlist", "writexl", "readxl",
-  "tidyr", "purrr", "pracma", "openxlsx",
-  "pROC", "ggplotify"
-)
-
-# Check which packages are missing
-missing_pkgs <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
-
-# If some are missing, tell the user what to do
-if (length(missing_pkgs) > 0) {
-  message("The following packages are not installed: ",
-          paste(missing_pkgs, collapse = ", "))
-  message("You can install them with:\n",
-          "install.packages(c(\"",
-          paste(missing_pkgs, collapse = "\", \""), "\"))")
-} else {
-  message("All required packages are installed.")
-}
-
-
-
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_____/\\\\\\\\\\\__________/\\\\\________/\\\\\_____/\\\___/\\\\\_____/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___/\\\/////////\\\______/\\\///\\\_____\/\\\\\\___\/\\\__\/\\\\\\___\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -5105,4 +5062,3 @@ loss_function <- function(predictions, labels, CLASSIFICATION_MODE, reg_loss_tot
   
   return(total_loss)
 }
-

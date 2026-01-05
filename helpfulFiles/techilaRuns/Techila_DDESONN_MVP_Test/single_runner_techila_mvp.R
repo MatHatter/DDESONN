@@ -13,31 +13,14 @@ suppressPackageStartupMessages({
 ## 1. Load core code (LOCAL DEV ONLY)
 ##    On Techila workers these are auto-sourced via .options.files (flattened)
 ## ------------------------------------------------------------
-source("R/utils.R")
-source("R/optimizers.R")
-source("R/activation_functions.R")
-source("R/update_weights_block.R")
-source("R/update_biases_block.R")
-source("R/performance_relevance_metrics.R")
-source("R/reports/evaluate_predictions_report.R")
-source("R/api.R")
-source("R/DDESONN.R")
+r_files <- list.files("R", pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+invisible(lapply(r_files, sys.source, envir = environment()))
 
 ## ------------------------------------------------------------
 ## 1a. Files & packages for workers (FLATTENED paths)
 ##     Techila flattens directories, so drop the leading 'R/' on workers.
 ## ------------------------------------------------------------
-files_to_source <- c(
-  "utils.R",
-  "optimizers.R",
-  "activation_functions.R",
-  "update_weights_block.R",
-  "update_biases_block.R",
-  "performance_relevance_metrics.R",
-  "evaluate_predictions_report.R",  # from R/reports/...
-  "api.R",
-  "DDESONN.R"
-)
+files_to_source <- basename(list.files("R", pattern = "\\.R$", recursive = TRUE))
 
 pkgs_for_workers <- c(
   "R6",
