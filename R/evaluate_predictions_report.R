@@ -49,7 +49,7 @@ EvaluatePredictionsReport <- function(
     grid = NULL,
     learn_time = NULL
 ) {
-  required_pkgs <- c("ggplot2", "dplyr", "tidyr", "openxlsx", "pROC", "PRROC")
+  required_pkgs <- c("ggplot2", "dplyr", "tidyr", "openxlsx", "pROC", "PRROC", "reshape2")
   missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
   if (length(missing_pkgs)) {
     stop(
@@ -271,12 +271,12 @@ EvaluatePredictionsReport <- function(
     if (!is.null(roc_df) && nrow(roc_df) > 1) {
       try({
         if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ggsave start\n")
-        p_roc <- ggplot(roc_df, aes(x = fpr, y = tpr)) +
-          geom_line(size = 1.1) +
-          geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-          labs(title = sprintf("ROC Curve (AUC = %.4f)", auc_val), x = "FPR", y = "TPR") +
-          theme_minimal()
-        ggsave(filename = file.path(plot_dir, "roc_curve.png"), p_roc, width = 6, height = 4, dpi = 300)
+      p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
+        ggplot2::geom_line(size = 1.1) +
+        ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+        ggplot2::labs(title = sprintf("ROC Curve (AUC = %.4f)", auc_val), x = "FPR", y = "TPR") +
+        ggplot2::theme_minimal()
+        ggplot2::ggsave(filename = file.path(plot_dir, "roc_curve.png"), p_roc, width = 6, height = 4, dpi = 300)
         if (length(dev.list())) try(dev.off(), silent = TRUE)
         if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ggsave done\n")
       }, silent = TRUE)
@@ -377,14 +377,14 @@ EvaluatePredictionsReport <- function(
       )
       heatmap_path <- file.path(plot_dir, paste0("confusion_matrix_heatmap", suffix, ".png"))
       tryCatch({
-        p_conf <- ggplot(conf_matrix_df, aes(x = Predicted, y = Actual, fill = Count)) +
-          geom_tile(color = "white") +
-          geom_text(aes(label = Count), size = 6, fontface = "bold") +
-          scale_fill_gradient(low = "white", high = "red") +
-          labs(title = paste("Confusion Matrix Heatmap", toupper(mode_label))) +
-          theme_minimal() +
-          theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-        ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
+        p_conf <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
+          ggplot2::geom_tile(color = "white") +
+          ggplot2::geom_text(ggplot2::aes(label = Count), size = 6, fontface = "bold") +
+          ggplot2::scale_fill_gradient(low = "white", high = "red") +
+          ggplot2::labs(title = paste("Confusion Matrix Heatmap", toupper(mode_label))) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+        ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
         if (length(dev.list())) try(dev.off(), silent = TRUE)
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")
       }, error = function(e) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e)))
@@ -405,37 +405,37 @@ EvaluatePredictionsReport <- function(
       overlay_path <- file.path(plot_dir, paste0("plot_overlay_with_legend_below", suffix, ".png"))
       
       tryCatch({
-        p1 <- ggplot(df_cal, aes(x = prob_bin, y = actual_rate)) +
-          geom_col() +
-          labs(title = paste("Observed Rate by Risk Bin (", mode_label, ")", sep = ""),
+        p1 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = prob_bin, y = actual_rate)) +
+          ggplot2::geom_col() +
+          ggplot2::labs(title = paste("Observed Rate by Risk Bin (", mode_label, ")", sep = ""),
                x = "Predicted Risk Decile (1=low,10=high)", y = "Observed Positive Rate") +
-          theme_minimal() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
-        ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
+          ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+        ggplot2::ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
         if (length(dev.list())) try(dev.off(), silent = TRUE)
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")
       }, error = function(e) message("[Eval-Binary][Plot] plot1 failed: ", conditionMessage(e)))
-      
+
       tryCatch({
-        p2 <- ggplot(df_cal, aes(x = bin_mid, y = actual_rate)) +
-          geom_line(size = 1.2) + geom_point(size = 3) +
-          geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-          labs(title = paste("Calibration Curve (", mode_label, ")", sep = ""),
+        p2 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = bin_mid, y = actual_rate)) +
+          ggplot2::geom_line(size = 1.2) + ggplot2::geom_point(size = 3) +
+          ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+          ggplot2::labs(title = paste("Calibration Curve (", mode_label, ")", sep = ""),
                x = "Avg Predicted Probability", y = "Observed Rate") +
-          theme_minimal() + theme(plot.title = element_text(face = "bold", hjust = 0.5))
-        ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
+          ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+        ggplot2::ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
         if (length(dev.list())) try(dev.off(), silent = TRUE)
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")
       }, error = function(e) message("[Eval-Binary][Plot] plot2 failed: ", conditionMessage(e)))
-      
+
       tryCatch({
-        p3 <- ggplot(df_cal, aes(x = prob_bin)) +
-          geom_col(aes(y = actual_rate)) +
-          geom_point(aes(y = bin_mid), size = 3, shape = 21, stroke = 1.2) +
-          labs(title = paste("Overlay: Observed vs Predicted (", mode_label, ")", sep = ""),
+        p3 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = prob_bin)) +
+          ggplot2::geom_col(ggplot2::aes(y = actual_rate)) +
+          ggplot2::geom_point(ggplot2::aes(y = bin_mid), size = 3, shape = 21, stroke = 1.2) +
+          ggplot2::labs(title = paste("Overlay: Observed vs Predicted (", mode_label, ")", sep = ""),
                x = "Predicted Risk Decile", y = "Rate", fill = NULL, color = NULL) +
-          theme_minimal() + theme(legend.position = "bottom",
-                                  plot.title = element_text(face = "bold", hjust = 0.5))
-        ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
+          ggplot2::theme_minimal() + ggplot2::theme(legend.position = "bottom",
+                                  plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+        ggplot2::ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
         if (length(dev.list())) try(dev.off(), silent = TRUE)
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")
       }, error = function(e) message("[Eval-Binary][Plot] overlay plot failed: ", conditionMessage(e)))
@@ -507,12 +507,12 @@ EvaluatePredictionsReport <- function(
     
     heatmap_path_legacy <- file.path(plot_dir, "confusion_heatmap_legacy.png")
     try({
-      heatmap_plot <- ggplot(conf_long, aes(x = Predicted, y = Actual, fill = Count)) +
-        geom_tile() +
-        geom_text(aes(label = Count), color = "white", size = 5, fontface = "bold") +
-        scale_fill_gradient(low = "#4575b4", high = "#d73027") +
-        theme_minimal() + ggtitle("Confusion Matrix Heatmap")
-      ggsave(heatmap_path_legacy, heatmap_plot, width = 6, height = 4, dpi = 300)
+      heatmap_plot <- ggplot2::ggplot(conf_long, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
+        ggplot2::geom_tile() +
+        ggplot2::geom_text(ggplot2::aes(label = Count), color = "white", size = 5, fontface = "bold") +
+        ggplot2::scale_fill_gradient(low = "#4575b4", high = "#d73027") +
+        ggplot2::theme_minimal() + ggplot2::ggtitle("Confusion Matrix Heatmap")
+      ggplot2::ggsave(heatmap_path_legacy, heatmap_plot, width = 6, height = 4, dpi = 300)
       if (length(dev.list())) try(dev.off(), silent = TRUE)
     }, silent = TRUE)
     
@@ -586,13 +586,13 @@ EvaluatePredictionsReport <- function(
     roc_png <- file.path(plot_dir, "roc_curve.png")
     if (file.exists(roc_png)) {
       tryCatch(
-        insertImage(wb, "ROC", roc_png, startRow = 5, startCol = 1, width = 6, height = 4),
+        openxlsx::insertImage(wb, "ROC", roc_png, startRow = 5, startCol = 1, width = 6, height = 4),
         error = function(e) message("[Eval-Binary][WB] insertImage ROC failed: ", conditionMessage(e))
       )
     }
     if (file.exists(pr_png)) {
       tryCatch(
-        insertImage(wb, "ROC", pr_png, startRow = 25, startCol = 1, width = 6, height = 4),
+        openxlsx::insertImage(wb, "ROC", pr_png, startRow = 25, startCol = 1, width = 6, height = 4),
         error = function(e) message("[Eval-Binary][WB] insertImage PR failed: ", conditionMessage(e))
       )
     }
@@ -602,7 +602,7 @@ EvaluatePredictionsReport <- function(
       for (p in unlist(artifacts$fixed, use.names = FALSE)) {
         if (file.exists(p)) {
           tryCatch(
-            insertImage(wb, "Fixed", p, startRow = 20, startCol = 1, width = 6, height = 4),
+            openxlsx::insertImage(wb, "Fixed", p, startRow = 20, startCol = 1, width = 6, height = 4),
             error = function(e) message("[Eval-Binary][WB] insertImage (Fixed) failed: ", conditionMessage(e))
           )
         }
@@ -612,7 +612,7 @@ EvaluatePredictionsReport <- function(
       for (p in unlist(artifacts$tuned, use.names = FALSE)) {
         if (file.exists(p)) {
           tryCatch(
-            insertImage(wb, "Tuned", p, startRow = 20, startCol = 1, width = 6, height = 4),
+            openxlsx::insertImage(wb, "Tuned", p, startRow = 20, startCol = 1, width = 6, height = 4),
             error = function(e) message("[Eval-Binary][WB] insertImage (Tuned) failed: ", conditionMessage(e))
           )
         }
@@ -629,7 +629,7 @@ EvaluatePredictionsReport <- function(
     suppressWarnings(writeData(wb, "Metrics_Summary", metrics_legacy))
     if (file.exists(heatmap_path_legacy)) {
       tryCatch(
-        insertImage(wb, "Metrics_Summary", heatmap_path_legacy, startRow = 15, startCol = 1, width = 6, height = 4),
+        openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_legacy, startRow = 15, startCol = 1, width = 6, height = 4),
         error = function(e) message("[Eval-Binary][WB] insertImage (legacy heatmap) failed: ", conditionMessage(e))
       )
     }
@@ -662,11 +662,11 @@ EvaluatePredictionsReport <- function(
       legacy_mis_heat <- file.path(getwd(), "misclassification_heatmap.png")
       legacy_box_sc   <- file.path(getwd(), "boxplot_serum_creatinine.png")
       if (file.exists(legacy_mis_heat)) {
-        tryCatch(insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
+        tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
                  error = function(e) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))
       }
       if (file.exists(legacy_box_sc)) {
-        tryCatch(insertImage(wb, "Misclass_Summary", legacy_box_sc, startRow = 25, startCol = 1, width = 6, height = 4),
+        tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_box_sc, startRow = 25, startCol = 1, width = 6, height = 4),
                  error = function(e) message("[Eval-Binary][WB] legacy boxplot insert failed: ", conditionMessage(e)))
       }
     }
@@ -786,12 +786,12 @@ EvaluatePredictionsReport <- function(
   conf_matrix_df <- as.data.frame(conf_tab); names(conf_matrix_df)[3] <- "Count"
   heatmap_path_mc <- file.path(plot_dir, "confusion_matrix_multiclass_heatmap.png")
   tryCatch({
-    p_mc <- ggplot(conf_matrix_df, aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
-      geom_tile(color="white") + geom_text(aes(label=Count), size=3, fontface="bold") +
-      scale_fill_gradient(low="white", high="red") +
-      labs(title="Confusion Matrix Heatmap (Multiclass)", x="Predicted", y="Actual") +
-      theme_minimal() + theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-    ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
+    p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
+      ggplot2::geom_tile(color="white") + ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
+      ggplot2::scale_fill_gradient(low="white", high="red") +
+      ggplot2::labs(title="Confusion Matrix Heatmap (Multiclass)", x="Predicted", y="Actual") +
+      ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+    ggplot2::ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
     if (length(dev.list())) try(dev.off(), silent = TRUE)
     if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")
   }, error = function(e) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))
@@ -868,7 +868,7 @@ EvaluatePredictionsReport <- function(
   
   if (file.exists(heatmap_path_mc)) {
     tryCatch(
-      insertImage(wb, "Metrics_Summary", heatmap_path_mc, startRow = nrow(ms) + 6,
+      openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_mc, startRow = nrow(ms) + 6,
                   startCol = 1, width = 6, height = 4),
       error = function(e) message("[Eval-Multiclass] insertImage failed: ", conditionMessage(e))
     )
