@@ -28,7 +28,7 @@
 # Step 1: Define the Self-Organizing Neural Network (SONN) class
 
 
-SONN <- R6Class(
+SONN <- R6::R6Class( #$$$$$$$$$$$$$
   "SONN",
   lock_objects = FALSE,
   public = list(
@@ -1888,31 +1888,31 @@ SONN <- R6Class(
           
           if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
-              p <- ggplot(df_accsat, aes(x = Epoch)) +
-                geom_line(aes(y = Accuracy), size = 1) +
-                geom_line(aes(y = Loss),     size = 1) +
-                labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"),
-                     y = "Value") +
-                theme_minimal() +
-                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + #$$$$$$$$$$$$$
+                ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) + #$$$$$$$$$$$$$
+                ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) + #$$$$$$$$$$$$$
+                ggplot2::labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"), #$$$$$$$$$$$$$
+                     y = "Value") + #$$$$$$$$$$$$$
+                ggplot2::theme_minimal() + #$$$$$$$$$$$$$
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) #$$$$$$$$$$$$$
               out <- file.path("plots", fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
-              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") #$$$$$$$$$$$$$
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
           if (self$viewPerEpochPlots("saturation_plot")) {
             tryCatch({
-              p <- ggplot(df_accsat, aes(x = Epoch)) +
-                geom_line(aes(y = MeanOutput), size = 1) +
-                geom_line(aes(y = StdOutput),  size = 1) +
-                labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
-                     y = "Output Value") +
-                theme_minimal() +
-                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + #$$$$$$$$$$$$$
+                ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) + #$$$$$$$$$$$$$
+                ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) + #$$$$$$$$$$$$$
+                ggplot2::labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"), #$$$$$$$$$$$$$
+                     y = "Output Value") + #$$$$$$$$$$$$$
+                ggplot2::theme_minimal() + #$$$$$$$$$$$$$
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) #$$$$$$$$$$$$$
               out <- file.path("plots", fname("output_saturation_plot.png"))
               message("📸 save: ", out)
-              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") #$$$$$$$$$$$$$
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
           
@@ -2087,15 +2087,15 @@ SONN <- R6Class(
           # 3) Max Weight Magnitude
           if (self$viewPerEpochPlots("max_weight_plot")) {
             tryCatch({
-              p <- ggplot(df_maxw, aes(x = Epoch, y = MaxWeight)) +
-                geom_line(size = 1) +
-                labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
-                     y = "Max |Weight|") +
-                theme_minimal() +
-                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+              p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) + #$$$$$$$$$$$$$
+                ggplot2::geom_line(size = 1) + #$$$$$$$$$$$$$
+                ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"), #$$$$$$$$$$$$$
+                     y = "Max |Weight|") + #$$$$$$$$$$$$$
+                ggplot2::theme_minimal() + #$$$$$$$$$$$$$
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) #$$$$$$$$$$$$$
               out <- file.path("plots", fname("max_weight_plot.png"))
               message("📸 save: ", out)
-              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") #$$$$$$$$$$$$$
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
@@ -2797,7 +2797,7 @@ SONN <- R6Class(
 #
 
 # Step 2: Define the Deep Dynamic Experimental of Self-Organizing Neural Networks (DDESONN) class
-DDESONN <- R6Class(
+DDESONN <- R6::R6Class( #$$$$$$$$$$$$$
   "DDESONN",
   lock_objects = FALSE,
   public = list(
@@ -3402,8 +3402,8 @@ DDESONN <- R6Class(
             # Save only if global save is enabled
             if (.save_enabled) {
               try(suppressWarnings(suppressMessages(
-                ggsave(out, p, width = 6, height = 4, dpi = 300)
-              )), silent = TRUE)
+                ggplot2::ggsave(out, p, width = 6, height = 4, dpi = 300) #$$$$$$$$$$$$$
+              )), silent = TRUE) #$$$$$$$$$$$$$
             }
 
             # Print (view) — gated by same per-group flag
@@ -4210,16 +4210,16 @@ DDESONN <- R6Class(
           }
 
           # Create box plot
-          high_mean_plot <- ggplot(plot_data, aes(x = Metric, y = Value)) +
-            geom_boxplot() +
-            labs(title = unique(plot_data$Title),
-                 x = "Metric",
-                 y = "Value") +
-            theme_minimal()
+          high_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + #$$$$$$$$$$$$$
+            ggplot2::geom_boxplot() + #$$$$$$$$$$$$$
+            ggplot2::labs(title = unique(plot_data$Title), #$$$$$$$$$$$$$
+                 x = "Metric", #$$$$$$$$$$$$$
+                 y = "Value") + #$$$$$$$$$$$$$
+            ggplot2::theme_minimal() #$$$$$$$$$$$$$
 
           # Add text labels for the outliers
-          high_mean_plot <- high_mean_plot +
-            geom_text(aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3)
+          high_mean_plot <- high_mean_plot + #$$$$$$$$$$$$$
+            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) #$$$$$$$$$$$$$
 
           # Store the plot in the list
           high_mean_plots[[metric]] <- high_mean_plot
@@ -4255,8 +4255,8 @@ DDESONN <- R6Class(
         # Check if plot_data is not empty
         if (nrow(plot_data_low) > 0) {
           # Add a column to identify outliers
-          plot_data <- plot_data_low %>%
-            mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA))
+          plot_data <- plot_data_low %>% #$$$$$$$$$$$$$
+            dplyr::mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA)) #$$$$$$$$$$$$$
 
           # Add columns for outliers
           plot_data$Model_Name_Outlier <- plot_data$Model_Name
@@ -4272,16 +4272,16 @@ DDESONN <- R6Class(
           }
 
           # Create box plot
-          low_mean_plot <- ggplot(plot_data, aes(x = Metric, y = Value)) +
-            geom_boxplot() +
-            labs(title = unique(plot_data$Title),
-                 x = "Metric",
-                 y = "Value") +
-            theme_minimal()
+          low_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + #$$$$$$$$$$$$$
+            ggplot2::geom_boxplot() + #$$$$$$$$$$$$$
+            ggplot2::labs(title = unique(plot_data$Title), #$$$$$$$$$$$$$
+                 x = "Metric", #$$$$$$$$$$$$$
+                 y = "Value") + #$$$$$$$$$$$$$
+            ggplot2::theme_minimal() #$$$$$$$$$$$$$
 
           # Add text labels for the outliers
-          low_mean_plot <- low_mean_plot +
-            geom_text(aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3)
+          low_mean_plot <- low_mean_plot + #$$$$$$$$$$$$$
+            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) #$$$$$$$$$$$$$
 
           # Store the plot in the list
           low_mean_plots[[metric]] <- low_mean_plot

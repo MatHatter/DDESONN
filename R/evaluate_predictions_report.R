@@ -167,21 +167,21 @@ EvaluatePredictionsReport <- function(
     if (isTRUE(verbose)) cat("[Eval-Regression] RMSE:", RMSE, "  MAE:", MAE, "  R2:", R2, "  Corr:", Corr, "\n")
     
     # === Workbook (regression) ===
-    wb <- createWorkbook()
-    addWorksheet(wb, "Metrics_Summary")
-    suppressWarnings(writeData(wb, "Metrics_Summary",
+    wb <- openxlsx::createWorkbook() #$$$$$$$$$$$$$
+    openxlsx::addWorksheet(wb, "Metrics_Summary") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", #$$$$$$$$$$$$$
                                data.frame(Metric=c("RMSE","MAE","MAPE","R2","Correlation"),
-                                          Value=c(RMSE,MAE,MAPE,R2,Corr))))
+                                          Value=c(RMSE,MAE,MAPE,R2,Corr)))) #$$$$$$$$$$$$$
     
     # Legacy-style Rdata_Predictions sheet for regression
-    addWorksheet(wb, "Rdata_Predictions")
+    openxlsx::addWorksheet(wb, "Rdata_Predictions") #$$$$$$$$$$$$$
     legacy_df <- data.frame(
       y_true = y, y_pred = yhat,
       residual = yhat - y
     )
-    suppressWarnings(writeData(wb, "Rdata_Predictions", legacy_df))
+    suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", legacy_df)) #$$$$$$$$$$$$$
     
-    saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE)
+    openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
     if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
     
     return(list(
@@ -391,7 +391,7 @@ EvaluatePredictionsReport <- function(
       
       df_cal <- data.frame(prob = p_pos, label = y_true) %>%
         dplyr::filter(is.finite(prob), is.finite(label)) %>%
-        dplyr::mutate(prob_bin = ntile(prob, 10)) %>%
+        dplyr::mutate(prob_bin = dplyr::ntile(prob, 10)) %>% #$$$$$$$$$$$$$
         dplyr::group_by(prob_bin) %>%
         dplyr::summarise(
           bin_mid = mean(prob, na.rm = TRUE),
@@ -564,25 +564,25 @@ EvaluatePredictionsReport <- function(
     
     # === Workbook (merge new + legacy) ===
     if (isTRUE(verbose)) cat("[Eval-Binary][WB] createWorkbook()\n")
-    wb <- createWorkbook()
+    wb <- openxlsx::createWorkbook() #$$$$$$$$$$$$$
     
     # New-style sheets (Fixed / Tuned / ROC)
-    addWorksheet(wb, "Fixed")
+    openxlsx::addWorksheet(wb, "Fixed") #$$$$$$$$$$$$$
     cm_tbl <- data.frame(
       Metric = c("TP","FP","TN","FN","Accuracy","Precision","Recall","F1","Threshold"),
       Value  = c(TP, FP, TN, FN, acc_fixed, pre_fixed, rec_fixed, f1_fixed, 0.5)
     )
-    suppressWarnings(writeData(wb, "Fixed", cm_tbl))
+    suppressWarnings(openxlsx::writeData(wb, "Fixed", cm_tbl)) #$$$$$$$$$$$$$
     
-    addWorksheet(wb, "Tuned")
+    openxlsx::addWorksheet(wb, "Tuned") #$$$$$$$$$$$$$
     tuned_tbl <- data.frame(
       Metric = c("Accuracy","Precision","Recall","F1","Best_Threshold"),
       Value  = c(acc_tuned, pre_tuned, rec_tuned, f1_tuned, best_thr)
     )
-    suppressWarnings(writeData(wb, "Tuned", tuned_tbl))
+    suppressWarnings(openxlsx::writeData(wb, "Tuned", tuned_tbl)) #$$$$$$$$$$$$$
     
-    addWorksheet(wb, "ROC")
-    suppressWarnings(writeData(wb, "ROC", data.frame(AUC = auc_val, AUPRC = auprc_val)))
+    openxlsx::addWorksheet(wb, "ROC") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "ROC", data.frame(AUC = auc_val, AUPRC = auprc_val))) #$$$$$$$$$$$$$
     roc_png <- file.path(plot_dir, "roc_curve.png")
     if (file.exists(roc_png)) {
       tryCatch(
@@ -621,12 +621,12 @@ EvaluatePredictionsReport <- function(
     
     # ---------------- LEGACY SHEETS (restored) ----------------
     # 1) Rdata_Predictions
-    addWorksheet(wb, "Rdata_Predictions")
-    suppressWarnings(writeData(wb, "Rdata_Predictions", Rdata_predictions))
+    openxlsx::addWorksheet(wb, "Rdata_Predictions") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", Rdata_predictions)) #$$$$$$$$$$$$$
     
     # 2) Metrics_Summary (legacy)
-    addWorksheet(wb, "Metrics_Summary")
-    suppressWarnings(writeData(wb, "Metrics_Summary", metrics_legacy))
+    openxlsx::addWorksheet(wb, "Metrics_Summary") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", metrics_legacy)) #$$$$$$$$$$$$$
     if (file.exists(heatmap_path_legacy)) {
       tryCatch(
         openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_legacy, startRow = 15, startCol = 1, width = 6, height = 4),
@@ -635,28 +635,28 @@ EvaluatePredictionsReport <- function(
     }
     
     # 3) Prediction_Means
-    addWorksheet(wb, "Prediction_Means")
-    suppressWarnings(writeData(wb, "Prediction_Means",
-                               data.frame(Mean_Prob_Label_0 = mean_0, Mean_Prob_Label_1 = mean_1)))
-    suppressWarnings(writeData(wb, "Prediction_Means", commentary_df_means, startRow = 5))
+    openxlsx::addWorksheet(wb, "Prediction_Means") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Prediction_Means", #$$$$$$$$$$$$$
+                               data.frame(Mean_Prob_Label_0 = mean_0, Mean_Prob_Label_1 = mean_1))) #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Prediction_Means", commentary_df_means, startRow = 5)) #$$$$$$$$$$$$$
     
     # 4) Misclassified + 5) Misclass_Summary (+ legacy plots if available)
-    addWorksheet(wb, "Misclassified")
-    suppressWarnings(writeData(wb, "Misclassified", misclassified_sorted))
+    openxlsx::addWorksheet(wb, "Misclassified") #$$$$$$$$$$$$$
+    suppressWarnings(openxlsx::writeData(wb, "Misclassified", misclassified_sorted)) #$$$$$$$$$$$$$
     
-    addWorksheet(wb, "Misclass_Summary")
+    openxlsx::addWorksheet(wb, "Misclass_Summary") #$$$$$$$$$$$$$
     if (nrow(misclassified_sorted)) {
       # Try to guess a few common columns, but stay robust if absent
       known_cols <- intersect(c("age","serum_creatinine","ejection_fraction","time"), names(misclassified_sorted))
       if (length(known_cols)) {
-        summary_by_type <- misclassified_sorted %>%
-          group_by(Type) %>%
-          summarise(across(all_of(known_cols), \(x) mean(x, na.rm = TRUE)))
+        summary_by_type <- misclassified_sorted %>% #$$$$$$$$$$$$$
+          dplyr::group_by(Type) %>% #$$$$$$$$$$$$$
+          dplyr::summarise(dplyr::across(dplyr::all_of(known_cols), \(x) mean(x, na.rm = TRUE))) #$$$$$$$$$$$$$
       } else {
         summary_by_type <- data.frame()
       }
       
-      suppressWarnings(writeData(wb, "Misclass_Summary", summary_by_type))
+      suppressWarnings(openxlsx::writeData(wb, "Misclass_Summary", summary_by_type)) #$$$$$$$$$$$$$
       
       # Optional legacy plots if they exist from previous runs; otherwise skip silently
       legacy_mis_heat <- file.path(getwd(), "misclassification_heatmap.png")
@@ -679,7 +679,7 @@ EvaluatePredictionsReport <- function(
                  error = function(e) NA_real_)
       } else NA_real_
     }
-    addWorksheet(wb, "Metrics_Library")
+    openxlsx::addWorksheet(wb, "Metrics_Library") #$$$$$$$$$$$$$
     lib_metrics <- data.frame(
       quantization_error = tryCatch(get0("quantization_error", ifnotfound=NULL)(SONN, Rdata, run_id, verbose), error=function(e) NA_real_),
       topographic_error  = tryCatch(get0("topographic_error", ifnotfound=NULL)(SONN, Rdata, threshold, verbose), error=function(e) NA_real_),
@@ -709,7 +709,7 @@ EvaluatePredictionsReport <- function(
         probs_use, ensemble_number, weights, biases, activation_functions, dropout_rates, verbose),
         error=function(e) NA_real_)
     )
-    suppressWarnings(writeData(wb, "Metrics_Library", t(lib_metrics))) # vertical list
+    suppressWarnings(openxlsx::writeData(wb, "Metrics_Library", t(lib_metrics))) # vertical list #$$$$$$$$$$$$$
     
     # === SAFE WRITE + DEVICE CLEANUP ===
     tryCatch({
@@ -722,7 +722,7 @@ EvaluatePredictionsReport <- function(
         file.remove("Rdata_predictions.xlsx")
       }
       if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")
-      saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE)
+      openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
       if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")
     }, error = function(e) {
       message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))
@@ -808,8 +808,8 @@ EvaluatePredictionsReport <- function(
   ))
   
   
-  wb <- createWorkbook()
-  addWorksheet(wb, "Combined")
+  wb <- openxlsx::createWorkbook() #$$$$$$$$$$$$$
+  openxlsx::addWorksheet(wb, "Combined") #$$$$$$$$$$$$$
   
   # helper (define once; if you place it earlier in the file, remove this local copy)
   combine_for_report <- function(X, y, p, verbose = TRUE) {
@@ -853,10 +853,10 @@ EvaluatePredictionsReport <- function(
   }
   
   combined_df <- combine_for_report(X_validation, y_true_ids, pred_ids, verbose = TRUE)
-  suppressWarnings(writeData(wb, "Combined", combined_df))
+  suppressWarnings(openxlsx::writeData(wb, "Combined", combined_df)) #$$$$$$$$$$$$$
   
   
-  addWorksheet(wb, "Metrics_Summary")
+  openxlsx::addWorksheet(wb, "Metrics_Summary") #$$$$$$$$$$$$$
   ms <- data.frame(
     Class     = c(as.character(seq_len(K)), "macro avg"),
     Precision = c(Prec_k, macro_precision),
@@ -864,7 +864,7 @@ EvaluatePredictionsReport <- function(
     F1_Score  = c(F1_k,   macro_f1),
     Accuracy  = c(rep(acc_mc, K), acc_mc)
   )
-  suppressWarnings(writeData(wb, "Metrics_Summary", ms))
+  suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", ms)) #$$$$$$$$$$$$$
   
   if (file.exists(heatmap_path_mc)) {
     tryCatch(
@@ -875,7 +875,7 @@ EvaluatePredictionsReport <- function(
   }
   
   # Legacy-friendly drop-in: Predictions sheet for multiclass as well
-  addWorksheet(wb, "Rdata_Predictions")
+  openxlsx::addWorksheet(wb, "Rdata_Predictions") #$$$$$$$$$$$$$
   
   predictions_df <- combine_for_report(X_validation, y_true_ids, pred_ids, verbose = FALSE)
   
@@ -884,10 +884,10 @@ EvaluatePredictionsReport <- function(
   if (is.null(rid)) rid <- seq_len(nrow(predictions_df))
   predictions_df <- cbind(RowID = rid, predictions_df)
   
-  suppressWarnings(writeData(wb, "Rdata_Predictions", predictions_df))
+  suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", predictions_df)) #$$$$$$$$$$$$$
   
   
-  saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE)
+  openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
   if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved. RETURN\n")
   
   return(list(

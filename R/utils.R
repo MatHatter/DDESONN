@@ -1337,7 +1337,7 @@ if (!exists(".run_predict", inherits = TRUE)) {
       v <- c(-2,-1,0,1,2)
       outp <- try(last_af(v), silent = TRUE)
       if (!inherits(outp, "try-error") && is.numeric(outp) && length(outp) == length(v)) {
-        is_linear <- near(as.numeric(outp), v, tol = 1e-12) || identical(last_af, base::identity) ||
+        is_linear <- dplyr::near(as.numeric(outp), v, tol = 1e-12) || identical(last_af, base::identity) || #$$$$$$$$$$$$$
           last_nm %in% c("identity","linear","id")
       }
     }
