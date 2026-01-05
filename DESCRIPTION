@@ -1,13 +1,13 @@
 Package: DDESONN
 Type: Package
-Title: Deep Dynamic Ensemble Self-Organizing Neural Network
+Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
 Version: 0.1.0
 Authors@R: c(
     person(given = "Mathew William Armitage", family = "Fok", role = c("aut", "cre"),
            email = "mathew@example.com")
 )
 Description: High-level helpers for constructing, training, and evaluating
-    Deep Dynamic Ensemble Self-Organizing Neural Networks (DDESONN). The
+    Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The
     package wraps the legacy R6 implementations and exposes a modern API for
     modelling workflows.
 License: file LICENSE

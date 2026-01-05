@@ -1,6 +1,6 @@
 # ===============================================================
 # DeepDynamic - DDESONN
-# Deep Dynamic Ensemble Self-Organizing Neural Network
+# Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
 # Licensed for academic and personal research use only.

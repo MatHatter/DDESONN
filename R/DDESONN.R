@@ -1,6 +1,6 @@
 # ===============================================================
 # DeepDynamic — DDESONN
-# Deep Dynamic Ensemble Self-Organizing Neural Network
+# Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
 #
@@ -2839,7 +2839,7 @@ SONN <- R6Class(
 #         \/        \/        \/        \/         \/         \/
 #
 
-# Step 2: Define the Deep Dynamic Ensemble of Self-Organizing Neural Networks (DDESONN) class
+# Step 2: Define the Deep Dynamic Experimental of Self-Organizing Neural Networks (DDESONN) class
 DDESONN <- R6Class(
   "DDESONN",
   lock_objects = FALSE,
