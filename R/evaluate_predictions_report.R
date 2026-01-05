@@ -68,8 +68,11 @@ EvaluatePredictionsReport <- function(
   # ------------------------- Setup: plots dir -------------------------
   # ===== Evaluate Predictions plot dir ===== #$$$$$$$$$$$$$
   artifacts_root <- ddesonn_artifacts_root(output_root) #$$$$$$$$$$$$$
-  plot_dir <- file.path(artifacts_root, "reports", "EvaluatePredictionsReportPlots") #$$$$$$$$$$$$$
+  reports_dir <- file.path(artifacts_root, "reports") #$$$$$$$$$$$$$
+  plot_dir <- file.path(ddesonn_plots_dir(output_root), "reports", "EvaluatePredictionsReportPlots") #$$$$$$$$$$$$$
+  if (!dir.exists(reports_dir)) dir.create(reports_dir, recursive = TRUE, showWarnings = FALSE) #$$$$$$$$$$$$$
   if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE) #$$$$$$$$$$$$$
+  report_wb_path <- file.path(reports_dir, "Rdata_predictions.xlsx") #$$$$$$$$$$$$$
   if (isTRUE(verbose)) cat("[Eval] plot_dir:", plot_dir, "\n") #$$$$$$$$$$$$$
   
   # ------------------------- safety defaults -------------------------
@@ -184,7 +187,7 @@ EvaluatePredictionsReport <- function(
     )
     suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", legacy_df)) #$$$$$$$$$$$$$
     
-    openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
+    openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE) #$$$$$$$$$$$$$
     if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
     
     return(list(
@@ -662,8 +665,10 @@ EvaluatePredictionsReport <- function(
       suppressWarnings(openxlsx::writeData(wb, "Misclass_Summary", summary_by_type)) #$$$$$$$$$$$$$
       
       # Optional legacy plots if they exist from previous runs; otherwise skip silently
-      legacy_mis_heat <- file.path(getwd(), "misclassification_heatmap.png")
-      legacy_box_sc   <- file.path(getwd(), "boxplot_serum_creatinine.png")
+      legacy_mis_heat <- file.path(plot_dir, "misclassification_heatmap.png")
+      legacy_box_sc   <- file.path(plot_dir, "boxplot_serum_creatinine.png")
+      if (!file.exists(legacy_mis_heat)) legacy_mis_heat <- file.path(getwd(), "misclassification_heatmap.png")
+      if (!file.exists(legacy_box_sc)) legacy_box_sc <- file.path(getwd(), "boxplot_serum_creatinine.png")
       if (file.exists(legacy_mis_heat)) {
         tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
                  error = function(e) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))
@@ -720,12 +725,12 @@ EvaluatePredictionsReport <- function(
         if (isTRUE(verbose)) cat("[Eval-Binary][WB] Closing open graphics devices...\n")
         invisible(lapply(dev.list(), function(x) try(dev.off(), silent = TRUE)))
       }
-      if (file.exists("Rdata_predictions.xlsx")) {
+      if (file.exists(report_wb_path)) {
         if (isTRUE(verbose)) cat("[Eval-Binary][WB] Removing locked workbook...\n")
-        file.remove("Rdata_predictions.xlsx")
+        file.remove(report_wb_path)
       }
       if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")
-      openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
+      openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE) #$$$$$$$$$$$$$
       if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")
     }, error = function(e) {
       message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))
@@ -890,7 +895,7 @@ EvaluatePredictionsReport <- function(
   suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", predictions_df)) #$$$$$$$$$$$$$
   
   
-  openxlsx::saveWorkbook(wb, "Rdata_predictions.xlsx", overwrite = TRUE) #$$$$$$$$$$$$$
+  openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE) #$$$$$$$$$$$$$
   if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved. RETURN\n")
   
   return(list(

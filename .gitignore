@@ -5,6 +5,9 @@ optimizersnew.R[#$$$$$$$$$$$$$]*
 analysis/artifacts/**[[:print:]#$$$$$$$$$$$$$]*
 analysis/plots/**[[:print:]#$$$$$$$$$$$$$]*
 analysis/reports/EvaluatePredictionsReportPlots/**[[:print:]#$$$$$$$$$$$$$]*
+artifacts/**[[:print:]#$$$$$$$$$$$$$]*
+plots/**[[:print:]#$$$$$$$$$$$$$]*
+EvaluatePredictionsReportPlots/**[[:print:]#$$$$$$$$$$$$$]*
 analysis[#$$$$$$$$$$$$$]*
 analysis/**[[:print:]#$$$$$$$$$$$$$]*
 *.rds[#$$$$$$$$$$$$$]*

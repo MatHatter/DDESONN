@@ -4516,7 +4516,7 @@ DDESONN <- R6::R6Class( #$$$$$$$$$$$$$
       )
       
       # Ensure output dir exists (CRAN-safe: no warnings, recursive ok)
-      plots_dir <- "plots"
+      plots_dir <- file.path(ddesonn_plots_dir(get0("output_root", inherits = TRUE, ifnotfound = NULL)), "training")
       if (!dir.exists(plots_dir)) dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
       
       # Drop any NULL names before building paths (prevents file.path() errors)
