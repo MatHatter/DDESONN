@@ -249,11 +249,12 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
     # store in global env
     assign(paste0("probe_last_layer_", tag), stats, envir = .GlobalEnv)
     
-    # save RDS snapshot in artifacts
-    fname <- sprintf("artifacts/probe_last_layer_%s_%s.rds",
-                     tag, format(Sys.time(), "%Y%m%d_%H%M%S"))
-    saveRDS(stats, fname)
-    message("[LASTLAYER] Snapshot saved to: ", fname)
+    # ===== Artifacts snapshot saver ===== #$$$$$$$$$$$$$
+    artifacts_dir <- ddesonn_artifacts_root(get0("output_root", inherits = TRUE, ifnotfound = NULL)) #$$$$$$$$$$$$$
+    fname <- file.path(artifacts_dir, sprintf("probe_last_layer_%s_%s.rds", #$$$$$$$$$$$$$
+                     tag, format(Sys.time(), "%Y%m%d_%H%M%S"))) #$$$$$$$$$$$$$
+    saveRDS(stats, fname) #$$$$$$$$$$$$$
+    message("[LASTLAYER] Snapshot saved to: ", fname) #$$$$$$$$$$$$$
   }
 
   invisible(stats)
@@ -2447,7 +2448,7 @@ DDESONN_predict_eval <- function(
     CLASSIFICATION_MODE,
     RUN_INDEX,
     SEED,
-    OUTPUT_DIR = "artifacts",
+    OUTPUT_DIR = NULL, #$$$$$$$$$$$$$
     SAVE_METRICS_RDS = TRUE,
     METRICS_PREFIX   = "metrics_test",
     AGG_PREDICTIONS_FILE = NULL,
@@ -2605,13 +2606,15 @@ DDESONN_predict_eval <- function(
   ## =========================
   ## outdir + config
   ## =========================
-  out_norm <- tryCatch(normalizePath(OUTPUT_DIR, winslash="/", mustWork=FALSE), error=function(e) OUTPUT_DIR)
-  dcat("OUTPUT_DIR=", out_norm)
-  if (!is.null(OUT_DIR_ASSERT)) {
-    assert_norm <- tryCatch(normalizePath(OUT_DIR_ASSERT, winslash="/", mustWork=FALSE), error=function(e) OUT_DIR_ASSERT)
-    if (!identical(out_norm, assert_norm)) stop(sprintf("OUT_DIR_ASSERT mismatch:\n  OUTPUT_DIR=%s\n  ASSERT=%s", out_norm, assert_norm))
-  }
-  if (!dir.exists(out_norm)) dir.create(out_norm, recursive=TRUE, showWarnings=FALSE)
+  # ===== Output directory handling ===== #$$$$$$$$$$$$$
+  artifacts_dir <- ddesonn_artifacts_root(OUTPUT_DIR) #$$$$$$$$$$$$$
+  bm_dir <- ddesonn_artifacts_root(get0(".BM_DIR", inherits = TRUE, ifnotfound = artifacts_dir)) #$$$$$$$$$$$$$
+  out_norm <- tryCatch(normalizePath(bm_dir, winslash="/", mustWork=FALSE), error=function(e) bm_dir) #$$$$$$$$$$$$$
+  dcat("OUTPUT_DIR=", out_norm) #$$$$$$$$$$$$$
+  if (!is.null(OUT_DIR_ASSERT)) { #$$$$$$$$$$$$$
+    assert_norm <- tryCatch(normalizePath(OUT_DIR_ASSERT, winslash="/", mustWork=FALSE), error=function(e) OUT_DIR_ASSERT) #$$$$$$$$$$$$$
+    if (!identical(out_norm, assert_norm)) stop(sprintf("OUT_DIR_ASSERT mismatch:\n  OUTPUT_DIR=%s\n  ASSERT=%s", out_norm, assert_norm)) #$$$$$$$$$$$$$
+  } #$$$$$$$$$$$$$
   
   CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
   if (!CLASSIFICATION_MODE %in% c("binary","multiclass","regression")) stop("bad CLASSIFICATION_MODE")
@@ -2635,9 +2638,9 @@ DDESONN_predict_eval <- function(
       for (nm in cand)
         if (exists(nm, inherits=TRUE)) { m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
     
-    adir <- get0(".BM_DIR", inherits=TRUE, ifnotfound="artifacts")
-    files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
-    if (!length(files)) stop("no RDS artifacts in ", adir)
+    adir <- ddesonn_artifacts_root(get0(".BM_DIR", inherits=TRUE, ifnotfound=bm_dir)) #$$$$$$$$$$$$$
+    files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE) #$$$$$$$$$$$$$
+    if (!length(files)) stop("no RDS artifacts in ", adir) #$$$$$$$$$$$$$
     base_hit <- grepl(sprintf("(?i)%s", esc(ENV_META_NAME)), basename(files), perl=TRUE)
     slot_pat <- sprintf("(?i)_model_%d_", as.integer(MODEL_SLOT))
     seed_pat <- sprintf("(?i)_seed%s(\\.|_|$)", as.character(SEED))

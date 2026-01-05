@@ -47,7 +47,8 @@ EvaluatePredictionsReport <- function(
     cluster_assignments = NULL,
     run_id = NULL,
     grid = NULL,
-    learn_time = NULL
+    learn_time = NULL,
+    output_root = NULL #$$$$$$$$$$$$$
 ) {
   required_pkgs <- c("ggplot2", "dplyr", "tidyr", "openxlsx", "pROC", "PRROC", "reshape2")
   missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
@@ -65,9 +66,11 @@ EvaluatePredictionsReport <- function(
   if (isTRUE(verbose)) cat("[Eval] Begin EvaluatePredictionsReport()\n")
   
   # ------------------------- Setup: plots dir -------------------------
-  plot_dir <- file.path(getwd(), "EvaluatePredictionsReportPlots")
-  if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE)
-  if (isTRUE(verbose)) cat("[Eval] plot_dir:", plot_dir, "\n")
+  # ===== Evaluate Predictions plot dir ===== #$$$$$$$$$$$$$
+  artifacts_root <- ddesonn_artifacts_root(output_root) #$$$$$$$$$$$$$
+  plot_dir <- file.path(artifacts_root, "reports", "EvaluatePredictionsReportPlots") #$$$$$$$$$$$$$
+  if (!dir.exists(plot_dir)) dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE) #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) cat("[Eval] plot_dir:", plot_dir, "\n") #$$$$$$$$$$$$$
   
   # ------------------------- safety defaults -------------------------
   if (!exists("viewTables", inherits = TRUE)) viewTables <- FALSE

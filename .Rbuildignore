@@ -1,1 +1,8 @@
-^inst/archives(/.*)?$
+(?x)^inst/archives(/.*)?$ #$$$$$$$$$$$$$
+(?x)^analysis$ #$$$$$$$$$$$$$
+(?x)^dev$ #$$$$$$$$$$$$$
+(?x)^artifacts$ #$$$$$$$$$$$$$
+(?x)^plots$ #$$$$$$$$$$$$$
+(?x)^EvaluatePredictionsReportPlots$ #$$$$$$$$$$$$$
+(?x)^helpfulFiles$ #$$$$$$$$$$$$$
+(?x)^junk$ #$$$$$$$$$$$$$
