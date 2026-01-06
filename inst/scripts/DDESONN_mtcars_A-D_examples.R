@@ -166,7 +166,7 @@ scenario_presets <- list(
   D = list(label="Scenario D", do_ensemble=TRUE,  num_networks=3L, num_temp_iterations=2L, aggregate="mean",  prediction_type="class", seeds = c(11, 22, 33))
 )
 
-# Default output_root now uses the REPO ROOT so persistence adds "artifacts" exactly once.
+# Default output_root leverages ddesonn_artifacts_root() so persistence adds "artifacts" exactly once.
 run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_root()) {
   scn <- match.arg(scn)
   cfg <- scenario_presets[[scn]]
@@ -195,11 +195,7 @@ run_scenario <- function(scn = c("A","B","C","D"), output_root = .ddesonn_find_r
     save_models = TRUE
   )
   
-  # Mirror the same guard used in persistence to print the actual artifacts root once.
-  art_root <- {
-    nr <- normalizePath(output_root, winslash = "/", mustWork = FALSE)
-    if (basename(nr) == "artifacts") nr else file.path(output_root, "artifacts")
-  }
+  art_root <- ddesonn_artifacts_root(output_root)
   cat("Artifacts root:", normalizePath(art_root, winslash = "/", mustWork = FALSE), "\n")
   
   # Tiny validation preview (aggregate or first per-model)

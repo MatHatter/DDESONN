@@ -76,7 +76,7 @@ y_validation <- y
 
 ## 4. Output dirs / file paths --------------------------------------
 ts_stamp  <- format(Sys.time(), "%Y%m%d_%H%M%S")
-OUT_ROOT  <- "artifacts/singleRuns"
+OUT_ROOT  <- file.path(ddesonn_artifacts_root(NULL), "singleRuns")
 RUN_DIR   <- normalizePath(
   file.path(OUT_ROOT, paste0("Local_MVP_", ts_stamp)),
   winslash = "/",

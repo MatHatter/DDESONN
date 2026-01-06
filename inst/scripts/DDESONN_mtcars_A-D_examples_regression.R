@@ -781,10 +781,7 @@ run_scenario <- function(scn = c("A","B","C","D"),
     save_models = TRUE
   )
   
-  art_root <- {
-    nr <- normalizePath(output_root, winslash = "/", mustWork = FALSE)
-    if (basename(nr) == "artifacts") nr else file.path(output_root, "artifacts")
-  }
+  art_root <- ddesonn_artifacts_root(output_root)
   cat("Artifacts root:",
       normalizePath(art_root, winslash = "/", mustWork = FALSE), "\n")
   

@@ -1145,7 +1145,7 @@ relevance_low_mean_plots    <- FALSE
 
 
 ## —— Artifacts
-ARTIFACTS_DIR       <- file.path(getwd(), "artifacts")
+ARTIFACTS_DIR       <- ddesonn_artifacts_root(NULL)
 
 if(train) {
   
@@ -1170,7 +1170,7 @@ if(train) {
     seed_tag  <- if (length(seeds) > 1L) "wSeed" else "wNoSeed"
     run_stamp <- sprintf("%s__m%d__%s", ts_stamp, as.integer(num_networks), seed_tag)
     
-    OUT_ROOT <- file.path("artifacts", "SingleRuns")
+    OUT_ROOT <- file.path(ARTIFACTS_DIR, "SingleRuns")
     RUN_DIR  <- normalizePath(file.path(OUT_ROOT, run_stamp), winslash = "/", mustWork = FALSE)
     cat(sprintf("[SINGLE] RUN_DIR = %s\n", RUN_DIR))
     
@@ -1859,7 +1859,7 @@ if(train) {
     ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
     
     ## Run folder
-    OUT_ROOT <- file.path("artifacts", "EnsembleRuns")
+    OUT_ROOT <- file.path(ARTIFACTS_DIR, "EnsembleRuns")
     RUN_DIR  <- file.path(OUT_ROOT, ts_stamp)
     dir.create(file.path(RUN_DIR, "fused"), recursive = TRUE, showWarnings = FALSE)
     log_dir <- file.path(RUN_DIR, "logs")
@@ -2674,8 +2674,6 @@ if(train) {
   
   
 }
-
-
 
 
 

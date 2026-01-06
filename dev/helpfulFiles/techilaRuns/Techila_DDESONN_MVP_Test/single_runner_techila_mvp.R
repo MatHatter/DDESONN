@@ -107,7 +107,7 @@ y_validation <- y
 ## 4. Output dirs / filenames
 ## ------------------------------------------------------------
 ts_stamp  <- format(Sys.time(), "%Y%m%d_%H%M%S")
-OUT_ROOT  <- "artifacts/SingleRuns"
+OUT_ROOT  <- file.path(ddesonn_artifacts_root(NULL), "SingleRuns")
 RUN_DIR   <- normalizePath(file.path(OUT_ROOT, paste0("Techila_MVP_", ts_stamp)),
                            winslash = "/", mustWork = FALSE)
 dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)

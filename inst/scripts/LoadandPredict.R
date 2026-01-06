@@ -240,8 +240,11 @@ if (!exists(".normalize_metrics_schema_minimal", mode="function")) {
 # Run roots & model dirs (used only by TestDDESONN flow)
 # -----------------------
 .resolve_run_root <- function(source, folder) {
-  root_base <- file.path("artifacts", source)
-  if (!dir.exists(root_base)) stop(sprintf("Artifacts base not found: %s", root_base))
+  candidates <- ddesonn_legacy_artifacts_candidates(NULL)
+  candidates <- file.path(candidates, source)
+  candidates <- candidates[dir.exists(candidates)]
+  if (!length(candidates)) stop(sprintf("Artifacts base not found for source '%s'", source))
+  root_base <- candidates[[1]]
   if (is.null(folder)) {
     rd <- .latest_subdir(root_base)
     if (is.null(rd)) stop(sprintf("No dated runs under: %s", root_base))
@@ -544,7 +547,7 @@ LoadandPredict <- function(
     predict_split         = c("test","validation","train"),
     CLASSIFICATION_MODE   = c("binary","multiclass","regression"),
     run_index             = 1L,
-    output_dir_base       = "artifacts/PredictOnly",
+    output_dir_base       = NULL,
     run_dir_name          = "predict_flow",
     overwrite             = TRUE,
     
@@ -589,7 +592,8 @@ LoadandPredict <- function(
   }
   
   # Output dir
-  out_dir <- file.path(output_dir_base, run_dir_name)
+  artifacts_root <- ddesonn_artifacts_root(output_dir_base)
+  out_dir <- file.path(artifacts_root, "PredictOnly", run_dir_name)
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   vcat("Predicting split='%s' | mode='%s' | run_index=%d | flow=%s", predict_split, CLASSIFICATION_MODE, run_index, FLOW)
   
@@ -880,7 +884,7 @@ LoadandPredict <- function(
 #   FLOW="TestDDESONN",
 #   source="EnsembleRuns", folder=NULL, seeds=c(1), slots=1:5,
 #   predict_split="test", CLASSIFICATION_MODE="binary", run_index=1,
-#   output_dir_base="artifacts/PredictOnly", run_dir_name="predict_test_flow",
+#   output_dir_base=ddesonn_artifacts_root(), run_dir_name="predict_test_flow",
 #   overwrite=TRUE, ensemble_model_subdir="main"
 # )
 
@@ -891,6 +895,6 @@ ex_api <- LoadandPredict(
   env_data_prefix="LP_DATA",                               # e.g., LP_DATA_X_test / LP_DATA_y_test
   seeds=c(1), slots=1:5,
   predict_split="test", CLASSIFICATION_MODE="binary", run_index=1,
-  output_dir_base="artifacts/PredictOnly", run_dir_name="predict_api_flow",
+  output_dir_base=NULL, run_dir_name="predict_api_flow",
   overwrite=TRUE
 )

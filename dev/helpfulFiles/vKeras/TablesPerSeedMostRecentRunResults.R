@@ -36,7 +36,7 @@ summarize_stats <- function(v) c(
 )
 
 # ---------- decide run root ----------
-root   <- file.path("artifacts", if (is_ens) "EnsembleRuns" else "SingleRuns")
+root   <- file.path(ddesonn_artifacts_root(NULL), if (is_ens) "EnsembleRuns" else "SingleRuns")
 
 # ---------- choose RUN_DIR: honor .BM_DIR if valid; else pick latest ----------
 RUN_DIR <- get0(".BM_DIR", inherits = TRUE, ifnotfound = NULL)

@@ -2638,9 +2638,11 @@ DDESONN_predict_eval <- function(
       for (nm in cand)
         if (exists(nm, inherits=TRUE)) { m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
     
-    adir <- ddesonn_artifacts_root(get0(".BM_DIR", inherits=TRUE, ifnotfound=bm_dir)) #$$$$$$$$$$$$$
-    files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE) #$$$$$$$$$$$$$
-    if (!length(files)) stop("no RDS artifacts in ", adir) #$$$$$$$$$$$$$
+    adir_candidates <- ddesonn_legacy_artifacts_candidates(get0(".BM_DIR", inherits=TRUE, ifnotfound=bm_dir)) #$$$$$$$$$$$$$
+    adir_candidates <- adir_candidates[dir.exists(adir_candidates)] #$$$$$$$$$$$$$
+    if (!length(adir_candidates)) stop("no RDS artifacts available") #$$$$$$$$$$$$$
+    files <- unlist(lapply(adir_candidates, function(adir) list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)), use.names = FALSE) #$$$$$$$$$$$$$
+    if (!length(files)) stop("no RDS artifacts in any candidate directory") #$$$$$$$$$$$$$
     base_hit <- grepl(sprintf("(?i)%s", esc(ENV_META_NAME)), basename(files), perl=TRUE)
     slot_pat <- sprintf("(?i)_model_%d_", as.integer(MODEL_SLOT))
     seed_pat <- sprintf("(?i)_seed%s(\\.|_|$)", as.character(SEED))

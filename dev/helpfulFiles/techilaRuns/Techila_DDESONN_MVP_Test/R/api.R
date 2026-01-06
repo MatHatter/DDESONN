@@ -2228,12 +2228,8 @@ ddesonn_predict <- function(model, new_data,
     run_tag  <- ts_stamp
   }
   
-  # choose a stable base: repo root → artifacts → (SingleRuns|EnsembleRuns)
-  # tip: pass output_root = .ddesonn_find_root()
-  art_root <- {
-    nr <- normalizePath(output_root, winslash = "/", mustWork = FALSE)
-    if (basename(nr) == "artifacts") nr else file.path(output_root, "artifacts")
-  }
+  # choose a stable base: user-writable artifacts → (SingleRuns|EnsembleRuns)
+  art_root <- ddesonn_artifacts_root(output_root)
   run_dir <- file.path(art_root, root_dir, run_tag)
   
   # create base dirs AFTER run_dir exists
