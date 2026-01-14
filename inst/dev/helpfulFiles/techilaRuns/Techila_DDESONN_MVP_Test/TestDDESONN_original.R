@@ -14,7 +14,8 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-suppressPackageStartupMessages(library(DDESONN))
+source("R/DDESONN.R")
+source("R/utils.R")
 
 # # Define parameters
 ## =========================
@@ -1117,6 +1118,9 @@ num_networks        <- get0("num_networks", ifnotfound = 1L)
 num_temp_iterations <- get0("num_temp_iterations", ifnotfound = 0L)   # 0 = MAIN only (no TEMP)
 do_ensemble         <- get0("do_ensemble", ifnotfound = FALSE)         # TRUE ⇒ run MAIN (+ TEMP if >0)
 
+# firstRun is only used to build the MAIN holder in ensemble mode
+firstRun <- TRUE
+
 j <- 1L
 ensembles <- list(main_ensemble = vector("list"), temp_ensemble = vector("list"))
 
@@ -1137,21 +1141,6 @@ performance_high_mean_plots <- FALSE
 performance_low_mean_plots  <- FALSE
 relevance_high_mean_plots   <- FALSE
 relevance_low_mean_plots    <- FALSE
-
-# ============================================================
-# EvaluatePredictionsReport plots (TOP-LEVEL toggles)
-# ============================================================
-
-pred_vs_error_scatter <- FALSE  # pred_vs_error_scatter.png
-roc_curve             <- FALSE  # roc_curve.png
-pr_curve              <- FALSE  # pr_curve.png
-legacy_conf_heatmap   <- FALSE  # confusion_heatmap_legacy.png
-
-# Accuracy plot family (single toggle + selector)              
-accuracy_plots         <- FALSE                               
-accuracy_plot_mode     <- "both"  # "accuracy"|"accuracy_tuned"|"both" 
-
-multiclass_heatmap    <- FALSE 
 
 
 

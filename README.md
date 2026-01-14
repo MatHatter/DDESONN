@@ -15,9 +15,10 @@ Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 7. Running the examples
 8. Datasets
 9. Roadmap
-10. Contributing
-11. License
-12. Contact
+10. To-Do (Active Work)
+11. Contributing
+12. License
+13. Contact
 
 ---
 
@@ -81,7 +82,7 @@ Core implementation is modular and intentionally explicit:
 - R/api.R  
   High-level API-style wrapper for simplified consumption
 
-- R/reports/evaluate_predictions_report.R  
+- R/evaluate_predictions_report.R  
   Excel and plot-based evaluation reporting
 
 Formal R vignettes for guided exploration and reproducible demonstrations are available in the vignettes directory.
@@ -91,10 +92,7 @@ Formal R vignettes for guided exploration and reproducible demonstrations are av
 ## Project timeline
 
 - 2024-05-07 — Project origin  
-  The project formally began in May 2024 as a research initiative to design and implement a novel self-organizing 
-  neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
- 
-  This resulted in the first SONN / DESONN R6 scaffolding and defined the project direction.
+  The project formally began in May 2024 as a research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
 
 - Initial intensive sprint (approximately 3 months)  
   Sustained day-in/day-out development. Learning machine learning from first principles was unavoidable in order to design the architecture manually, reason through layer interactions and dimensional flow, identify bottlenecks, and resolve bugs by tracing logic across layers.
@@ -114,8 +112,6 @@ Formal R vignettes for guided exploration and reproducible demonstrations are av
 ---
 
 ## Repository structure
-
-The folder structure is still evolving; key components are listed explicitly for clarity.
 
 "DDESONN/"
 - "R/"
@@ -139,9 +135,6 @@ The folder structure is still evolving; key components are listed explicitly for
     - "TestDDESONN.R"
 
 - "data/"
-- "artifacts/"
-- "artifacts_runs/"
-- "plots/"
 - "vignettes/"
 - "helpfulFiles/"
 - "ideas/"
@@ -167,30 +160,26 @@ The folder structure is still evolving; key components are listed explicitly for
 
 ### Installation
 
-```bash
-git clone https://github.com/<your-org>/DDESONN.git
-cd DDESONN
-```
+Bash:
+
+    git clone https://github.com/MatHatter/DDESONN.git
+    cd DDESONN
 
 Inside R:
 
-```r
-required_pkgs <- c(
-  "R6","cluster","fpc","tibble","dplyr","tidyverse","ggplot2","plotly",
-  "gridExtra","rlist","writexl","readxl","tidyr","purrr","pracma",
-  "openxlsx","pROC","ggplotify"
-)
+    required_pkgs <- c(
+      "R6","cluster","fpc","tibble","dplyr","tidyverse","ggplot2","plotly",
+      "gridExtra","rlist","writexl","readxl","tidyr","purrr","pracma",
+      "openxlsx","pROC","ggplotify"
+    )
 
-missing <- setdiff(required_pkgs, rownames(installed.packages()))
-if (length(missing)) install.packages(missing)
-invisible(lapply(required_pkgs, library, character.only = TRUE))
-```
+    missing <- setdiff(required_pkgs, rownames(installed.packages()))
+    if (length(missing)) install.packages(missing)
+    invisible(lapply(required_pkgs, library, character.only = TRUE))
 
 To load manually:
 
-```r
-source("R/DDESONN.R")
-```
+    source("R/DDESONN.R")
 
 ---
 
@@ -206,11 +195,11 @@ Ready-to-run demos are available under inst/scripts:
 
 Run directly:
 
-```r
-source("inst/scripts/DDESONN_mtcars_example.R")
-```
+    source("inst/scripts/DDESONN_mtcars_example.R")
 
-Artifacts are written to the artifacts and artifacts_runs directories.
+Artifacts and plots are written under a user-writable data directory resolved by
+ddesonn_artifacts_root() (with plots under ddesonn_plots_dir()), preserving
+the same subfolder layout used previously under artifacts/.
 
 ---
 
@@ -229,10 +218,19 @@ Verify original dataset licensing if repurposed.
 
 ## Roadmap
 
-- Unify non-Adam optimizers into a common API
-- Extend metrics to regression and multiclass use cases
-- CRAN packaging with full documentation
-- Add support for attention and autoencoder modes
+- Add structured hyperparameter grid and sweep utilities for controlled experimentation
+- Potential future change: In single-run mode, ensemble orchestration is disabled, but ensemble slot objects 
+  (ensemble[[k]]) and Ensemble_Main_0_model_*_metadata are still used. Decoupling these contracts would 
+  require a major refactor and may be revisited later.
+
+
+---
+
+## To-Do (Active Work)
+
+- Refactor DDESONN_predict_eval() so all required variables are passed explicitly and handled locally, avoiding reliance on global or inherited environments.
+- Continue decompartmentalization by extracting additional modules and components to slim up the core codebase.
+  - Initial step: move the SONN method into its own dedicated file, while keeping the primary DDESONN R6 class in R/DDESONN.R.
 
 ---
 

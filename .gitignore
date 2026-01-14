@@ -1,18 +1,48 @@
-.Rhistory[#$$$$$$$$$$$$$]*
-*misclassified_cases.xlsx[#$$$$$$$$$$$$$]*
-optimizersnew.R[#$$$$$$$$$$$$$]*
-.Rproj.user[#$$$$$$$$$$$$$]*
-analysis/artifacts/**[[:print:]#$$$$$$$$$$$$$]*
-analysis/plots/**[[:print:]#$$$$$$$$$$$$$]*
-analysis/reports/EvaluatePredictionsReportPlots/**[[:print:]#$$$$$$$$$$$$$]*
-artifacts/**[[:print:]#$$$$$$$$$$$$$]*
-plots/**[[:print:]#$$$$$$$$$$$$$]*
-EvaluatePredictionsReportPlots/**[[:print:]#$$$$$$$$$$$$$]*
-analysis[#$$$$$$$$$$$$$]*
-analysis/**[[:print:]#$$$$$$$$$$$$$]*
-*.rds[#$$$$$$$$$$$$$]*
-*.png[#$$$$$$$$$$$$$]*
-*.pdf[#$$$$$$$$$$$$$]*
-*.xlsx[#$$$$$$$$$$$$$]*
-~$*.xlsx[#$$$$$$$$$$$$$]*
-.RData[#$$$$$$$$$$$$$]*
+# ============================================================
+# Local / IDE
+# ============================================================
+.Rhistory
+.RData
+.Rproj.user/
+
+# Excel temp files
+~$*.xlsx
+
+# ============================================================
+# Runtime / generated outputs (DDESONN)
+# ============================================================
+
+# Centralized artifact/plot roots (repo-local legacy)
+analysis/
+artifacts/
+plots/
+
+# Legacy repo-root plot dump (old behavior)
+EvaluatePredictionsReportPlots/
+
+# Optional: specific legacy generated file (if you still produce it)
+misclassified_cases.xlsx
+
+# ============================================================
+# Optional: if you REALLY want to ignore generated binaries,
+# do it only inside output dirs (NOT globally)
+# ============================================================
+analysis/**/*.png
+analysis/**/*.pdf
+analysis/**/*.xlsx
+analysis/**/*.rds
+
+artifacts/**/*.png
+artifacts/**/*.pdf
+artifacts/**/*.xlsx
+artifacts/**/*.rds
+
+plots/**/*.png
+plots/**/*.pdf
+plots/**/*.xlsx
+plots/**/*.rds
+
+EvaluatePredictionsReportPlots/**/*.png
+EvaluatePredictionsReportPlots/**/*.pdf
+EvaluatePredictionsReportPlots/**/*.xlsx
+EvaluatePredictionsReportPlots/**/*.rds

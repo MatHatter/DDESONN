@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages(source("R/api.R"))
+suppressPackageStartupMessages(library(DDESONN))
 
 `%||%` <- function(x, y) if (is.null(x) || !length(x)) y else x
 

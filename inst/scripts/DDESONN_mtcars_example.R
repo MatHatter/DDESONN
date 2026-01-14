@@ -1,9 +1,7 @@
 #!/usr/bin/env Rscript
 # Example workflow using the high-level DDESONN API.
 
-# suppressPackageStartupMessages(library(DDESONN))
-
-source("R/api.R")
+suppressPackageStartupMessages(library(DDESONN))
 
 # Use the built-in 'mtcars' data set for a lightweight binary classification task.
 # The transmission column (am) is treated as the target label.

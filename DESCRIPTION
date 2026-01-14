@@ -4,8 +4,8 @@ Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
 Version: 0.1.0
 Authors@R: c(
     person(given = "Mathew William Armitage", family = "Fok", role = c("aut", "cre"),
-           email = "mathew@example.com")
-)
+           email = "quiksilver67213@yahoo.com")
+    )
 Description: High-level helpers for constructing, training, and evaluating
     Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The
     package wraps the legacy R6 implementations and exposes a modern API for
@@ -14,31 +14,27 @@ License: file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Depends: R (>= 4.1.0)
 Imports:
     R6,
     stats,
     utils,
-    cluster,
-    fpc,
-    tibble,
     dplyr,
-    ggplot2,
-    plotly,
-    gridExtra,
-    rlist,
-    writexl,
-    readxl,
-    tidyr,
-    purrr,
-    pracma,
     openxlsx,
+    tidyr,
     pROC,
-    ggplotify,
-    PRROC
+    PRROC,
+    reshape2,
+    digest
 Suggests:
     testthat,
     knitr,
-    rmarkdown
+    rmarkdown,
+    foreach,
+    quantmod,
+    randomForest,
+    reticulate,
+    techila,
+    zoo
 VignetteBuilder: knitr

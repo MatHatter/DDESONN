@@ -1,76 +1,61 @@
-# =============================================================== #$$$$$$$$$$$$$
-# Path helpers for artifacts and plots                            #$$$$$$$$$$$$$
-# =============================================================== #$$$$$$$$$$$$$
+# =============================================================== 
+# Path helpers for artifacts and plots                            
+# =============================================================== 
 
-# ===== Artifacts root resolver ================================= #$$$$$$$$$$$$$
-ddesonn_artifacts_root <- function(output_root = NULL) { #$$$$$$$$$$$$$
-  root <- .ddesonn_resolve_artifacts_root(output_root) #$$$$$$$$$$$$$
-  dir.create(root, recursive = TRUE, showWarnings = FALSE) #$$$$$$$$$$$$$
-  .ddesonn_paths_check(root, context = "artifacts") #$$$$$$$$$$$$$
-  root #$$$$$$$$$$$$$
-} #$$$$$$$$$$$$$
+#' Resolve the writable artifacts root for DDESONN.
+#'
+#' Defaults to a user-writable data directory (via tools::R_user_dir()) so
+#' runtime outputs never write into the installed package tree.
+#'
+#' Override order (first non-empty wins):
+#' 1) output_root argument
+#' 2) Sys.getenv("DDESONN_ARTIFACTS_ROOT")
+#' 3) getOption("DDESONN_OUTPUT_ROOT")
+#'
+#' @param output_root Optional base directory for artifacts. When NULL, a
+#'   user-scoped directory is selected automatically.
+#' @return Absolute path to the artifacts directory (created if missing).
+#' @export
+ddesonn_artifacts_root <- function(output_root = NULL) { 
+  pick_first <- function(...) { 
+    for (x in list(...)) { 
+      if (!is.null(x) && length(x) && nzchar(x)) return(x) 
+    } 
+    NULL 
+  } 
 
-# ===== Plots dir helper ======================================== #$$$$$$$$$$$$$
-ddesonn_plots_dir <- function(output_root = NULL) { #$$$$$$$$$$$$$
-  plots_dir <- file.path(ddesonn_artifacts_root(output_root), "plots") #$$$$$$$$$$$$$
-  dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE) #$$$$$$$$$$$$$
-  .ddesonn_paths_check(plots_dir, context = "plots") #$$$$$$$$$$$$$
-  plots_dir #$$$$$$$$$$$$$
-} #$$$$$$$$$$$$$
+  user_root <- tryCatch(tools::R_user_dir("DDESONN", which = "data"), error = function(e) NULL) 
+  fallback  <- pick_first(user_root, file.path(tempdir(), "DDESONN")) 
 
-# ===== Legacy artifacts lookup (read-only) ========================= #$$$$$$$$$$$$$
-ddesonn_legacy_artifacts_candidates <- function(output_root = NULL) { #$$$$$$$$$$$$$
-  candidates <- list(.ddesonn_resolve_artifacts_root(output_root)) #$$$$$$$$$$$$$
-  env_root <- Sys.getenv("DDESONN_ARTIFACTS_ROOT") #$$$$$$$$$$$$$
-  if (nzchar(env_root)) { #$$$$$$$$$$$$$
-    env_candidate <- if (basename(env_root) == "artifacts") env_root else file.path(env_root, "artifacts") #$$$$$$$$$$$$$
-    candidates <- c(candidates, list(env_candidate)) #$$$$$$$$$$$$$
-  } #$$$$$$$$$$$$$
-  opt_root <- getOption("ddesonn.artifacts_root") #$$$$$$$$$$$$$
-  if (!is.null(opt_root) && nzchar(opt_root)) { #$$$$$$$$$$$$$
-    opt_candidate <- if (basename(opt_root) == "artifacts") opt_root else file.path(opt_root, "artifacts") #$$$$$$$$$$$$$
-    candidates <- c(candidates, list(opt_candidate)) #$$$$$$$$$$$$$
-  } #$$$$$$$$$$$$$
-  cwd <- getwd() #$$$$$$$$$$$$$
-  candidates <- c( #$$$$$$$$$$$$$
-    candidates, #$$$$$$$$$$$$$
-    list(file.path(cwd, "artifacts")), #$$$$$$$$$$$$$
-    list(file.path(cwd, "analysis", "artifacts")) #$$$$$$$$$$$$$
-  ) #$$$$$$$$$$$$$
-  unique(as.character(candidates)) #$$$$$$$$$$$$$
-} #$$$$$$$$$$$$$
+  base <- pick_first( 
+    output_root, 
+    Sys.getenv("DDESONN_ARTIFACTS_ROOT", unset = ""), 
+    getOption("DDESONN_OUTPUT_ROOT", default = ""), 
+    fallback 
+  ) 
 
-# ===== Internal helpers =========================================== #$$$$$$$$$$$$$
-.ddesonn_resolve_artifacts_root <- function(output_root = NULL) { #$$$$$$$$$$$$$
-  base_dir <- output_root #$$$$$$$$$$$$$
-  if (is.null(base_dir) || !nzchar(base_dir)) { #$$$$$$$$$$$$$
-    base_dir <- tools::R_user_dir("DDESONN", which = "data") #$$$$$$$$$$$$$
-    if (is.null(base_dir) || !nzchar(base_dir)) { #$$$$$$$$$$$$$
-      base_dir <- tempdir() #$$$$$$$$$$$$$
-    } #$$$$$$$$$$$$$
-  } #$$$$$$$$$$$$$
-  nr <- tryCatch(normalizePath(base_dir, winslash = "/", mustWork = FALSE), error = function(e) base_dir) #$$$$$$$$$$$$$
-  if (basename(nr) == "artifacts") { #$$$$$$$$$$$$$
-    return(base_dir) #$$$$$$$$$$$$$
-  } #$$$$$$$$$$$$$
-  file.path(base_dir, "artifacts") #$$$$$$$$$$$$$
-} #$$$$$$$$$$$$$
+  base_norm <- tryCatch(normalizePath(base, winslash = "/", mustWork = FALSE), error = function(e) base) 
 
-.ddesonn_paths_check <- function(paths, context = "artifacts") { #$$$$$$$$$$$$$
-  src_root <- tryCatch(normalizePath(getwd(), winslash = "/", mustWork = FALSE), error = function(e) getwd()) #$$$$$$$$$$$$$
-  is_src_root <- file.exists(file.path(src_root, "DESCRIPTION")) #$$$$$$$$$$$$$
-  pkg_root <- tryCatch(normalizePath(system.file(package = "DDESONN"), winslash = "/", mustWork = FALSE), error = function(e) "") #$$$$$$$$$$$$$
-  suspicious <- logical(length(paths)) #$$$$$$$$$$$$$
-  for (i in seq_along(paths)) { #$$$$$$$$$$$$$
-    p <- paths[[i]] #$$$$$$$$$$$$$
-    p_norm <- tryCatch(normalizePath(p, winslash = "/", mustWork = FALSE), error = function(e) p) #$$$$$$$$$$$$$
-    suspicious[i] <- nzchar(p_norm) && ( #$$$$$$$$$$$$$
-      (is_src_root && startsWith(p_norm, paste0(src_root, "/"))) || #$$$$$$$$$$$$$
-        (nzchar(pkg_root) && startsWith(p_norm, paste0(pkg_root, "/"))) #$$$$$$$$$$$$$
-    ) #$$$$$$$$$$$$$
-    if (suspicious[i] && isTRUE(getOption("ddesonn.debug_paths", FALSE))) { #$$$$$$$$$$$$$
-      message(sprintf("[ddesonn.%s] path resolved inside package tree: %s", context, p_norm)) #$$$$$$$$$$$$$
-    } #$$$$$$$$$$$$$
-  } #$$$$$$$$$$$$$
-  invisible(!any(suspicious)) #$$$$$$$$$$$$$
-} #$$$$$$$$$$$$$
+  pkg_home <- tryCatch(normalizePath(system.file(package = "DDESONN"), winslash = "/", mustWork = TRUE), error = function(e) NA_character_) 
+  if (!is.na(pkg_home) && nzchar(pkg_home)) { 
+    pkg_pref <- if (grepl("/$", pkg_home)) pkg_home else paste0(pkg_home, "/") 
+    if (identical(base_norm, pkg_home) || startsWith(base_norm, pkg_pref)) { 
+      base_norm <- fallback 
+    } 
+  } 
+
+  root <- if (basename(base_norm) == "artifacts") base_norm else file.path(base_norm, "artifacts") 
+  dir.create(root, recursive = TRUE, showWarnings = FALSE) 
+  root 
+} 
+
+#' Resolve the plots directory inside the artifacts root.
+#'
+#' @inheritParams ddesonn_artifacts_root
+#' @return Absolute path to the plots directory.
+#' @export
+ddesonn_plots_dir <- function(output_root = NULL) { 
+  plots_dir <- file.path(ddesonn_artifacts_root(output_root), "plots") 
+  dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE) 
+  plots_dir 
+} 

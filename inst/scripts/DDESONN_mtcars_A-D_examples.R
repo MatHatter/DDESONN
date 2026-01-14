@@ -1,8 +1,7 @@
 #!/usr/bin/env Rscript
 # Example workflow using the high-level DDESONN API.
-source("R/api.R")
 
-suppressPackageStartupMessages(source("R/api.R"))
+suppressPackageStartupMessages(library(DDESONN))
 
 `%||%` <- function(x, y) if (is.null(x) || !length(x)) y else x
 

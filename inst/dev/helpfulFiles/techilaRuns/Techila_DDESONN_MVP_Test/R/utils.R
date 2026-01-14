@@ -12,8 +12,27 @@
 # past, present, and future, including legacy releases.
 #
 # Intended future distribution: CRAN package.
+# ===============================================================
+#$$$$$$$$$$$$$ FIX: utils.R must NOT infer from caller
+#$$$$$$$$$$$$$ FIX: robust R/ resolution (run from repo root OR /R)
+#$$$$$$$$$$$$$ FIX: define ddesonn_artifacts_root (EvaluatePredictionsReport dependency)
+
+# utils.R — helpers only, NEVER self-source
+
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
 
+# ---- SECTION: Resolve base_dir for /R ----
+base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)                                   #$$$$$$$$$$$$$
+if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R")                                  #$$$$$$$$$$$$$
+base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE)                                  #$$$$$$$$$$$$$
+
+# ---- SECTION: Load activation_functions.R ----
+source(normalizePath(file.path(base_dir, "activation_functions.R"),
+                     winslash = "/", mustWork = TRUE))                                                #$$$$$$$$$$$$$
+
+# ---- SECTION: Artifacts root helper (used by reports) ----
+ddesonn_artifacts_root <- function(output_root)                                                       #$$$$$$$$$$$$$
+  normalizePath(output_root %||% getwd(), winslash = "/", mustWork = FALSE)                            #$$$$$$$$$$$$$
 
 # ============================================================
 # Activation Normalization Utility
@@ -59,7 +78,8 @@
     acts
   } else if (is.function(acts) || is.null(acts) || (is.character(acts) && length(acts) == 1L)) {
     list(acts)
-  } else if (is.character(acts) && length(acts) > 1L) {
+  } else if (is.character(acts) && length(acts) > 1L) 
+    {
     as.list(acts)
   } else {
     stop(sprintf("activation_functions must be NULL | function | string | character vector | list; got %s",
@@ -71,7 +91,6 @@
   
   lapply(elems, resolve_one)
 }
-
 
 # -----------------------------------------------------------------
 # Multiclass label normalizer (keeps scopes local; no globals/<<-)
@@ -249,12 +268,11 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
     # store in global env
     assign(paste0("probe_last_layer_", tag), stats, envir = .GlobalEnv)
     
-    # ===== Artifacts snapshot saver ===== 
-    artifacts_dir <- ddesonn_artifacts_root(get0("output_root", inherits = TRUE, ifnotfound = NULL)) 
-    fname <- file.path(artifacts_dir, sprintf("probe_last_layer_%s_%s.rds", 
-                     tag, format(Sys.time(), "%Y%m%d_%H%M%S"))) 
-    saveRDS(stats, fname) 
-    message("[LASTLAYER] Snapshot saved to: ", fname) 
+    # save RDS snapshot in artifacts
+    fname <- sprintf("artifacts/probe_last_layer_%s_%s.rds",
+                     tag, format(Sys.time(), "%Y%m%d_%H%M%S"))
+    saveRDS(stats, fname)
+    message("[LASTLAYER] Snapshot saved to: ", fname)
   }
 
   invisible(stats)
@@ -1338,7 +1356,7 @@ if (!exists(".run_predict", inherits = TRUE)) {
       v <- c(-2,-1,0,1,2)
       outp <- try(last_af(v), silent = TRUE)
       if (!inherits(outp, "try-error") && is.numeric(outp) && length(outp) == length(v)) {
-        is_linear <- dplyr::near(as.numeric(outp), v, tol = 1e-12) || identical(last_af, base::identity) || 
+        is_linear <- near(as.numeric(outp), v, tol = 1e-12) || identical(last_af, base::identity) ||
           last_nm %in% c("identity","linear","id")
       }
     }
@@ -2448,7 +2466,7 @@ DDESONN_predict_eval <- function(
     CLASSIFICATION_MODE,
     RUN_INDEX,
     SEED,
-    OUTPUT_DIR = NULL, 
+    OUTPUT_DIR = "artifacts",
     SAVE_METRICS_RDS = TRUE,
     METRICS_PREFIX   = "metrics_test",
     AGG_PREDICTIONS_FILE = NULL,
@@ -2606,15 +2624,13 @@ DDESONN_predict_eval <- function(
   ## =========================
   ## outdir + config
   ## =========================
-  # ===== Output directory handling ===== 
-  artifacts_dir <- ddesonn_artifacts_root(OUTPUT_DIR) 
-  bm_dir <- ddesonn_artifacts_root(get0(".BM_DIR", inherits = TRUE, ifnotfound = artifacts_dir)) 
-  out_norm <- tryCatch(normalizePath(bm_dir, winslash="/", mustWork=FALSE), error=function(e) bm_dir) 
-  dcat("OUTPUT_DIR=", out_norm) 
-  if (!is.null(OUT_DIR_ASSERT)) { 
-    assert_norm <- tryCatch(normalizePath(OUT_DIR_ASSERT, winslash="/", mustWork=FALSE), error=function(e) OUT_DIR_ASSERT) 
-    if (!identical(out_norm, assert_norm)) stop(sprintf("OUT_DIR_ASSERT mismatch:\n  OUTPUT_DIR=%s\n  ASSERT=%s", out_norm, assert_norm)) 
-  } 
+  out_norm <- tryCatch(normalizePath(OUTPUT_DIR, winslash="/", mustWork=FALSE), error=function(e) OUTPUT_DIR)
+  dcat("OUTPUT_DIR=", out_norm)
+  if (!is.null(OUT_DIR_ASSERT)) {
+    assert_norm <- tryCatch(normalizePath(OUT_DIR_ASSERT, winslash="/", mustWork=FALSE), error=function(e) OUT_DIR_ASSERT)
+    if (!identical(out_norm, assert_norm)) stop(sprintf("OUT_DIR_ASSERT mismatch:\n  OUTPUT_DIR=%s\n  ASSERT=%s", out_norm, assert_norm))
+  }
+  if (!dir.exists(out_norm)) dir.create(out_norm, recursive=TRUE, showWarnings=FALSE)
   
   CLASSIFICATION_MODE <- tolower(CLASSIFICATION_MODE)
   if (!CLASSIFICATION_MODE %in% c("binary","multiclass","regression")) stop("bad CLASSIFICATION_MODE")
@@ -2638,11 +2654,9 @@ DDESONN_predict_eval <- function(
       for (nm in cand)
         if (exists(nm, inherits=TRUE)) { m <- get(nm, inherits=TRUE); attr(m,"artifact_path") <- paste0("ENV:", nm); return(m) }
     
-    adir_candidates <- ddesonn_legacy_artifacts_candidates(get0(".BM_DIR", inherits=TRUE, ifnotfound=bm_dir)) 
-    adir_candidates <- adir_candidates[dir.exists(adir_candidates)] 
-    if (!length(adir_candidates)) stop("no RDS artifacts available") 
-    files <- unlist(lapply(adir_candidates, function(adir) list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)), use.names = FALSE) 
-    if (!length(files)) stop("no RDS artifacts in any candidate directory") 
+    adir <- get0(".BM_DIR", inherits=TRUE, ifnotfound="artifacts")
+    files <- list.files(adir, pattern="\\.[Rr][Dd][Ss]$", full.names=TRUE, recursive=TRUE)
+    if (!length(files)) stop("no RDS artifacts in ", adir)
     base_hit <- grepl(sprintf("(?i)%s", esc(ENV_META_NAME)), basename(files), perl=TRUE)
     slot_pat <- sprintf("(?i)_model_%d_", as.integer(MODEL_SLOT))
     seed_pat <- sprintf("(?i)_seed%s(\\.|_|$)", as.character(SEED))
@@ -3659,3 +3673,4 @@ emit_table <- function(x,
   
   invisible(x)
 }
+

@@ -14,7 +14,64 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+## ============================================================
+## SECTION: Load code — FORCE Techila MVP R folder
+## ============================================================
+
+#$$$$$$$$$$$$$ ============================================================
+#$$$$$$$$$$$$$ SECTION: TECHILA / SINGLE-RUNNER SAFE SOURCES (MINIMAL)
+#$$$$$$$$$$$$$ - Forces base_dir to the real /R folder
+#$$$$$$$$$$$$$ - ZERO '..' possible
+#$$$$$$$$$$$$$ - NO list.files, NO api.R
+#$$$$$$$$$$$$$ ============================================================
+
+#$$$$$$$$$$$$$ SECTION: FORCE TECHILA R DIR (ABSOLUTE, STABLE)
+
+base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)  #$$$$$$$$$$$$$
+
+if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R") #$$$$$$$$$$$$$
+base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE) #$$$$$$$$$$$$$
+
+source(file.path(base_dir, "activation_functions.R"))               #$$$$$$$$$$$$$
+source(file.path(base_dir, "optimizers.R"))                          #$$$$$$$$$$$$$
+source(file.path(base_dir, "update_weights_block.R"))               #$$$$$$$$$$$$$
+source(file.path(base_dir, "update_biases_block.R"))                #$$$$$$$$$$$$$
+source(file.path(base_dir, "performance_relevance_metrics.R"))      #$$$$$$$$$$$$$
+source(file.path(base_dir, "utils.R"))                               #$$$$$$$$$$$$$
+source(file.path(base_dir, "reports", "evaluate_predictions_report.R")) #$$$$$$$$$$$$$
+
+## ============================================================
+## SECTION: REQUIRED PACKAGES (install if missing, then load)
+## ============================================================
+
+.required_pkgs <- c(
+  "R6", "cluster", "fpc", "tibble", "dplyr", "tidyverse",
+  "ggplot2", "plotly", "gridExtra", "rlist", "writexl", "readxl",
+  "tidyr", "purrr", "pracma", "openxlsx", "pROC", "ggplotify"
+)
+
+.installed <- rownames(installed.packages())
+.missing <- setdiff(.required_pkgs, .installed)
+
+if (length(.missing) > 0) {
+  message(
+    "[PKGS] Installing missing packages: ",
+    paste(.missing, collapse = ", ")
+  )
+  install.packages(.missing, dependencies = TRUE)
+} else {
+  message("[PKGS] All required packages are installed.")
+}
+
+invisible(lapply(
+  .required_pkgs,
+  function(p) suppressPackageStartupMessages(library(p, character.only = TRUE))
+))
+
+rm(.required_pkgs, .installed, .missing)
+
+
+#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_____/\\\\\\\\\\\__________/\\\\\________/\\\\\_____/\\\___/\\\\\_____/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___/\\\/////////\\\______/\\\///\\\_____\/\\\\\\___\/\\\__\/\\\\\\___\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #__\//\\\______\///_____/\\\/__\///\\\___\/\\\/\\\__\/\\\__\/\\\/\\\__\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -24,11 +81,11 @@
 #__/\\\______\//\\\____\///\\\__/\\\_____\/\\\__\//\\\\\\__\/\\\__\//\\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_\///\\\\\\\\\\\/_______\///\\\\\/______\/\\\___\//\\\\\__\/\\\___\//\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___\///////////___________\/////________\///_____\/////___\///_____\/////_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # Step 1: Define the Self-Organizing Neural Network (SONN) class
 
 
-SONN <- R6::R6Class( 
+SONN <- R6Class(
   "SONN",
   lock_objects = FALSE,
   public = list(
@@ -1888,31 +1945,31 @@ SONN <- R6::R6Class(
           
           if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + 
-                ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) + 
-                ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"), 
-                     y = "Value") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot(df_accsat, aes(x = Epoch)) +
+                geom_line(aes(y = Accuracy), size = 1) +
+                geom_line(aes(y = Loss),     size = 1) +
+                labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"),
+                     y = "Value") +
+                theme_minimal() +
+                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path("plots", fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
           if (self$viewPerEpochPlots("saturation_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + 
-                ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) + 
-                ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"), 
-                     y = "Output Value") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot(df_accsat, aes(x = Epoch)) +
+                geom_line(aes(y = MeanOutput), size = 1) +
+                geom_line(aes(y = StdOutput),  size = 1) +
+                labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
+                     y = "Output Value") +
+                theme_minimal() +
+                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path("plots", fname("output_saturation_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
           
@@ -2087,15 +2144,15 @@ SONN <- R6::R6Class(
           # 3) Max Weight Magnitude
           if (self$viewPerEpochPlots("max_weight_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) + 
-                ggplot2::geom_line(size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"), 
-                     y = "Max |Weight|") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot(df_maxw, aes(x = Epoch, y = MaxWeight)) +
+                geom_line(size = 1) +
+                labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
+                     y = "Max |Weight|") +
+                theme_minimal() +
+                theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path("plots", fname("max_weight_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
@@ -2136,7 +2193,7 @@ SONN <- R6::R6Class(
           
           
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            
+          
             to_one_hot_matrix <- function(y_vec, levels_ref = NULL) {
               if (is.matrix(y_vec) && ncol(y_vec) > 1L && all(y_vec %in% c(0, 1, NA))) {
                 Y <- matrix(as.numeric(y_vec), nrow = nrow(y_vec), ncol = ncol(y_vec))
@@ -2382,7 +2439,7 @@ SONN <- R6::R6Class(
             }
             
           } else if (!is.null(X_train) && !is.null(y_train) && isFALSE(validation_metrics)) {
-            
+
             # -------- Training path (when validation metrics are disabled) --------
             predicted_output_train <- tryCatch(
               self$predict(
@@ -2797,7 +2854,7 @@ SONN <- R6::R6Class(
 #
 
 # Step 2: Define the Deep Dynamic Experimental of Self-Organizing Neural Networks (DDESONN) class
-DDESONN <- R6::R6Class( 
+DDESONN <- R6Class(
   "DDESONN",
   lock_objects = FALSE,
   public = list(
@@ -2877,28 +2934,8 @@ DDESONN <- R6::R6Class(
         verbose      = FALSE
       )
 
-
-    ## ============================================================
-    ## SECTION: EvaluatePredictionsReportPlotsConfig (module)       #$$$$$$$$$$$$$
-    ## ============================================================
-      self$EvaluatePredictionsReportPlotsConfig <- list(
-        pred_vs_error_scatter = FALSE,  # pred_vs_error_scatter.png
-        roc_curve             = FALSE,  # roc_curve.png
-        pr_curve              = FALSE,  # pr_curve.png
-        legacy_conf_heatmap   = FALSE,  # confusion_heatmap_legacy.png
-        
-        # Accuracy plot family (single toggle + selector)               #$$$$$$$$$$$$$
-        accuracy_plots         = FALSE,                                #$$$$$$$$$$$$$
-        accuracy_plot_mode     = "both",  # "accuracy"|"accuracy_tuned"|"both"  #$$$$$$$$$$$$$
-        
-        multiclass_heatmap    = FALSE,  # confusion_matrix_multiclass_heatmap.png
-        
-        viewAllPlots          = FALSE,  # overrides everything above
-        verbose               = FALSE
-      )
-      
-    
     },
+
     # Function to normalize specific columns in the data
     normalize_data = function(Rdata, numeric_columns) {
       # Calculate mean and standard deviation for each numeric feature
@@ -2925,7 +2962,40 @@ DDESONN <- R6::R6Class(
     },
     # Function to perform batch normalization on specific columns in the data
     batch_normalize_data = function(Rdata, numeric_columns, gamma_bn, beta_bn, epsilon_bn = epsilon_bn, momentum_bn = momentum_bn, is_training_bn = is_training_bn) {
+  
+      # ========================= DEBUG: BN INPUT STATE =========================
+      cat("\n[BN DEBUG] Entering batch_normalize_data()\n")
 
+      cat("[BN DEBUG] class(Rdata): ", class(Rdata), "\n", sep = "")
+      cat("[BN DEBUG] dim(Rdata): ", paste(dim(Rdata), collapse = " x "), "\n", sep = "")
+
+      cat("[BN DEBUG] numeric_columns:\n")
+      print(numeric_columns)
+
+      # Safe subset (prevents drop-to-vector)
+      bn_subset <- try(Rdata[, numeric_columns, drop = FALSE], silent = TRUE)
+
+      cat("[BN DEBUG] subset dim: ")
+      if (inherits(bn_subset, "try-error")) {
+        cat("ERROR SUBSETTING\n")
+        print(bn_subset)
+      } else {
+        cat(paste(dim(bn_subset), collapse = " x "), "\n", sep = "")
+      }
+
+      cat("[BN DEBUG] subset colnames:\n")
+      if (!inherits(bn_subset, "try-error")) {
+        print(colnames(bn_subset))
+      }
+
+      cat("[BN DEBUG] head(subset):\n")
+      if (!inherits(bn_subset, "try-error") && ncol(bn_subset) > 0) {
+        print(head(bn_subset))
+      } else {
+        cat("<<EMPTY SUBSET>>\n")
+      }
+      # ========================================================================
+      stop()
       if (is_training_bn) {
         # Training mode: Compute mean and variance from the current batch
         batch_mean_bn <- colMeans(Rdata[, numeric_columns])
@@ -2999,18 +3069,6 @@ DDESONN <- R6::R6Class(
       flag <- isTRUE(val) || (is.logical(val) && length(val) == 1 && !is.na(val) && val)
       on_all || flag
     },
-    ## ============================================================
-    ## SECTION: Plot gate — EvaluatePredictionsReport               #$$$$$$$$$$$$$
-    ## ============================================================
-    viewEvaluatePredictionsReportPlots=function(name){#$$$$$$$$$$$$$
-      cfg<-self$EvaluatePredictionsReportPlotsConfig#$$$$$$$$$$$$$
-      if(!is.list(cfg))return(FALSE)#$$$$$$$$$$$$$
-      on_all<-isTRUE(cfg$viewAllPlots)||isTRUE(cfg$verbose)#$$$$$$$$$$$$$
-      val<-cfg[[name]]#$$$$$$$$$$$$$
-      flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)#$$$$$$$$$$$$$
-      on_all||flag#$$$$$$$$$$$$$
-    },
-    #$$$$$$$$$$$$$
     train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       # Normalize the input data
@@ -3055,7 +3113,7 @@ DDESONN <- R6::R6Class(
               batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, gamma_bn, `*`)
               batch_data[, numeric_columns] <- sweep(batch_data[, numeric_columns, drop = FALSE], 2, beta_bn, `+`)
               if (verbose) {
-                print(paste("Batch Mean: ", toString(round(batch_mean_bn, 6))))
+                print(paste("Batch Mean : ", toString(round(batch_mean_bn, 6))))
                 print(paste("Batch Variance: ", toString(round(batch_var_bn, 6))))
               }
             }
@@ -3434,8 +3492,8 @@ DDESONN <- R6::R6Class(
             # Save only if global save is enabled
             if (.save_enabled) {
               try(suppressWarnings(suppressMessages(
-                ggplot2::ggsave(out, p, width = 6, height = 4, dpi = 300) 
-              )), silent = TRUE) 
+                ggsave(out, p, width = 6, height = 4, dpi = 300)
+              )), silent = TRUE)
             }
 
             # Print (view) — gated by same per-group flag
@@ -3473,6 +3531,16 @@ DDESONN <- R6::R6Class(
         invisible(NULL)
 
 
+
+
+
+
+
+
+        # At the end of the training process, call the predict function
+        # trained_predictions <<- self$predict(Rdata, labels, activation_functions)
+        # print(dim(labels))
+        predicted_outputAndTime$loss_status <- 'exceeds_10000'
 
 
 
@@ -3573,9 +3641,7 @@ DDESONN <- R6::R6Class(
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-# print(head(single_predicted_output))
-# print(head(y_validation))
-# stop()
+
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             eval_result <- EvaluatePredictionsReport(
@@ -3588,6 +3654,8 @@ DDESONN <- R6::R6Class(
               all_best_val_probs = best_val_probs,
               all_best_val_labels = best_val_labels,
               verbose = verbose,
+              # --- NEW: pass tuned scalar to skip sweep ---
+              accuracy_plot = "both",                    # or "default" or "both"
               tuned_threshold_override = best_threshold,
               SONN = self$ensemble[[i]]
             )
@@ -3669,6 +3737,8 @@ DDESONN <- R6::R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
+
+
 
 
           performance_list[[i]] <- calculate_performance(
@@ -4230,16 +4300,16 @@ DDESONN <- R6::R6Class(
           }
 
           # Create box plot
-          high_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + 
-            ggplot2::geom_boxplot() + 
-            ggplot2::labs(title = unique(plot_data$Title), 
-                 x = "Metric", 
-                 y = "Value") + 
-            ggplot2::theme_minimal() 
+          high_mean_plot <- ggplot(plot_data, aes(x = Metric, y = Value)) +
+            geom_boxplot() +
+            labs(title = unique(plot_data$Title),
+                 x = "Metric",
+                 y = "Value") +
+            theme_minimal()
 
           # Add text labels for the outliers
-          high_mean_plot <- high_mean_plot + 
-            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) 
+          high_mean_plot <- high_mean_plot +
+            geom_text(aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3)
 
           # Store the plot in the list
           high_mean_plots[[metric]] <- high_mean_plot
@@ -4275,8 +4345,8 @@ DDESONN <- R6::R6Class(
         # Check if plot_data is not empty
         if (nrow(plot_data_low) > 0) {
           # Add a column to identify outliers
-          plot_data <- plot_data_low %>% 
-            dplyr::mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA)) 
+          plot_data <- plot_data_low %>%
+            mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA))
 
           # Add columns for outliers
           plot_data$Model_Name_Outlier <- plot_data$Model_Name
@@ -4292,16 +4362,16 @@ DDESONN <- R6::R6Class(
           }
 
           # Create box plot
-          low_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + 
-            ggplot2::geom_boxplot() + 
-            ggplot2::labs(title = unique(plot_data$Title), 
-                 x = "Metric", 
-                 y = "Value") + 
-            ggplot2::theme_minimal() 
+          low_mean_plot <- ggplot(plot_data, aes(x = Metric, y = Value)) +
+            geom_boxplot() +
+            labs(title = unique(plot_data$Title),
+                 x = "Metric",
+                 y = "Value") +
+            theme_minimal()
 
           # Add text labels for the outliers
-          low_mean_plot <- low_mean_plot + 
-            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) 
+          low_mean_plot <- low_mean_plot +
+            geom_text(aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3)
 
           # Store the plot in the list
           low_mean_plots[[metric]] <- low_mean_plot
@@ -4321,7 +4391,6 @@ DDESONN <- R6::R6Class(
     }
     ,
     store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
-
 
       # ---------------- helpers (lightweight; keep most original structure) ----------------
       to_num_mat <- function(x) {
@@ -4536,7 +4605,7 @@ DDESONN <- R6::R6Class(
       )
       
       # Ensure output dir exists (CRAN-safe: no warnings, recursive ok)
-      plots_dir <- file.path(ddesonn_plots_dir(get0("output_root", inherits = TRUE, ifnotfound = NULL)), "training")
+      plots_dir <- "plots"
       if (!dir.exists(plots_dir)) dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
       
       # Drop any NULL names before building paths (prevents file.path() errors)
@@ -4546,6 +4615,8 @@ DDESONN <- R6::R6Class(
       # keep alias if referenced elsewhere
       t_paths <- artifact_paths
       
+      
+
       # --- Create metadata list (preserved, using explicit CLASSIFICATION_MODE) ---
       metadata <- list(
         input_size = input_size,

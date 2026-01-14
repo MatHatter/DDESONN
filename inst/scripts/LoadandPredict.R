@@ -19,8 +19,7 @@
 # - Rich DEBUG prints with [LP-DBG]/[SAFE-DBG]/[DSE-DBG].
 # =====================================================================
 
-suppressWarnings(try(source("R/utils.R"), silent = TRUE))
-suppressWarnings(try(source("R/performance_relevance_metrics.R"), silent = TRUE))
+suppressPackageStartupMessages(library(DDESONN))
 
 # -----------------------
 # Schema guard (minimal)

@@ -1,6 +1,6 @@
 # ===============================================================
 # DeepDynamic — DDESONN
-# Deep Dynamic Ensemble Self-Organizing Neural Network
+# Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
 # 
@@ -14,7 +14,8 @@
 # Intended future distribution: CRAN package.
 # ===============================================================
 
-suppressPackageStartupMessages(library(DDESONN))
+source("R/DDESONN.R")
+source("R/utils.R")
 
 # # Define parameters
 ## =========================
@@ -26,7 +27,7 @@ CLASSIFICATION_MODE <- "binary"
 self_org <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
-x <- 1
+seeds <- 501:1000
 train <- TRUE
 test <- TRUE
 init_method <- "he" #variance_scaling" #glorot_uniform" #"orthogonal" #"orthogonal" #lecun" #xavier"
@@ -48,7 +49,7 @@ if (CLASSIFICATION_MODE == "binary") {
   optimizer <- "adagrad"
   lr <- .125
   lambda <- 0.00028
-  num_epochs <- 3
+  num_epochs <- 360
   custom_scale <- 1.04349
 } else if (CLASSIFICATION_MODE == "multiclass") {
   init_method <- "he"
@@ -1051,13 +1052,13 @@ if (isTRUE(sampleWeights)) {
 
 
 
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #    ██████  ██████  ███    ██ ████████ ██████   ██████  ██          ██████   █████  ███    ██ ███████ ██  $$$$$$$$$$$$$$
 #  ██      ██    ██ ████   ██    ██    ██   ██ ██    ██ ██          ██   ██ ██   ██ ████   ██ ██      ██   $$$$$$$$$$$$$$
 # ██      ██    ██ ██ ██  ██    ██    ██████  ██    ██ ██          ██████  ███████ ██ ██  ██ █████   ██    $$$$$$$$$$$$$$
 #██      ██    ██ ██  ██ ██    ██    ██   ██ ██    ██ ██          ██      ██   ██ ██  ██ ██ ██      ██     $$$$$$$$$$$$$$
 #██████  ██████  ██   ████    ██    ██   ██  ██████  ███████     ██      ██   ██ ██   ████ ███████ ███████ $$$$$$$$$$$$$$
-# $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 viewTables <- FALSE
 Losses_At_Optimal_Epoch_filenumber <- 3
@@ -1117,6 +1118,9 @@ num_networks        <- get0("num_networks", ifnotfound = 1L)
 num_temp_iterations <- get0("num_temp_iterations", ifnotfound = 0L)   # 0 = MAIN only (no TEMP)
 do_ensemble         <- get0("do_ensemble", ifnotfound = FALSE)         # TRUE ⇒ run MAIN (+ TEMP if >0)
 
+# firstRun is only used to build the MAIN holder in ensemble mode
+firstRun <- TRUE
+
 j <- 1L
 ensembles <- list(main_ensemble = vector("list"), temp_ensemble = vector("list"))
 
@@ -1137,21 +1141,6 @@ performance_high_mean_plots <- FALSE
 performance_low_mean_plots  <- FALSE
 relevance_high_mean_plots   <- FALSE
 relevance_low_mean_plots    <- FALSE
-
-# ============================================================
-# EvaluatePredictionsReport plots (TOP-LEVEL toggles)
-# ============================================================
-
-pred_vs_error_scatter <- FALSE  # pred_vs_error_scatter.png
-roc_curve             <- FALSE  # roc_curve.png
-pr_curve              <- FALSE  # pr_curve.png
-legacy_conf_heatmap   <- FALSE  # confusion_heatmap_legacy.png
-
-# Accuracy plot family (single toggle + selector)              
-accuracy_plots         <- FALSE                               
-accuracy_plot_mode     <- "both"  # "accuracy"|"accuracy_tuned"|"both" 
-
-multiclass_heatmap    <- FALSE 
 
 
 
@@ -1194,13 +1183,9 @@ if(train) {
     agg_metrics_file_test  <- file.path(RUN_DIR, sprintf("SingleRun_Test_Metrics_%s_seeds_%s.rds",          s_chr, ts_stamp))
     agg_metrics_file_train <- file.path(RUN_DIR, sprintf("SingleRun_Train_Acc_Val_Metrics_%s_seeds_%s.rds", s_chr, ts_stamp))
     
-    # New: pretty-only outputs (train / validation)
-    agg_pred_file_train <- file.path(RUN_DIR, sprintf("SingleRun_Pretty_Train_Metrics_%s_seeds_%s.rds",      s_chr, ts_stamp))
-    agg_pred_file_val   <- file.path(RUN_DIR, sprintf("SingleRun_Pretty_Validation_Metrics_%s_seeds_%s.rds", s_chr, ts_stamp))
-    
     main_model  <- NULL
     metrics_rows <- list()  # collect TRAIN metrics rows (seed × slot)
-    
+
     for (i in seq_along(seeds)) {
       s <- seeds[i]
       set.seed(s)
@@ -1434,7 +1419,7 @@ if(train) {
       }
       
       # ============================
-      # TEST EVAL (per-slot, per-seed) #ATTENATION will 
+      # TEST EVAL (per-slot, per-seed)
       # ============================
       if (isTRUE(test)) {
         for (k in seq_len(max(1L, as.integer(num_networks)))) {
@@ -1455,9 +1440,6 @@ if(train) {
           }
           assign(env_name, md_k, envir = .GlobalEnv)
           
-          ## -----------------------------
-          ## EXISTING: TEST pretty + metrics
-          ## -----------------------------
           ret <- tryCatch(
             DDESONN_predict_eval(
               LOAD_FROM_RDS = FALSE,
@@ -1481,6 +1463,7 @@ if(train) {
           )
           
           ok <- !is.null(ret) && is.null(ret$problem_stage)
+          
           if (!ok) {
             st <- if (is.null(ret)) "threw-error" else paste0("failed-stage:", ret$problem_stage)
             message(sprintf("[single-run][TEST] seed=%s slot=%d did NOT write (%s). stage_log=%s",
@@ -1488,58 +1471,18 @@ if(train) {
           } else {
             cat(sprintf("[single-run][TEST] seed=%s slot=%d wrote ✓\n", s, k))
           }
+        
           
-          ## -----------------------------------
-          ## NEW: TRAIN pretty-only (no metrics)
-          ## -----------------------------------
-          tryCatch(
-            DDESONN_predict_eval(
-              LOAD_FROM_RDS = FALSE,
-              ENV_META_NAME = env_name,
-              INPUT_SPLIT   = "train",
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              RUN_INDEX = i,
-              SEED      = s,
-              OUTPUT_DIR = RUN_DIR,
-              OUT_DIR_ASSERT = RUN_DIR,
-              SAVE_METRICS_RDS = FALSE,                 # pretty-only
-              METRICS_PREFIX   = "metrics_train",
-              AGG_PREDICTIONS_FILE = agg_pred_file_train, # define in RUN DIR SETUP
-              AGG_METRICS_FILE     = NULL,               # disable metrics
-              MODEL_SLOT           = k
-            ),
-            error = function(e) {
-              message(sprintf("[single-run][TRAIN] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-            }
-          )
+        
           
-          ## ----------------------------------------
-          ## NEW: VALIDATION pretty-only (no metrics)
-          ## ----------------------------------------
-          tryCatch(
-            DDESONN_predict_eval(
-              LOAD_FROM_RDS = FALSE,
-              ENV_META_NAME = env_name,
-              INPUT_SPLIT   = "validation",
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              RUN_INDEX = i,
-              SEED      = s,
-              OUTPUT_DIR = RUN_DIR,
-              OUT_DIR_ASSERT = RUN_DIR,
-              SAVE_METRICS_RDS = FALSE,                  # pretty-only
-              METRICS_PREFIX   = "metrics_validation",
-              AGG_PREDICTIONS_FILE = agg_pred_file_val,  # define in RUN DIR SETUP
-              AGG_METRICS_FILE     = NULL,               # disable metrics
-              MODEL_SLOT           = k
-            ),
-            error = function(e) {
-              message(sprintf("[single-run][VALIDATION] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-            }
-          )
-          
-        }  # end slot loop
-      }    # end if(test)
-      
+        }
+        
+        
+
+        
+        
+        
+      }
       
       # retain last model for container attach
       if (i == length(seeds)) main_model <- run_model
@@ -1658,139 +1601,6 @@ if(train) {
       }
     }
     
-    ## ============================
-    ## NEW: Clean AGG PREDICTION files to restore y_prob etc.
-    ## ============================
-    
-    ## TEST PREDICTIONS (SingleRun_Pretty_Test_Metrics_*.rds)
-    if (file.exists(agg_pred_file_test)) {
-      dfp <- try(readRDS(agg_pred_file_test), silent = TRUE)
-      if (!inherits(dfp, "try-error") && is.data.frame(dfp) && NROW(dfp)) {
-        if (!"run_index" %in% names(dfp) && "RUN_INDEX" %in% names(dfp)) dfp$run_index <- suppressWarnings(as.integer(dfp$RUN_INDEX))
-        if (!"RUN_INDEX" %in% names(dfp) && "run_index" %in% names(dfp)) dfp$RUN_INDEX <- suppressWarnings(as.integer(dfp$run_index))
-        
-        if (!"seed" %in% names(dfp) && "SEED" %in% names(dfp)) dfp$seed <- suppressWarnings(as.integer(dfp$SEED))
-        if (!"SEED" %in% names(dfp) && "seed" %in% names(dfp)) dfp$SEED <- suppressWarnings(as.integer(dfp$seed))
-        
-        if (!"model_slot" %in% names(dfp) && "MODEL_SLOT" %in% names(dfp)) dfp$model_slot <- suppressWarnings(as.integer(dfp$MODEL_SLOT))
-        if (!"MODEL_SLOT" %in% names(dfp) && "model_slot" %in% names(dfp)) dfp$MODEL_SLOT <- suppressWarnings(as.integer(dfp$model_slot))
-        
-        if (!"split" %in% names(dfp)) {
-          if ("SPLIT" %in% names(dfp)) dfp$split <- tolower(as.character(dfp$SPLIT)) else dfp$split <- "test"
-        } else {
-          dfp$split <- tolower(as.character(dfp$split))
-        }
-        dfp$SPLIT <- toupper(dfp$split)
-        
-        if (!"CLASSIFICATION_MODE" %in% names(dfp)) {
-          dfp$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
-        } else {
-          dfp$CLASSIFICATION_MODE <- toupper(as.character(dfp$CLASSIFICATION_MODE))
-        }
-        
-        if (!"y_prob" %in% names(dfp) && "y_pred" %in% names(dfp)) {
-          dfp$y_prob <- suppressWarnings(as.numeric(dfp$y_pred))
-        }
-        if ("y_prob" %in% names(dfp)) {
-          dfp$y_prob <- suppressWarnings(as.numeric(dfp$y_prob))
-        }
-        if ("y_true" %in% names(dfp)) {
-          dfp$y_true <- suppressWarnings(as.numeric(dfp$y_true))
-        }
-        if (!"y_pred" %in% names(dfp) && "y_prob" %in% names(dfp)) {
-          dfp$y_pred <- dfp$y_prob
-        }
-        
-        saveRDS(dfp, agg_pred_file_test)
-      }
-    }
-    
-    ## TRAIN PREDICTIONS (SingleRun_Pretty_Train_Metrics_*.rds)
-    if (file.exists(agg_pred_file_train)) {
-      dfp_tr <- try(readRDS(agg_pred_file_train), silent = TRUE)
-      if (!inherits(dfp_tr, "try-error") && is.data.frame(dfp_tr) && NROW(dfp_tr)) {
-        if (!"run_index" %in% names(dfp_tr) && "RUN_INDEX" %in% names(dfp_tr)) dfp_tr$run_index <- suppressWarnings(as.integer(dfp_tr$RUN_INDEX))
-        if (!"RUN_INDEX" %in% names(dfp_tr) && "run_index" %in% names(dfp_tr)) dfp_tr$RUN_INDEX <- suppressWarnings(as.integer(dfp_tr$run_index))
-        
-        if (!"seed" %in% names(dfp_tr) && "SEED" %in% names(dfp_tr)) dfp_tr$seed <- suppressWarnings(as.integer(dfp_tr$SEED))
-        if (!"SEED" %in% names(dfp_tr) && "seed" %in% names(dfp_tr)) dfp_tr$SEED <- suppressWarnings(as.integer(dfp_tr$seed))
-        
-        if (!"model_slot" %in% names(dfp_tr) && "MODEL_SLOT" %in% names(dfp_tr)) dfp_tr$model_slot <- suppressWarnings(as.integer(dfp_tr$MODEL_SLOT))
-        if (!"MODEL_SLOT" %in% names(dfp_tr) && "model_slot" %in% names(dfp_tr)) dfp_tr$MODEL_SLOT <- suppressWarnings(as.integer(dfp_tr$model_slot))
-        
-        if (!"split" %in% names(dfp_tr)) {
-          if ("SPLIT" %in% names(dfp_tr)) dfp_tr$split <- tolower(as.character(dfp_tr$SPLIT)) else dfp_tr$split <- "train"
-        } else {
-          dfp_tr$split <- tolower(as.character(dfp_tr$split))
-        }
-        dfp_tr$SPLIT <- toupper(dfp_tr$split)
-        
-        if (!"CLASSIFICATION_MODE" %in% names(dfp_tr)) {
-          dfp_tr$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
-        } else {
-          dfp_tr$CLASSIFICATION_MODE <- toupper(as.character(dfp_tr$CLASSIFICATION_MODE))
-        }
-        
-        if (!"y_prob" %in% names(dfp_tr) && "y_pred" %in% names(dfp_tr)) {
-          dfp_tr$y_prob <- suppressWarnings(as.numeric(dfp_tr$y_pred))
-        }
-        if ("y_prob" %in% names(dfp_tr)) {
-          dfp_tr$y_prob <- suppressWarnings(as.numeric(dfp_tr$y_prob))
-        }
-        if ("y_true" %in% names(dfp_tr)) {
-          dfp_tr$y_true <- suppressWarnings(as.numeric(dfp_tr$y_true))
-        }
-        if (!"y_pred" %in% names(dfp_tr) && "y_prob" %in% names(dfp_tr)) {
-          dfp_tr$y_pred <- dfp_tr$y_prob
-        }
-        
-        saveRDS(dfp_tr, agg_pred_file_train)
-      }
-    }
-    
-    ## VALIDATION PREDICTIONS (SingleRun_Pretty_Validation_Metrics_*.rds)
-    if (file.exists(agg_pred_file_val)) {
-      dfp_val <- try(readRDS(agg_pred_file_val), silent = TRUE)
-      if (!inherits(dfp_val, "try-error") && is.data.frame(dfp_val) && NROW(dfp_val)) {
-        if (!"run_index" %in% names(dfp_val) && "RUN_INDEX" %in% names(dfp_val)) dfp_val$run_index <- suppressWarnings(as.integer(dfp_val$RUN_INDEX))
-        if (!"RUN_INDEX" %in% names(dfp_val) && "run_index" %in% names(dfp_val)) dfp_val$RUN_INDEX <- suppressWarnings(as.integer(dfp_val$run_index))
-        
-        if (!"seed" %in% names(dfp_val) && "SEED" %in% names(dfp_val)) dfp_val$seed <- suppressWarnings(as.integer(dfp_val$SEED))
-        if (!"SEED" %in% names(dfp_val) && "seed" %in% names(dfp_val)) dfp_val$SEED <- suppressWarnings(as.integer(dfp_val$seed))
-        
-        if (!"model_slot" %in% names(dfp_val) && "MODEL_SLOT" %in% names(dfp_val)) dfp_val$model_slot <- suppressWarnings(as.integer(dfp_val$MODEL_SLOT))
-        if (!"MODEL_SLOT" %in% names(dfp_val) && "model_slot" %in% names(dfp_val)) dfp_val$MODEL_SLOT <- suppressWarnings(as.integer(dfp_val$model_slot))
-        
-        if (!"split" %in% names(dfp_val)) {
-          if ("SPLIT" %in% names(dfp_val)) dfp_val$split <- tolower(as.character(dfp_val$SPLIT)) else dfp_val$split <- "validation"
-        } else {
-          dfp_val$split <- tolower(as.character(dfp_val$split))
-        }
-        dfp_val$SPLIT <- toupper(dfp_val$split)
-        
-        if (!"CLASSIFICATION_MODE" %in% names(dfp_val)) {
-          dfp_val$CLASSIFICATION_MODE <- toupper(CLASSIFICATION_MODE)
-        } else {
-          dfp_val$CLASSIFICATION_MODE <- toupper(as.character(dfp_val$CLASSIFICATION_MODE))
-        }
-        
-        if (!"y_prob" %in% names(dfp_val) && "y_pred" %in% names(dfp_val)) {
-          dfp_val$y_prob <- suppressWarnings(as.numeric(dfp_val$y_pred))
-        }
-        if ("y_prob" %in% names(dfp_val)) {
-          dfp_val$y_prob <- suppressWarnings(as.numeric(dfp_val$y_prob))
-        }
-        if ("y_true" %in% names(dfp_val)) {
-          dfp_val$y_true <- suppressWarnings(as.numeric(dfp_val$y_true))
-        }
-        if (!"y_pred" %in% names(dfp_val) && "y_prob" %in% names(dfp_val)) {
-          dfp_val$y_pred <- dfp_val$y_prob
-        }
-        
-        saveRDS(dfp_val, agg_pred_file_val)
-      }
-    }
-    
     # attach last main model to container
     if (!is.null(main_model)) {
       main_model$ensemble_number <- 0L
@@ -1810,7 +1620,6 @@ if(train) {
       }
     }
   }
-  
   
   
   
@@ -2067,10 +1876,6 @@ if(train) {
     agg_pred_file    <- file.path(RUN_DIR, sprintf("agg_predictions_test__%s_seeds_%s.rds", total_seeds_chr, ts_stamp))
     agg_metrics_file <- file.path(RUN_DIR, sprintf("agg_metrics_test__%s_seeds_%s.rds",     total_seeds_chr, ts_stamp))
     
-    ## NEW: pretty-only (no metrics aggregation)
-    agg_pred_file_train <- file.path(RUN_DIR, sprintf("Ensembles_Pretty_Train_Metrics_%s_seeds_%s.rds",      total_seeds_chr, ts_stamp))
-    agg_pred_file_val   <- file.path(RUN_DIR, sprintf("Ensembles_Pretty_Validation_Metrics_%s_seeds_%s.rds", total_seeds_chr, ts_stamp))
-    
     ## Pre-create train/val metrics file in the run folder
     out_path_train <- file.path(RUN_DIR, sprintf("Ensembles_Train_Acc_Val_Metrics_%s_seeds_%s.rds",
                                                  length(seeds), ts_stamp))
@@ -2115,29 +1920,6 @@ if(train) {
         N = N, lambda = lambda, ensemble_number = 1L, ensembles = ensembles,
         ML_NN = ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, init_method = init_method, custom_scale = custom_scale
       )
-      
-      ## =========================
-      ## PLOT CONFIG (ENSEMBLE MAIN)
-      ## =========================
-      if (length(main_model$ensemble)) {
-        for (m in seq_along(main_model$ensemble)) {
-          main_model$ensemble[[m]]$PerEpochViewPlotsConfig <- list(
-            accuracy_plot   = isTRUE(accuracy_plot),
-            saturation_plot = isTRUE(saturation_plot),
-            max_weight_plot = isTRUE(max_weight_plot),
-            viewAllPlots    = isTRUE(viewAllPlots),
-            verbose         = isTRUE(verbose)
-          )
-          main_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list(
-            performance_high_mean_plots = isTRUE(performance_high_mean_plots),
-            performance_low_mean_plots  = isTRUE(performance_low_mean_plots),
-            relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),
-            relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),
-            viewAllPlots                = isTRUE(viewAllPlots),
-            verbose                     = isTRUE(verbose)
-          )
-        }
-      }
       
       model_results_main <<- main_model$train(
         Rdata=X, labels=y, X_train=X_train, y_train=y_train, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
@@ -2258,60 +2040,19 @@ if(train) {
       if (num_temp_iterations == 0L && isTRUE(test)) {
         for (k in seq_len(K)) {
           ENV_META_NAME <- resolve_env_meta(k, "main", 1L)
-          
-          ## -----------------------------
-          ## EXISTING: TEST pretty + metrics
-          ## -----------------------------
           DDESONN_predict_eval(
             LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "test",
             CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-            OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = TRUE,      # <— keep metrics for TEST
+            OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = TRUE,      # <— [FIX-OPTIONAL] match single-run
             METRICS_PREFIX = "metrics_test",
             AGG_PREDICTIONS_FILE = agg_pred_file, AGG_METRICS_FILE = agg_metrics_file,
             MODEL_SLOT = k
           )
-          
-          ## -----------------------------------
-          ## NEW: TRAIN pretty-only (no metrics)
-          ## -----------------------------------
-          tryCatch(
-            DDESONN_predict_eval(
-              LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "train",
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-              OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE,           # pretty-only
-              METRICS_PREFIX = "metrics_train",
-              AGG_PREDICTIONS_FILE = agg_pred_file_train,               # << new
-              AGG_METRICS_FILE = NULL,                                  # disable metrics
-              MODEL_SLOT = k
-            ),
-            error = function(e) {
-              message(sprintf("[ENSEMBLE C][TRAIN] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-            }
-          )
-          
-          ## ----------------------------------------
-          ## NEW: VALIDATION pretty-only (no metrics)
-          ## ----------------------------------------
-          tryCatch(
-            DDESONN_predict_eval(
-              LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "validation",
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-              OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE,           # pretty-only
-              METRICS_PREFIX = "metrics_validation",
-              AGG_PREDICTIONS_FILE = agg_pred_file_val,                 # << new
-              AGG_METRICS_FILE = NULL,                                  # disable metrics
-              MODEL_SLOT = k
-            ),
-            error = function(e) {
-              message(sprintf("[ENSEMBLE C][VALIDATION] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-            }
-          )
         }
-        
-        ## >>> FIX: normalize TEST agg file so fuser never sees "no entries"
+        ## >>> FIX: normalize agg file so fuser never sees "no entries"
         .fix_agg_layout_for_fuser(agg_pred_file, run_index = i, seed = s, split = "test", classification_mode = CLASSIFICATION_MODE)
         
-        ## >>> NEW: post-filter ensemble TEST agg metrics (unchanged)
+        ## >>> NEW: post-filter ensemble TEST agg metrics
         if (file.exists(agg_metrics_file)) {
           df <- try(readRDS(agg_metrics_file), silent = TRUE)
           if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
@@ -2455,7 +2196,6 @@ if(train) {
         }
       }
       
-      
       ## Scenario D prune/add with logs
       if (num_temp_iterations > 0L) {
         for (j in seq_len(num_temp_iterations)) {
@@ -2466,29 +2206,6 @@ if(train) {
             ensemble_number = j + 1L, ensembles = ensembles, ML_NN=ML_NN, activation_functions=activation_functions, activation_functions_predict=activation_functions_predict, init_method=init_method, custom_scale=custom_scale
           )
           ensembles$temp_ensemble[[1]] <- temp_model
-          
-          ## =========================
-          ## PLOT CONFIG (ENSEMBLE TEMP)
-          ## =========================
-          if (length(temp_model$ensemble)) {
-            for (m in seq_along(temp_model$ensemble)) {
-              temp_model$ensemble[[m]]$PerEpochViewPlotsConfig <- list(
-                accuracy_plot   = isTRUE(accuracy_plot),
-                saturation_plot = isTRUE(saturation_plot),
-                max_weight_plot = isTRUE(max_weight_plot),
-                viewAllPlots    = isTRUE(viewAllPlots),
-                verbose         = isTRUE(verbose)
-              )
-              temp_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list(
-                performance_high_mean_plots = isTRUE(performance_high_mean_plots),
-                performance_low_mean_plots  = isTRUE(performance_low_mean_plots),
-                relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),
-                relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),
-                viewAllPlots                = isTRUE(viewAllPlots),
-                verbose                     = isTRUE(verbose)
-              )
-            }
-          }
           
           model_results_temp <<- temp_model$train(
             Rdata=X, labels=y, X_train=X_train, y_train=y_train, lr=lr, lr_decay_rate=lr_decay_rate, lr_decay_epoch=lr_decay_epoch,
@@ -2545,7 +2262,7 @@ if(train) {
           best_val_acc_tmp       <- try(model_results_temp$predicted_outputAndTime$best_val_acc,             silent=TRUE); if (inherits(best_val_acc_tmp,"try-error")) best_val_acc_tmp <- NA_real_
           best_val_epoch_tmp     <- try(model_results_temp$predicted_outputAndTime$best_val_epoch,           silent=TRUE); if (inherits(best_val_epoch_tmp,"try-error")) best_val_epoch_tmp <- NA_integer_
           best_val_pred_time_tmp <- try(model_results_temp$predicted_outputAndTime$best_val_prediction_time, silent=TRUE); if (inherits(best_val_pred_time_tmp,"try-error")) best_val_pred_time_tmp <- NA_real_
-          
+
           for (k in seq_len(K)) {
             tvar <- temp_meta_var(j + 1L, k)
             if (!exists(tvar, envir = .GlobalEnv)) next
@@ -2662,60 +2379,19 @@ if(train) {
         if (isTRUE(test)) {
           for (k in seq_len(K)) {
             ENV_META_NAME <- resolve_env_meta(k, "main", num_temp_iterations)
-            
-            ## -----------------------------
-            ## EXISTING: TEST pretty + metrics
-            ## -----------------------------
             DDESONN_predict_eval(
               LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "test",
               CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-              OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = TRUE,   # per-slot files + feeds fuser
+              OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = TRUE,   # <— [FIX-OPTIONAL] per-slot files
               METRICS_PREFIX = "metrics_test",
               AGG_PREDICTIONS_FILE = agg_pred_file, AGG_METRICS_FILE = agg_metrics_file,
               MODEL_SLOT = k
             )
-            
-            ## -----------------------------------
-            ## NEW: TRAIN pretty-only (no metrics)
-            ## -----------------------------------
-            tryCatch(
-              DDESONN_predict_eval(
-                LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "train",
-                CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-                OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE,         # pretty-only
-                METRICS_PREFIX = "metrics_train",
-                AGG_PREDICTIONS_FILE = agg_pred_file_train,             # collects pretty rows
-                AGG_METRICS_FILE = NULL,                                # disable metrics
-                MODEL_SLOT = k
-              ),
-              error = function(e) {
-                message(sprintf("[ENSEMBLE A][TRAIN] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-              }
-            )
-            
-            ## ----------------------------------------
-            ## NEW: VALIDATION pretty-only (no metrics)
-            ## ----------------------------------------
-            tryCatch(
-              DDESONN_predict_eval(
-                LOAD_FROM_RDS = FALSE, ENV_META_NAME = ENV_META_NAME, INPUT_SPLIT = "validation",
-                CLASSIFICATION_MODE = CLASSIFICATION_MODE, RUN_INDEX = i, SEED = s,
-                OUTPUT_DIR = RUN_DIR, SAVE_METRICS_RDS = FALSE,         # pretty-only
-                METRICS_PREFIX = "metrics_validation",
-                AGG_PREDICTIONS_FILE = agg_pred_file_val,               # collects pretty rows
-                AGG_METRICS_FILE = NULL,                                # disable metrics
-                MODEL_SLOT = k
-              ),
-              error = function(e) {
-                message(sprintf("[ENSEMBLE A][VALIDATION] seed=%s slot=%d predict_eval ERROR: %s", s, k, conditionMessage(e)))
-              }
-            )
           }
-          
-          ## >>> keep your existing TEST post-processing
+          ## >>> FIX: normalize agg file so fuser never sees "no entries"
           .fix_agg_layout_for_fuser(agg_pred_file, run_index = i, seed = s, split = "test", classification_mode = CLASSIFICATION_MODE)
           
-          ## >>> post-filter ensemble TEST agg metrics (unchanged)
+          ## >>> NEW: post-filter ensemble TEST agg metrics (same as Scenario C)
           if (file.exists(agg_metrics_file)) {
             df <- try(readRDS(agg_metrics_file), silent = TRUE)
             if (!inherits(df, "try-error") && is.data.frame(df) && NROW(df)) {
@@ -2859,7 +2535,6 @@ if(train) {
             }
           }
         }
-        
       }
       
       ## ==========================
@@ -2984,31 +2659,7 @@ if(train) {
       saveRDS(df, agg_path)
       cat("Reindexed (by serial) AGG file:", agg_path, " | rows=", nrow(df), "\n")
     }
-    
-    ## ============================
-    ## NEW: normalize TRAIN / VAL pretty agg files (restore y_prob etc.)
-    ## ============================
-    if (file.exists(agg_pred_file_train)) {
-      .fix_agg_layout_for_fuser(
-        agg_pred_file_train,
-        run_index = NULL,
-        seed = NULL,
-        split = "train",
-        classification_mode = CLASSIFICATION_MODE
-      )
-    }
-    if (file.exists(agg_pred_file_val)) {
-      .fix_agg_layout_for_fuser(
-        agg_pred_file_val,
-        run_index = NULL,
-        seed = NULL,
-        split = "validation",
-        classification_mode = CLASSIFICATION_MODE
-      )
-    }
-    
   }
-  
   
   
   

@@ -7,13 +7,13 @@
 # No fallbacks. Tracks are fully independent.
 # ================================================================
 
+suppressPackageStartupMessages(library(DDESONN))
+
 options(stringsAsFactors = FALSE)
 
 # ========= USER TOGGLE (pick exactly one track) ==================
 USE_TECHILA <- FALSE  # TRUE => Techila track | FALSE => Local serial track
 # ================================================================
-
-source("R/api.R")
 
 `%||%` <- function(x, y) if (is.null(x) || !length(x)) y else x
 pick_first_existing <- function(paths) {
