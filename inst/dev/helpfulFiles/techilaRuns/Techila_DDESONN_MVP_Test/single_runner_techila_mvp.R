@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
 
 ## ============================================================
-## DDESONN TECHILA MVP (foreach-based) — FULL FIXED PARITY       #$$$$$$$$$$$$$
+## DDESONN TECHILA MVP (foreach-based) — FULL FIXED PARITY       
 ## - Matches working local single-run behavior:
-##   * predict_eval is a WRITER -> read AGG_METRICS_FILE          #$$$$$$$$$$$$$
-##   * force list-shaped weight/bias records for eval             #$$$$$$$$$$$$$
-##   * predictor_fn_safe always passes weights/biases + AF_predict#$$$$$$$$$$$$$
-##   * per-worker run dir to avoid collisions                     #$$$$$$$$$$$$$
+##   * predict_eval is a WRITER -> read AGG_METRICS_FILE          
+##   * force list-shaped weight/bias records for eval             
+##   * predictor_fn_safe always passes weights/biases + AF_predict
+##   * per-worker run dir to avoid collisions                     
 ## ============================================================
 
 suppressPackageStartupMessages({
@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
 })
 
 ## ============================================================
-## SECTION: 0) Resolve runner root (Techila-safe)                #$$$$$$$$$$$$$
+## SECTION: 0) Resolve runner root (Techila-safe)                
 ## ============================================================
 .get_runner_root <- function() {
   cmd <- commandArgs(trailingOnly = FALSE)
@@ -36,14 +36,14 @@ setwd(RUNNER_ROOT)
 cat("[TECHILA] RUNNER_ROOT = ", RUNNER_ROOT, "\n", sep = "")
 
 ## ============================================================
-## SECTION: 1) Source code (LOCAL DEV)                           #$$$$$$$$$$$$$
-## - On Techila workers these are sourced via .options.files     #$$$$$$$$$$$$$
-## - Ensure report version is sourced LAST                       #$$$$$$$$$$$$$
+## SECTION: 1) Source code (LOCAL DEV)                           
+## - On Techila workers these are sourced via .options.files     
+## - Ensure report version is sourced LAST                       
 ## ============================================================
 r_files <- list.files("R", pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
 
-## Force the LOCAL runner to use the SAME report file as your single-run block  #$$$$$$$$$$$$$
-report_file <- file.path(RUNNER_ROOT, "R", "reports", "evaluate_predictions_report_original.R")  #$$$$$$$$$$$$$
+## Force the LOCAL runner to use the SAME report file as your single-run block  
+report_file <- file.path(RUNNER_ROOT, "R", "reports", "evaluate_predictions_report_original.R")  
 if (!file.exists(report_file)) {
   stop("Techila runner report file not found: ", report_file)
 }
@@ -53,15 +53,15 @@ r_files <- c(setdiff(r_files, report_file), report_file)
 
 invisible(lapply(r_files, sys.source, envir = environment()))
 
-## If package namespace is loaded, force it to use this report function too     #$$$$$$$$$$$$$
-if ("DDESONN" %in% loadedNamespaces() && exists("EvaluatePredictionsReport", inherits = TRUE)) {  #$$$$$$$$$$$$$
-  try(assign("EvaluatePredictionsReport", get("EvaluatePredictionsReport", inherits = TRUE), envir = asNamespace("DDESONN")), silent = TRUE) #$$$$$$$$$$$$$
+## If package namespace is loaded, force it to use this report function too     
+if ("DDESONN" %in% loadedNamespaces() && exists("EvaluatePredictionsReport", inherits = TRUE)) {  
+  try(assign("EvaluatePredictionsReport", get("EvaluatePredictionsReport", inherits = TRUE), envir = asNamespace("DDESONN")), silent = TRUE) 
 }
 
 ## ============================================================
-## SECTION: 1a) Files & packages for Techila workers (flattened)  #$$$$$$$$$$$$$
+## SECTION: 1a) Files & packages for Techila workers (flattened)  
 ## ============================================================
-files_to_source <- basename(list.files("R", pattern = "\\.R$", recursive = TRUE))                 #$$$$$$$$$$$$$
+files_to_source <- basename(list.files("R", pattern = "\\.R$", recursive = TRUE))                 
 
 pkgs_for_workers <- c(
   "R6",
@@ -72,7 +72,7 @@ pkgs_for_workers <- c(
 )
 
 ## ============================================================
-## SECTION: 2) Hyperparameters (match local single-run intent)   #$$$$$$$$$$$$$
+## SECTION: 2) Hyperparameters (match local single-run intent)   
 ## ============================================================
 CLASSIFICATION_MODE <- "binary"
 self_org <- FALSE
@@ -133,8 +133,8 @@ viewTables <- FALSE
 verbose <- TRUE
 
 ## ============================================================
-## SECTION: 3) Dataset load + split + scale (Techila-safe)       #$$$$$$$$$$$$$
-## - Mirrors your local single-run HF loader                      #$$$$$$$$$$$$$
+## SECTION: 3) Dataset load + split + scale (Techila-safe)       
+## - Mirrors your local single-run HF loader                      
 ## ============================================================
 csv_path <- system.file("extdata", "heart_failure_clinical_records.csv", package = "DDESONN")
 
@@ -220,7 +220,7 @@ if (USE_TIME_SPLIT) {
   cat(sprintf("[SPLIT chrono] train=%d val=%d test=%d\n",
               nrow(X_train_raw), nrow(X_validation_raw), nrow(X_test_raw)))
 } else {
-  stop("This Techila runner is locked to chrono split for parity.", call. = FALSE)  #$$$$$$$$$$$$$
+  stop("This Techila runner is locked to chrono split for parity.", call. = FALSE)  
 }
 
 X_train_scaled <- scale(X_train_raw)
@@ -257,16 +257,16 @@ input_size  <- ncol(Rdata)
 output_size <- 1L
 
 ## ============================================================
-## SECTION: 4) RUN_DIR + output files (per run)                  #$$$$$$$$$$$$$
+## SECTION: 4) RUN_DIR + output files (per run)                  
 ## ============================================================
 ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
-## Match the “always under reports with stamp” pattern            #$$$$$$$$$$$$$
-REPORTS_DIR <- normalizePath(file.path(RUNNER_ROOT, "R", "reports"), winslash = "/", mustWork = FALSE)  #$$$$$$$$$$$$$
-dir.create(REPORTS_DIR, recursive = TRUE, showWarnings = FALSE)                                         #$$$$$$$$$$$$$
+## Match the “always under reports with stamp” pattern            
+REPORTS_DIR <- normalizePath(file.path(RUNNER_ROOT, "R", "reports"), winslash = "/", mustWork = FALSE)  
+dir.create(REPORTS_DIR, recursive = TRUE, showWarnings = FALSE)                                         
 
 RUN_DIR <- normalizePath(
-  file.path(REPORTS_DIR, sprintf("Techila_MVP_run_artifacts_%s", ts_stamp)),                             #$$$$$$$$$$$$$
+  file.path(REPORTS_DIR, sprintf("Techila_MVP_run_artifacts_%s", ts_stamp)),                             
   winslash = "/",
   mustWork = FALSE
 )
@@ -278,7 +278,7 @@ agg_metrics_file_test  <- file.path(RUN_DIR, "agg_metrics_test.rds")
 cat("[TECHILA] RUN_DIR = ", RUN_DIR, "\n", sep = "")
 
 ## ============================================================
-## SECTION: 5) Helper: flatten + filter metrics                  #$$$$$$$$$$$$$
+## SECTION: 5) Helper: flatten + filter metrics                  
 ## ============================================================
 flatten_and_filter_metrics <- function(pm_list, rm_list) {
   
@@ -329,15 +329,15 @@ flatten_and_filter_metrics <- function(pm_list, rm_list) {
 }
 
 ## ============================================================
-## SECTION: 6) Register Techila foreach backend                  #$$$$$$$$$$$$$
+## SECTION: 6) Register Techila foreach backend                  
 ## ============================================================
 techila::registerDoTechila()
 cat("[TECHILA] Backend registered: ", foreach::getDoParName(),
     " | workers=", foreach::getDoParWorkers(), "\n", sep = "")
 
 ## ============================================================
-## SECTION: 7) foreach + Techila workers (FULL FIXED)            #$$$$$$$$$$$$$
-## - Per-worker metadata env + eval-writer AGG files + read back #$$$$$$$$$$$$$
+## SECTION: 7) foreach + Techila workers (FULL FIXED)            
+## - Per-worker metadata env + eval-writer AGG files + read back 
 ## ============================================================
 seeds <- 111L  # set to vector if desired: c(111L, 222L, 333L)
 
@@ -353,13 +353,13 @@ res_list <- foreach::foreach(
   set.seed(s)
   cat(sprintf("[WORKER %d] seed %d\n", i, s))
   
-  ## --------------------- worker run dir (avoid collisions) ---------------------  #$$$$$$$$$$$$$
-  WORKER_RUN_DIR <- normalizePath(                                                   #$$$$$$$$$$$$$
-    file.path(RUN_DIR, sprintf("run_%03d_seed_%s", as.integer(i), as.integer(s))),    #$$$$$$$$$$$$$
+  ## --------------------- worker run dir (avoid collisions) ---------------------  
+  WORKER_RUN_DIR <- normalizePath(                                                   
+    file.path(RUN_DIR, sprintf("run_%03d_seed_%s", as.integer(i), as.integer(s))),    
     winslash = "/",
     mustWork = FALSE
   )
-  dir.create(WORKER_RUN_DIR, recursive = TRUE, showWarnings = FALSE)                  #$$$$$$$$$$$$$
+  dir.create(WORKER_RUN_DIR, recursive = TRUE, showWarnings = FALSE)                  
   
   ## --------------------- model construct ---------------------
   N_local <- if (!isTRUE(ML_NN)) {
@@ -451,10 +451,10 @@ res_list <- foreach::foreach(
   )
   
   ## ============================================================
-  ## SECTION: FIX — build metadata env EXACTLY like local         #$$$$$$$$$$$$$
+  ## SECTION: FIX — build metadata env EXACTLY like local         
   ## ============================================================
-  MODEL_SLOT <- 1L                                                                     #$$$$$$$$$$$$$
-  env_name   <- sprintf("Ensemble_Main_0_model_%d_metadata", as.integer(MODEL_SLOT))   #$$$$$$$$$$$$$
+  MODEL_SLOT <- 1L                                                                     
+  env_name   <- sprintf("Ensemble_Main_0_model_%d_metadata", as.integer(MODEL_SLOT))   
   
   slot_obj <- NULL
   if (!is.null(run_model$ensemble) && length(run_model$ensemble) >= as.integer(MODEL_SLOT)) {
@@ -491,10 +491,10 @@ res_list <- foreach::foreach(
   W_best <- .force_layer_list(W_best)
   B_best <- .force_layer_list(B_best)
   
-  predictor_fn_safe <- local({                                                        #$$$$$$$$$$$$$
+  predictor_fn_safe <- local({                                                        
     W   <- W_best
     B   <- B_best
-    AFp <- activation_functions_predict                                                #$$$$$$$$$$$$$
+    AFp <- activation_functions_predict                                                
     function(X, ...) slot_obj$predict(
       X,
       weights = W,
@@ -507,12 +507,12 @@ res_list <- foreach::foreach(
   md <- list(
     model_serial_num     = sprintf("0.main.%d", as.integer(MODEL_SLOT)),
     predictor            = slot_obj,
-    predictor_fn         = predictor_fn_safe,                                          #$$$$$$$$$$$$$
-    best_weights_record  = .force_layer_list(W_best),                                  #$$$$$$$$$$$$$
-    best_biases_record   = .force_layer_list(B_best),                                  #$$$$$$$$$$$$$
-    weights_record       = .force_layer_list(W_best),                                  #$$$$$$$$$$$$$
-    biases_record        = .force_layer_list(B_best),                                  #$$$$$$$$$$$$$
-    b_record             = .force_layer_list(B_best),                                  #$$$$$$$$$$$$$
+    predictor_fn         = predictor_fn_safe,                                          
+    best_weights_record  = .force_layer_list(W_best),                                  
+    best_biases_record   = .force_layer_list(B_best),                                  
+    weights_record       = .force_layer_list(W_best),                                  
+    biases_record        = .force_layer_list(B_best),                                  
+    b_record             = .force_layer_list(B_best),                                  
     model                = list(
       best_weights_record = .force_layer_list(W_best),
       best_biases_record  = .force_layer_list(B_best)
@@ -535,25 +535,25 @@ res_list <- foreach::foreach(
   assign(env_name, md, envir = .GlobalEnv)
   
   ## ============================================================
-  ## SECTION: FIX — eval-writer files + read-back (TEST)          #$$$$$$$$$$$$$
+  ## SECTION: FIX — eval-writer files + read-back (TEST)          
   ## ============================================================
-  agg_pred_file_test_eval    <- file.path(WORKER_RUN_DIR, sprintf("SingleRun_Pretty_Test_Metrics_seed_%s.rds", s)) #$$$$$$$$$$$$$
-  agg_metrics_file_test_eval <- file.path(WORKER_RUN_DIR, sprintf("SingleRun_Test_Metrics_seed_%s.rds",         s)) #$$$$$$$$$$$$$
+  agg_pred_file_test_eval    <- file.path(WORKER_RUN_DIR, sprintf("SingleRun_Pretty_Test_Metrics_seed_%s.rds", s)) 
+  agg_metrics_file_test_eval <- file.path(WORKER_RUN_DIR, sprintf("SingleRun_Test_Metrics_seed_%s.rds",         s)) 
   
   test_eval <- try(
     DDESONN_predict_eval(
       LOAD_FROM_RDS        = FALSE,
-      ENV_META_NAME        = env_name,                                                  #$$$$$$$$$$$$$
+      ENV_META_NAME        = env_name,                                                  
       INPUT_SPLIT          = "test",
       CLASSIFICATION_MODE  = CLASSIFICATION_MODE,
       RUN_INDEX            = as.integer(i),
       SEED                 = as.integer(s),
-      OUTPUT_DIR           = WORKER_RUN_DIR,                                             #$$$$$$$$$$$$$
-      OUT_DIR_ASSERT       = WORKER_RUN_DIR,                                             #$$$$$$$$$$$$$
-      SAVE_METRICS_RDS     = TRUE,                                                       #$$$$$$$$$$$$$
+      OUTPUT_DIR           = WORKER_RUN_DIR,                                             
+      OUT_DIR_ASSERT       = WORKER_RUN_DIR,                                             
+      SAVE_METRICS_RDS     = TRUE,                                                       
       METRICS_PREFIX       = "metrics_test",
-      AGG_PREDICTIONS_FILE = agg_pred_file_test_eval,                                    #$$$$$$$$$$$$$
-      AGG_METRICS_FILE     = agg_metrics_file_test_eval,                                 #$$$$$$$$$$$$$
+      AGG_PREDICTIONS_FILE = agg_pred_file_test_eval,                                    
+      AGG_METRICS_FILE     = agg_metrics_file_test_eval,                                 
       MODEL_SLOT           = as.integer(MODEL_SLOT)
     ),
     silent = TRUE
@@ -586,7 +586,7 @@ res_list <- foreach::foreach(
 }
 
 ## ============================================================
-## SECTION: 8) Aggregate and save results (master)               #$$$$$$$$$$$$$
+## SECTION: 8) Aggregate and save results (master)               
 ## ============================================================
 all_tr <- unlist(lapply(res_list, `[[`, "train_rows"), recursive = FALSE)
 all_te <- unlist(lapply(res_list, `[[`, "test_rows"),  recursive = FALSE)

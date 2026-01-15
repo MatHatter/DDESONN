@@ -1,22 +1,9 @@
-#' Update biases block (ML + SL) for DDESONN
-#'
-#' Direct extraction of your inlined `if (update_biases) { ... }` block.
-#' Preserves all logic, shapes, and debug prints.
-#'
-#' @param self R6 model (modified in-place)
-#' @param update_biases logical
-#' @param optimizer character
-#' @param optimizer_params_biases list (returned/updated)
-#' @param bias_gradients list of per-layer bias grads (from learn())
-#' @param errors list (used by SL path for bias grad)
-#' @param lr numeric
-#' @param reg_type NULL or one of c("L2","L1","L1_L2","Group_Lasso","Max_Norm")
-#' @param beta1,beta2,epsilon numerics
-#' @param epoch integer
-#' @param lookahead_step integer
-#' @param verbose logical
-#'
-#' @return list(updated_optimizer_params = optimizer_params_biases)
+# Update biases block (ML + SL) for DDESONN
+#
+# Direct extraction of your inlined `if (update_biases) { ... }` block.
+# Preserves all logic, shapes, and debug prints.
+#
+#
 update_biases_block <- function(
     self,
     update_biases,

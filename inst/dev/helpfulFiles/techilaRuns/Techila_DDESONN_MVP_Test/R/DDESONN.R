@@ -18,27 +18,27 @@
 ## SECTION: Load code — FORCE Techila MVP R folder
 ## ============================================================
 
-#$$$$$$$$$$$$$ ============================================================
-#$$$$$$$$$$$$$ SECTION: TECHILA / SINGLE-RUNNER SAFE SOURCES (MINIMAL)
-#$$$$$$$$$$$$$ - Forces base_dir to the real /R folder
-#$$$$$$$$$$$$$ - ZERO '..' possible
-#$$$$$$$$$$$$$ - NO list.files, NO api.R
-#$$$$$$$$$$$$$ ============================================================
+ ============================================================
+ SECTION: TECHILA / SINGLE-RUNNER SAFE SOURCES (MINIMAL)
+ - Forces base_dir to the real /R folder
+ - ZERO '..' possible
+ - NO list.files, NO api.R
+ ============================================================
 
-#$$$$$$$$$$$$$ SECTION: FORCE TECHILA R DIR (ABSOLUTE, STABLE)
+ SECTION: FORCE TECHILA R DIR (ABSOLUTE, STABLE)
 
-base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)  #$$$$$$$$$$$$$
+base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)  
 
-if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R") #$$$$$$$$$$$$$
-base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE) #$$$$$$$$$$$$$
+if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R") 
+base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE) 
 
-source(file.path(base_dir, "activation_functions.R"))               #$$$$$$$$$$$$$
-source(file.path(base_dir, "optimizers.R"))                          #$$$$$$$$$$$$$
-source(file.path(base_dir, "update_weights_block.R"))               #$$$$$$$$$$$$$
-source(file.path(base_dir, "update_biases_block.R"))                #$$$$$$$$$$$$$
-source(file.path(base_dir, "performance_relevance_metrics.R"))      #$$$$$$$$$$$$$
-source(file.path(base_dir, "utils.R"))                               #$$$$$$$$$$$$$
-source(file.path(base_dir, "reports", "evaluate_predictions_report.R")) #$$$$$$$$$$$$$
+source(file.path(base_dir, "activation_functions.R"))               
+source(file.path(base_dir, "optimizers.R"))                          
+source(file.path(base_dir, "update_weights_block.R"))               
+source(file.path(base_dir, "update_biases_block.R"))                
+source(file.path(base_dir, "performance_relevance_metrics.R"))      
+source(file.path(base_dir, "utils.R"))                               
+source(file.path(base_dir, "reports", "evaluate_predictions_report.R")) 
 
 ## ============================================================
 ## SECTION: REQUIRED PACKAGES (install if missing, then load)
@@ -71,7 +71,7 @@ invisible(lapply(
 rm(.required_pkgs, .installed, .missing)
 
 
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_____/\\\\\\\\\\\__________/\\\\\________/\\\\\_____/\\\___/\\\\\_____/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___/\\\/////////\\\______/\\\///\\\_____\/\\\\\\___\/\\\__\/\\\\\\___\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #__\//\\\______\///_____/\\\/__\///\\\___\/\\\/\\\__\/\\\__\/\\\/\\\__\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -81,7 +81,7 @@ rm(.required_pkgs, .installed, .missing)
 #__/\\\______\//\\\____\///\\\__/\\\_____\/\\\__\//\\\\\\__\/\\\__\//\\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_\///\\\\\\\\\\\/_______\///\\\\\/______\/\\\___\//\\\\\__\/\\\___\//\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___\///////////___________\/////________\///_____\/////___\///_____\/////_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # Step 1: Define the Self-Organizing Neural Network (SONN) class
 
 

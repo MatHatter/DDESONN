@@ -1,7 +1,13 @@
 #' Internal package environment used to lazily load the legacy DDESONN stack.
+#'
+#' @keywords internal
+#' @noRd
 .ddesonn_env <- NULL
 
 #' Null-coalescing helper used across the high-level API.
+#'
+#' @keywords internal
+#' @noRd
 `%||%` <- function(x, y) {
   if (is.null(x) || length(x) == 0) y else x
 }
@@ -3063,6 +3069,12 @@ ddesonn_run <- function(x,
   result
 }
 
+#' Print a summary of a DDESONN run result
+#'
+#' @param x A \code{ddesonn_run_result} object.
+#' @param ... Unused.
+#' @return \code{x}, invisibly.
+#' @method print ddesonn_run_result
 #' @export
 print.ddesonn_run_result <- function(x, ...) {
   cfg <- x$configuration %||% list()

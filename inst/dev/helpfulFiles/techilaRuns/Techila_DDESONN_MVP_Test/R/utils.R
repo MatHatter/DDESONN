@@ -13,26 +13,26 @@
 #
 # Intended future distribution: CRAN package.
 # ===============================================================
-#$$$$$$$$$$$$$ FIX: utils.R must NOT infer from caller
-#$$$$$$$$$$$$$ FIX: robust R/ resolution (run from repo root OR /R)
-#$$$$$$$$$$$$$ FIX: define ddesonn_artifacts_root (EvaluatePredictionsReport dependency)
+ FIX: utils.R must NOT infer from caller
+ FIX: robust R/ resolution (run from repo root OR /R)
+ FIX: define ddesonn_artifacts_root (EvaluatePredictionsReport dependency)
 
 # utils.R — helpers only, NEVER self-source
 
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
 
 # ---- SECTION: Resolve base_dir for /R ----
-base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)                                   #$$$$$$$$$$$$$
-if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R")                                  #$$$$$$$$$$$$$
-base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE)                                  #$$$$$$$$$$$$$
+base_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)                                   
+if (basename(base_dir) != "R") base_dir <- file.path(base_dir, "R")                                  
+base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE)                                  
 
 # ---- SECTION: Load activation_functions.R ----
 source(normalizePath(file.path(base_dir, "activation_functions.R"),
-                     winslash = "/", mustWork = TRUE))                                                #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                                                
 
 # ---- SECTION: Artifacts root helper (used by reports) ----
-ddesonn_artifacts_root <- function(output_root)                                                       #$$$$$$$$$$$$$
-  normalizePath(output_root %||% getwd(), winslash = "/", mustWork = FALSE)                            #$$$$$$$$$$$$$
+ddesonn_artifacts_root <- function(output_root)                                                       
+  normalizePath(output_root %||% getwd(), winslash = "/", mustWork = FALSE)                            
 
 # ============================================================
 # Activation Normalization Utility

@@ -20,6 +20,8 @@
 #'   - initialize_optimizer_params()
 #'   - clip_gradient_norm()
 #'   - apply_optimizer_update()
+#' @keywords internal
+#' @noRd
 update_weights_block <- function(
     self,
     update_weights,

@@ -1,10 +1,10 @@
-(?x)^inst/archives(/.*)?$ 
-(?x)^analysis(/.*)?$ 
-(?x)^artifacts(/.*)?$ 
-(?x)^plots(/.*)?$ 
-(?x)^EvaluatePredictionsReportPlots(/.*)?$ 
-(?x)^helpfulFiles(/.*)?$ 
-(?x)^junk(/.*)?$ 
+^inst/archives(/.*)?$
+^analysis(/.*)?$
+^artifacts(/.*)?$
+^plots(/.*)?$
+^EvaluatePredictionsReportPlots(/.*)?$
+^helpfulFiles(/.*)?$
+^junk(/.*)?$
 
-# If you truly have a top-level dev/ folder:
-# (?x)^dev(/.*)?$ 
+# CRAN/packaging hygiene — DO NOT SHIP DEV MATERIAL
+^inst/dev(/.*)?$

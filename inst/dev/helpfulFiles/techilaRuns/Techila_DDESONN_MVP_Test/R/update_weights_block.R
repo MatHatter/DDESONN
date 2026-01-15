@@ -1,25 +1,12 @@
-#' Update weights block (ML + SL) for DDESONN
-#' 
-#' This function is a direct extraction of your inlined `if (update_weights) { ... }`
-#' block. It preserves all original logic and debug prints.
-#' 
-#' @param self R6 model (DDESONN/SONN) – modified in-place
-#' @param update_weights logical
-#' @param optimizer character (adam, rmsprop, sgd, sgd_momentum, nag, ftrl, lamb, lookahead, adagrad, adadelta)
-#' @param optimizer_params_weights list of per-layer optimizer params (will be returned/updated)
-#' @param weight_gradients list of per-layer dL/dW from learn()
-#' @param lr numeric learning rate
-#' @param reg_type NULL or one of c("L2","L1","L1_L2","Group_Lasso","Max_Norm")
-#' @param beta1,beta2,epsilon numerics
-#' @param epoch integer
-#' @param lookahead_step integer
-#' @param verbose logical
-#' 
-#' @return list(updated_optimizer_params = optimizer_params_weights)
-#' @details Relies on existing helpers available in your namespace:
-#'   - initialize_optimizer_params()
-#'   - clip_gradient_norm()
-#'   - apply_optimizer_update()
+# Update weights block (ML + SL) for DDESONN
+# 
+# This function is a direct extraction of your inlined `if (update_weights) { ... }`
+# block. It preserves all original logic and debug prints.
+# 
+# 
+#   - initialize_optimizer_params()
+#   - clip_gradient_norm()
+#   - apply_optimizer_update()
 update_weights_block <- function(
     self,
     update_weights,

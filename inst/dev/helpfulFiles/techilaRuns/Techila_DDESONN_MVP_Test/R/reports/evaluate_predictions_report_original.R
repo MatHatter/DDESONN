@@ -17,10 +17,10 @@
 # evaluate_predictions_report.R  (FULL - accuracy + accuracy_tuned + ROC/AUC)
 # ================================================================
 
-# FIX: ensure %||% exists even if utils.R doesn't define it         #$$$$$$$$$$$$$
-`%||%` <- get0("%||%", ifnotfound = function(a, b) {               #$$$$$$$$$$$$$
-  if (!is.null(a) && length(a) && !all(is.na(a))) a else b         #$$$$$$$$$$$$$
-})                                                                  #$$$$$$$$$$$$$
+# FIX: ensure %||% exists even if utils.R doesn't define it         
+`%||%` <- get0("%||%", ifnotfound = function(a, b) {               
+  if (!is.null(a) && length(a) && !all(is.na(a))) a else b         
+})                                                                  
 
 suppressPackageStartupMessages({
   library(ggplot2)

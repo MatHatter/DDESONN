@@ -3,28 +3,28 @@
 suppressPackageStartupMessages({ library(R6) })
 
 ## ============================================================
-## SECTION: RUN ROOT (Techila-safe)                              #$$$$$$$$$$$$$
+## SECTION: RUN ROOT (Techila-safe)                              
 ## ============================================================
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "activation_functions.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "optimizers.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "update_weights_block.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "update_biases_block.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "performance_relevance_metrics.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "DDESONN.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "utils.R"),
-                     winslash = "/", mustWork = TRUE))                               #$$$$$$$$$$$$$
+                     winslash = "/", mustWork = TRUE))                               
 
 source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "R", "reports", "evaluate_predictions_report_original.R"),
                      winslash = "/", mustWork = TRUE))
@@ -124,97 +124,97 @@ viewTables <- FALSE
 verbose <- TRUE
 
 ## ============================================================
-## SECTION: SONN / DDESONN PLOTS (flags)                         #$$$$$$$$$$$$$
+## SECTION: SONN / DDESONN PLOTS (flags)                         
 ## ============================================================
-accuracy_plot     <- FALSE    #$$$$$$$$$$$$$
-saturation_plot   <- FALSE    #$$$$$$$$$$$$$
-max_weight_plot   <- FALSE    #$$$$$$$$$$$$$
+accuracy_plot     <- FALSE    
+saturation_plot   <- FALSE    
+max_weight_plot   <- FALSE    
 
-performance_high_mean_plots <- FALSE  #$$$$$$$$$$$$$
-performance_low_mean_plots  <- FALSE  #$$$$$$$$$$$$$
-relevance_high_mean_plots   <- FALSE  #$$$$$$$$$$$$$
-relevance_low_mean_plots    <- FALSE  #$$$$$$$$$$$$$
+performance_high_mean_plots <- FALSE  
+performance_low_mean_plots  <- FALSE  
+relevance_high_mean_plots   <- FALSE  
+relevance_low_mean_plots    <- FALSE  
 
-viewAllPlots <- FALSE                 #$$$$$$$$$$$$$
+viewAllPlots <- FALSE                 
 
 ## ============================================================
-## SECTION: RUN_DIR + Output files                               #$$$$$$$$$$$$$
+## SECTION: RUN_DIR + Output files                               
 ## ============================================================
-# FIX: never write artifacts next to script; ALWAYS under /R/reports with stamp          #$$$$$$$$$$$$$
-SCRIPT_DIR  <- normalizePath(dirname(sys.frames()[[1]]$ofile), winslash = "/", mustWork = TRUE)   #$$$$$$$$$$$$$
-REPORTS_DIR <- normalizePath(file.path(SCRIPT_DIR, "R", "reports"), winslash = "/", mustWork = FALSE) #$$$$$$$$$$$$$
-dir.create(REPORTS_DIR, recursive = TRUE, showWarnings = FALSE)                                   #$$$$$$$$$$$$$
+# FIX: never write artifacts next to script; ALWAYS under /R/reports with stamp          
+SCRIPT_DIR  <- normalizePath(dirname(sys.frames()[[1]]$ofile), winslash = "/", mustWork = TRUE)   
+REPORTS_DIR <- normalizePath(file.path(SCRIPT_DIR, "R", "reports"), winslash = "/", mustWork = FALSE) 
+dir.create(REPORTS_DIR, recursive = TRUE, showWarnings = FALSE)                                   
 
-ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")                                                   #$$$$$$$$$$$$$
-RUN_DIR  <- normalizePath(                                                                        #$$$$$$$$$$$$$
+ts_stamp <- format(Sys.time(), "%Y%m%d_%H%M%S")                                                   
+RUN_DIR  <- normalizePath(                                                                        
   file.path(REPORTS_DIR, sprintf("Local_MVP_run_artifacts_%s", ts_stamp)),
   winslash = "/",
   mustWork = FALSE
-)                                                                                                 #$$$$$$$$$$$$$
-dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)                                       #$$$$$$$$$$$$$
+)                                                                                                 
+dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)                                       
 
-# FIX: if legacy ./run_artifacts exists next to script, migrate it into reports + delete it       #$$$$$$$$$$$$$
-legacy_artifacts <- normalizePath(file.path(SCRIPT_DIR, "run_artifacts"), winslash="/", mustWork=FALSE) #$$$$$$$$$$$$$
-if (dir.exists(legacy_artifacts)) {                                                               #$$$$$$$$$$$$$
-  legacy_files <- try(list.files(legacy_artifacts, all.files = TRUE, full.names = TRUE, no.. = TRUE), silent = TRUE) #$$$$$$$$$$$$$
-  has_any <- (!inherits(legacy_files, "try-error") && length(legacy_files) > 0L)                  #$$$$$$$$$$$$$
+# FIX: if legacy ./run_artifacts exists next to script, migrate it into reports + delete it       
+legacy_artifacts <- normalizePath(file.path(SCRIPT_DIR, "run_artifacts"), winslash="/", mustWork=FALSE) 
+if (dir.exists(legacy_artifacts)) {                                                               
+  legacy_files <- try(list.files(legacy_artifacts, all.files = TRUE, full.names = TRUE, no.. = TRUE), silent = TRUE) 
+  has_any <- (!inherits(legacy_files, "try-error") && length(legacy_files) > 0L)                  
   
-  if (isTRUE(has_any)) {                                                                          #$$$$$$$$$$$$$
-    moved <- try(file.rename(legacy_artifacts, RUN_DIR), silent = TRUE)                            #$$$$$$$$$$$$$
-    if (inherits(moved, "try-error") || !isTRUE(moved)) {                                         #$$$$$$$$$$$$$
-      file.copy(from = legacy_files, to = RUN_DIR, recursive = TRUE, overwrite = TRUE)            #$$$$$$$$$$$$$
-      unlink(legacy_artifacts, recursive = TRUE, force = TRUE)                                    #$$$$$$$$$$$$$
-    }                                                                                             #$$$$$$$$$$$$$
-  } else {                                                                                        #$$$$$$$$$$$$$
-    unlink(legacy_artifacts, recursive = TRUE, force = TRUE)                                      #$$$$$$$$$$$$$
-  }                                                                                               #$$$$$$$$$$$$$
-}                                                                                                 #$$$$$$$$$$$$$
+  if (isTRUE(has_any)) {                                                                          
+    moved <- try(file.rename(legacy_artifacts, RUN_DIR), silent = TRUE)                            
+    if (inherits(moved, "try-error") || !isTRUE(moved)) {                                         
+      file.copy(from = legacy_files, to = RUN_DIR, recursive = TRUE, overwrite = TRUE)            
+      unlink(legacy_artifacts, recursive = TRUE, force = TRUE)                                    
+    }                                                                                             
+  } else {                                                                                        
+    unlink(legacy_artifacts, recursive = TRUE, force = TRUE)                                      
+  }                                                                                               
+}                                                                                                 
 
-seed_value <- 111L                                                                                 #$$$$$$$$$$$$$
-agg_metrics_file_train <- file.path(RUN_DIR, sprintf("agg_metrics_train_seed_%s.rds", seed_value)) #$$$$$$$$$$$$$
-agg_metrics_file_test  <- file.path(RUN_DIR, sprintf("agg_metrics_test_seed_%s.rds",  seed_value)) #$$$$$$$$$$$$$
-
-## ============================================================
-## SECTION: FIX — eval-writer AGG files (do NOT collide w outputs) #$$$$$$$$$$$$$
-## ============================================================
-# These are ONLY for DDESONN_predict_eval() to append into, mirroring single-run behavior.  #$$$$$$$$$$$$$
-# They are separate from agg_metrics_file_* which you write at the end of this script.     #$$$$$$$$$$$$$
-agg_pred_file_test_eval    <- file.path(RUN_DIR, sprintf("SingleRun_Pretty_Test_Metrics_seed_%s.rds", seed_value)) #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-agg_metrics_file_test_eval <- file.path(RUN_DIR, sprintf("SingleRun_Test_Metrics_seed_%s.rds",         seed_value)) #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
+seed_value <- 111L                                                                                 
+agg_metrics_file_train <- file.path(RUN_DIR, sprintf("agg_metrics_train_seed_%s.rds", seed_value)) 
+agg_metrics_file_test  <- file.path(RUN_DIR, sprintf("agg_metrics_test_seed_%s.rds",  seed_value)) 
 
 ## ============================================================
-## SECTION: FIX — ensure MODEL_SLOT always exists                #$$$$$$$$$$$$$
+## SECTION: FIX — eval-writer AGG files (do NOT collide w outputs) 
 ## ============================================================
-if (!exists("MODEL_SLOT", envir = .GlobalEnv, inherits = TRUE) || is.null(get("MODEL_SLOT", envir = .GlobalEnv))) { #$$$$$$$$$$$$$
-  MODEL_SLOT <- 1L                                                                                 #$$$$$$$$$$$$$
-} else {                                                                                            #$$$$$$$$$$$$$
-  MODEL_SLOT <- as.integer(get("MODEL_SLOT", envir = .GlobalEnv))                                   #$$$$$$$$$$$$$
-}                                                                                                   #$$$$$$$$$$$$$
-assign("MODEL_SLOT", MODEL_SLOT, envir = .GlobalEnv)                                                 #$$$$$$$$$$$$$
+# These are ONLY for DDESONN_predict_eval() to append into, mirroring single-run behavior.  
+# They are separate from agg_metrics_file_* which you write at the end of this script.     
+agg_pred_file_test_eval    <- file.path(RUN_DIR, sprintf("SingleRun_Pretty_Test_Metrics_seed_%s.rds", seed_value))  
+agg_metrics_file_test_eval <- file.path(RUN_DIR, sprintf("SingleRun_Test_Metrics_seed_%s.rds",         seed_value))  
 
 ## ============================================================
-## SECTION: Load the dataset (Techila-safe path)                 #$$$$$$$$$$$$$
+## SECTION: FIX — ensure MODEL_SLOT always exists                
 ## ============================================================
-csv_path <- system.file("extdata", "heart_failure_clinical_records.csv", package = "DDESONN")     #$$$$$$$$$$$$$
+if (!exists("MODEL_SLOT", envir = .GlobalEnv, inherits = TRUE) || is.null(get("MODEL_SLOT", envir = .GlobalEnv))) { 
+  MODEL_SLOT <- 1L                                                                                 
+} else {                                                                                            
+  MODEL_SLOT <- as.integer(get("MODEL_SLOT", envir = .GlobalEnv))                                   
+}                                                                                                   
+assign("MODEL_SLOT", MODEL_SLOT, envir = .GlobalEnv)                                                 
 
-project_root <- getwd()                                                                           #$$$$$$$$$$$$$
-if (!nzchar(csv_path)) {                                                                          #$$$$$$$$$$$$$
-  for (i in 1:10) {                                                                               #$$$$$$$$$$$$$
+## ============================================================
+## SECTION: Load the dataset (Techila-safe path)                 
+## ============================================================
+csv_path <- system.file("extdata", "heart_failure_clinical_records.csv", package = "DDESONN")     
+
+project_root <- getwd()                                                                           
+if (!nzchar(csv_path)) {                                                                          
+  for (i in 1:10) {                                                                               
     candidate <- file.path(project_root, "inst", "extdata", "heart_failure_clinical_records.csv")
-    if (file.exists(candidate)) break                                                             #$$$$$$$$$$$$$
-    parent <- dirname(project_root)                                                               #$$$$$$$$$$$$$
-    if (identical(parent, project_root)) break                                                    #$$$$$$$$$$$$$
-    project_root <- parent                                                                        #$$$$$$$$$$$$$
-  }                                                                                               #$$$$$$$$$$$$$
+    if (file.exists(candidate)) break                                                             
+    parent <- dirname(project_root)                                                               
+    if (identical(parent, project_root)) break                                                    
+    project_root <- parent                                                                        
+  }                                                                                               
   
-  csv_path <- normalizePath(                                                                      #$$$$$$$$$$$$$
+  csv_path <- normalizePath(                                                                      
     file.path(project_root, "inst", "extdata", "heart_failure_clinical_records.csv"),
     winslash = "/",
     mustWork = FALSE
   )
-}                                                                                                 #$$$$$$$$$$$$$
+}                                                                                                 
 
-if (!file.exists(csv_path)) {                                                                     #$$$$$$$$$$$$$
+if (!file.exists(csv_path)) {                                                                     
   stop(
     "heart_failure_clinical_records.csv not found.\n",
     "Tried:\n",
@@ -224,15 +224,15 @@ if (!file.exists(csv_path)) {                                                   
     "Resolved project_root: ", project_root, "\n",
     call. = FALSE
   )
-}                                                                                                 #$$$$$$$$$$$$$
+}                                                                                                 
 
-cat("[DATA] Using CSV: ", csv_path, "\n", sep = "")                                               #$$$$$$$$$$$$$
+cat("[DATA] Using CSV: ", csv_path, "\n", sep = "")                                               
 
 if (CLASSIFICATION_MODE == "binary") {
-  data <- read.csv(csv_path, stringsAsFactors = FALSE)                                            #$$$$$$$$$$$$$
+  data <- read.csv(csv_path, stringsAsFactors = FALSE)                                            
   dependent_variable <- "DEATH_EVENT"
 } else {
-  stop("This single runner is locked to binary HF for exact parity.", call. = FALSE)              #$$$$$$$$$$$$$
+  stop("This single runner is locked to binary HF for exact parity.", call. = FALSE)              
 }
 
 na_count <- sum(is.na(data))
@@ -442,25 +442,25 @@ run_model <- DDESONN$new(
   custom_scale    = custom_scale
 )
 
-if (length(run_model$ensemble)) {                                                     #$$$$$$$$$$$$$
-  for (m in seq_along(run_model$ensemble)) {                                          #$$$$$$$$$$$$$
-    run_model$ensemble[[m]]$PerEpochViewPlotsConfig <- list(                          #$$$$$$$$$$$$$
-      accuracy_plot   = isTRUE(accuracy_plot),                                       #$$$$$$$$$$$$$
-      saturation_plot = isTRUE(saturation_plot),                                     #$$$$$$$$$$$$$
-      max_weight_plot = isTRUE(max_weight_plot),                                     #$$$$$$$$$$$$$
-      viewAllPlots    = isTRUE(viewAllPlots),                                        #$$$$$$$$$$$$$
-      verbose         = isTRUE(verbose)                                              #$$$$$$$$$$$$$
-    )                                                                                #$$$$$$$$$$$$$
-    run_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list( #$$$$$$$$$$$$$
-      performance_high_mean_plots = isTRUE(performance_high_mean_plots),             #$$$$$$$$$$$$$
-      performance_low_mean_plots  = isTRUE(performance_low_mean_plots),              #$$$$$$$$$$$$$
-      relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),               #$$$$$$$$$$$$$
-      relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),                #$$$$$$$$$$$$$
-      viewAllPlots                = isTRUE(viewAllPlots),                            #$$$$$$$$$$$$$
-      verbose                     = isTRUE(verbose)                                  #$$$$$$$$$$$$$
-    )                                                                                #$$$$$$$$$$$$$
-  }                                                                                  #$$$$$$$$$$$$$
-}                                                                                    #$$$$$$$$$$$$$
+if (length(run_model$ensemble)) {                                                     
+  for (m in seq_along(run_model$ensemble)) {                                          
+    run_model$ensemble[[m]]$PerEpochViewPlotsConfig <- list(                          
+      accuracy_plot   = isTRUE(accuracy_plot),                                       
+      saturation_plot = isTRUE(saturation_plot),                                     
+      max_weight_plot = isTRUE(max_weight_plot),                                     
+      viewAllPlots    = isTRUE(viewAllPlots),                                        
+      verbose         = isTRUE(verbose)                                              
+    )                                                                                
+    run_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list( 
+      performance_high_mean_plots = isTRUE(performance_high_mean_plots),             
+      performance_low_mean_plots  = isTRUE(performance_low_mean_plots),              
+      relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),               
+      relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),                
+      viewAllPlots                = isTRUE(viewAllPlots),                            
+      verbose                     = isTRUE(verbose)                                  
+    )                                                                                
+  }                                                                                  
+}                                                                                    
 
 cat("[LOCAL] training...\n")
 
@@ -530,189 +530,189 @@ train_row <- data.frame(
 )
 
 ## ============================================================
-## SECTION: METADATA BUILD (report-safe)                         #$$$$$$$$$$$$$
+## SECTION: METADATA BUILD (report-safe)                         
 ## ============================================================
-env_name   <- sprintf("Ensemble_Main_0_model_%d_metadata", as.integer(MODEL_SLOT))      #$$$$$$$$$$$$$
+env_name   <- sprintf("Ensemble_Main_0_model_%d_metadata", as.integer(MODEL_SLOT))      
 
-slot_obj <- NULL                                                                       #$$$$$$$$$$$$$
-if (!is.null(run_model$ensemble) && length(run_model$ensemble) >= as.integer(MODEL_SLOT)) { #$$$$$$$$$$$$$
-  slot_obj <- run_model$ensemble[[as.integer(MODEL_SLOT)]]                              #$$$$$$$$$$$$$
-} else {                                                                               #$$$$$$$$$$$$$
-  slot_obj <- run_model                                                                #$$$$$$$$$$$$$
-}                                                                                      #$$$$$$$$$$$$$
-
-## ============================================================
-## SECTION: FIX — force list-shaped records everywhere eval uses #$$$$$$$$$$$$$
-## ============================================================
-.safe_listify_record <- function(rec) {                                                #$$$$$$$$$$$$$
-  if (is.null(rec)) return(NULL)                                                       #$$$$$$$$$$$$$
-  if (is.list(rec)) return(rec)                                                        #$$$$$$$$$$$$$
-  list(rec)                                                                            #$$$$$$$$$$$$$
-}                                                                                      #$$$$$$$$$$$$$
-
-# HARD FORCE (assignment-point coercion guard)                                         #$$$$$$$$$$$$$
-.force_layer_list <- function(x) {                                                     #$$$$$$$$$$$$$
-  if (is.null(x)) return(NULL)                                                         #$$$$$$$$$$$$$
-  if (is.list(x)) return(x)                                                            #$$$$$$$$$$$$$
-  list(x)                                                                              #$$$$$$$$$$$$$
-}                                                                                      #$$$$$$$$$$$$$
-
-W_best <- NULL                                                                         #$$$$$$$$$$$$$
-B_best <- NULL                                                                         #$$$$$$$$$$$$$
-
-if (!is.null(slot_obj$best_weights_record)) W_best <- slot_obj$best_weights_record     #$$$$$$$$$$$$$
-if (!is.null(slot_obj$best_biases_record))  B_best <- slot_obj$best_biases_record      #$$$$$$$$$$$$$
-
-if (is.null(W_best) && !is.null(slot_obj$weights_record)) W_best <- slot_obj$weights_record  #$$$$$$$$$$$$$
-if (is.null(B_best) && !is.null(slot_obj$b_record))      B_best <- slot_obj$b_record         #$$$$$$$$$$$$$
-if (is.null(B_best) && !is.null(slot_obj$biases_record)) B_best <- slot_obj$biases_record    #$$$$$$$$$$$$$
-
-W_best <- .safe_listify_record(W_best)                                                 #$$$$$$$$$$$$$
-B_best <- .safe_listify_record(B_best)                                                 #$$$$$$$$$$$$$
-
-# DOUBLE HARDEN: force list-shape right before md assignment                             #$$$$$$$$$$$$$
-W_best <- .force_layer_list(W_best)                                                    #$$$$$$$$$$$$$
-B_best <- .force_layer_list(B_best)                                                    #$$$$$$$$$$$$$
+slot_obj <- NULL                                                                       
+if (!is.null(run_model$ensemble) && length(run_model$ensemble) >= as.integer(MODEL_SLOT)) { 
+  slot_obj <- run_model$ensemble[[as.integer(MODEL_SLOT)]]                              
+} else {                                                                               
+  slot_obj <- run_model                                                                
+}                                                                                      
 
 ## ============================================================
-## SECTION: BUILD md (predict signature safe)                    #$$$$$$$$$$$$$
+## SECTION: FIX — force list-shaped records everywhere eval uses 
+## ============================================================
+.safe_listify_record <- function(rec) {                                                
+  if (is.null(rec)) return(NULL)                                                       
+  if (is.list(rec)) return(rec)                                                        
+  list(rec)                                                                            
+}                                                                                      
+
+# HARD FORCE (assignment-point coercion guard)                                         
+.force_layer_list <- function(x) {                                                     
+  if (is.null(x)) return(NULL)                                                         
+  if (is.list(x)) return(x)                                                            
+  list(x)                                                                              
+}                                                                                      
+
+W_best <- NULL                                                                         
+B_best <- NULL                                                                         
+
+if (!is.null(slot_obj$best_weights_record)) W_best <- slot_obj$best_weights_record     
+if (!is.null(slot_obj$best_biases_record))  B_best <- slot_obj$best_biases_record      
+
+if (is.null(W_best) && !is.null(slot_obj$weights_record)) W_best <- slot_obj$weights_record  
+if (is.null(B_best) && !is.null(slot_obj$b_record))      B_best <- slot_obj$b_record         
+if (is.null(B_best) && !is.null(slot_obj$biases_record)) B_best <- slot_obj$biases_record    
+
+W_best <- .safe_listify_record(W_best)                                                 
+B_best <- .safe_listify_record(B_best)                                                 
+
+# DOUBLE HARDEN: force list-shape right before md assignment                             
+W_best <- .force_layer_list(W_best)                                                    
+B_best <- .force_layer_list(B_best)                                                    
+
+## ============================================================
+## SECTION: BUILD md (predict signature safe)                    
 ## ============================================================
 
 # FIX: SONN$predict requires weights/biases -> always pass them
-# FIX: also force activation_functions_predict so eval does NOT fall back to identity(NULL)  #$$$$$$$$$$$$$
-predictor_fn_safe <- local({                                                           #$$$$$$$$$$$$$
-  W   <- W_best                                                                        #$$$$$$$$$$$$$
-  B   <- B_best                                                                        #$$$$$$$$$$$$$
-  AFp <- activation_functions_predict                                                  #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
+# FIX: also force activation_functions_predict so eval does NOT fall back to identity(NULL)  
+predictor_fn_safe <- local({                                                           
+  W   <- W_best                                                                        
+  B   <- B_best                                                                        
+  AFp <- activation_functions_predict                                                   
   function(X, ...) slot_obj$predict(
     X,
     weights = W,
     biases  = B,
-    activation_functions_predict = AFp,                                                #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
+    activation_functions_predict = AFp,                                                 
     ...
   )
-})                                                                                    #$$$$$$$$$$$$$
+})                                                                                    
 
-md <- list(                                                                            #$$$$$$$$$$$$$
-  model_serial_num     = sprintf("0.main.%d", as.integer(MODEL_SLOT)),                  #$$$$$$$$$$$$$
+md <- list(                                                                            
+  model_serial_num     = sprintf("0.main.%d", as.integer(MODEL_SLOT)),                  
   
-  predictor            = slot_obj,                                                     #$$$$$$$$$$$$$
+  predictor            = slot_obj,                                                     
   
-  predictor_fn         = predictor_fn_safe,                                            #$$$$$$$$$$$$$  FIX
+  predictor_fn         = predictor_fn_safe,                                              FIX
   
-  best_weights_record  = .force_layer_list(W_best),                                    #$$$$$$$$$$$$$  FIX
-  best_biases_record   = .force_layer_list(B_best),                                    #$$$$$$$$$$$$$  FIX
-  weights_record       = .force_layer_list(W_best),                                    #$$$$$$$$$$$$$  FIX
-  biases_record        = .force_layer_list(B_best),                                    #$$$$$$$$$$$$$  FIX
-  b_record             = .force_layer_list(B_best),                                    #$$$$$$$$$$$$$  FIX
+  best_weights_record  = .force_layer_list(W_best),                                      FIX
+  best_biases_record   = .force_layer_list(B_best),                                      FIX
+  weights_record       = .force_layer_list(W_best),                                      FIX
+  biases_record        = .force_layer_list(B_best),                                      FIX
+  b_record             = .force_layer_list(B_best),                                      FIX
   
-  model                = list(                                                         #$$$$$$$$$$$$$
-    best_weights_record = .force_layer_list(W_best),                                   #$$$$$$$$$$$$$
-    best_biases_record  = .force_layer_list(B_best)                                    #$$$$$$$$$$$$$
-  ),                                                                                   #$$$$$$$$$$$$$
+  model                = list(                                                         
+    best_weights_record = .force_layer_list(W_best),                                   
+    best_biases_record  = .force_layer_list(B_best)                                    
+  ),                                                                                   
   
-  MODEL_SLOT           = as.integer(MODEL_SLOT),                                        #$$$$$$$$$$$$$
-  ML_NN                = isTRUE(ML_NN),                                                 #$$$$$$$$$$$$$
+  MODEL_SLOT           = as.integer(MODEL_SLOT),                                        
+  ML_NN                = isTRUE(ML_NN),                                                 
   
-  feature_names        = colnames(X_test),                                              #$$$$$$$$$$$$$
-  X_train              = as.matrix(X_train),                                            #$$$$$$$$$$$$$
-  y_train              = as.matrix(y_train),                                            #$$$$$$$$$$$$$
-  X_validation         = as.matrix(X_validation),                                       #$$$$$$$$$$$$$
-  y_validation         = as.matrix(y_validation),                                       #$$$$$$$$$$$$$
-  X_test               = as.matrix(X_test),                                             #$$$$$$$$$$$$$
-  y_test               = as.matrix(y_test),                                             #$$$$$$$$$$$$$
-  CLASSIFICATION_MODE  = CLASSIFICATION_MODE,                                           #$$$$$$$$$$$$$
-  threshold            = threshold,                                                     #$$$$$$$$$$$$$
-  threshold_function   = threshold_function,                                            #$$$$$$$$$$$$$
-  numeric_columns      = numeric_columns                                                #$$$$$$$$$$$$$
-)                                                                                      #$$$$$$$$$$$$$
+  feature_names        = colnames(X_test),                                              
+  X_train              = as.matrix(X_train),                                            
+  y_train              = as.matrix(y_train),                                            
+  X_validation         = as.matrix(X_validation),                                       
+  y_validation         = as.matrix(y_validation),                                       
+  X_test               = as.matrix(X_test),                                             
+  y_test               = as.matrix(y_test),                                             
+  CLASSIFICATION_MODE  = CLASSIFICATION_MODE,                                           
+  threshold            = threshold,                                                     
+  threshold_function   = threshold_function,                                            
+  numeric_columns      = numeric_columns                                                
+)                                                                                      
 
-# IMPORTANT: do NOT write back into predictor slots (R6 may coerce to matrix)            #$$$$$$$$$$$$$
+# IMPORTANT: do NOT write back into predictor slots (R6 may coerce to matrix)            
 
-assign(env_name, md, envir = .GlobalEnv)                                                #$$$$$$$$$$$$$
+assign(env_name, md, envir = .GlobalEnv)                                                
 
-X_test <<- md$X_test                                                                    #$$$$$$$$$$$$$
-y_test <<- md$y_test                                                                    #$$$$$$$$$$$$$
-
-## ============================================================
-## SECTION: DEBUG PROOF (must show TRUE)                         #$$$$$$$$$$$$$
-## ============================================================
-cat("[TEST DEBUG] meta$best_weights_record is.list: ", is.list(get(env_name, .GlobalEnv)$best_weights_record), "\n", sep="") #$$$$$$$$$$$$$
-cat("[TEST DEBUG] meta$model$best_weights_record is.list: ", is.list(get(env_name, .GlobalEnv)$model$best_weights_record), "\n", sep="") #$$$$$$$$$$$$$
-cat("[TEST DEBUG] predictor_fn exists: ", is.function(get(env_name, .GlobalEnv)$predictor_fn), "\n", sep="") #$$$$$$$$$$$$$
+X_test <<- md$X_test                                                                    
+y_test <<- md$y_test                                                                    
 
 ## ============================================================
-## SECTION: TEST DEBUG (named "test" so you can spot it)         #$$$$$$$$$$$$$
+## SECTION: DEBUG PROOF (must show TRUE)                         
 ## ============================================================
-cat("\n[TEST DEBUG] RUN_DIR: ", RUN_DIR, "\n", sep = "")                               #$$$$$$$$$$$$$
-cat("[TEST DEBUG] ENV_META_NAME: ", env_name, "\n", sep="")                            #$$$$$$$$$$$$$
-cat("[TEST DEBUG] exists(meta): ", exists(env_name, envir = .GlobalEnv), "\n", sep="") #$$$$$$$$$$$$$
-cat("[TEST DEBUG] meta keys:\n")                                                      #$$$$$$$$$$$$$
-print(names(get(env_name, envir = .GlobalEnv)))                                       #$$$$$$$$$$$$$
-cat("[TEST DEBUG] meta$model class: ", paste(class(get(env_name, envir=.GlobalEnv)$model), collapse=", "), "\n", sep="") #$$$$$$$$$$$$$
-cat("[TEST DEBUG] dims X_test / y_test:\n")                                           #$$$$$$$$$$$$$
-print(dim(get(env_name, envir = .GlobalEnv)$X_test))                                  #$$$$$$$$$$$$$
-print(dim(get(env_name, envir = .GlobalEnv)$y_test))                                  #$$$$$$$$$$$$$
+cat("[TEST DEBUG] meta$best_weights_record is.list: ", is.list(get(env_name, .GlobalEnv)$best_weights_record), "\n", sep="") 
+cat("[TEST DEBUG] meta$model$best_weights_record is.list: ", is.list(get(env_name, .GlobalEnv)$model$best_weights_record), "\n", sep="") 
+cat("[TEST DEBUG] predictor_fn exists: ", is.function(get(env_name, .GlobalEnv)$predictor_fn), "\n", sep="") 
+
+## ============================================================
+## SECTION: TEST DEBUG (named "test" so you can spot it)         
+## ============================================================
+cat("\n[TEST DEBUG] RUN_DIR: ", RUN_DIR, "\n", sep = "")                               
+cat("[TEST DEBUG] ENV_META_NAME: ", env_name, "\n", sep="")                            
+cat("[TEST DEBUG] exists(meta): ", exists(env_name, envir = .GlobalEnv), "\n", sep="") 
+cat("[TEST DEBUG] meta keys:\n")                                                      
+print(names(get(env_name, envir = .GlobalEnv)))                                       
+cat("[TEST DEBUG] meta$model class: ", paste(class(get(env_name, envir=.GlobalEnv)$model), collapse=", "), "\n", sep="") 
+cat("[TEST DEBUG] dims X_test / y_test:\n")                                           
+print(dim(get(env_name, envir = .GlobalEnv)$X_test))                                  
+print(dim(get(env_name, envir = .GlobalEnv)$y_test))                                  
 
 cat("[LOCAL] running predict_eval...\n")
 
 ## ============================================================
-## SECTION: FIX — TEST uses eval-writer + reads written metrics   #$$$$$$$$$$$$$
+## SECTION: FIX — TEST uses eval-writer + reads written metrics   
 ## ============================================================
 test_eval <- try(
   DDESONN_predict_eval(
     LOAD_FROM_RDS        = FALSE,
-    ENV_META_NAME        = env_name,                                                   #$$$$$$$$$$$$$
+    ENV_META_NAME        = env_name,                                                   
     INPUT_SPLIT          = "test",
     CLASSIFICATION_MODE  = CLASSIFICATION_MODE,
     RUN_INDEX            = 1L,
     SEED                 = seed_value,
     OUTPUT_DIR           = RUN_DIR,
     OUT_DIR_ASSERT       = RUN_DIR,
-    SAVE_METRICS_RDS     = TRUE,                                                       #$$$$$$$$$$$$$
+    SAVE_METRICS_RDS     = TRUE,                                                       
     METRICS_PREFIX       = "metrics_test",
-    AGG_PREDICTIONS_FILE = agg_pred_file_test_eval,                                    #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-    AGG_METRICS_FILE     = agg_metrics_file_test_eval,                                 #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
+    AGG_PREDICTIONS_FILE = agg_pred_file_test_eval,                                     
+    AGG_METRICS_FILE     = agg_metrics_file_test_eval,                                  
     MODEL_SLOT           = as.integer(MODEL_SLOT)
   ),
   silent = TRUE
 )
 
-if (inherits(test_eval, "try-error")) {                                               #$$$$$$$$$$$$$
-  cat("\n[TEST DEBUG] DDESONN_predict_eval FAILED\n")                                  #$$$$$$$$$$$$$
-  print(attr(test_eval, "condition"))                                                  #$$$$$$$$$$$$$
-  cat("\n")                                                                            #$$$$$$$$$$$$$
-} else {                                                                              #$$$$$$$$$$$$$
-  cat("\n[TEST DEBUG] DDESONN_predict_eval OK\n")                                      #$$$$$$$$$$$$$
-  cat("[TEST DEBUG] names(test_eval):\n")                                              #$$$$$$$$$$$$$
-  print(names(test_eval))                                                              #$$$$$$$$$$$$$
-  cat("[TEST DEBUG] (note) metrics are read from AGG_METRICS_FILE, not return object.\n") #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-  cat("\n")                                                                            #$$$$$$$$$$$$$
-}                                                                                     #$$$$$$$$$$$$$
+if (inherits(test_eval, "try-error")) {                                               
+  cat("\n[TEST DEBUG] DDESONN_predict_eval FAILED\n")                                  
+  print(attr(test_eval, "condition"))                                                  
+  cat("\n")                                                                            
+} else {                                                                              
+  cat("\n[TEST DEBUG] DDESONN_predict_eval OK\n")                                      
+  cat("[TEST DEBUG] names(test_eval):\n")                                              
+  print(names(test_eval))                                                              
+  cat("[TEST DEBUG] (note) metrics are read from AGG_METRICS_FILE, not return object.\n")  
+  cat("\n")                                                                            
+}                                                                                     
 
 ## ============================================================
-## SECTION: TEST METRICS — read what predict_eval wrote          #$$$$$$$$$$$$$
+## SECTION: TEST METRICS — read what predict_eval wrote          
 ## ============================================================
-test_df <- NULL                                                                       #$$$$$$$$$$$$$
-if (file.exists(agg_metrics_file_test_eval)) {                                        #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-  test_df <- try(readRDS(agg_metrics_file_test_eval), silent = TRUE)                  #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-  if (inherits(test_df, "try-error")) test_df <- NULL                                 #$$$$$$$$$$$$$ #$$$$$$$$$$$$$
-}                                                                                     #$$$$$$$$$$$$$
+test_df <- NULL                                                                       
+if (file.exists(agg_metrics_file_test_eval)) {                                         
+  test_df <- try(readRDS(agg_metrics_file_test_eval), silent = TRUE)                   
+  if (inherits(test_df, "try-error")) test_df <- NULL                                  
+}                                                                                     
 
-if (!is.null(test_df) && is.data.frame(test_df) && NROW(test_df) >= 1L) {             #$$$$$$$$$$$$$
-  last <- test_df[NROW(test_df), , drop = FALSE]                                      #$$$$$$$$$$$$$
-  if (!("seed" %in% names(last))) last$seed <- seed_value                             #$$$$$$$$$$$$$
-  if (!("split" %in% names(last))) last$split <- "test"                               #$$$$$$$$$$$$$
-  if (!("status" %in% names(last))) last$status <- "ok"                               #$$$$$$$$$$$$$
-  test_row <- last                                                                    #$$$$$$$$$$$$$
-} else {                                                                              #$$$$$$$$$$$$$
-  test_row <- data.frame(                                                             #$$$$$$$$$$$$$
+if (!is.null(test_df) && is.data.frame(test_df) && NROW(test_df) >= 1L) {             
+  last <- test_df[NROW(test_df), , drop = FALSE]                                      
+  if (!("seed" %in% names(last))) last$seed <- seed_value                             
+  if (!("split" %in% names(last))) last$split <- "test"                               
+  if (!("status" %in% names(last))) last$status <- "ok"                               
+  test_row <- last                                                                    
+} else {                                                                              
+  test_row <- data.frame(                                                             
     seed      = seed_value,
     split     = "test",
     status    = "no-metrics-written",
     row.names = NULL
   )
-}                                                                                     #$$$$$$$$$$$$$
+}                                                                                     
 
 if (!dir.exists(RUN_DIR)) stop("RUN_DIR disappeared before saveRDS(): ", RUN_DIR)
 saveRDS(train_row, agg_metrics_file_train)

@@ -2879,7 +2879,7 @@ DDESONN <- R6::R6Class(
 
 
     ## ============================================================
-    ## SECTION: EvaluatePredictionsReportPlotsConfig (module)       #$$$$$$$$$$$$$
+    ## SECTION: EvaluatePredictionsReportPlotsConfig (module)       
     ## ============================================================
       self$EvaluatePredictionsReportPlotsConfig <- list(
         pred_vs_error_scatter = FALSE,  # pred_vs_error_scatter.png
@@ -2887,9 +2887,9 @@ DDESONN <- R6::R6Class(
         pr_curve              = FALSE,  # pr_curve.png
         legacy_conf_heatmap   = FALSE,  # confusion_heatmap_legacy.png
         
-        # Accuracy plot family (single toggle + selector)               #$$$$$$$$$$$$$
-        accuracy_plots         = FALSE,                                #$$$$$$$$$$$$$
-        accuracy_plot_mode     = "both",  # "accuracy"|"accuracy_tuned"|"both"  #$$$$$$$$$$$$$
+        # Accuracy plot family (single toggle + selector)               
+        accuracy_plots         = FALSE,                                
+        accuracy_plot_mode     = "both",  # "accuracy"|"accuracy_tuned"|"both"  
         
         multiclass_heatmap    = FALSE,  # confusion_matrix_multiclass_heatmap.png
         
@@ -3000,17 +3000,17 @@ DDESONN <- R6::R6Class(
       on_all || flag
     },
     ## ============================================================
-    ## SECTION: Plot gate — EvaluatePredictionsReport               #$$$$$$$$$$$$$
+    ## SECTION: Plot gate — EvaluatePredictionsReport               
     ## ============================================================
-    viewEvaluatePredictionsReportPlots=function(name){#$$$$$$$$$$$$$
-      cfg<-self$EvaluatePredictionsReportPlotsConfig#$$$$$$$$$$$$$
-      if(!is.list(cfg))return(FALSE)#$$$$$$$$$$$$$
-      on_all<-isTRUE(cfg$viewAllPlots)||isTRUE(cfg$verbose)#$$$$$$$$$$$$$
-      val<-cfg[[name]]#$$$$$$$$$$$$$
-      flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)#$$$$$$$$$$$$$
-      on_all||flag#$$$$$$$$$$$$$
+    viewEvaluatePredictionsReportPlots=function(name){
+      cfg<-self$EvaluatePredictionsReportPlotsConfig
+      if(!is.list(cfg))return(FALSE)
+      on_all<-isTRUE(cfg$viewAllPlots)||isTRUE(cfg$verbose)
+      val<-cfg[[name]]
+      flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)
+      on_all||flag
     },
-    #$$$$$$$$$$$$$
+    
     train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       # Normalize the input data

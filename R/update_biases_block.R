@@ -17,6 +17,8 @@
 #' @param verbose logical
 #'
 #' @return list(updated_optimizer_params = optimizer_params_biases)
+#' @keywords internal
+#' @noRd
 update_biases_block <- function(
     self,
     update_biases,
