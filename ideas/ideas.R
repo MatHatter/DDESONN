@@ -1,1 +1,0 @@
-# gradient clipping in update weights

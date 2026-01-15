@@ -219,6 +219,12 @@ Verify original dataset licensing if repurposed.
 ## Roadmap
 
 - Add structured hyperparameter grid and sweep utilities for controlled experimentation
+- Optional preprocessing: capped + log1p transforms for heavy-tailed features (e.g., creatinine_phosphokinase) to reduce extreme outlier influence while preserving zeros.
+- Future diagnostic (not yet implemented): Single-run per-epoch performance tracking
+  - Track training and validation metrics across epochs for a single model run.
+  - Intended strictly for diagnostics (learning curves, overfitting, instability).
+  - Will reuse existing artifact and plot path helpers (ddesonn_artifacts_root(), ddesonn_plots_dir()); Output would live under: <artifacts_root>/plots/single_run_per_epoch/
+  - Explicitly excluded from process_performance() and ensemble summaries.
 - Potential future change: In single-run mode, ensemble orchestration is disabled, but ensemble slot objects 
   (ensemble[[k]]) and Ensemble_Main_0_model_*_metadata are still used. Decoupling these contracts would 
   require a major refactor and may be revisited later.
