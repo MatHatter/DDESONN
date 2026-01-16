@@ -232,7 +232,8 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     train_flag = TRUE,
     grouped_metrics = FALSE,
     viewTables = FALSE,
-    verbose = FALSE
+    verbose = FALSE,
+    output_root = NULL
   )
 }
 
@@ -590,7 +591,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     train = cfg$train_flag,
     grouped_metrics = cfg$grouped_metrics,
     viewTables = cfg$viewTables,
-    verbose = cfg$verbose
+    verbose = cfg$verbose,
+    output_root = cfg$output_root
   )
   
   result <- do.call(model$train, train_args)
@@ -2500,6 +2502,7 @@ ddesonn_run <- function(x,
   # Prepare training params
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
+  base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
   
   prediction_matrix <- NULL
   if (!is.null(prediction_data)) {
@@ -2878,6 +2881,7 @@ ddesonn_run <- function(x,
     temp_models <- vector("list", length = if (isTRUE(do_ensemble)) num_temp_iterations else 0L)
     if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
       tmp_overrides <- temp_overrides %||% base_train_overrides
+      tmp_overrides$output_root <- tmp_overrides$output_root %||% output_root
       temp_list <- vector("list", length = num_temp_iterations)
       for (iter in seq_len(num_temp_iterations)) {
         log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_before")

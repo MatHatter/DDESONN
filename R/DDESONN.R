@@ -1479,7 +1479,7 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose) {
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, output_root = NULL) {
       print("----------------------------------------train_network-begin----------------------------------------")
       start_time <- Sys.time()
       
@@ -1692,7 +1692,7 @@ SONN <- R6::R6Class(
                           self$viewPerEpochPlots("accuracy_plot"),
                           self$viewPerEpochPlots("saturation_plot"),
                           self$viewPerEpochPlots("max_weight_plot")))
-          if (!dir.exists("plots")) dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+          plots_dir <- ddesonn_plots_dir(output_root)
           ens <- as.integer(if (!is.null(self$ensemble_number)) self$ensemble_number else get0("ensemble_number", 1L))
           mod <- as.integer(if (exists("model_iter_num", inherits = TRUE)) model_iter_num else get0("model_iter_num", 1L))
           
@@ -1864,7 +1864,7 @@ SONN <- R6::R6Class(
           )
           cat("[fname probe] -> ", fname("probe.png"), "\n")
           
-          if (!dir.exists("plots")) dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+          plots_dir <- ddesonn_plots_dir(output_root)
           
           plot_title_prefix <- if (isTRUE(get0("do_ensemble", ifnotfound = FALSE))) {
             sprintf("DDESONN%s SONN%s | lr: %s | lambda: %s",
@@ -1897,7 +1897,7 @@ SONN <- R6::R6Class(
                      y = "Value") + 
                 ggplot2::theme_minimal() + 
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
-              out <- file.path("plots", fname("training_accuracy_loss_plot.png"))
+              out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
@@ -1912,7 +1912,7 @@ SONN <- R6::R6Class(
                      y = "Output Value") + 
                 ggplot2::theme_minimal() + 
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
-              out <- file.path("plots", fname("output_saturation_plot.png"))
+              out <- file.path(plots_dir, fname("output_saturation_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
@@ -2072,7 +2072,7 @@ SONN <- R6::R6Class(
           )
           
           # ensure output dir + title
-          if (!dir.exists("plots")) dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+          plots_dir <- ddesonn_plots_dir(output_root)
           if (!exists("plot_title_prefix", inherits = TRUE)) {
             plot_title_prefix <- if (isTRUE(get0("do_ensemble", ifnotfound = FALSE))) {
               sprintf("DDESONN%s SONN%s | lr: %s | lambda: %s",
@@ -2095,7 +2095,7 @@ SONN <- R6::R6Class(
                      y = "Max |Weight|") + 
                 ggplot2::theme_minimal() + 
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
-              out <- file.path("plots", fname("max_weight_plot.png"))
+              out <- file.path(plots_dir, fname("max_weight_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
@@ -2704,7 +2704,7 @@ SONN <- R6::R6Class(
       
       # --- Robust loss plot saver (base R) ---
       if (all(is.finite(losses))) {
-        if (!dir.exists("plots")) dir.create("plots", recursive = TRUE)
+        plots_dir <- ddesonn_plots_dir(output_root)
         
         fname_prefixer <- make_fname_prefix(
           do_ensemble     = do_ensemble,
@@ -2714,7 +2714,7 @@ SONN <- R6::R6Class(
           who             = "SONN"
         )
         
-        output_file <- file.path("plots", paste0(fname_prefixer("loss_plot"), ".png"))
+        output_file <- file.path(plots_dir, paste0(fname_prefixer("loss_plot"), ".png"))
         cat("Saving to:", normalizePath(output_file, mustWork = FALSE), "\n")
         
         if (capabilities("cairo")) {
@@ -3010,7 +3010,7 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root = NULL) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
@@ -3132,7 +3132,7 @@ DDESONN <- R6::R6Class(
 
             predicted_outputAndTime <- suppressMessages(
               self$ensemble[[i]]$train_network(
-                Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = FALSE
+                Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = FALSE, output_root = output_root
               ))
 
 
@@ -3375,7 +3375,7 @@ DDESONN <- R6::R6Class(
         .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveAlso %||% TRUE)
 
         # Prepare output dir only if we might save
-        if (.save_enabled && !dir.exists("plots")) dir.create("plots", recursive = TRUE, showWarnings = FALSE)
+        if (.save_enabled) plots_dir <- ddesonn_plots_dir(output_root)
 
         ens <- as.integer(ensemble_number)
         tot <- if (!is.null(self$ensemble)) length(self$ensemble) else as.integer(get0("num_networks", ifnotfound = 1L))
@@ -3428,7 +3428,7 @@ DDESONN <- R6::R6Class(
             nm <- .plot_label_slug(p) %||% .slug(nm_fallback)
             idx_env[[nm]] <- (idx_env[[nm]] %||% 0L) + 1L
             file_base <- sprintf("%s_%03d", nm, idx_env[[nm]])
-            out <- file.path("plots", fname(sprintf("%s.png", file_base)))
+            out <- file.path(ddesonn_plots_dir(output_root), fname(sprintf("%s.png", file_base)))
 
             # Save only if global save is enabled
             if (.save_enabled) {
