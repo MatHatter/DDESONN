@@ -1,6 +1,8 @@
 \name{ddesonn_artifacts_root}
 \alias{ddesonn_artifacts_root}
+\alias{DDESONN_artifacts_root}
 \alias{ddesonn_plots_dir}
+\alias{DDESONN_plots_dir}
 \title{Resolve artifact and plot output locations}
 \usage{
 ddesonn_artifacts_root(output_root = NULL)

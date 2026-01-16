@@ -2,6 +2,7 @@
 % Please edit documentation in R/api.R
 \name{ddesonn_model}
 \alias{ddesonn_model}
+\alias{DDESONN_model}
 \title{Create a high-level DDESONN model wrapper}
 \usage{
 ddesonn_model(

@@ -2,6 +2,7 @@
 % Please edit documentation in R/api.R
 \name{ddesonn_fit}
 \alias{ddesonn_fit}
+\alias{DDESONN_fit}
 \title{Fit a \code{ddesonn_model} with tidy inputs}
 \usage{
 ddesonn_fit(model, x, y, validation = NULL, ...)

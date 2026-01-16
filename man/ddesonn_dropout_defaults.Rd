@@ -2,6 +2,7 @@
 % Please edit documentation in R/api.R
 \name{ddesonn_dropout_defaults}
 \alias{ddesonn_dropout_defaults}
+\alias{DDESONN_dropout_defaults}
 \title{Default dropout configuration}
 \usage{
 ddesonn_dropout_defaults(hidden_sizes)
