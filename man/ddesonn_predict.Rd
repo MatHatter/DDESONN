@@ -2,7 +2,6 @@
 % Please edit documentation in R/api.R
 \name{ddesonn_predict}
 \alias{ddesonn_predict}
-\alias{DDESONN_predict}
 \title{Generate predictions from a fitted \code{ddesonn_model}}
 \usage{
 ddesonn_predict(

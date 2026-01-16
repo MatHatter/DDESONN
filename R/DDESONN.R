@@ -1518,6 +1518,8 @@ SONN <- R6::R6Class(
       last_val_predict    <- NULL
       last_train_predict  <- NULL
       
+      predicted_output_val <- NULL
+      
       val_accuracy_log <- c()
       train_accuracy_log <- c()
       loss_log <- c()
@@ -2169,9 +2171,6 @@ SONN <- R6::R6Class(
               mm[is.na(mm)] <- 0
               mm
             }
-            
-            # ensure symbol exists for all return paths
-            predicted_output_val <- NULL
             
             # -------- Validation path --------
             predicted_output_val <- tryCatch(
@@ -4194,28 +4193,44 @@ DDESONN <- R6::R6Class(
                "100%+")  # Add a catch-all label for unexpected values
       }))
     },
-
     update_performance_and_relevance_high = function(high_mean_df) {
-      # Initialize empty lists to store the plots
+
+      # ============================================================
+      # Init
+      # ============================================================
       high_mean_plots <- list()
 
-      # Loop over each unique metric
+      # ============================================================
+      # Per-metric loop
+      # ============================================================
       for (metric in unique(high_mean_df$Metric)) {
+
         # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
-        filtered_high_mean_df <- high_mean_df[!(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0), ]
+        filtered_high_mean_df <- high_mean_df[
+          !(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0),
+        ]
 
         # Filter out rows where the Value is NA or infinite
-        filtered_high_mean_df <- filtered_high_mean_df[!is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value), ]
+        filtered_high_mean_df <- filtered_high_mean_df[
+          !is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value),
+        ]
 
         # Subset the data for the current metric
         plot_data_high <- filtered_high_mean_df[filtered_high_mean_df$Metric == metric, ]
 
         # Check if plot_data is not empty
         if (nrow(plot_data_high) > 0) {
-          # Add a column to identify outliers
-          plot_data <- plot_data_high %>%
-            mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA))
 
+          # ============================================================
+          # Build plot_data + outlier labels
+          # ============================================================
+          plot_data_high$Outlier <- ifelse(
+            !is.na(plot_data_high$Value) &
+              plot_data_high$Value %in% self$identify_outliers(plot_data_high$Value),
+            plot_data_high$Value,
+            NA
+          )
+          
           # Add columns for outliers
           plot_data$Model_Name_Outlier <- plot_data$Model_Name
 
@@ -4224,102 +4239,120 @@ DDESONN <- R6::R6Class(
 
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data$Title <- paste0("Boxplot for ", metric, " (", self$create_bin_labels(plot_data$Value), ")")
+            plot_data$Title <- paste0(
+              "Boxplot for ",
+              metric,
+              " (",
+              self$create_bin_labels(plot_data$Value),
+              ")"
+            )
           } else {
             plot_data$Title <- paste("Boxplot for", metric)
           }
 
-          # Create box plot
-          high_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + 
-            ggplot2::geom_boxplot() + 
-            ggplot2::labs(title = unique(plot_data$Title), 
-                 x = "Metric", 
-                 y = "Value") + 
-            ggplot2::theme_minimal() 
+          # ============================================================
+          # Plot
+          # ============================================================
+          high_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) +
+            ggplot2::geom_boxplot() +
+            ggplot2::labs(
+              title = unique(plot_data$Title),
+              x = "Metric",
+              y = "Value"
+            ) +
+            ggplot2::theme_minimal()
 
           # Add text labels for the outliers
-          high_mean_plot <- high_mean_plot + 
-            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) 
+          high_mean_plot <- high_mean_plot +
+            ggplot2::geom_text(
+              ggplot2::aes(label = Model_Name_Outlier),
+              na.rm = TRUE,
+              hjust = -0.3
+            )
 
           # Store the plot in the list
           high_mean_plots[[metric]] <- high_mean_plot
 
-          # Save the plot in the "plot" folder (cross-platform)
-          # ggsave(
-          #   file.path("plots", paste0("high_mean_plot_", gsub("[^A-Za-z0-9_]", "_", metric), ".png")),
-          #   high_mean_plot,
-          #   width = 6,
-          #   height = 4,
-          #   dpi = 300
-          # )
         }
       }
-      return(high_mean_plots)
-    }
-    ,
 
+      return(high_mean_plots)
+    },
     update_performance_and_relevance_low = function(low_mean_df) {
       low_mean_plots <- list()
-
+  
       # Loop over each unique metric
       for (metric in unique(low_mean_df$Metric)) {
+    
         # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
-        filtered_low_mean_df <- low_mean_df[!(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0), ]
-
+        filtered_low_mean_df <- low_mean_df[
+          !(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0),
+        ]
+    
         # Filter out rows where the Value is NA or infinite
-        filtered_low_mean_df <- filtered_low_mean_df[!is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value), ]
-
+        filtered_low_mean_df <- filtered_low_mean_df[
+          !is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value),
+        ]
+    
         # Subset the data for the current metric
         plot_data_low <- filtered_low_mean_df[filtered_low_mean_df$Metric == metric, ]
-
+    
         # Check if plot_data is not empty
         if (nrow(plot_data_low) > 0) {
+      
           # Add a column to identify outliers
-          plot_data <- plot_data_low %>% 
-            dplyr::mutate(Outlier = ifelse(Value %in% self$identify_outliers(Value), Value, NA)) 
-
+          plot_data_low$Outlier <- ifelse(
+            !is.na(plot_data_low$Value) &
+              plot_data_low$Value %in% self$identify_outliers(plot_data_low$Value),
+            plot_data_low$Value,
+            NA
+          )
+          
           # Add columns for outliers
           plot_data$Model_Name_Outlier <- plot_data$Model_Name
-
+      
           # Set the RowName to NA where there are no outliers
           plot_data$Model_Name_Outlier[is.na(plot_data$Outlier)] <- NA
-
+      
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data$Title <- paste0("Boxplot for ", metric, " (", self$create_bin_labels(plot_data$Value), ")")
+            plot_data$Title <- paste0(
+              "Boxplot for ",
+              metric,
+              " (",
+              self$create_bin_labels(plot_data$Value),
+              ")"
+            )
           } else {
             plot_data$Title <- paste("Boxplot for", metric)
           }
-
+      
           # Create box plot
-          low_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) + 
-            ggplot2::geom_boxplot() + 
-            ggplot2::labs(title = unique(plot_data$Title), 
-                 x = "Metric", 
-                 y = "Value") + 
-            ggplot2::theme_minimal() 
-
+          low_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) +
+            ggplot2::geom_boxplot() +
+            ggplot2::labs(
+              title = unique(plot_data$Title),
+              x = "Metric",
+              y = "Value"
+            ) +
+            ggplot2::theme_minimal()
+      
           # Add text labels for the outliers
-          low_mean_plot <- low_mean_plot + 
-            ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3) 
-
+          low_mean_plot <- low_mean_plot +
+            ggplot2::geom_text(
+              ggplot2::aes(label = Model_Name_Outlier),
+              na.rm = TRUE,
+              hjust = -0.3
+            )
+      
           # Store the plot in the list
           low_mean_plots[[metric]] <- low_mean_plot
-
-          # Save the plot in the "plot" folder (cross-platform)
-          # ggsave(
-          #   file.path("plots", paste0("low_mean_plot_", gsub("[^A-Za-z0-9_]", "_", metric), ".png")),
-          #   low_mean_plot,
-          #   width = 6,
-          #   height = 4,
-          #   dpi = 300
-          # )
+      
         }
       }
-
+  
       return(low_mean_plots)
-    }
-    ,
+    },
     store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
 
 

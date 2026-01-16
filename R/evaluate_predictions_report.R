@@ -634,13 +634,16 @@ EvaluatePredictionsReport <- function(
       }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] legacy heatmap failed: ", conditionMessage(e)))  
     }
     
-    # Rdata_predictions (PRESERVED)
-    Rdata_predictions <- as.data.frame(X_validation) %>%
-      dplyr::mutate(
-        label = labels_flat,
-        Predictions = binary_preds_fixed,
-        prob = probs_numeric
-      )
+    # Rdata_predictions
+    # ============================================================
+    # Validation Predictions Frame (NO %>% PIPE)                 
+    # ============================================================
+    
+    Rdata_predictions <- as.data.frame(X_validation)
+    
+    Rdata_predictions[["label"]]       <- labels_flat         
+    Rdata_predictions[["Predictions"]] <- binary_preds_fixed  
+    Rdata_predictions[["prob"]]        <- probs_numeric
     
     mean_0 <- suppressWarnings(mean(Rdata_predictions$prob[Rdata_predictions$label == 0], na.rm = TRUE))
     mean_1 <- suppressWarnings(mean(Rdata_predictions$prob[Rdata_predictions$label == 1], na.rm = TRUE))

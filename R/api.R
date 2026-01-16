@@ -2,7 +2,7 @@
 #'
 #' @keywords internal
 #' @noRd
-.ddesonn_env <- NULL
+.ddesonn_env <- new.env(parent = emptyenv())
 
 #' Null-coalescing helper used across the high-level API.
 #'
@@ -19,12 +19,17 @@
 }
 
 .ddesonn_source_legacy <- function() {
-  if (is.environment(.ddesonn_env)) {
+  if (isTRUE(get0(".ddesonn_initialized", envir = .ddesonn_env, inherits = FALSE))) {
     return(invisible(.ddesonn_env))
   }
 
+  rm(list = ls(envir = .ddesonn_env, all.names = TRUE), envir = .ddesonn_env)
   ns <- getNamespace("DDESONN")
-  .ddesonn_env <<- ns
+  objs <- setdiff(ls(ns, all.names = TRUE), ".ddesonn_env")
+  for (nm in objs) {
+    assign(nm, get(nm, envir = ns, inherits = FALSE), envir = .ddesonn_env)
+  }
+  assign(".ddesonn_initialized", TRUE, envir = .ddesonn_env)
   invisible(.ddesonn_env)
 }
 

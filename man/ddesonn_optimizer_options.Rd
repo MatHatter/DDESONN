@@ -2,7 +2,6 @@
 % Please edit documentation in R/api.R
 \name{ddesonn_optimizer_options}
 \alias{ddesonn_optimizer_options}
-\alias{DDESONN_optimizer_options}
 \title{Supported optimizer identifiers}
 \usage{
 ddesonn_optimizer_options()
