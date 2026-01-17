@@ -2499,10 +2499,25 @@ ddesonn_run <- function(x,
   )
   base_model_args <- utils::modifyList(base_model_args, model_overrides, keep.null = TRUE)
   
-  # Prepare training params
+  # ============================================================
+  # SECTION: Prepare training params
+  # ============================================================
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
   base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
+  
+  # ============================================================
+  # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
+  # ============================================================
+  verbose_run <- isTRUE(base_train_overrides$verbose %||% FALSE)  #$$$$$$$$$$$$$
+  .evoke_predict <- function(where, why, seed = NA_integer_, run_index = NA_integer_) {  #$$$$$$$$$$$$$
+    if (!isTRUE(verbose_run)) return(invisible(NULL))                                  #$$$$$$$$$$$$$
+    cat(sprintf(                                                                          #$$$$$$$$$$$$$
+      "[EVOKE-PREDICT] where=%s | why=%s | seed=%s | run_index=%s\n",                    #$$$$$$$$$$$$$
+      as.character(where), as.character(why), as.character(seed), as.character(run_index)#$$$$$$$$$$$$$
+    ))                                                                                   #$$$$$$$$$$$$$
+    invisible(NULL)                                                                      #$$$$$$$$$$$$$
+  }                                                                                      #$$$$$$$$$$$$$
   
   prediction_matrix <- NULL
   if (!is.null(prediction_data)) {
@@ -2575,7 +2590,7 @@ ddesonn_run <- function(x,
       if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
     }, character(1))
   }
-
+  
   extract_y_true <- function(y_source) {
     if (is.null(y_source)) return(NULL)
     y_mat <- try(.as_numeric_matrix(y_source), silent = TRUE)
@@ -2593,7 +2608,10 @@ ddesonn_run <- function(x,
     }
     as.numeric(y_mat[, 1])
   }
-
+  
+  # ============================================================
+  # SECTION: build_split_predictions() — EVOKE prints for split-driven predict calls  #$$$$$$$$$$$$$
+  # ============================================================
   build_split_predictions <- function(model,
                                       new_data,
                                       y_source,
@@ -2601,7 +2619,15 @@ ddesonn_run <- function(x,
                                       run_idx,
                                       seed_val) {
     if (is.null(new_data)) return(NULL)
-
+    
+    # #$$$$$$$$$$$$$ EVOKE: Split diagnostics predict
+    .evoke_predict(                                                                      #$$$$$$$$$$$$$
+      where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)), #$$$$$$$$$$$$$
+      why   = "Build per-model split diagnostics table (aggregate='none', type='response')",  #$$$$$$$$$$$$$
+      seed  = seed_val,                                                                  #$$$$$$$$$$$$$
+      run_index = run_idx                                                                #$$$$$$$$$$$$$
+    )                                                                                    #$$$$$$$$$$$$$
+    
     pr <- try(
       ddesonn_predict(model, new_data, aggregate = "none", type = "response"),
       silent = TRUE
@@ -2609,18 +2635,18 @@ ddesonn_run <- function(x,
     if (inherits(pr, "try-error") || is.null(pr$per_model) || !length(pr$per_model)) {
       return(NULL)
     }
-
+    
     y_true_vec <- extract_y_true(y_source)
     rows <- list()
     ptr <- 0L
-
+    
     for (k in seq_along(pr$per_model)) {
       mat <- try(.as_numeric_matrix(pr$per_model[[k]]), silent = TRUE)
       if (inherits(mat, "try-error") || !is.matrix(mat)) next
-
+      
       n <- nrow(mat)
       if (!n) next
-
+      
       if (!is.null(y_true_vec) && length(y_true_vec) != n) {
         y_slot <- rep(NA_real_, n)
       } else if (!is.null(y_true_vec)) {
@@ -2628,7 +2654,7 @@ ddesonn_run <- function(x,
       } else {
         y_slot <- rep(NA_real_, n)
       }
-
+      
       if (classification_mode == "binary") {
         y_prob <- as.numeric(mat[, 1])
         thr <- threshold %||% attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
@@ -2641,9 +2667,9 @@ ddesonn_run <- function(x,
         y_prob <- as.numeric(mat[, 1])
         y_pred <- y_prob
       }
-
+      
       obs_idx <- seq_len(n)
-
+      
       df <- data.frame(
         run_index = rep.int(as.integer(run_idx), n),
         RUN_INDEX = rep.int(as.integer(run_idx), n),
@@ -2663,21 +2689,21 @@ ddesonn_run <- function(x,
         y_pred = y_pred,
         stringsAsFactors = FALSE
       )
-
+      
       if (classification_mode == "multiclass") {
         df$y_prob_full <- lapply(seq_len(n), function(i) as.numeric(mat[i, , drop = TRUE]))
       }
-
+      
       rows[[ptr <- ptr + 1L]] <- df
     }
-
+    
     if (!length(rows)) return(NULL)
     out <- try(do.call(rbind, rows), silent = TRUE)
     if (inherits(out, "try-error")) return(NULL)
     rownames(out) <- NULL
     out
   }
-
+  
   empty_log_tables <- function() {
     list(
       main_log = data.frame(
@@ -2841,7 +2867,9 @@ ddesonn_run <- function(x,
     list(model = main_model, slot = as.integer(worst_slot), serial = best_serial)
   }
   
-  # Per-seed main runs
+  # ============================================================
+  # SECTION: Per-seed main runs
+  # ============================================================
   runs <- lapply(seq_along(seeds), function(i) {
     seed_i <- seeds[[i]]
     if (is.null(seed_i) || length(seed_i) == 0L) {
@@ -2868,11 +2896,43 @@ ddesonn_run <- function(x,
     if (!is.null(validation)) {
       val <- list(x = validation$x, y = validation$y)
     }
+    
+    # ============================================================
+    # SECTION: EVOKE — ddesonn_run -> ddesonn_fit (BEGIN)  #$$$$$$$$$$$$$
+    # ============================================================
+    cat(sprintf(                                                                 #$$$$$$$$$$$$$
+      "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",          #$$$$$$$$$$$$$
+      "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                            #$$$$$$$$$$$$$
+      "Training main model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", #$$$$$$$$$$$$$
+      as.character(seed_i),                                                      #$$$$$$$$$$$$$
+      as.character(i)                                                           #$$$$$$$$$$$$$
+    ))                                                                           #$$$$$$$$$$$$$
+    
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
+    
+    # ============================================================
+    # SECTION: EVOKE — ddesonn_fit finished (END)  #$$$$$$$$$$$$$
+    # ============================================================
+    cat(sprintf(                                                                 #$$$$$$$$$$$$$
+      "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",            #$$$$$$$$$$$$$
+      "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                            #$$$$$$$$$$$$$
+      "ddesonn_fit() returned to ddesonn_run; any predict() emitted above could have originated inside training/metrics/validation", #$$$$$$$$$$$$$
+      as.character(seed_i),                                                      #$$$$$$$$$$$$$
+      as.character(i)                                                           #$$$$$$$$$$$$$
+    ))                                                                           #$$$$$$$$$$$$$
     
     main_pred <- NULL
     aggregate_pred <- NULL
     if (!is.null(prediction_matrix)) {
+      
+      # #$$$$$$$$$$$$$ EVOKE: Main prediction after MAIN fit (initial)
+      .evoke_predict(                                                                   #$$$$$$$$$$$$$
+        where = "ddesonn_run::per_seed(main_fit)->main_pred",                           #$$$$$$$$$$$$$
+        why   = "User prediction_data provided; compute seed-level main predictions after main fit", #$$$$$$$$$$$$$
+        seed  = seed_i,                                                                #$$$$$$$$$$$$$
+        run_index = i                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+      
       preds <- ddesonn_predict(mdl, prediction_matrix, aggregate = aggregate, type = prediction_type, threshold = threshold)
       main_pred <- preds
     }
@@ -2885,16 +2945,49 @@ ddesonn_run <- function(x,
       temp_list <- vector("list", length = num_temp_iterations)
       for (iter in seq_len(num_temp_iterations)) {
         log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_before")
+        
         # TEMP iteration: clone model or reuse with potential tweaks
         temp_model_args <- base_model_args
         temp_model_args$ensemble_number <- iter + 1L
         tmp_model <- do.call(ddesonn_model, temp_model_args)
+        
+        # ============================================================
+        # SECTION: EVOKE — ddesonn_run -> ddesonn_fit (TEMP BEGIN)  #$$$$$$$$$$$$$
+        # ============================================================
+        cat(sprintf(                                                                 #$$$$$$$$$$$$$
+          "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",          #$$$$$$$$$$$$$
+          sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      #$$$$$$$$$$$$$
+          "Training TEMP candidate model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", #$$$$$$$$$$$$$
+          as.character(seed_i),                                                      #$$$$$$$$$$$$$
+          as.character(i)                                                           #$$$$$$$$$$$$$
+        ))                                                                           #$$$$$$$$$$$$$
+        
         # training for TEMP
         do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val), tmp_overrides))
+        
+        # ============================================================
+        # SECTION: EVOKE — ddesonn_fit TEMP finished (TEMP END)  #$$$$$$$$$$$$$
+        # ============================================================
+        cat(sprintf(                                                                 #$$$$$$$$$$$$$
+          "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",            #$$$$$$$$$$$$$
+          sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      #$$$$$$$$$$$$$
+          "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any predict() emitted above could have originated inside training/metrics/validation", #$$$$$$$$$$$$$
+          as.character(seed_i),                                                      #$$$$$$$$$$$$$
+          as.character(i)                                                           #$$$$$$$$$$$$$
+        ))                                                                           #$$$$$$$$$$$$$
         
         per_seed <- NULL
         aggregate_tmp <- NULL
         if (!is.null(prediction_matrix)) {
+          
+          # #$$$$$$$$$$$$$ EVOKE: TEMP candidate evaluation predict (per-iteration)
+          .evoke_predict(                                                                #$$$$$$$$$$$$$
+            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),         #$$$$$$$$$$$$$
+            why   = "Evaluate TEMP candidate models on prediction_data (aggregate='none', type='response') for selection/mutation", #$$$$$$$$$$$$$
+            seed  = seed_i,                                                             #$$$$$$$$$$$$$
+            run_index = i                                                               #$$$$$$$$$$$$$
+          )                                                                             #$$$$$$$$$$$$$
+          
           tpred <- ddesonn_predict(tmp_model, prediction_matrix, aggregate = "none", type = "response")
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
@@ -2910,8 +3003,8 @@ ddesonn_run <- function(x,
           mdl <- added$model
         }
         log_tables <- append_movement_entries(log_tables, iter, removed, added$slot, added$serial)
-        log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_after")      
-        }
+        log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_after")
+      }
       temp_summary <- temp_list
     }
     
@@ -2921,11 +3014,23 @@ ddesonn_run <- function(x,
     
     if (!is.null(prediction_matrix)) {
       if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
+        
+        # #$$$$$$$$$$$$$ EVOKE: Recompute main prediction AFTER TEMP mutations
+        .evoke_predict(                                                                #$$$$$$$$$$$$$
+          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",                    #$$$$$$$$$$$$$
+          why   = "Recompute main predictions after TEMP-based ensemble mutation (final main model for this seed)", #$$$$$$$$$$$$$
+          seed  = seed_i,                                                              #$$$$$$$$$$$$$
+          run_index = i                                                                #$$$$$$$$$$$$$
+        )                                                                              #$$$$$$$$$$$$$
+        
         preds <- ddesonn_predict(mdl, prediction_matrix, aggregate = aggregate, type = prediction_type, threshold = threshold)
         main_pred <- preds
       }
     }
-
+    
+    # ============================================================
+    # SECTION: Split tables (each triggers ddesonn_predict inside build_split_predictions)
+    # ============================================================
     run_predictions <- list(
       train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
       validation = if (!is.null(validation) && !is.null(validation$x)) {
@@ -2939,7 +3044,7 @@ ddesonn_run <- function(x,
         NULL
       }
     )
-
+    
     list(
       seed = seed_i,
       main = list(model = mdl, predictions = main_pred),
@@ -2949,12 +3054,13 @@ ddesonn_run <- function(x,
     )
   })
   
-  # Aggregate across seeds (if prediction_matrix provided)
+  # ============================================================
+  # SECTION: Aggregate across seeds (if prediction_matrix provided)
+  # ============================================================
   main_seed_predictions <- NULL
   main_aggregate <- NULL
   temp_summary <- list()
   if (!is.null(prediction_matrix)) {
-    # collect per-seed per-model predictions (aggregate across ensemble members inside each seed)
     per_seed_preds <- lapply(runs, function(run) {
       if (is.null(run$main$predictions)) return(NULL)
       if (identical(aggregate, "none")) {
@@ -2963,18 +3069,13 @@ ddesonn_run <- function(x,
         list(run$main$predictions$prediction)
       }
     })
-    # remove NULLs
     per_seed_preds <- Filter(Negate(is.null), per_seed_preds)
     main_seed_predictions <- per_seed_preds
     
-    # aggregate across seeds if requested
     if (!identical(seed_aggregate, "none") && length(per_seed_preds)) {
-      # Convert to common array and aggregate
-      # If "aggregate=none", per_seed elements are lists of per-model matrices → stack inside seed then aggregate
-      # If "aggregate!=none", each per_seed element is a length-1 list with the already-aggregated matrix
       mats <- lapply(per_seed_preds, function(pe) {
         if (is.list(pe) && length(pe) > 1L) {
-          .aggregate_predictions(pe, aggregate = aggregate) # collapse inside seed
+          .aggregate_predictions(pe, aggregate = aggregate)
         } else if (is.list(pe) && length(pe) == 1L) {
           pe[[1]]
         } else {
@@ -2999,7 +3100,6 @@ ddesonn_run <- function(x,
         for (e in run$temp_iterations) if (identical(e$iteration, iter)) { ent <- e; break }
         ent
       })
-      # Aggregate per iteration across seeds if needed
       aggregate_pred <- NULL
       if (!identical(seed_aggregate, "none")) {
         mats <- lapply(preds, function(e) e$aggregate)
@@ -3032,13 +3132,12 @@ ddesonn_run <- function(x,
     ),
     runs = runs
   )
-
+  
   per_seed_tables <- lapply(runs, function(run) {
     preds <- run$predictions
     if (!is.list(preds) || !length(preds)) {
       return(NULL)
     }
-    # keep splits that produced concrete data.frames
     keep <- vapply(preds, function(x) is.data.frame(x) && NROW(x), logical(1))
     if (!any(keep)) {
       return(NULL)
@@ -3046,7 +3145,7 @@ ddesonn_run <- function(x,
     preds[keep]
   })
   per_seed_tables <- Filter(Negate(is.null), per_seed_tables)
-
+  
   predictions_payload <- list()
   if (!is.null(prediction_matrix)) {
     predictions_payload$per_seed_raw <- main_seed_predictions
@@ -3059,7 +3158,7 @@ ddesonn_run <- function(x,
   if (length(predictions_payload)) {
     result$predictions <- predictions_payload
   }
-
+  
   if (length(temp_summary)) {
     result$temp_predictions <- temp_summary
   }
@@ -3077,6 +3176,7 @@ ddesonn_run <- function(x,
   
   result
 }
+
 
 #' Print a summary of a DDESONN run result
 #'

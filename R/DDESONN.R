@@ -1480,6 +1480,7 @@ SONN <- R6::R6Class(
     }
     ,# Method for training the SONN with L2 regularization
     train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, output_root = NULL) {
+      
       print("----------------------------------------train_network-begin----------------------------------------")
       start_time <- Sys.time()
       
@@ -1533,6 +1534,7 @@ SONN <- R6::R6Class(
       losses <- numeric(num_epochs)
       
       total_learn_time <- 0
+      
       # ======== TRAIN LOOP ========
       if (train) {
         
@@ -1561,6 +1563,7 @@ SONN <- R6::R6Class(
             dropout_rates = dropout_rates,
             sample_weights = sample_weights
           )
+          
           # --- Error debug ---
           if (!is.null(learn_result$error)) {
             cat("[TRAIN-DBG] last-layer error summary ->",
@@ -1890,31 +1893,31 @@ SONN <- R6::R6Class(
           
           if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + 
-                ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) + 
-                ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"), 
-                     y = "Value") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
+                ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) +
+                ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) +
+                ggplot2::labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"),
+                              y = "Value") +
+                ggplot2::theme_minimal() +
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
           if (self$viewPerEpochPlots("saturation_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) + 
-                ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) + 
-                ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"), 
-                     y = "Output Value") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
+                ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) +
+                ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) +
+                ggplot2::labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
+                              y = "Output Value") +
+                ggplot2::theme_minimal() +
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
           
@@ -2089,15 +2092,15 @@ SONN <- R6::R6Class(
           # 3) Max Weight Magnitude
           if (self$viewPerEpochPlots("max_weight_plot")) {
             tryCatch({
-              p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) + 
-                ggplot2::geom_line(size = 1) + 
-                ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"), 
-                     y = "Max |Weight|") + 
-                ggplot2::theme_minimal() + 
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16)) 
+              p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) +
+                ggplot2::geom_line(size = 1) +
+                ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
+                              y = "Max |Weight|") +
+                ggplot2::theme_minimal() +
+                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
               out <- file.path(plots_dir, fname("max_weight_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png") 
+              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
@@ -2136,7 +2139,6 @@ SONN <- R6::R6Class(
           last_val_predict   <- NULL
           last_train_predict <- NULL
           
-          
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
             to_one_hot_matrix <- function(y_vec, levels_ref = NULL) {
@@ -2173,6 +2175,7 @@ SONN <- R6::R6Class(
             }
             
             # -------- Validation path --------
+            cat(sprintf("[PRED-INVOKE] train_network(): per-epoch VALIDATION predict() | epoch=%d | caller=validation_metrics\n", epoch))  # #$$$$$$$$$$$$$
             predicted_output_val <- tryCatch(
               self$predict(
                 Rdata                = X_validation,
@@ -2255,16 +2258,13 @@ SONN <- R6::R6Class(
                 
                 ## --- Compute loss manually ---
                 if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
-                  # manual multiclass cross-entropy
                   row_loss <- -rowSums(Y * log(P), na.rm = TRUE)
                   val_loss <- mean(row_loss, na.rm = TRUE)
                 } else {
-                  # fallback: mean squared error
                   val_loss <- mean((P - Y)^2, na.rm = TRUE)
                 }
                 
                 ## --- Compute accuracy ---
-                # preds = argmax(P), targs = argmax(Y)
                 preds_idx <- max.col(P, ties.method = "first")
                 targs_idx <- max.col(Y, ties.method = "first")
                 acc_vec   <- as.integer(preds_idx == targs_idx)
@@ -2338,7 +2338,6 @@ SONN <- R6::R6Class(
                 }
                 
               } else if (identical(CLASSIFICATION_MODE, "regression")) {
-                # === v2-style selection: minimize validation loss ===
                 preds_reg_val <- as.numeric(probs_val[, 1])
                 y_reg_val     <- if (is.matrix(y_val_epoch)) as.numeric(y_val_epoch[, 1]) else as.numeric(y_val_epoch)
                 val_loss      <- mean((preds_reg_val - y_reg_val)^2, na.rm = TRUE)
@@ -2383,6 +2382,7 @@ SONN <- R6::R6Class(
           } else if (!is.null(X_train) && !is.null(y_train) && isFALSE(validation_metrics)) {
             
             # -------- Training path (when validation metrics are disabled) --------
+            cat(sprintf("[PRED-INVOKE] train_network(): per-epoch TRAIN predict() (validation disabled) | epoch=%d | caller=train_no_validation\n", epoch))  # #$$$$$$$$$$$$$
             predicted_output_train <- tryCatch(
               self$predict(
                 Rdata                = X_train,
@@ -2535,8 +2535,10 @@ SONN <- R6::R6Class(
           use_best <- !is.null(best_weights) && !is.null(best_biases)
           
           if (isTRUE(use_best)) {
+            
             # recompute TRAIN preds with best snapshot
             if (!is.null(X_train)) {
+              cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=%d | caller=best_snapshot_train\n", epoch))  # #$$$$$$$$$$$$$
               pred_train_best <- tryCatch(
                 self$predict(
                   Rdata                = X_train,
@@ -2554,6 +2556,7 @@ SONN <- R6::R6Class(
             
             # recompute VAL preds with best snapshot when applicable
             if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+              cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # #$$$$$$$$$$$$$
               pred_val_best <- tryCatch(
                 self$predict(
                   Rdata                = X_validation,
@@ -2637,7 +2640,6 @@ SONN <- R6::R6Class(
           
           # --- STRICT CHECK: only when regression + validation enabled ---
           if (identical(CLASSIFICATION_MODE, "regression")) {
-            # v2-style: skip hard stop if best snapshot selected by loss but no explicit val_probs stored
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
               warning("[WARN] Regression best snapshot missing explicit val_probs/labels — using last validation predictions instead.")
               best_val_probs  <- as.matrix(probs_val)
@@ -2645,11 +2647,12 @@ SONN <- R6::R6Class(
             }
           }
           
-          
           # === Keep predict()-style list selection logic as in your original ===
           if (isTRUE(train) && isTRUE(validation_metrics)) {
+            cat(sprintf("[PRED-INVOKE] train_network(): implicit last_val_predict selection (NO new predict) | epoch=%d | caller=implicit_last_val_predict\n", epoch))  # #$$$$$$$$$$$$$
             predicted_output_train_reg <- last_val_predict
           } else if (!isTRUE(train) && !isTRUE(validation_metrics)) {
+            cat(sprintf("[PRED-INVOKE] train_network(): implicit last_train_predict selection (NO new predict) | epoch=%d | caller=implicit_last_train_predict\n", epoch))  # #$$$$$$$$$$$$$
             predicted_output_train_reg <- last_train_predict
           } else {
             predicted_output_train_reg <- predicted_output_train_reg
@@ -2747,45 +2750,45 @@ SONN <- R6::R6Class(
       }
       
       end_time <- Sys.time()
-      training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
-      if(verbose){print("----------------------------------------train_network-end----------------------------------------")}
-      
-      return(list(
-        predicted_output_l2      = predicted_output_train_reg,
-        training_time            = training_time,
-        best_train_acc           = best_train_acc,
-        best_epoch_train         = best_epoch_train,
-        best_train_loss          = best_train_loss,
-        best_epoch_train_loss    = best_epoch_train_loss,
-        best_val_acc             = best_val_acc,
-        best_val_epoch           = best_val_epoch,
-        best_val_prediction_time = best_val_prediction_time,
-        learn_output             = learn_result$learn_output,
-        learn_time               = total_learn_time,
-        learn_dim_hidden_layers  = learn_result$dim_hidden_layers,
-        learn_hidden_outputs     = learn_result$hidden_outputs,
-        learn_grads_matrix       = learn_result$grads_matrix,
-        learn_bias_gradients     = learn_result$bias_gradients,
-        learn_errors             = learn_result$errors,
-        optimal_epoch            = optimal_epoch,
-        weights_record           = weights_record,
-        biases_record            = biases_record,
-        best_weights_record      = best_weights,
-        best_biases_record       = best_biases,
-        lossesatoptimalepoch     = NULL,
-        loss_increase_flag       = NULL,
-        loss_status              = NULL,
-        dim_hidden_layers        = dim_hidden_layers,
-        predicted_output_val     = predicted_output_val,
-        best_val_probs           = best_val_probs,
-        best_val_labels          = best_val_labels,
-        # --- regression additions (harmless for cls) ---
-        best_val_loss            = best_val_loss,
-        best_val_epoch_loss      = best_val_epoch_loss
-      ))
-    } #end of train_network
-  )
+training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
+if(verbose){print("----------------------------------------train_network-end----------------------------------------")}
+
+return(list(
+  predicted_output_l2      = predicted_output_train_reg,
+  training_time            = training_time,
+  best_train_acc           = best_train_acc,
+  best_epoch_train         = best_epoch_train,
+  best_train_loss          = best_train_loss,
+  best_epoch_train_loss    = best_epoch_train_loss,
+  best_val_acc             = best_val_acc,
+  best_val_epoch           = best_val_epoch,
+  best_val_prediction_time = best_val_prediction_time,
+  learn_output             = learn_result$learn_output,
+  learn_time               = total_learn_time,
+  learn_dim_hidden_layers  = learn_result$dim_hidden_layers,
+  learn_hidden_outputs     = learn_result$hidden_outputs,
+  learn_grads_matrix       = learn_result$grads_matrix,
+  learn_bias_gradients     = learn_result$bias_gradients,
+  learn_errors             = learn_result$errors,
+  optimal_epoch            = optimal_epoch,
+  weights_record           = weights_record,
+  biases_record            = biases_record,
+  best_weights_record      = best_weights,
+  best_biases_record       = best_biases,
+  lossesatoptimalepoch     = NULL,
+  loss_increase_flag       = NULL,
+  loss_status              = NULL,
+  dim_hidden_layers        = dim_hidden_layers,
+  predicted_output_val     = predicted_output_val,
+  best_val_probs           = best_val_probs,
+  best_val_labels          = best_val_labels,
+  # --- regression additions (harmless for cls) ---
+  best_val_loss            = best_val_loss,
+  best_val_epoch_loss      = best_val_epoch_loss
+))
+} #end of train_network()
 ) #end off SONN class
+)
 #
 #    ________  ________  ___________ _________________    _______
 #    \______ \ \______ \ \_   _____//   _____/\_____  \   \      \
@@ -3016,7 +3019,7 @@ DDESONN <- R6::R6Class(
       if (!is.null(numeric_columns) && !batch_normalize_data) {
         Rdata <- self$normalize_data(Rdata, numeric_columns)
       }
-
+      
       # Initialize batch normalization parameters if not set
       if (batch_normalize_data) {
         if (is.null(gamma_bn)) gamma_bn <- rep(1, length(numeric_columns))
@@ -3024,21 +3027,21 @@ DDESONN <- R6::R6Class(
         if (is.null(self$mean_bn)) self$mean_bn <- rep(0, length(numeric_columns))
         if (is.null(self$var_bn)) self$var_bn <- rep(1, length(numeric_columns))
       }
-
+      
       for (epoch in 1:num_epochs) {
-
+        
         # Create mini-batches
         n <- nrow(Rdata)
         indices <- 1:n
-
+        
         # Shuffle data if prompted
         if (shuffle_bn) {
           indices <- sample(indices)
         }
-
+        
         batch_size <- self$calculate_batch_size(Rdata)
         mini_batches <- split(indices, ceiling(seq_along(indices) / batch_size))
-
+        
         if (batch_normalize_data) {
           if (train) {
             for (batch in mini_batches) {
@@ -3081,11 +3084,8 @@ DDESONN <- R6::R6Class(
             batch_labels <- labels[batch]
           }
         }#end of batch normalize data
-
-
       }
-
-
+      
       # Initialize lists to store results
       all_predicted_outputAndTime      <- vector("list", length(self$ensemble))
       all_predicted_outputs_learn      <- vector("list", length(self$ensemble))
@@ -3111,86 +3111,82 @@ DDESONN <- R6::R6Class(
       all_biases                       <- vector("list", length(self$ensemble))
       all_activation_functions         <- vector("list", length(self$ensemble))
       all_activation_functions_predict <- vector("list", length(self$ensemble))
-
-
-
-        for (i in 1:length(self$ensemble)) {
-          # Add Ensemble and Model names to performance_list
-          ensemble_name <- attr(self$ensemble[[i]], "ensemble_name")
-          model_name <- attr(self$ensemble[[i]], "model_name")
-
-          ensemble_name_model_name <- paste("Ensemble:", ensemble_name, "Model:", model_name)
-
-          model_iter_num <- i
-
-          if(self_org){
-            self$ensemble[[i]]$self_organize(Rdata, labels, lr)
-          }
-
-          # might remove if, but keep contents
-          if (train) {
-
-            predicted_outputAndTime <- suppressMessages(
-              self$ensemble[[i]]$train_network(
-                Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = FALSE, output_root = output_root
-              ))
-
-
-            # Store core model info
-            all_ensemble_name_model_name[[i]] <- ensemble_name_model_name
-            all_model_iter_num[[i]] <- model_iter_num
-
-
-            all_predicted_outputAndTime[[i]] <- list(
-              predicted_output         = predicted_outputAndTime$predicted_output_l2$predicted_output, #this is last_val_predict or last_train_predict based on what is toggled upstream (isTrue(validation_metrics))
-              prediction_time          = predicted_outputAndTime$predicted_output_l2$prediction_time,
-              learn_time               = predicted_outputAndTime$learn_time,
-              training_time            = predicted_outputAndTime$training_time,
-              best_val_prediction_time = predicted_outputAndTime$best_val_prediction_time,
-              optimal_epoch            = predicted_outputAndTime$optimal_epoch,
-              weights_record           = predicted_outputAndTime$best_weights_record,
-              biases_record            = predicted_outputAndTime$best_biases_record,
-              losses_at_optimal_epoch  = predicted_outputAndTime$lossesatoptimalepoch,
-              best_train_acc           = predicted_outputAndTime$best_train_acc,
-              best_epoch_train         = predicted_outputAndTime$best_epoch_train,
-              best_train_loss          = predicted_outputAndTime$best_train_loss,
-              best_epoch_train_loss    = predicted_outputAndTime$best_epoch_train_loss,
-              best_val_acc             = predicted_outputAndTime$best_val_acc,
-              best_val_epoch           = predicted_outputAndTime$best_val_epoch
-            )
-
-            y <- labels
-            # Continue if predictions are available
-            if (!is.null(predicted_outputAndTime$predicted_output_l2)) {
-
-              all_predicted_outputs[[i]]              <- predicted_outputAndTime$predicted_output_l2$predicted_output
-              all_learn_times[[i]]                    <- predicted_outputAndTime$learn_time
-              all_training_times[[i]]                 <- predicted_outputAndTime$training_time
-              all_prediction_times[[i]]               <- predicted_outputAndTime$predicted_output_l2$prediction_time
-              all_best_val_prediction_time[[i]]       <- predicted_outputAndTime$best_val_prediction_time
-              all_errors[[i]]                         <- compute_error(predicted_outputAndTime$predicted_output_l2$predicted_output, y, CLASSIFICATION_MODE)
-              all_hidden_outputs[[i]]                 <- predicted_outputAndTime$learn_hidden_outputs
-              all_layer_dims[[i]]                     <- predicted_outputAndTime$learn_dim_hidden_layers
-              all_best_val_probs[[i]]                 <- predicted_outputAndTime$best_val_probs
-              all_best_val_labels[[i]]                <- predicted_outputAndTime$best_val_labels
-              all_weights[[i]]                        <- predicted_outputAndTime$best_weights_record
-              all_biases[[i]]                         <- predicted_outputAndTime$best_biases_record
-              all_activation_functions[[i]]           <- activation_functions
-              all_activation_functions_predict[[i]]   <- activation_functions_predict
-              all_best_train_acc[[i]]                 <- predicted_outputAndTime$best_train_acc
-              all_best_epoch_train[[i]]               <- predicted_outputAndTime$best_epoch_train
-              all_best_train_loss[[i]]                <- predicted_outputAndTime$best_train_loss
-              all_best_epoch_train_loss[[i]]          <- predicted_outputAndTime$best_epoch_train_loss
-              all_best_val_acc[[i]]                   <- predicted_outputAndTime$best_val_acc
-              all_best_val_epoch[[i]]                 <- predicted_outputAndTime$best_val_epoch
-
-              if(verbose){
+      
+      for (i in 1:length(self$ensemble)) {
+        # Add Ensemble and Model names to performance_list
+        ensemble_name <- attr(self$ensemble[[i]], "ensemble_name")
+        model_name <- attr(self$ensemble[[i]], "model_name")
+        
+        ensemble_name_model_name <- paste("Ensemble:", ensemble_name, "Model:", model_name)
+        
+        model_iter_num <- i
+        
+        if(self_org){
+          self$ensemble[[i]]$self_organize(Rdata, labels, lr)
+        }
+        
+        # might remove if, but keep contents
+        if (train) {
+          
+          predicted_outputAndTime <- suppressMessages(
+            self$ensemble[[i]]$train_network(
+              Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = FALSE, output_root = output_root
+            ))
+          
+          # Store core model info
+          all_ensemble_name_model_name[[i]] <- ensemble_name_model_name
+          all_model_iter_num[[i]] <- model_iter_num
+          
+          all_predicted_outputAndTime[[i]] <- list(
+            predicted_output         = predicted_outputAndTime$predicted_output_l2$predicted_output, #this is last_val_predict or last_train_predict based on what is toggled upstream (isTrue(validation_metrics))
+            prediction_time          = predicted_outputAndTime$predicted_output_l2$prediction_time,
+            learn_time               = predicted_outputAndTime$learn_time,
+            training_time            = predicted_outputAndTime$training_time,
+            best_val_prediction_time = predicted_outputAndTime$best_val_prediction_time,
+            optimal_epoch            = predicted_outputAndTime$optimal_epoch,
+            weights_record           = predicted_outputAndTime$best_weights_record,
+            biases_record            = predicted_outputAndTime$best_biases_record,
+            losses_at_optimal_epoch  = predicted_outputAndTime$lossesatoptimalepoch,
+            best_train_acc           = predicted_outputAndTime$best_train_acc,
+            best_epoch_train         = predicted_outputAndTime$best_epoch_train,
+            best_train_loss          = predicted_outputAndTime$best_train_loss,
+            best_epoch_train_loss    = predicted_outputAndTime$best_epoch_train_loss,
+            best_val_acc             = predicted_outputAndTime$best_val_acc,
+            best_val_epoch           = predicted_outputAndTime$best_val_epoch
+          )
+          
+          y <- labels
+          # Continue if predictions are available
+          if (!is.null(predicted_outputAndTime$predicted_output_l2)) {
+            
+            all_predicted_outputs[[i]]              <- predicted_outputAndTime$predicted_output_l2$predicted_output
+            all_learn_times[[i]]                    <- predicted_outputAndTime$learn_time
+            all_training_times[[i]]                 <- predicted_outputAndTime$training_time
+            all_prediction_times[[i]]               <- predicted_outputAndTime$predicted_output_l2$prediction_time
+            all_best_val_prediction_time[[i]]       <- predicted_outputAndTime$best_val_prediction_time
+            all_errors[[i]]                         <- compute_error(predicted_outputAndTime$predicted_output_l2$predicted_output, y, CLASSIFICATION_MODE)
+            all_hidden_outputs[[i]]                 <- predicted_outputAndTime$learn_hidden_outputs
+            all_layer_dims[[i]]                     <- predicted_outputAndTime$learn_dim_hidden_layers
+            all_best_val_probs[[i]]                 <- predicted_outputAndTime$best_val_probs
+            all_best_val_labels[[i]]                <- predicted_outputAndTime$best_val_labels
+            all_weights[[i]]                        <- predicted_outputAndTime$best_weights_record
+            all_biases[[i]]                         <- predicted_outputAndTime$best_biases_record
+            all_activation_functions[[i]]           <- activation_functions
+            all_activation_functions_predict[[i]]   <- activation_functions_predict
+            all_best_train_acc[[i]]                 <- predicted_outputAndTime$best_train_acc
+            all_best_epoch_train[[i]]               <- predicted_outputAndTime$best_epoch_train
+            all_best_train_loss[[i]]                <- predicted_outputAndTime$best_train_loss
+            all_best_epoch_train_loss[[i]]          <- predicted_outputAndTime$best_epoch_train_loss
+            all_best_val_acc[[i]]                   <- predicted_outputAndTime$best_val_acc
+            all_best_val_epoch[[i]]                 <- predicted_outputAndTime$best_val_epoch
+            
+            if(verbose){
               # --- Debug prints ---
               cat(">> Ensemble Index:", i, "\n")
               cat("Predicted Output (first 5):\n"); print(head(all_predicted_outputs[[i]], 5))
               cat("Prediction Time:\n"); print(all_prediction_times[[i]])
               cat("Shape of Predicted Output:\n"); print(dim(all_predicted_outputs[[i]]))
-
+              
               cat("Error Preview (first 5):\n"); print(head(all_errors[[i]], 5))
               if(ML_NN){
                 cat("Hidden Output Layer Count:\n"); print(length(all_hidden_outputs[[i]]))
@@ -3198,42 +3194,35 @@ DDESONN <- R6::R6Class(
               }
               cat("Best Validation Probabilities (first 5):\n"); print(head(all_best_val_probs[[i]], 5))
               cat("Best Validation Labels (first 5):\n"); print(head(all_best_val_labels[[i]], 5))
-
+              
               # Debug weights and biases
               cat("Weights Record (layer 1 preview):\n"); str(all_weights[[i]][[1]])
               cat("Biases Record (layer 1 preview):\n"); str(all_biases[[i]][[1]])
-
+              
               # Debug activation functions
               cat("Activation Functions Used:\n"); print(all_activation_functions[[i]])
               cat("--------------------------------------------------------\n")
-
-
-              } #end of verbose
-
-            } # end of if (!is.null(predicted_outputAndTime$predicted_output_l2)){}
-
-
-
-          }
-
-        } # end of for (i in 1:length(self$ensemble))
-
-        if(verbose){
-          print(all_ensemble_name_model_name)
+            } #end of verbose
+          } # end of if (!is.null(predicted_outputAndTime$predicted_output_l2)){}
         }
-
+      } # end of for (i in 1:length(self$ensemble))
+      
+      if(verbose){
+        print(all_ensemble_name_model_name)
+      }
+      
       for (i in seq_along(all_predicted_outputAndTime)) {
         if (isTRUE(verbose)) {
           message("\n── Model ", i, " ──")
         }
-
+        
         model_result <- all_predicted_outputAndTime[[i]]
-
+        
         if (is.null(model_result)) {
           if (isTRUE(verbose)) message("Empty slot.")
           next
         }
-
+        
         if (isTRUE(verbose)) {
           message("Prediction length: ", length(model_result$predicted_output))
           message("Prediction time: ", model_result$prediction_time)
@@ -3241,7 +3230,7 @@ DDESONN <- R6::R6Class(
           message("Optimal epoch: ", model_result$optimal_epoch)
           message("Loss at optimal: ", model_result$losses_at_optimal_epoch)
         }
-
+        
         # ---- Weights ----
         if (is.list(model_result$weights_record)) {
           if (isTRUE(verbose)) message("Weights record dims by layer:")
@@ -3256,7 +3245,7 @@ DDESONN <- R6::R6Class(
         } else {
           if (isTRUE(verbose)) message("Weights record dims (SL): ", paste(dim(model_result$weights_record), collapse = " x "))
         }
-
+        
         # ---- Biases ----
         if (is.list(model_result$biases_record)) {
           if (isTRUE(verbose)) message("Biases record length by layer:")
@@ -3274,10 +3263,9 @@ DDESONN <- R6::R6Class(
           blen <- if (is.matrix(model_result$biases_record)) length(model_result$biases_record) else length(model_result$biases_record)
           if (isTRUE(verbose)) message("Biases record length (SL): ", blen)
         }
-
+        
         # if (isTRUE(verbose)) Sys.sleep(0.25)  # pause slightly for readability
       }
-
       
       .first_nonnull <- function(...) { for (x in list(...)) if (!is.null(x)) return(x); NULL }
       
@@ -3287,198 +3275,264 @@ DDESONN <- R6::R6Class(
         get0("y", ifnotfound = NULL, inherits = TRUE)         # legacy fallback; no X_* fallbacks
       )
       
-
-        # all_ensemble_name_model_name <<- do.call(c, all_ensemble_name_model_name)
-
-        performance_relevance_data <- self$update_performance_and_relevance(
-          Rdata                            = Rdata,
-          labels                           = labels_arg,
-          num_networks                     = num_networks,
-          update_weights                   = update_weights,
-          update_biases                    = update_biases,
-          preprocessScaledData             = preprocessScaledData,
-          X_validation                     = X_validation,
-          y_validation                     = y_validation,
-          validation_metrics               = validation_metrics,
-          lr                               = lr,
-          CLASSIFICATION_MODE              = CLASSIFICATION_MODE,
-          ensemble_number                  = ensemble_number,
-          model_iter_num                   = model_iter_num,
-          num_epochs                       = num_epochs,
-          threshold                        = threshold,
-          threshold_function               = threshold_function,
-          learn_results                    = learn_results,
-          predicted_output_list            = all_predicted_outputs,
-          all_best_val_probs               = all_best_val_probs,
-          all_best_val_labels              = all_best_val_labels,
-          all_best_val_prediction_time     = all_best_val_prediction_time,
-          learn_time                       = all_learn_times,
-          prediction_time_list             = all_prediction_times,
-          run_id                           = all_ensemble_name_model_name,
-          all_predicted_outputAndTime      = all_predicted_outputAndTime,
-          all_weights                      = all_weights,
-          all_biases                       = all_biases,
-          all_activation_functions         = all_activation_functions,
-          all_activation_functions_predict = all_activation_functions_predict,
-          all_best_train_acc               = all_best_train_acc,
-          all_best_epoch_train             = all_best_epoch_train,
-          all_best_train_loss              = all_best_train_loss,
-          all_best_epoch_train_loss        = all_best_epoch_train_loss,
-          all_best_val_acc                 = all_best_val_acc,
-          all_best_val_epoch               = all_best_val_epoch,
-          best_weights_on_latest_weights_off = best_weights_on_latest_weights_off,
-          ML_NN = ML_NN,
-          train = train,
-          grouped_metrics = grouped_metrics,
-          viewTables = viewTables,
-          verbose = verbose
-        )
-
-        `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
-
-        # Prints to RStudio Plots pane ONLY. Never saves. Handles ggplot, list, and nested list.
-        print_plotlist_verbose <- function(x, label = NULL, print_plots = TRUE) {
-          lab <- label %||% "Plot"
-          if (inherits(x, c("gg","ggplot"))) {
-            if (print_plots) print(x)
-            return(invisible(NULL))
-          }
-          if (is.list(x)) {
-            for (i in seq_along(x)) {
-              item <- x[[i]]
-              if (inherits(item, c("gg","ggplot")) && print_plots) print(item)
-              if (is.list(item)) {
-                for (j in seq_along(item)) {
-                  p <- item[[j]]
-                  if (inherits(p, c("gg","ggplot")) && print_plots) print(p)
-                }
+      #$$$$$$$$$$$$$ FIX: contain update_performance_and_relevance + plot chatter safely, but ALWAYS restore sinks
+      buf <- character() #$$$$$$$$$$$$$
+      con <- textConnection("buf", "w", local = TRUE) #$$$$$$$$$$$$$
+      sink(con, type = "output") #$$$$$$$$$$$$$
+      sink(con, type = "message") #$$$$$$$$$$$$$
+      on.exit({ #$$$$$$$$$$$$$
+        try(sink(type = "message"), silent = TRUE) #$$$$$$$$$$$$$
+        try(sink(type = "output"), silent = TRUE) #$$$$$$$$$$$$$
+        try(close(con), silent = TRUE) #$$$$$$$$$$$$$
+      }, add = TRUE) #$$$$$$$$$$$$$
+      
+      cat(sprintf("[TRACE] BEFORE update_performance_and_relevance @ %s\n", #$$$$$$$$$$$$$
+                  format(Sys.time(), "%H:%M:%OS3"))) #$$$$$$$$$$$$$
+      
+      performance_relevance_data <- self$update_performance_and_relevance(
+        Rdata                            = Rdata,
+        labels                           = labels_arg,
+        num_networks                     = num_networks,
+        update_weights                   = update_weights,
+        update_biases                    = update_biases,
+        preprocessScaledData             = preprocessScaledData,
+        X_validation                     = X_validation,
+        y_validation                     = y_validation,
+        validation_metrics               = validation_metrics,
+        lr                               = lr,
+        CLASSIFICATION_MODE              = CLASSIFICATION_MODE,
+        ensemble_number                  = ensemble_number,
+        model_iter_num                   = model_iter_num,
+        num_epochs                       = num_epochs,
+        threshold                        = threshold,
+        threshold_function               = threshold_function,
+        learn_results                    = learn_results,
+        predicted_output_list            = all_predicted_outputs,
+        all_best_val_probs               = all_best_val_probs,
+        all_best_val_labels              = all_best_val_labels,
+        all_best_val_prediction_time     = all_best_val_prediction_time,
+        learn_time                       = all_learn_times,
+        prediction_time_list             = all_prediction_times,
+        run_id                           = all_ensemble_name_model_name,
+        all_predicted_outputAndTime      = all_predicted_outputAndTime,
+        all_weights                      = all_weights,
+        all_biases                       = all_biases,
+        all_activation_functions         = all_activation_functions,
+        all_activation_functions_predict = all_activation_functions_predict,
+        all_best_train_acc               = all_best_train_acc,
+        all_best_epoch_train             = all_best_epoch_train,
+        all_best_train_loss              = all_best_train_loss,
+        all_best_epoch_train_loss        = all_best_epoch_train_loss,
+        all_best_val_acc                 = all_best_val_acc,
+        all_best_val_epoch               = all_best_val_epoch,
+        best_weights_on_latest_weights_off = best_weights_on_latest_weights_off,
+        ML_NN = ML_NN,
+        train = train,
+        grouped_metrics = grouped_metrics,
+        viewTables = viewTables,
+        verbose = verbose
+      )
+      
+      cat(sprintf("[TRACE] AFTER update_performance_and_relevance @ %s\n", #$$$$$$$$$$$$$
+                  format(Sys.time(), "%H:%M:%OS3"))) #$$$$$$$$$$$$$
+      
+      `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
+      
+      # Prints to RStudio Plots pane ONLY. Never saves. Handles ggplot, list, and nested list.
+      print_plotlist_verbose <- function(x, label = NULL, print_plots = TRUE) {
+        lab <- label %||% "Plot"
+        if (inherits(x, c("gg","ggplot"))) {
+          if (print_plots) print(x)
+          return(invisible(NULL))
+        }
+        if (is.list(x)) {
+          for (i in seq_along(x)) {
+            item <- x[[i]]
+            if (inherits(item, c("gg","ggplot")) && print_plots) print(item)
+            if (is.list(item)) {
+              for (j in seq_along(item)) {
+                p <- item[[j]]
+                if (inherits(p, c("gg","ggplot")) && print_plots) print(p)
               }
             }
           }
-          invisible(NULL)
         }
-
-        # =========================
-        # DDESONN — Final perf/relevance lists (uses self$viewFinalUpdatePerformanceandRelevancePlots)
-        # =========================
-
-        `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
-
-        # Helper: ask your R6 toggle
-        .allow <- function(name) {
-          # name should match a field in self$FinalUpdatePerformanceandRelevanceViewPlotsConfig
-          # on_all = viewAllPlots || verbose
-          self$viewFinalUpdatePerformanceandRelevancePlots(name)
-        }
-
-        # Optional: allow disabling saving too (defaults TRUE if unset)
-        .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveAlso %||% TRUE)
-
-        # Prepare output dir only if we might save
-        if (.save_enabled) plots_dir <- ddesonn_plots_dir(output_root)
-
-        ens <- as.integer(ensemble_number)
-        tot <- if (!is.null(self$ensemble)) length(self$ensemble) else as.integer(get0("num_networks", ifnotfound = 1L))
-        mod <- if (exists("model_iter_num", inherits = TRUE) && length(model_iter_num)) as.integer(model_iter_num) else 1L
-
-        # Ensure we have a filename namer
-        if (!exists("fname", inherits = TRUE) || !is.function(fname)) {
-          fname <- make_fname_prefix(
-            isTRUE(get0("do_ensemble", ifnotfound = FALSE)),
-            num_networks    = tot,
-            total_models    = tot,
-            ensemble_number = ens,
-            model_index     = mod,
-            who             = "DDESONN"
-          )
-        }
-
-        .slug <- function(s) {
-          s <- trimws(as.character(s))
-          s <- gsub("\\s+", "_", s)
-          s <- gsub("[^A-Za-z0-9_]+", "_", s)
-          tolower(gsub("_+", "_", s))
-        }
-
-        .plot_label_slug <- function(p) {
-          .first_label <- function(obj) {
-            if (is.null(obj)) return(NULL)
-            s <- tryCatch(as.character(obj), error = function(e) NULL)
-            if (is.null(s) || !length(s)) return(NULL)
-            s1 <- s[[1]]; if (is.null(s1) || !nzchar(s1)) return(NULL)
-            s1
-          }
-          t1 <- .first_label(tryCatch(p$labels$title, error = function(e) NULL))
-          if (!is.null(t1)) return(.slug(t1))
-          y1 <- .first_label(tryCatch(p$labels$y,     error = function(e) NULL))
-          if (!is.null(y1)) return(.slug(y1))
-          NULL
-        }
-
-        # Walk any mixture of ggplot / list / nested list; save/print only if allowed(name)
-        .walk_save_view <- function(x, base, idx_env, name_flag) {
-          if (is.null(x) || !length(x)) return(invisible(NULL))
-
-          # Respect your config per group
-          do_action <- .allow(name_flag)
-
-          save_one <- function(p, nm_fallback) {
-            if (!do_action) return(invisible(NULL))   # neither save nor print if flag is off
-
-            nm <- .plot_label_slug(p) %||% .slug(nm_fallback)
-            idx_env[[nm]] <- (idx_env[[nm]] %||% 0L) + 1L
-            file_base <- sprintf("%s_%03d", nm, idx_env[[nm]])
-            out <- file.path(ddesonn_plots_dir(output_root), fname(sprintf("%s.png", file_base)))
-
-            # Save only if global save is enabled
-            if (.save_enabled) {
-              try(suppressWarnings(suppressMessages(
-                ggplot2::ggsave(out, p, width = 6, height = 4, dpi = 300) 
-              )), silent = TRUE) 
-            }
-
-            # Print (view) — gated by same per-group flag
-            try(print(p), silent = TRUE)
-          }
-
-          if (inherits(x, c("gg","ggplot"))) {
-            save_one(x, base)
-          } else if (is.list(x)) {
-            for (k in seq_along(x)) {
-              elem <- x[[k]]
-              if (inherits(elem, c("gg","ggplot"))) {
-                save_one(elem, sprintf("%s_%02d", base, k))
-              } else if (is.list(elem)) {
-                .walk_save_view(elem, sprintf("%s_%02d", base, k), idx_env, name_flag)
-              }
-            }
-          }
-          invisible(NULL)
-        }
-
-        # Independent counters per group to keep filenames stable
-        .idx <- new.env(parent = emptyenv())
-
-        # Map each holder to its config flag name (keys must match your config fields)
-        .walk_save_view(performance_relevance_data$performance_high_mean_plots, "performance_high_mean",
-                        .idx, "performance_high_mean_plots")
-        .walk_save_view(performance_relevance_data$performance_low_mean_plots,  "performance_low_mean",
-                        .idx, "performance_low_mean_plots")
-        .walk_save_view(performance_relevance_data$relevance_high_mean_plots,   "relevance_high_mean",
-                        .idx, "relevance_high_mean_plots")
-        .walk_save_view(performance_relevance_data$relevance_low_mean_plots,    "relevance_low_mean",
-                        .idx, "relevance_low_mean_plots")
-
         invisible(NULL)
-
-
-
-
-
-
-
-
-        if(verbose){print("----------------------------------------train-end----------------------------------------")}
+      }
+      
+      # =========================
+      # DDESONN — Final perf/relevance lists (uses self$viewFinalUpdatePerformanceandRelevancePlots)
+      # =========================
+      
+      `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
+      
+      # Helper: ask your R6 toggle
+      .allow <- function(name) {
+        # name should match a field in self$FinalUpdatePerformanceandRelevanceViewPlotsConfig
+        # on_all = viewAllPlots || verbose
+        self$viewFinalUpdatePerformanceandRelevancePlots(name)
+      }
+      
+      # Optional: allow disabling saving too (defaults TRUE if unset)
+      .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveAlso %||% TRUE)
+      
+      # Prepare output dir only if we might save
+      if (.save_enabled) plots_dir <- ddesonn_plots_dir(output_root)
+      
+      ens <- as.integer(ensemble_number)
+      tot <- if (!is.null(self$ensemble)) length(self$ensemble) else as.integer(get0("num_networks", ifnotfound = 1L))
+      mod <- if (exists("model_iter_num", inherits = TRUE) && length(model_iter_num)) as.integer(model_iter_num) else 1L
+      
+      # Ensure we have a filename namer
+      if (!exists("fname", inherits = TRUE) || !is.function(fname)) {
+        fname <- make_fname_prefix(
+          isTRUE(get0("do_ensemble", ifnotfound = FALSE)),
+          num_networks    = tot,
+          total_models    = tot,
+          ensemble_number = ens,
+          model_index     = mod,
+          who             = "DDESONN"
+        )
+      }
+      
+      .slug <- function(s) {
+        s <- trimws(as.character(s))
+        s <- gsub("\\s+", "_", s)
+        s <- gsub("[^A-Za-z0-9_]+", "_", s)
+        tolower(gsub("_+", "_", s))
+      }
+      
+      .plot_label_slug <- function(p) {
+        .first_label <- function(obj) {
+          if (is.null(obj)) return(NULL)
+          s <- tryCatch(as.character(obj), error = function(e) NULL)
+          if (is.null(s) || !length(s)) return(NULL)
+          s1 <- s[[1]]; if (is.null(s1) || !nzchar(s1)) return(NULL)
+          s1
+        }
+        t1 <- .first_label(tryCatch(p$labels$title, error = function(e) NULL))
+        if (!is.null(t1)) return(.slug(t1))
+        y1 <- .first_label(tryCatch(p$labels$y,     error = function(e) NULL))
+        if (!is.null(y1)) return(.slug(y1))
+        NULL
+      }
+      
+      # Walk any mixture of ggplot / list / nested list; save/print only if allowed(name)
+      .walk_save_view <- function(x, base, idx_env, name_flag) {
+        if (is.null(x) || !length(x)) return(invisible(NULL))
+        
+        # Respect your config per group
+        do_action <- .allow(name_flag)
+        
+        save_one <- function(p, nm_fallback) {
+          if (!do_action) return(invisible(NULL))   # neither save nor print if flag is off
+          
+          nm <- .plot_label_slug(p) %||% .slug(nm_fallback)
+          idx_env[[nm]] <- (idx_env[[nm]] %||% 0L) + 1L
+          file_base <- sprintf("%s_%03d", nm, idx_env[[nm]])
+          out <- file.path(ddesonn_plots_dir(output_root), fname(sprintf("%s.png", file_base)))
+          
+          # Save only if global save is enabled
+          if (.save_enabled) {
+            try(suppressWarnings(suppressMessages(
+              ggplot2::ggsave(out, p, width = 6, height = 4, dpi = 300)
+            )), silent = TRUE)
+          }
+          
+          # Print (view) — gated by same per-group flag
+          try(print(p), silent = TRUE)
+        }
+        
+        if (inherits(x, c("gg","ggplot"))) {
+          save_one(x, base)
+        } else if (is.list(x)) {
+          for (k in seq_along(x)) {
+            elem <- x[[k]]
+            if (inherits(elem, c("gg","ggplot"))) {
+              save_one(elem, sprintf("%s_%02d", base, k))
+            } else if (is.list(elem)) {
+              .walk_save_view(elem, sprintf("%s_%02d", base, k), idx_env, name_flag)
+            }
+          }
+        }
+        invisible(NULL)
+      }
+      
+      # Independent counters per group to keep filenames stable
+      .idx <- new.env(parent = emptyenv())
+      
+      # Map each holder to its config flag name (keys must match your config fields)
+      .walk_save_view(performance_relevance_data$performance_high_mean_plots, "performance_high_mean",
+                      .idx, "performance_high_mean_plots")
+      .walk_save_view(performance_relevance_data$performance_low_mean_plots,  "performance_low_mean",
+                      .idx, "performance_low_mean_plots")
+      .walk_save_view(performance_relevance_data$relevance_high_mean_plots,   "relevance_high_mean",
+                      .idx, "relevance_high_mean_plots")
+      .walk_save_view(performance_relevance_data$relevance_low_mean_plots,    "relevance_low_mean",
+                      .idx, "relevance_low_mean_plots")
+      
+      invisible(NULL)
+      
+      #$$$$$$$$$$$$$ FIX: restore sinks NOW so FINAL SUMMARY always prints to console, then flush contained buffer
+      sink(type = "message") #$$$$$$$$$$$$$
+      sink(type = "output") #$$$$$$$$$$$$$
+      close(con) #$$$$$$$$$$$$$
+      cat(buf, sep = "\n") #$$$$$$$$$$$$$
+      
+      if(verbose){print("----------------------------------------train-end----------------------------------------")}
+      
+      # ================================================================================
+      # ================================== FINAL SUMMARY ==============================
+      # ================================================================================
+      pred_summary_final <- predicted_outputAndTime
+      .first_scalar <- function(x) {
+        if (is.null(x) || !length(x)) return(NULL)
+        if (is.list(x)) {
+          for (val in x) {
+            if (!is.null(val) && length(val)) return(val[[1]])
+          }
+          return(NULL)
+        }
+        x[[1]]
+      }
+      best_epoch_train <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train)))
+      best_epoch_train_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train_loss)))
+      best_val_epoch <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch)))
+      best_val_epoch_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch_loss)))
+      best_train_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_acc)))
+      best_val_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_acc)))
+      best_train_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_loss)))
+      best_val_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_loss)))
+      summary_best_epoch <- if (isTRUE(validation_metrics)) {
+        if (identical(CLASSIFICATION_MODE, "regression")) best_val_epoch_loss else best_val_epoch
+      } else {
+        if (identical(CLASSIFICATION_MODE, "regression")) best_epoch_train_loss else best_epoch_train
+      }
+      summary_lines <- c("===== FINAL SUMMARY =====")
+      summary_lines <- c(summary_lines, sprintf("Best epoch           : %s", as.character(summary_best_epoch)))
+      summary_lines <- c(summary_lines, sprintf("Best train accuracy  : %s", as.character(best_train_acc)))
+      if (isTRUE(validation_metrics)) {
+        summary_lines <- c(summary_lines, sprintf("Best val accuracy    : %s", as.character(best_val_acc)))
+      }
+      if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
+        summary_lines <- c(summary_lines, sprintf("Train loss           : %s", as.character(best_train_loss)))
+      }
+      if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
+        summary_lines <- c(summary_lines, sprintf("Val loss             : %s", as.character(best_val_loss)))
+      }
+      if (!is.null(performance_relevance_data$threshold) && is.finite(performance_relevance_data$threshold)) {
+        summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
+      }
+      .emit_final_summary <- function(lines) {
+        cat(paste(lines, collapse = "\n"), "\n")
+      }
+      .emit_final_summary(summary_lines)
+      
+      cat(sprintf("[TRACE] AFTER FINAL SUMMARY @ %s\n", #$$$$$$$$$$$$$
+                  format(Sys.time(), "%H:%M:%OS3"))) #$$$$$$$$$$$$$
+      options(DDESONN_LAST_SUMMARY_TS = Sys.time()) #$$$$$$$$$$$$$
+      
+      #notice all other methods/functions like train end w if(verbose){print("-------..."), but this is a special scenario because this is the last Final Summary print.
       return(list(predicted_outputAndTime = predicted_outputAndTime, performance_relevance_data = performance_relevance_data))
     }
     , # Method for updating performance and relevance metrics
@@ -4324,7 +4378,7 @@ DDESONN <- R6::R6Class(
               ")"
             )
           } else {
-            plot_data$Title <- paste("Boxplot for", metric)
+            plot_data_low$Title <- paste("Boxplot for", metric)
           }
       
           # Create box plot

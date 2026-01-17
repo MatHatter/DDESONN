@@ -610,11 +610,14 @@ memory_usage <- function(SONN, Rdata, verbose) {
 robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs, model_iter_num, predicted_output, ensemble_number, weights, biases, activation_functions, dropout_rates, verbose) {
   `%||%` <- function(x, y) if (is.null(x)) y else x
   
-  # --------- Build noisy data (deterministic) ----------
+  # ============================================================
+  # SECTION: Build noisy data (deterministic)
+  # ============================================================
   Rdata <- as.matrix(Rdata); storage.mode(Rdata) <- "double"
   set.seed(123)
   noisy_Rdata <- Rdata + rnorm(n = nrow(Rdata) * ncol(Rdata), mean = 0, sd = 0.2)
   dim(noisy_Rdata) <- dim(Rdata); storage.mode(noisy_Rdata) <- "double"
+  
   # Inject outliers (~2% rows)
   n_out_rows <- max(1L, min(nrow(noisy_Rdata), as.integer(round(0.02 * nrow(noisy_Rdata)))))
   if (n_out_rows > 0L) {
@@ -628,28 +631,46 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
   learnOnlyTrainingRun <- get0("learnOnlyTrainingRun", ifnotfound = FALSE, inherits = TRUE)
   plot_robustness      <- get0("plot_robustness",      ifnotfound = FALSE, inherits = TRUE)
   
-  # --------- Train-time branch (rare) ----------
+  # ============================================================
+  # SECTION: Train-time branch (rare)
+  # ============================================================
   if (isTRUE(learnOnlyTrainingRun)) {
     invisible(SONN$learn(noisy_Rdata, labels, lr))
     return(NA_real_)
   }
-
-  # --------- Predict on noisy data ----------
+  
+  # ============================================================
+  # SECTION: Predict on noisy data (NO predict() signature changes)
+  # ============================================================
+  if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
+    cat("\n[ROBUSTNESS] calling predict() on noisy/outlier-perturbed data\n")  # #$$$$$$$$$$$$$
+  }  # #$$$$$$$$$$$$$
+  
   # NOTE: predict should be deterministic (no dropout); pass activation_functions only.
   pred_obj <- SONN$predict(noisy_Rdata, SONN$weights, SONN$biases, activation_functions, verbose)
   pred_raw <- pred_obj$predicted_output
   
-  # Coerce to numeric matrices
+  if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
+    cat("[ROBUSTNESS] predict() finished\n\n")  # #$$$$$$$$$$$$$
+  }  # #$$$$$$$$$$$$$
+  
+  # ============================================================
+  # SECTION: Coerce labels/preds to numeric matrices
+  # ============================================================
   L <- coerce_to_numeric_matrix(labels)
   P <- coerce_to_numeric_matrix(pred_raw)
   
-  # Row alignment
+  # ============================================================
+  # SECTION: Row alignment
+  # ============================================================
   n_common <- min(nrow(L), nrow(P))
   if (n_common <= 0L) return(NA_real_)
   L <- L[seq_len(n_common), , drop = FALSE]
   P <- P[seq_len(n_common), , drop = FALSE]
   
-  # Decide task type
+  # ============================================================
+  # SECTION: Decide task type
+  # ============================================================
   mode_in <- tolower(as.character(CLASSIFICATION_MODE %||% "auto"))
   if (mode_in %in% c("binary", "multiclass", "regression")) {
     mode <- mode_in
@@ -660,8 +681,11 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
     }
   }
   
-  # --------- Harmonize shapes ----------
+  # ============================================================
+  # SECTION: Harmonize shapes + compute loss
+  # ============================================================
   if (identical(mode, "binary")) {
+    
     # labels -> 0/1 vector; preds -> P(pos) in [0,1]
     y_true01 <- labels_to_binary_vec(L)
     if (is.null(y_true01)) {
@@ -674,24 +698,27 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
         return(NA_real_)
       }
     }
+    
     p_pos <- preds_to_pos_prob(P)
     if (is.null(p_pos)) return(NA_real_)
-    # align rows/finite
+    
     cc <- stats::complete.cases(y_true01, p_pos)
     if (!any(cc)) return(NA_real_)
     y_true01 <- as.numeric(y_true01[cc])
     p_pos    <- as.numeric(p_pos[cc])
     if (!length(y_true01)) return(NA_real_)
+    
     losses <- mean((p_pos - y_true01)^2)
     
   } else if (identical(mode, "multiclass")) {
+    
     # P must be N x K; L should be one-hot N x K
     K <- ncol(P)
     if (is.null(K) || K < 2L) return(NA_real_)
+    
     # If labels are a single col of class ids (0..K-1 or 1..K), expand to one-hot
     if (ncol(L) == 1L) {
       ids <- as.vector(L[,1])
-      # allow 0..K-1 by shifting
       ids_num <- suppressWarnings(as.numeric(ids))
       if (all(is.finite(ids_num))) {
         if (min(ids_num, na.rm = TRUE) == 0 && max(ids_num, na.rm = TRUE) == (K - 1)) {
@@ -700,17 +727,20 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
       }
       L <- one_hot_from_ids(ids_num, K = K, N = nrow(L), strict = FALSE)
     }
+    
     if (ncol(L) != K) return(NA_real_)
-    # finite rows only
+    
     cc <- stats::complete.cases(cbind(L, P))
     if (!any(cc)) return(NA_real_)
     L <- L[cc, , drop = FALSE]
     P <- P[cc, , drop = FALSE]
     if (!nrow(L)) return(NA_real_)
+    
     losses <- mean((P - L)^2)
     
-  } else { # regression
-    # Match column counts; recycle/truncate P to L
+  } else {
+    
+    # regression: Match column counts; recycle/truncate P to L
     if (ncol(L) != ncol(P)) {
       total_needed <- nrow(L) * ncol(L)
       if (ncol(P) < ncol(L)) {
@@ -721,15 +751,19 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
         P <- matrix(P, nrow = nrow(L), ncol = ncol(L), byrow = FALSE)
       }
     }
+    
     cc <- stats::complete.cases(cbind(L, P))
     if (!any(cc)) return(NA_real_)
     L <- L[cc, , drop = FALSE]
     P <- P[cc, , drop = FALSE]
     if (!nrow(L)) return(NA_real_)
+    
     losses <- mean((P - L)^2)
   }
   
-  # Optional plotting (useful only if you later sweep noise SDs)
+  # ============================================================
+  # SECTION: Optional plotting
+  # ============================================================
   if (isTRUE(plot_robustness) && length(losses) > 1L) {
     if (!any(is.nan(losses)) && !any(is.infinite(losses))) {
       plot(
@@ -740,7 +774,9 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
     }
   }
   
-  # Return scalar MSE under noise/outliers
+  # ============================================================
+  # SECTION: Return scalar loss (MSE under noise/outliers)
+  # ============================================================
   as.numeric(losses)
 }
 
@@ -2025,6 +2061,9 @@ generalization_ability <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, pre
   
   if (verbose) message("[GEN] generalization_ability start")
   
+  # ============================================================
+  # SECTION: Guard rails
+  # ============================================================
   # Guard: if no labels, cannot compute
   if (is.null(labels) || length(labels) != nrow(Rdata)) {
     if (verbose) message("[GEN] labels missing or mismatched — returning NA")
@@ -2034,7 +2073,9 @@ generalization_ability <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, pre
   n <- nrow(Rdata)
   if (n < 2L) return(NA_real_)
   
-  # Split train/test (80/20)
+  # ============================================================
+  # SECTION: Split train/test (80/20)
+  # ============================================================
   set.seed(123L)
   idx_train <- sample.int(n, max(1L, floor(0.8 * n)))
   idx_test  <- setdiff(seq_len(n), idx_train)
@@ -2044,29 +2085,48 @@ generalization_ability <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, pre
   y_train <- labels[idx_train]
   y_test  <- labels[idx_test]
   
-  # Predict safely
-  safe_pred <- function(X) {
+  # ============================================================
+  # SECTION: Predict safely (NO predict() signature changes)
+  # ============================================================
+  safe_pred <- function(X, tag) {  # #$$$$$$$$$$$$$
+    
+    if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
+      cat(sprintf("\n[GENERALIZATION_ABILITY] %s: calling predict()\n", tag))  # #$$$$$$$$$$$$$
+    }
+    
     out <- tryCatch(SONN$predict(X), error = function(e) NA)
+    
+    if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
+      cat(sprintf("[GENERALIZATION_ABILITY] %s: predict() finished\n\n", tag))  # #$$$$$$$$$$$$$
+    }
+    
     if (is.list(out) && !is.null(out$predicted_output)) out$predicted_output else out
   }
-  pred_train <- safe_pred(X_train)
-  pred_test  <- safe_pred(X_test)
   
+  pred_test <- safe_pred(X_test, "TEST")  # #$$$$$$$$$$$$$
+  
+  # ============================================================
+  # SECTION: Metric compute
+  # ============================================================
   metric <- NA_real_
   
   if (identical(mode, "regression")) {
+    
     # RMSE
     if (!anyNA(pred_test) && length(pred_test) == length(y_test)) {
       pred_test <- as.numeric(pred_test)
       y_test    <- as.numeric(y_test)
       metric <- sqrt(mean((pred_test - y_test)^2, na.rm = TRUE))
     }
+    
   } else {
+    
     # Accuracy
     to_labels <- function(P) {
       if (is.matrix(P)) max.col(P, ties.method = "first")
       else as.integer(as.numeric(P) >= 0.5)
     }
+    
     if (!anyNA(pred_test)) {
       metric <- mean(to_labels(pred_test) == y_test, na.rm = TRUE)
     }
