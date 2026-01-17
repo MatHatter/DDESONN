@@ -4232,31 +4232,31 @@ DDESONN <- R6::R6Class(
           )
           
           # Add columns for outliers
-          plot_data$Model_Name_Outlier <- plot_data$Model_Name
+          plot_data_high$Model_Name_Outlier <- plot_data_high$Model_Name
 
           # Set the RowName to NA where there are no outliers
-          plot_data$Model_Name_Outlier[is.na(plot_data$Outlier)] <- NA
+          plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
 
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data$Title <- paste0(
+            plot_data_high$Title <- paste0(
               "Boxplot for ",
               metric,
               " (",
-              self$create_bin_labels(plot_data$Value),
+              self$create_bin_labels(plot_data_high$Value),
               ")"
             )
           } else {
-            plot_data$Title <- paste("Boxplot for", metric)
+            plot_data_high$Title <- paste("Boxplot for", metric)
           }
 
           # ============================================================
           # Plot
           # ============================================================
-          high_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) +
+          high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = unique(plot_data$Title),
+              title = unique(plot_data_high$Title),
               x = "Metric",
               y = "Value"
             ) +
@@ -4309,18 +4309,18 @@ DDESONN <- R6::R6Class(
           )
           
           # Add columns for outliers
-          plot_data$Model_Name_Outlier <- plot_data$Model_Name
+          plot_data_low$Model_Name_Outlier <- plot_data_low$Model_Name
       
           # Set the RowName to NA where there are no outliers
-          plot_data$Model_Name_Outlier[is.na(plot_data$Outlier)] <- NA
+          plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
       
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data$Title <- paste0(
+            plot_data_low$Title <- paste0(
               "Boxplot for ",
               metric,
               " (",
-              self$create_bin_labels(plot_data$Value),
+              self$create_bin_labels(plot_data_low$Value),
               ")"
             )
           } else {
@@ -4328,10 +4328,10 @@ DDESONN <- R6::R6Class(
           }
       
           # Create box plot
-          low_mean_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) +
+          low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = unique(plot_data$Title),
+              title = unique(plot_data_low$Title),
               x = "Metric",
               y = "Value"
             ) +
