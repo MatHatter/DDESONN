@@ -2274,6 +2274,11 @@ SONN <- R6::R6Class(
                 val_accuracy_log <- c(val_accuracy_log, val_acc)
                 val_loss_log     <- c(val_loss_log, val_loss)
                 
+                if (is.finite(val_loss) && val_loss < best_val_loss) {
+                  best_val_loss       <- val_loss
+                  best_val_epoch_loss <- epoch
+                }
+                
                 ## --- Save best model snapshot ---
                 if (is.na(best_val_acc) || (!is.na(val_acc) && val_acc > best_val_acc)) {
                   best_val_acc   <- val_acc
@@ -2314,6 +2319,11 @@ SONN <- R6::R6Class(
                 )
                 val_accuracy_log <- c(val_accuracy_log, val_acc)
                 val_loss_log     <- c(val_loss_log,     val_loss)
+                
+                if (is.finite(val_loss) && val_loss < best_val_loss) {
+                  best_val_loss       <- val_loss
+                  best_val_epoch_loss <- epoch
+                }
                 
                 if (is.na(best_val_acc) || (!is.na(val_acc) && val_acc > best_val_acc)) {
                   best_val_acc       <- val_acc
