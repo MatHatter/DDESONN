@@ -14,10 +14,15 @@ ddesonn_run(
   num_networks = if (isTRUE(do_ensemble)) 3L else 1L,
   num_temp_iterations = 0L,
   validation = NULL,
+  x_valid = NULL,
+  y_valid = NULL,
   model_overrides = list(),
   training_overrides = list(),
   temp_overrides = NULL,
   prediction_data = NULL,
+  test = NULL,
+  x_test = NULL,
+  y_test = NULL,
   prediction_type = c("response", "class"),
   aggregate = c("mean", "median", "none"),
   seed_aggregate = c("mean", "median", "none"),
@@ -27,9 +32,9 @@ ddesonn_run(
 )
 }
 \arguments{
-\item{x}{Training features as a data frame, matrix, or tibble.}
+\item{x}{Training features (the training split) as a data frame, matrix, or tibble.}
 
-\item{y}{Training labels/targets.}
+\item{y}{Training labels/targets (the training split).}
 
 \item{classification_mode}{Overall problem mode. One of \code{"binary"},
 \code{"multiclass"}, or \code{"regression"}.}
@@ -50,6 +55,10 @@ trained for each seed.}
 
 \item{validation}{Optional validation list with elements \code{x} and \code{y}.}
 
+\item{x_valid}{Optional validation features. Overrides \code{validation$x} when set.}
+
+\item{y_valid}{Optional validation labels. Overrides \code{validation$y} when set.}
+
 \item{model_overrides}{Named list forwarded to \code{\link[=ddesonn_model]{ddesonn_model()}} allowing
 custom architectures.}
 
@@ -61,6 +70,14 @@ TEMP iterations. Defaults to \code{training_overrides}.}
 
 \item{prediction_data}{Optional features for prediction. When supplied,
 predictions are computed for each seed/iteration.}
+
+\item{test}{Optional test list with elements \code{x} and \code{y}. When supplied,
+the final model computes test metrics (loss and, for classification,
+accuracy) and stores them in \code{result$test_metrics}.}
+
+\item{x_test}{Optional test features. Overrides \code{test$x} when set.}
+
+\item{y_test}{Optional test labels. Overrides \code{test$y} when set.}
 
 \item{prediction_type}{Passed to \code{\link[=ddesonn_predict]{ddesonn_predict()}}.}
 

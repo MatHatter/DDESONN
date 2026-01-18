@@ -862,7 +862,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
 .emit_final_run_summary <- function(pred_summary_final,
                                     performance_relevance_data,
                                     cfg,
-                                    mode) {
+                                    mode,
+                                    test_metrics = NULL) {
   if (is.null(pred_summary_final) || !length(pred_summary_final)) {
     return(invisible(NULL))
   }
@@ -909,6 +910,16 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       is.finite(performance_relevance_data$threshold)) {
     summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
   }
+  if (is.list(test_metrics) && length(test_metrics)) {
+    test_acc <- suppressWarnings(as.numeric(test_metrics$accuracy))
+    test_loss <- suppressWarnings(as.numeric(test_metrics$loss))
+    if (is.finite(test_acc)) {
+      summary_lines <- c(summary_lines, sprintf("Test accuracy        : %s", as.character(test_acc)))
+    }
+    if (is.finite(test_loss)) {
+      summary_lines <- c(summary_lines, sprintf("Test loss            : %s", as.character(test_loss)))
+    }
+  }
 
   cat("# ================================================================================\n")
   cat("# ================================== FINAL SUMMARY ==============================\n")
@@ -916,6 +927,73 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cat(paste(summary_lines, collapse = "\n"), "\n")
   options(DDESONN_LAST_SUMMARY_TS = Sys.time())
   invisible(NULL)
+}
+
+.compute_test_metrics <- function(model,
+                                  x_test,
+                                  y_test,
+                                  classification_mode,
+                                  cfg,
+                                  aggregate,
+                                  threshold) {
+  if (is.null(model) || is.null(x_test) || is.null(y_test)) {
+    return(NULL)
+  }
+  eval_aggregate <- if (identical(aggregate, "none")) "mean" else aggregate
+  pr <- try(ddesonn_predict(model, x_test, aggregate = eval_aggregate, type = "response"), silent = TRUE)
+  if (inherits(pr, "try-error") || is.null(pr$prediction)) {
+    return(NULL)
+  }
+  preds <- .as_numeric_matrix(pr$prediction)
+  n <- nrow(preds)
+  if (!is.finite(n) || n < 1L) {
+    return(NULL)
+  }
+  mode <- tolower(classification_mode)
+  targs <- .build_targets(y_test, n, ncol(preds), mode)
+  labels_for_loss <- if (identical(mode, "binary")) {
+    matrix(as.numeric(targs$y), ncol = 1L)
+  } else {
+    targs$Y
+  }
+  loss <- try(loss_function(
+    predictions = preds,
+    labels = labels_for_loss,
+    CLASSIFICATION_MODE = mode,
+    reg_loss_total = 0,
+    loss_type = cfg$loss_type,
+    verbose = FALSE
+  ), silent = TRUE)
+  loss <- if (inherits(loss, "try-error")) NA_real_ else suppressWarnings(as.numeric(loss))
+  accuracy <- NA_real_
+  if (mode %in% c("binary", "multiclass")) {
+    y_true <- if (identical(mode, "multiclass")) {
+      if (is.matrix(labels_for_loss) && ncol(labels_for_loss) > 1L) {
+        max.col(labels_for_loss, ties.method = "first")
+      } else {
+        suppressWarnings(as.integer(.extract_vec(y_test)))
+      }
+    } else {
+      suppressWarnings(as.integer(.extract_vec(y_test)))
+    }
+    y_true <- .align_len(y_true, n)
+    thr_used <- threshold %||%
+      attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
+      attr(model, "threshold") %||%
+      .ddesonn_threshold_default(mode)
+    y_pred <- if (identical(mode, "binary")) {
+      as.integer(preds[, 1] >= thr_used)
+    } else {
+      max.col(preds, ties.method = "first")
+    }
+    accuracy <- mean(y_pred == y_true, na.rm = TRUE)
+  }
+  list(
+    loss = loss,
+    accuracy = accuracy,
+    loss_type = cfg$loss_type %||% NA_character_,
+    n = n
+  )
 }
 
 #' @title Generate predictions from a fitted `ddesonn_model`
@@ -2499,8 +2577,8 @@ ddesonn_predict <- function(model, new_data,
 #' fits them with [ddesonn_fit()], and (when requested) calls
 #' [ddesonn_predict()] to surface aggregated predictions.
 #'
-#' @param x Training features as a data frame, matrix, or tibble.
-#' @param y Training labels/targets.
+#' @param x Training features (the training split) as a data frame, matrix, or tibble.
+#' @param y Training labels/targets (the training split).
 #' @param classification_mode Overall problem mode. One of `"binary"`,
 #'   `"multiclass"`, or `"regression"`.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -2513,6 +2591,8 @@ ddesonn_predict <- function(model, new_data,
 #' @param num_temp_iterations Number of TEMP iterations to run when
 #'   `do_ensemble = TRUE` (scenario D). Ignored otherwise.
 #' @param validation Optional validation list with elements `x` and `y`.
+#' @param x_valid Optional validation features. Overrides `validation$x` when set.
+#' @param y_valid Optional validation labels. Overrides `validation$y` when set.
 #' @param model_overrides Named list forwarded to [ddesonn_model()] allowing
 #'   custom architectures.
 #' @param training_overrides Named list forwarded to [ddesonn_fit()] for the
@@ -2521,6 +2601,11 @@ ddesonn_predict <- function(model, new_data,
 #'   TEMP iterations. Defaults to `training_overrides`.
 #' @param prediction_data Optional features for prediction. When supplied,
 #'   predictions are computed for each seed/iteration.
+#' @param test Optional test list with elements `x` and `y`. When supplied,
+#'   the final model computes test metrics (loss and, for classification,
+#'   accuracy) and stores them in `result$test_metrics`.
+#' @param x_test Optional test features. Overrides `test$x` when set.
+#' @param y_test Optional test labels. Overrides `test$y` when set.
 #' @param prediction_type Passed to [ddesonn_predict()].
 #' @param aggregate Aggregation strategy within a single model (across ensemble
 #'   members).
@@ -2558,10 +2643,15 @@ ddesonn_run <- function(x,
                         num_networks = if (isTRUE(do_ensemble)) 3L else 1L,
                         num_temp_iterations = 0L,
                         validation = NULL,
+                        x_valid = NULL,
+                        y_valid = NULL,
                         model_overrides = list(),
                         training_overrides = list(),
                         temp_overrides = NULL,
                         prediction_data = NULL,
+                        test = NULL,
+                        x_test = NULL,
+                        y_test = NULL,
                         prediction_type = c("response", "class"),
                         aggregate = c("mean", "median", "none"),
                         seed_aggregate = c("mean", "median", "none"),
@@ -2623,9 +2713,32 @@ ddesonn_run <- function(x,
     invisible(NULL)                                                                            #$$$$$$$$$$$$$
   }                                                                                            #$$$$$$$$$$$$$
   
+  validation_data <- validation
+  if (!is.null(x_valid) || !is.null(y_valid)) {
+    if (is.null(x_valid) || is.null(y_valid)) {
+      stop("Provide both x_valid and y_valid or neither.", call. = FALSE)
+    }
+    validation_data <- list(x = x_valid, y = y_valid)
+  }
+  test_data <- test
+  if (!is.null(x_test) || !is.null(y_test)) {
+    if (is.null(x_test) || is.null(y_test)) {
+      stop("Provide both x_test and y_test or neither.", call. = FALSE)
+    }
+    test_data <- list(x = x_test, y = y_test)
+  }
+
   prediction_matrix <- NULL
   if (!is.null(prediction_data)) {
     prediction_matrix <- .as_numeric_matrix(prediction_data)
+  }
+  test_matrix <- NULL
+  test_labels <- NULL
+  if (!is.null(test_data)) {
+    if (is.list(test_data) && !is.null(test_data$x)) {
+      test_matrix <- .as_numeric_matrix(test_data$x)
+      test_labels <- test_data$y %||% NULL
+    }
   }
   
   target_metric <- {
@@ -3005,8 +3118,8 @@ ddesonn_run <- function(x,
     
     mdl <- do.call(ddesonn_model, main_model_args)
     val <- NULL
-    if (!is.null(validation)) {
-      val <- list(x = validation$x, y = validation$y)
+    if (!is.null(validation_data)) {
+      val <- list(x = validation_data$x, y = validation_data$y)
     }
     
     # ============================================================
@@ -3158,12 +3271,14 @@ ddesonn_run <- function(x,
     # ============================================================
     run_predictions <- list(
       train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
-      validation = if (!is.null(validation) && !is.null(validation$x)) {
-        build_split_predictions(mdl, validation$x, validation$y, "validation", i, seed_i)
+      validation = if (!is.null(validation_data) && !is.null(validation_data$x)) {
+        build_split_predictions(mdl, validation_data$x, validation_data$y, "validation", i, seed_i)
       } else {
         NULL
       },
-      test = if (!is.null(prediction_matrix)) {
+      test = if (!is.null(test_matrix)) {
+        build_split_predictions(mdl, test_matrix, test_labels, "test", i, seed_i)
+      } else if (!is.null(prediction_matrix)) {
         build_split_predictions(mdl, prediction_matrix, NULL, "test", i, seed_i)
       } else {
         NULL
@@ -3308,12 +3423,30 @@ ddesonn_run <- function(x,
       final_training <- final_run$main$model$last_training
     }
   }
+  test_metrics <- NULL
+  if (!is.null(test_matrix) && !is.null(test_labels) && length(runs)) {
+    final_run <- runs[[length(runs)]]
+    final_model <- final_run$main$model %||% NULL
+    test_metrics <- .compute_test_metrics(
+      model = final_model,
+      x_test = test_matrix,
+      y_test = test_labels,
+      classification_mode = classification_mode,
+      cfg = base_train_overrides,
+      aggregate = aggregate,
+      threshold = threshold
+    )
+    if (!is.null(test_metrics)) {
+      result$test_metrics <- test_metrics
+    }
+  }
   if (!is.null(final_training)) {
     .emit_final_run_summary(
       pred_summary_final = final_training$predicted_outputAndTime,
       performance_relevance_data = final_training$performance_relevance_data,
       cfg = base_train_overrides,
-      mode = tolower(classification_mode)
+      mode = tolower(classification_mode),
+      test_metrics = test_metrics
     )
   }
 
