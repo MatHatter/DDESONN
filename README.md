@@ -177,9 +177,48 @@ Inside R:
     if (length(missing)) install.packages(missing)
     invisible(lapply(required_pkgs, library, character.only = TRUE))
 
-To load manually:
+To load for development (dev-only):
 
-    source("R/DDESONN.R")
+    devtools::load_all()
+
+For installed packages:
+
+    library(DDESONN)
+
+Note: `source()` is development-only and not recommended for installed packages.
+
+High-level API usage (training split is always `x`/`y`):
+
+    res <- ddesonn_run(
+      x = train_x,
+      y = train_y,
+      validation = list(x = valid_x, y = valid_y),
+      test = list(x = test_x, y = test_y),
+      training_overrides = list(num_epochs = 1, validation_metrics = TRUE)
+    )
+
+API design notes (optional explicit splits):
+
+- ddesonn_run(x, y, validation = list(x = , y = ), test = list(x = , y = ),
+  x_valid = , y_valid = , x_test = , y_test = )
+- Explicit `x_valid`/`y_valid` and `x_test`/`y_test` override the list inputs.
+- Explicit pairs must be complete (no `x_valid` without `y_valid`).
+- Backward compatibility is preserved.
+
+
+### Model usage note (post-training)
+
+Training and validation run inside `ddesonn_run()` and call the model’s R6
+methods directly.
+
+After training completes, the returned model (`res$model`) supports standard
+R workflows via `predict(model, newdata)`. This is enabled by a lightweight
+S3 adapter that forwards `predict()` calls to the underlying R6 `$predict()`
+method.
+
+Training behavior and final summary output are unchanged; this only
+standardizes post-training usage.
+
 
 ---
 

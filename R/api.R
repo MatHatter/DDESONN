@@ -3372,7 +3372,24 @@ ddesonn_run <- function(x,
     ),
     runs = runs
   )
-  
+
+  final_model <- NULL
+  final_training <- NULL
+  if (length(runs)) {
+    final_run <- runs[[length(runs)]]
+    if (is.list(final_run) &&
+        !is.null(final_run$main) &&
+        !is.null(final_run$main$model)) {
+      final_model <- final_run$main$model
+      final_training <- final_model$last_training
+    }
+  }
+  result$model <- final_model
+  if (!is.null(final_training)) {
+    result$metrics <- final_training$performance_relevance_data %||% NULL
+    result$history <- final_training$predicted_outputAndTime %||% NULL
+  }
+
   per_seed_tables <- lapply(runs, function(run) {
     preds <- run$predictions
     if (!is.list(preds) || !length(preds)) {
@@ -3413,20 +3430,10 @@ ddesonn_run <- function(x,
   if (!is.null(result$`.__prediction_matrix`)) {
     result$`.__prediction_matrix` <- NULL
   }
-  
-  final_training <- NULL
-  if (length(runs)) {
-    final_run <- runs[[length(runs)]]
-    if (is.list(final_run) &&
-        !is.null(final_run$main) &&
-        !is.null(final_run$main$model)) {
-      final_training <- final_run$main$model$last_training
-    }
-  }
+
   test_metrics <- NULL
   if (!is.null(test_matrix) && !is.null(test_labels) && length(runs)) {
-    final_run <- runs[[length(runs)]]
-    final_model <- final_run$main$model %||% NULL
+    final_model <- final_model %||% (runs[[length(runs)]]$main$model %||% NULL)
     test_metrics <- .compute_test_metrics(
       model = final_model,
       x_test = test_matrix,
