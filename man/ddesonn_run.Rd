@@ -73,7 +73,9 @@ predictions are computed for each seed/iteration.}
 
 \item{test}{Optional test list with elements \code{x} and \code{y}. When supplied,
 the final model computes test metrics (loss and, for classification,
-accuracy) and stores them in \code{result$test_metrics}.}
+accuracy) and stores them in \code{result$test_metrics}. The run history
+(\code{result$history}) mirrors the training metadata (train/validation losses)
+and appends \code{test_loss} when test data is provided.}
 
 \item{x_test}{Optional test features. Overrides \code{test$x} when set.}
 

@@ -2603,7 +2603,9 @@ ddesonn_predict <- function(model, new_data,
 #'   predictions are computed for each seed/iteration.
 #' @param test Optional test list with elements `x` and `y`. When supplied,
 #'   the final model computes test metrics (loss and, for classification,
-#'   accuracy) and stores them in `result$test_metrics`.
+#'   accuracy) and stores them in `result$test_metrics`. The run history
+#'   (`result$history`) mirrors the training metadata (train/validation losses)
+#'   and appends `test_loss` when test data is provided.
 #' @param x_test Optional test features. Overrides `test$x` when set.
 #' @param y_test Optional test labels. Overrides `test$y` when set.
 #' @param prediction_type Passed to [ddesonn_predict()].
@@ -3386,6 +3388,7 @@ ddesonn_run <- function(x,
   }
   result$model <- final_model
   if (!is.null(final_training)) {
+    # history mirrors the training metadata; train/val loss live here
     result$metrics <- final_training$performance_relevance_data %||% NULL
     result$history <- final_training$predicted_outputAndTime %||% NULL
   }
@@ -3445,6 +3448,15 @@ ddesonn_run <- function(x,
     )
     if (!is.null(test_metrics)) {
       result$test_metrics <- test_metrics
+      if (!is.null(final_training) && is.list(final_training$predicted_outputAndTime)) {
+        final_training$predicted_outputAndTime$test_loss <- test_metrics$loss
+        final_training$predicted_outputAndTime$test_accuracy <- test_metrics$accuracy
+        final_training$predicted_outputAndTime$test_loss_type <- test_metrics$loss_type
+        if (!is.null(final_model)) {
+          final_model$last_training <- final_training
+        }
+        result$history <- final_training$predicted_outputAndTime
+      }
     }
   }
   if (!is.null(final_training)) {
