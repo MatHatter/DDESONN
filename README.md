@@ -218,27 +218,56 @@ Verify original dataset licensing if repurposed.
 
 ## Roadmap
 
-- Add structured hyperparameter grid and sweep utilities for controlled experimentation
-- Optional preprocessing: capped + log1p transforms for heavy-tailed features (e.g., creatinine_phosphokinase) to reduce extreme outlier influence while preserving zeros.
-- Future diagnostic (not yet implemented): Single-run per-epoch performance tracking
-  - Track training and validation metrics across epochs for a single model run.
-  - Intended strictly for diagnostics (learning curves, overfitting, instability).
-  - Will reuse existing artifact and plot path helpers (ddesonn_artifacts_root(), ddesonn_plots_dir()); Output would live under: <artifacts_root>/plots/single_run_per_epoch/
-  - Explicitly excluded from process_performance() and ensemble summaries.
-- Potential future change: In single-run mode, ensemble orchestration is disabled, but ensemble slot objects 
-  (ensemble[[k]]) and Ensemble_Main_0_model_*_metadata are still used. Decoupling these contracts would 
-  require a major refactor and may be revisited later.
+- Add structured hyperparameter grid and sweep utilities for controlled experimentation.
 
+- Optional preprocessing utilities:
+  - Capped + `log1p` transforms for heavy-tailed features (e.g., `creatinine_phosphokinase`)
+  - Designed to reduce extreme outlier influence while preserving zeros.
+
+- Evaluation contract / thresholding (documentation + hardening):
+  - `evaluate_predictions_report.R` selects and applies a tuned threshold (`best_thr`) when generating
+    thresholded predictions and the corresponding confusion matrix.
+  - The final package-level summary/metadata in `DDESONN.R` uses `thr_used` as the authoritative
+    threshold value that is recorded and reported (this may be `best_thr` or a user override).
+  - Confusion matrix utilities operate on **already-thresholded** (binary) predictions and return counts only.
+  - Accuracy/precision/recall/F1 are computed from confusion-matrix counts so reported metrics + metadata
+    reflect `thr_used` (not a fixed 0.5 threshold) without introducing new metric helpers.
+
+- Future diagnostic (not yet implemented): **Single-run per-epoch performance tracking**
+  - Track training and validation metrics across epochs for a single model run.
+  - Intended strictly for diagnostics (learning curves, overfitting detection, instability analysis).
+  - Will reuse existing artifact and plot helpers:
+    - `ddesonn_artifacts_root()`
+    - `ddesonn_plots_dir()`
+  - Output path:
+    ```
+    <artifacts_root>/plots/single_run_per_epoch/
+    ```
+  - Explicitly excluded from `process_performance()` and all ensemble summaries.
+
+- Potential future change (non-trivial refactor):
+  - In single-run mode, ensemble orchestration is disabled, but ensemble slot objects
+    (`ensemble[[k]]`) and `Ensemble_Main_0_model_*_metadata` are still used.
+  - Decoupling these contracts would require a major architectural change and may be revisited later.
 
 ---
 
 ## To-Do (Active Work)
 
-- Refactor DDESONN_predict_eval() so all required variables are passed explicitly and handled locally, avoiding reliance on global or inherited environments.
-- Continue decompartmentalization by extracting additional modules and components to slim up the core codebase.
-  - Initial step: move the SONN method into its own dedicated file, while keeping the primary DDESONN R6 class in R/DDESONN.R.
+- Refactor `DDESONN_predict_eval()` so all required variables are passed explicitly and handled locally,
+  avoiding reliance on global or inherited environments.
 
----
+- Review evaluation data mapping for thresholds (`best_thr` vs `thr_used`):
+  - Confirm `best_thr` is selected/applied only within `evaluate_predictions_report.R`.
+  - Confirm `thr_used` is the single source of truth for what is stored/reported in final summaries in `DDESONN.R`
+    (including when overrides are used).
+  - Ensure all derived metrics (accuracy/precision/recall/F1) are computed from confusion matrices that reflect
+    `thr_used` (not a fixed 0.5 threshold).
+
+- Continue decompartmentalization to slim the core codebase:
+  - Initial step: move the SONN method into its own dedicated file.
+  - Preserve the primary `DDESONN` R6 class in `R/DDESONN.R`.
+
 
 ## Contributing
 
