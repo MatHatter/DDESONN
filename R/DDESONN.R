@@ -3275,16 +3275,7 @@ DDESONN <- R6::R6Class(
         get0("y", ifnotfound = NULL, inherits = TRUE)         # legacy fallback; no X_* fallbacks
       )
       
-      #$$$$$$$$$$$$$ FIX: contain update_performance_and_relevance + plot chatter safely, but ALWAYS restore sinks
-      buf <- character() #$$$$$$$$$$$$$
-      con <- textConnection("buf", "w", local = TRUE) #$$$$$$$$$$$$$
-      sink(con, type = "output") #$$$$$$$$$$$$$
-      sink(con, type = "message") #$$$$$$$$$$$$$
-      on.exit({ #$$$$$$$$$$$$$
-        try(sink(type = "message"), silent = TRUE) #$$$$$$$$$$$$$
-        try(sink(type = "output"), silent = TRUE) #$$$$$$$$$$$$$
-        try(close(con), silent = TRUE) #$$$$$$$$$$$$$
-      }, add = TRUE) #$$$$$$$$$$$$$
+
       
       cat(sprintf("[TRACE] BEFORE update_performance_and_relevance @ %s\n", #$$$$$$$$$$$$$
                   format(Sys.time(), "%H:%M:%OS3"))) #$$$$$$$$$$$$$
@@ -3473,66 +3464,10 @@ DDESONN <- R6::R6Class(
       
       invisible(NULL)
       
-      #$$$$$$$$$$$$$ FIX: restore sinks NOW so FINAL SUMMARY always prints to console, then flush contained buffer
-      sink(type = "message") #$$$$$$$$$$$$$
-      sink(type = "output") #$$$$$$$$$$$$$
-      close(con) #$$$$$$$$$$$$$
-      cat(buf, sep = "\n") #$$$$$$$$$$$$$
+
       
       if(verbose){print("----------------------------------------train-end----------------------------------------")}
       
-      # ================================================================================
-      # ================================== FINAL SUMMARY ==============================
-      # ================================================================================
-      pred_summary_final <- predicted_outputAndTime
-      .first_scalar <- function(x) {
-        if (is.null(x) || !length(x)) return(NULL)
-        if (is.list(x)) {
-          for (val in x) {
-            if (!is.null(val) && length(val)) return(val[[1]])
-          }
-          return(NULL)
-        }
-        x[[1]]
-      }
-      best_epoch_train <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train)))
-      best_epoch_train_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train_loss)))
-      best_val_epoch <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch)))
-      best_val_epoch_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch_loss)))
-      best_train_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_acc)))
-      best_val_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_acc)))
-      best_train_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_loss)))
-      best_val_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_loss)))
-      summary_best_epoch <- if (isTRUE(validation_metrics)) {
-        if (identical(CLASSIFICATION_MODE, "regression")) best_val_epoch_loss else best_val_epoch
-      } else {
-        if (identical(CLASSIFICATION_MODE, "regression")) best_epoch_train_loss else best_epoch_train
-      }
-      summary_lines <- c("===== FINAL SUMMARY =====")
-      summary_lines <- c(summary_lines, sprintf("Best epoch           : %s", as.character(summary_best_epoch)))
-      summary_lines <- c(summary_lines, sprintf("Best train accuracy  : %s", as.character(best_train_acc)))
-      if (isTRUE(validation_metrics)) {
-        summary_lines <- c(summary_lines, sprintf("Best val accuracy    : %s", as.character(best_val_acc)))
-      }
-      if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
-        summary_lines <- c(summary_lines, sprintf("Train loss           : %s", as.character(best_train_loss)))
-      }
-      if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
-        summary_lines <- c(summary_lines, sprintf("Val loss             : %s", as.character(best_val_loss)))
-      }
-      if (!is.null(performance_relevance_data$threshold) && is.finite(performance_relevance_data$threshold)) {
-        summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
-      }
-      .emit_final_summary <- function(lines) {
-        cat(paste(lines, collapse = "\n"), "\n")
-      }
-      .emit_final_summary(summary_lines)
-      
-      cat(sprintf("[TRACE] AFTER FINAL SUMMARY @ %s\n", #$$$$$$$$$$$$$
-                  format(Sys.time(), "%H:%M:%OS3"))) #$$$$$$$$$$$$$
-      options(DDESONN_LAST_SUMMARY_TS = Sys.time()) #$$$$$$$$$$$$$
-      
-      #notice all other methods/functions like train end w if(verbose){print("-------..."), but this is a special scenario because this is the last Final Summary print.
       return(list(predicted_outputAndTime = predicted_outputAndTime, performance_relevance_data = performance_relevance_data))
     }
     , # Method for updating performance and relevance metrics
