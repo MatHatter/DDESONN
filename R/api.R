@@ -859,6 +859,65 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   }
 }
 
+.emit_final_run_summary <- function(pred_summary_final,
+                                    performance_relevance_data,
+                                    cfg,
+                                    mode) {
+  if (is.null(pred_summary_final) || !length(pred_summary_final)) {
+    return(invisible(NULL))
+  }
+
+  .first_scalar <- function(x) {
+    if (is.null(x) || !length(x)) return(NULL)
+    if (is.list(x)) {
+      for (val in x) {
+        if (!is.null(val) && length(val)) return(val[[1]])
+      }
+      return(NULL)
+    }
+    x[[1]]
+  }
+
+  best_epoch_train <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train)))
+  best_epoch_train_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train_loss)))
+  best_val_epoch <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch)))
+  best_val_epoch_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch_loss)))
+  best_train_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_acc)))
+  best_val_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_acc)))
+  best_train_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_loss)))
+  best_val_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_loss)))
+
+  summary_best_epoch <- if (isTRUE(cfg$validation_metrics)) {
+    if (identical(mode, "regression")) best_val_epoch_loss else best_val_epoch
+  } else {
+    if (identical(mode, "regression")) best_epoch_train_loss else best_epoch_train
+  }
+
+  summary_lines <- c("===== FINAL SUMMARY =====")
+  summary_lines <- c(summary_lines, sprintf("Best epoch           : %s", as.character(summary_best_epoch)))
+  summary_lines <- c(summary_lines, sprintf("Best train accuracy  : %s", as.character(best_train_acc)))
+  if (isTRUE(cfg$validation_metrics)) {
+    summary_lines <- c(summary_lines, sprintf("Best val accuracy    : %s", as.character(best_val_acc)))
+  }
+  if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
+    summary_lines <- c(summary_lines, sprintf("Train loss           : %s", as.character(best_train_loss)))
+  }
+  if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
+    summary_lines <- c(summary_lines, sprintf("Val loss             : %s", as.character(best_val_loss)))
+  }
+  if (!is.null(performance_relevance_data$threshold) &&
+      is.finite(performance_relevance_data$threshold)) {
+    summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
+  }
+
+  cat("# ================================================================================\n")
+  cat("# ================================== FINAL SUMMARY ==============================\n")
+  cat("# ================================================================================\n")
+  cat(paste(summary_lines, collapse = "\n"), "\n")
+  options(DDESONN_LAST_SUMMARY_TS = Sys.time())
+  invisible(NULL)
+}
+
 #' @title Generate predictions from a fitted `ddesonn_model`
 #' @description Produce ensemble or per-model predictions from a trained
 #'   `ddesonn_model`, optionally returning class labels for classification
@@ -3240,6 +3299,24 @@ ddesonn_run <- function(x,
     result$`.__prediction_matrix` <- NULL
   }
   
+  final_training <- NULL
+  if (length(runs)) {
+    final_run <- runs[[length(runs)]]
+    if (is.list(final_run) &&
+        !is.null(final_run$main) &&
+        !is.null(final_run$main$model)) {
+      final_training <- final_run$main$model$last_training
+    }
+  }
+  if (!is.null(final_training)) {
+    .emit_final_run_summary(
+      pred_summary_final = final_training$predicted_outputAndTime,
+      performance_relevance_data = final_training$performance_relevance_data,
+      cfg = base_train_overrides,
+      mode = tolower(classification_mode)
+    )
+  }
+
   result
 }
 
