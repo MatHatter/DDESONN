@@ -30,9 +30,12 @@ A list containing the aggregated prediction matrix and the
 per-model outputs when \code{aggregate = "none"}.
 }
 \description{
-Produce ensemble or per-model predictions from a trained
-\code{ddesonn_model}, optionally returning class labels for classification
-problems.
+Internal prediction engine / forward-pass primitive that
+produces ensemble or per-model predictions from a trained \code{ddesonn_model}.
+For user-facing inference, prefer \code{\link[=predict.ddesonn_model]{predict.ddesonn_model()}}, which wraps
+this helper to provide a stable API for \code{type}/\code{aggregate}/\code{threshold}
+handling and return shapes.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
 }
 \examples{
 data <- mtcars

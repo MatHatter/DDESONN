@@ -197,6 +197,29 @@ High-level API usage (training split is always `x`/`y`):
       training_overrides = list(num_epochs = 1, validation_metrics = TRUE)
     )
 
+### Prediction APIs: internal vs public
+
+Bottom line: **`ddesonn_predict()` = internal prediction engine (raw forward pass /
+ensemble aggregation; used internally in training/validation and internal evaluation
+paths).** **`predict.ddesonn_model()` / `predict()` = public, canonical user-facing API
+that wraps `ddesonn_predict()` and standardizes arguments + output shape + optional
+thresholding.**
+
+Why: internal code uses `ddesonn_predict()` because it’s a forward-pass primitive
+that’s faster and easier to control inside training loops (no user-facing return
+formatting). User-facing inference should use `predict()` because it provides a
+stable contract (type/aggregate/threshold handling, return structure).
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
+
+When `test = list(x = test_x, y = test_y)` is provided, the final run summary
+always includes test loss and test accuracy computed once after training
+completes, and the values are available at `res$test_metrics$loss` and
+`res$test_metrics$accuracy`. If you want to independently reproduce test
+accuracy, call `predict(res$model, test_x)$predicted_output`, apply the same
+threshold printed in the final summary, and compare element-wise to `test_y`
+(`mean(as.integer(pred >= thr) == test_y)`), which should match the reported
+test accuracy when thresholds, aggregation, and preprocessing are identical.
+
 API design notes (optional explicit splits):
 
 - ddesonn_run(x, y, validation = list(x = , y = ), test = list(x = , y = ),
@@ -204,12 +227,33 @@ API design notes (optional explicit splits):
 - Explicit `x_valid`/`y_valid` and `x_test`/`y_test` override the list inputs.
 - Explicit pairs must be complete (no `x_valid` without `y_valid`).
 - Backward compatibility is preserved.
+- Run history: `res$history` mirrors the training metadata (including best
+  train/validation losses) and, when a test split is supplied, adds
+  `test_loss` alongside `result$test_metrics`.
 
 
 ### Model usage note (post-training)
 
 Training and validation run inside `ddesonn_run()` and call the model’s R6
 methods directly.
+
+**Evaluation contract (test data):**
+
+- When `test$x`/`test$y` (or `x_test`/`y_test`) are supplied, `ddesonn_run()` is the
+  authoritative source for **test loss and test accuracy**. These metrics are computed
+  once after training completes, are stored at `res$test_metrics$loss` and
+  `res$test_metrics$accuracy`, and are returned/printed as part of the final run summary.
+- If you want to reproduce test accuracy manually, call `predict(res$model, x_test)`
+  and compute accuracy as *(number of correct predictions ÷ total rows)* via an
+  element-wise comparison against `y_test` using the same threshold shown in the
+  final summary (and the same aggregation and preprocessing).
+- Given the **same threshold and preprocessing**, this manually computed accuracy
+  **should match** the `ddesonn_run()` test accuracy. Any mismatch indicates a
+  threshold or data-handling difference (not a model inconsistency).
+- `ddesonn_run()` is for **evaluation**, while `predict()` is for **inspection,
+  custom metrics, and downstream logic**—neither replaces the other.
+- `ddesonn_run()` does **not** return per-row predictions; per-row outputs are
+  provided by `predict()` only.
 
 After training completes, the returned model (`res$model`) supports standard
 R workflows via `predict(model, newdata)`. This is enabled by a lightweight
@@ -218,6 +262,12 @@ method.
 
 Training behavior and final summary output are unchanged; this only
 standardizes post-training usage.
+
+Notes on aggregation + split reports:
+
+- Aggregated predictions just reuse the existing `ddesonn_predict(..., aggregate = ...)` output for each split; no new aggregation behavior is added.
+- Aggregation controls how multiple ensemble members are combined (e.g., mean/median vs none), and test metrics use the same default aggregation as predict() unless overridden.
+- The binary split report helper is only for formatting Keras-style output (classification report + AUC/AUPRC + confusion matrix) in one place so Train/Validation/Test can print consistently without duplicating logic; core F1/ROC/precision/recall calculations already exist elsewhere.
 
 
 ---

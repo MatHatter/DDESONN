@@ -920,7 +920,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       summary_lines <- c(summary_lines, sprintf("Test loss            : %s", as.character(test_loss)))
     }
   }
-
   cat("# ================================================================================\n")
   cat("# ================================== FINAL SUMMARY ==============================\n")
   cat("# ================================================================================\n")
@@ -934,20 +933,18 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
                                   y_test,
                                   classification_mode,
                                   cfg,
-                                  aggregate,
                                   threshold) {
   if (is.null(model) || is.null(x_test) || is.null(y_test)) {
-    return(NULL)
+    return(list(ok = FALSE, reason = "missing test data"))
   }
-  eval_aggregate <- if (identical(aggregate, "none")) "mean" else aggregate
-  pr <- try(ddesonn_predict(model, x_test, aggregate = eval_aggregate, type = "response"), silent = TRUE)
-  if (inherits(pr, "try-error") || is.null(pr$prediction)) {
-    return(NULL)
+  pr <- try(predict(model, x_test, type = "response"), silent = TRUE)
+  if (inherits(pr, "try-error") || is.null(pr$predicted_output)) {
+    return(list(ok = FALSE, reason = "response prediction failed"))
   }
-  preds <- .as_numeric_matrix(pr$prediction)
+  preds <- .as_numeric_matrix(pr$predicted_output)
   n <- nrow(preds)
   if (!is.finite(n) || n < 1L) {
-    return(NULL)
+    return(list(ok = FALSE, reason = "no test predictions returned"))
   }
   mode <- tolower(classification_mode)
   targs <- .build_targets(y_test, n, ncol(preds), mode)
@@ -967,6 +964,10 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   loss <- if (inherits(loss, "try-error")) NA_real_ else suppressWarnings(as.numeric(loss))
   accuracy <- NA_real_
   if (mode %in% c("binary", "multiclass")) {
+    class_pred <- try(predict(model, x_test, type = "class", threshold = threshold), silent = TRUE)
+    if (inherits(class_pred, "try-error") || is.null(class_pred)) {
+      return(list(ok = FALSE, reason = "class prediction failed"))
+    }
     y_true <- if (identical(mode, "multiclass")) {
       if (is.matrix(labels_for_loss) && ncol(labels_for_loss) > 1L) {
         max.col(labels_for_loss, ties.method = "first")
@@ -977,18 +978,11 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       suppressWarnings(as.integer(.extract_vec(y_test)))
     }
     y_true <- .align_len(y_true, n)
-    thr_used <- threshold %||%
-      attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
-      attr(model, "threshold") %||%
-      .ddesonn_threshold_default(mode)
-    y_pred <- if (identical(mode, "binary")) {
-      as.integer(preds[, 1] >= thr_used)
-    } else {
-      max.col(preds, ties.method = "first")
-    }
+    y_pred <- .align_len(as.integer(class_pred), n)
     accuracy <- mean(y_pred == y_true, na.rm = TRUE)
   }
   list(
+    ok = TRUE,
     loss = loss,
     accuracy = accuracy,
     loss_type = cfg$loss_type %||% NA_character_,
@@ -996,10 +990,127 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   )
 }
 
+# Helper rationale: keep the Keras-style classification report formatting in one
+# place (AUC/AUPRC + confusion matrix + report table) so Train/Validation/Test
+# can print consistently without duplicating logic, even though core metrics
+# already exist elsewhere in the codebase.
+.coerce_binary_labels <- function(y_source) {
+  if (is.null(y_source)) return(NULL)
+  y_mat <- try(.as_numeric_matrix(y_source), silent = TRUE)
+  if (inherits(y_mat, "try-error") || !is.matrix(y_mat) || !nrow(y_mat)) {
+    return(NULL)
+  }
+  if (ncol(y_mat) == 2L && all(y_mat %in% c(0, 1, NA), na.rm = TRUE)) {
+    return(as.integer(y_mat[, 2]))
+  }
+  as.integer(y_mat[, 1])
+}
+
+.build_binary_report <- function(y_true, p_pos, threshold) {
+  if (is.null(y_true) || is.null(p_pos)) return(NULL)
+  n <- min(length(y_true), length(p_pos))
+  if (!is.finite(n) || n < 1L) return(NULL)
+  y_true <- as.integer(y_true[seq_len(n)])
+  p_pos <- as.numeric(p_pos[seq_len(n)])
+  if (all(y_true %in% c(1, 2), na.rm = TRUE) && !any(y_true %in% c(0), na.rm = TRUE)) {
+    y_true <- y_true - 1L
+  }
+  keep <- is.finite(y_true) & is.finite(p_pos)
+  y_true <- y_true[keep]
+  p_pos <- p_pos[keep]
+  if (!length(y_true) || !length(p_pos)) return(NULL)
+  if (any(p_pos < 0 | p_pos > 1, na.rm = TRUE)) {
+    p_pos <- 1 / (1 + exp(-p_pos))
+  }
+  thr <- threshold %||% 0.5
+  y_pred <- as.integer(p_pos >= thr)
+  TP <- sum(y_pred == 1L & y_true == 1L, na.rm = TRUE)
+  TN <- sum(y_pred == 0L & y_true == 0L, na.rm = TRUE)
+  FP <- sum(y_pred == 1L & y_true == 0L, na.rm = TRUE)
+  FN <- sum(y_pred == 0L & y_true == 1L, na.rm = TRUE)
+  support0 <- sum(y_true == 0L, na.rm = TRUE)
+  support1 <- sum(y_true == 1L, na.rm = TRUE)
+  total_support <- support0 + support1
+  prec0 <- if ((TN + FN) > 0) TN / (TN + FN) else 0
+  rec0 <- if ((TN + FP) > 0) TN / (TN + FP) else 0
+  f1_0 <- if ((prec0 + rec0) > 0) 2 * prec0 * rec0 / (prec0 + rec0) else 0
+  prec1 <- if ((TP + FP) > 0) TP / (TP + FP) else 0
+  rec1 <- if ((TP + FN) > 0) TP / (TP + FN) else 0
+  f1_1 <- if ((prec1 + rec1) > 0) 2 * prec1 * rec1 / (prec1 + rec1) else 0
+  accuracy <- if (total_support > 0) (TP + TN) / total_support else NA_real_
+  macro_precision <- mean(c(prec0, prec1), na.rm = TRUE)
+  macro_recall <- mean(c(rec0, rec1), na.rm = TRUE)
+  macro_f1 <- mean(c(f1_0, f1_1), na.rm = TRUE)
+  weighted_precision <- if (total_support > 0) {
+    (prec0 * support0 + prec1 * support1) / total_support
+  } else {
+    NA_real_
+  }
+  weighted_recall <- if (total_support > 0) {
+    (rec0 * support0 + rec1 * support1) / total_support
+  } else {
+    NA_real_
+  }
+  weighted_f1 <- if (total_support > 0) {
+    (f1_0 * support0 + f1_1 * support1) / total_support
+  } else {
+    NA_real_
+  }
+  report <- data.frame(
+    precision = c(prec0, prec1, NA_real_, macro_precision, weighted_precision),
+    recall = c(rec0, rec1, NA_real_, macro_recall, weighted_recall),
+    `f1-score` = c(f1_0, f1_1, accuracy, macro_f1, weighted_f1),
+    support = c(support0, support1, total_support, total_support, total_support),
+    check.names = FALSE,
+    row.names = c("0", "1", "accuracy", "macro avg", "weighted avg")
+  )
+  auc_val <- NA_real_
+  auprc_val <- NA_real_
+  if (length(unique(y_true)) == 2L && requireNamespace("pROC", quietly = TRUE)) {
+    roc_obj <- try(pROC::roc(response = y_true, predictor = p_pos, levels = c(0, 1), direction = "<", quiet = TRUE), silent = TRUE)
+    if (!inherits(roc_obj, "try-error")) {
+      auc_val <- tryCatch(as.numeric(pROC::auc(roc_obj)), error = function(e) NA_real_)
+    }
+  }
+  if (length(unique(y_true)) == 2L && requireNamespace("PRROC", quietly = TRUE)) {
+    pr_obj <- try(
+      PRROC::pr.curve(scores.class0 = p_pos[y_true == 1L], scores.class1 = p_pos[y_true == 0L], curve = FALSE),
+      silent = TRUE
+    )
+    if (!inherits(pr_obj, "try-error")) {
+      auprc_val <- tryCatch(as.numeric(pr_obj$auc.integral), error = function(e) NA_real_)
+    }
+  }
+  confusion <- matrix(c(TP, FP, FN, TN), nrow = 2, byrow = TRUE,
+                      dimnames = list("Actual" = c("Positive (1)", "Negative (0)"),
+                                      "Predicted" = c("Positive (1)", "Negative (0)")))
+  list(report = report, confusion = confusion, auc = auc_val, auprc = auprc_val)
+}
+
+.emit_binary_classification_report <- function(split_label, y_true, prob_mat, threshold) {
+  if (is.null(y_true) || is.null(prob_mat)) return(invisible(NULL))
+  probs <- try(.as_numeric_matrix(prob_mat), silent = TRUE)
+  if (inherits(probs, "try-error") || !is.matrix(probs) || !nrow(probs)) return(invisible(NULL))
+  p_pos <- as.numeric(probs[, 1])
+  report <- .build_binary_report(y_true, p_pos, threshold)
+  if (is.null(report)) return(invisible(NULL))
+  cat(sprintf("\n=== %s ===\n", split_label))
+  cat(sprintf("AUC (ROC): %s\n", ifelse(is.na(report$auc), "NA", sprintf("%.6f", report$auc))))
+  cat(sprintf("AUPRC: %s\n", ifelse(is.na(report$auprc), "NA", sprintf("%.6f", report$auprc))))
+  cat("Classification Report:\n")
+  print(report$report, digits = 6, na.print = "")
+  cat("Confusion Matrix:\n")
+  print(report$confusion)
+  invisible(report)
+}
+
 #' @title Generate predictions from a fitted `ddesonn_model`
-#' @description Produce ensemble or per-model predictions from a trained
-#'   `ddesonn_model`, optionally returning class labels for classification
-#'   problems.
+#' @description Internal prediction engine / forward-pass primitive that
+#'   produces ensemble or per-model predictions from a trained `ddesonn_model`.
+#'   For user-facing inference, prefer [predict.ddesonn_model()], which wraps
+#'   this helper to provide a stable API for `type`/`aggregate`/`threshold`
+#'   handling and return shapes.
+#'   Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
 #'
 #' @param model A trained model produced by [ddesonn_model()].
 #' @param new_data New feature matrix or data frame.
@@ -3437,16 +3548,24 @@ ddesonn_run <- function(x,
   test_metrics <- NULL
   if (!is.null(test_matrix) && !is.null(test_labels) && length(runs)) {
     final_model <- final_model %||% (runs[[length(runs)]]$main$model %||% NULL)
-    test_metrics <- .compute_test_metrics(
+    summary_threshold <- NULL
+    if (!is.null(final_training) && is.list(final_training$performance_relevance_data)) {
+      summary_threshold <- final_training$performance_relevance_data$threshold %||% NULL
+      if (!is.finite(suppressWarnings(as.numeric(summary_threshold)))) {
+        summary_threshold <- NULL
+      }
+    }
+    test_threshold <- summary_threshold %||% threshold
+    test_metrics_result <- .compute_test_metrics(
       model = final_model,
       x_test = test_matrix,
       y_test = test_labels,
       classification_mode = classification_mode,
       cfg = base_train_overrides,
-      aggregate = aggregate,
-      threshold = threshold
+      threshold = test_threshold
     )
-    if (!is.null(test_metrics)) {
+    if (is.list(test_metrics_result) && isTRUE(test_metrics_result$ok)) {
+      test_metrics <- test_metrics_result
       result$test_metrics <- test_metrics
       if (!is.null(final_training) && is.list(final_training$predicted_outputAndTime)) {
         final_training$predicted_outputAndTime$test_loss <- test_metrics$loss
@@ -3457,6 +3576,9 @@ ddesonn_run <- function(x,
         }
         result$history <- final_training$predicted_outputAndTime
       }
+    } else {
+      test_metrics <- NULL
+      message(sprintf("Test metrics unavailable: %s", test_metrics_result$reason %||% "unknown error"))
     }
   }
   if (!is.null(final_training)) {
@@ -3467,6 +3589,31 @@ ddesonn_run <- function(x,
       mode = tolower(classification_mode),
       test_metrics = test_metrics
     )
+  }
+  if (!is.null(final_model) && identical(tolower(classification_mode), "binary")) {
+    thr_used <- threshold %||%
+      attr(final_model, "chosen_threshold") %||% final_model$chosen_threshold %||%
+      attr(final_model, "threshold") %||%
+      .ddesonn_threshold_default("binary")
+    train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
+    if (!inherits(train_probs, "try-error") && !is.null(train_probs$prediction)) {
+      y_train_vec <- .coerce_binary_labels(y_matrix)
+      .emit_binary_classification_report("Train", y_train_vec, train_probs$prediction, thr_used)
+    }
+    if (!is.null(validation_data) && !is.null(validation_data$x)) {
+      val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response"), silent = TRUE)
+      if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
+        y_val_vec <- .coerce_binary_labels(validation_data$y)
+        .emit_binary_classification_report("Validation", y_val_vec, val_probs$prediction, thr_used)
+      }
+    }
+    if (!is.null(test_matrix) && !is.null(test_labels)) {
+      test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
+      if (!inherits(test_probs, "try-error") && !is.null(test_probs$prediction)) {
+        y_test_vec <- .coerce_binary_labels(test_labels)
+        .emit_binary_classification_report("Test", y_test_vec, test_probs$prediction, thr_used)
+      }
+    }
   }
 
   result

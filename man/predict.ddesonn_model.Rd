@@ -28,5 +28,8 @@ while \code{"class"} returns class labels for classification problems.}
 \item{threshold}{Optional threshold override when \code{type = "class"}.}
 }
 \description{
-Predict method for DDESONN models
+This is the canonical user-facing wrapper around \code{\link[=ddesonn_predict]{ddesonn_predict()}}. It
+standardizes arguments (\code{type}, \code{aggregate}, \code{threshold}) and normalizes the
+output structure for inference workflows.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
 }
