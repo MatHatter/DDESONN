@@ -462,6 +462,14 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
   
+  plot_cfg_override <- overrides$EvaluatePredictionsReportPlotsConfig %||%
+    overrides$evaluate_predictions_report_plots %||%
+    overrides$eval_report_plots
+  if (is.list(plot_cfg_override)) {
+    current_cfg <- tryCatch(model$EvaluatePredictionsReportPlotsConfig, error = function(e) list())
+    model$EvaluatePredictionsReportPlotsConfig <- utils::modifyList(current_cfg %||% list(), plot_cfg_override, keep.null = TRUE)
+  }
+
   # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
   if (identical(mode, "binary")) {
     cfg$threshold_function <- cfg$threshold_function %||% .ddesonn_get("tune_threshold_accuracy")
@@ -910,6 +918,20 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       is.finite(performance_relevance_data$threshold)) {
     summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
   }
+  roc_plot <- performance_relevance_data$eval_report_plots$roc_png %||% NULL
+  if (!is.null(roc_plot) && is.character(roc_plot)) {
+    roc_plot <- roc_plot[1]
+    if (isTRUE(nzchar(roc_plot)) && !is.na(roc_plot)) {
+      summary_lines <- c(summary_lines, sprintf("ROC plot            : %s", roc_plot))
+    }
+  }
+  pr_plot <- performance_relevance_data$eval_report_plots$pr_png %||% NULL
+  if (!is.null(pr_plot) && is.character(pr_plot)) {
+    pr_plot <- pr_plot[1]
+    if (isTRUE(nzchar(pr_plot)) && !is.na(pr_plot)) {
+      summary_lines <- c(summary_lines, sprintf("PR plot             : %s", pr_plot))
+    }
+  }
   if (is.list(test_metrics) && length(test_metrics)) {
     test_acc <- suppressWarnings(as.numeric(test_metrics$accuracy))
     test_loss <- suppressWarnings(as.numeric(test_metrics$loss))
@@ -1057,8 +1079,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     NA_real_
   }
   report <- data.frame(
-    precision = c(prec0, prec1, NA_real_, macro_precision, weighted_precision),
-    recall = c(rec0, rec1, NA_real_, macro_recall, weighted_recall),
+    precision = c(prec0, prec1, accuracy, macro_precision, weighted_precision),
+    recall = c(rec0, rec1, accuracy, macro_recall, weighted_recall),
     `f1-score` = c(f1_0, f1_1, accuracy, macro_f1, weighted_f1),
     support = c(support0, support1, total_support, total_support, total_support),
     check.names = FALSE,
@@ -1087,6 +1109,20 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   list(report = report, confusion = confusion, auc = auc_val, auprc = auprc_val)
 }
 
+.format_report_value <- function(x, digits = 3L) {
+  ifelse(is.na(x), "NA", sprintf(paste0("%.", digits, "f"), x))
+}
+
+.format_report_table <- function(df, digits = 3L) {
+  formatted <- df
+  for (col in names(formatted)) {
+    if (is.numeric(formatted[[col]])) {
+      formatted[[col]] <- .format_report_value(formatted[[col]], digits = digits)
+    }
+  }
+  formatted
+}
+
 .emit_binary_classification_report <- function(split_label, y_true, prob_mat, threshold) {
   if (is.null(y_true) || is.null(prob_mat)) return(invisible(NULL))
   probs <- try(.as_numeric_matrix(prob_mat), silent = TRUE)
@@ -1095,12 +1131,15 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   report <- .build_binary_report(y_true, p_pos, threshold)
   if (is.null(report)) return(invisible(NULL))
   cat(sprintf("\n=== %s ===\n", split_label))
-  cat(sprintf("AUC (ROC): %s\n", ifelse(is.na(report$auc), "NA", sprintf("%.6f", report$auc))))
-  cat(sprintf("AUPRC: %s\n", ifelse(is.na(report$auprc), "NA", sprintf("%.6f", report$auprc))))
   cat("Classification Report:\n")
-  print(report$report, digits = 6, na.print = "")
+  print(.format_report_table(report$report, digits = 3L), na.print = "")
   cat("Confusion Matrix:\n")
-  print(report$confusion)
+  confusion_fmt <- matrix(.format_report_value(report$confusion, digits = 3L),
+                          nrow = nrow(report$confusion),
+                          dimnames = dimnames(report$confusion))
+  print(confusion_fmt, quote = FALSE)
+  cat(sprintf("AUC (ROC): %s\n", .format_report_value(report$auc, digits = 3L)))
+  cat(sprintf("AUPRC: %s\n", .format_report_value(report$auprc, digits = 3L)))
   invisible(report)
 }
 

@@ -1297,27 +1297,29 @@ SONN <- R6::R6Class(
       }
       
       # Print RAW activations passed to predict (before resolving)
-      cat("=== RAW activation_functions_predict (as passed to predict) ===\n")
-      if (is.null(acts_pred)) {
-        cat("NULL\n")
-      } else if (is.function(acts_pred)) {
-        nm <- attr(acts_pred, "name"); if (is.null(nm)) nm <- "unnamed_function"
-        cat("single function: ", nm, "\n", sep = "")
-      } else if (is.character(acts_pred)) {
-        cat("character vector: ", paste(acts_pred, collapse = ", "), "\n", sep = "")
-      } else if (is.list(acts_pred)) {
-        cat("list len=", length(acts_pred), " (names/types)\n", sep = "")
-        for (i in seq_along(acts_pred)) {
-          v <- acts_pred[[i]]
-          cat(sprintf("  [L%02d] %s\n", i,
-                      if (is.function(v)) paste0("fn:", (attr(v,"name") %||% "unnamed_function"))
-                      else if (is.character(v)) paste0("str:", v)
-                      else class(v)[1]))
+      if (isTRUE(debug) || isTRUE(verbose)) {
+        cat("=== RAW activation_functions_predict (as passed to predict) ===\n")
+        if (is.null(acts_pred)) {
+          cat("NULL\n")
+        } else if (is.function(acts_pred)) {
+          nm <- attr(acts_pred, "name"); if (is.null(nm)) nm <- "unnamed_function"
+          cat("single function: ", nm, "\n", sep = "")
+        } else if (is.character(acts_pred)) {
+          cat("character vector: ", paste(acts_pred, collapse = ", "), "\n", sep = "")
+        } else if (is.list(acts_pred)) {
+          cat("list len=", length(acts_pred), " (names/types)\n", sep = "")
+          for (i in seq_along(acts_pred)) {
+            v <- acts_pred[[i]]
+            cat(sprintf("  [L%02d] %s\n", i,
+                        if (is.function(v)) paste0("fn:", (attr(v,"name") %||% "unnamed_function"))
+                        else if (is.character(v)) paste0("str:", v)
+                        else class(v)[1]))
+          }
+        } else {
+          cat("type: ", class(acts_pred)[1], "\n", sep = "")
         }
-      } else {
-        cat("type: ", class(acts_pred)[1], "\n", sep = "")
+        cat("=== END RAW ===\n\n")
       }
-      cat("=== END RAW ===\n\n")
       
       # Helper to fetch spec for a given layer and resolve it
       .get_act <- function(layer) {
@@ -1410,7 +1412,9 @@ SONN <- R6::R6Class(
         
         # Apply activation
         if (is.function(act_fn)) {
-          cat(sprintf("[PRED] Layer %d activation = %s\n", layer, act_name))
+          if (isTRUE(debug) || isTRUE(verbose)) {
+            cat(sprintf("[PRED] Layer %d activation = %s\n", layer, act_name))
+          }
           output <- act_fn(output)
           # After-activation probe
           if (isTRUE(debug) || isTRUE(verbose)) {
@@ -1422,7 +1426,9 @@ SONN <- R6::R6Class(
             }
           }
         } else {
-          cat(sprintf("[PRED] Layer %d activation = identity (NULL)\n", layer))
+          if (isTRUE(debug) || isTRUE(verbose)) {
+            cat(sprintf("[PRED] Layer %d activation = identity (NULL)\n", layer))
+          }
           # output already equals Z_curr
           if (isTRUE(debug) || isTRUE(verbose)) {
             sdA  <- stats::sd(as.vector(output)); rngA <- range(as.vector(output))
@@ -1443,7 +1449,7 @@ SONN <- R6::R6Class(
       }
       
       # Final head diagnostics
-      if (num_layers >= 1) {
+      if (num_layers >= 1 && (isTRUE(debug) || isTRUE(verbose))) {
         cat("\n[HEAD-DBG] ---- Last layer diagnostic ----\n")
         cat(sprintf("[HEAD-DBG] W_last dims=%d x %d | mean=%.6f sd=%.6f min=%.6f max=%.6f\n",
                     nrow(last_w), ncol(last_w), mean(last_w), sd(as.vector(last_w)), min(last_w), max(last_w)))
@@ -1469,7 +1475,9 @@ SONN <- R6::R6Class(
                     prediction_time, nrow(output), ncol(output)))
       }
       
-      print("----------------------------------------predict-end----------------------------------------")
+      if (isTRUE(debug) || isTRUE(verbose)) {
+        print("----------------------------------------predict-end----------------------------------------")
+      }
       
       # Return both keys for compatibility with existing codepaths
       return(list(
@@ -2904,6 +2912,7 @@ DDESONN <- R6::R6Class(
         accuracy_plot_mode     = "both",  # "accuracy"|"accuracy_tuned"|"both"  
         
         multiclass_heatmap    = FALSE,  # confusion_matrix_multiclass_heatmap.png
+        show_auprc            = TRUE,   # include AUPRC in PR title by default
         
         viewAllPlots          = FALSE,  # overrides everything above
         verbose               = FALSE
@@ -3575,6 +3584,17 @@ DDESONN <- R6::R6Class(
 # stop()
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+            eval_cfg <- self$EvaluatePredictionsReportPlotsConfig %||% list()
+            eval_plot_mode <- eval_cfg$accuracy_plot_mode %||% "both"
+            eval_show_auprc <- eval_cfg$show_auprc %||% TRUE
+            eval_enable_plots <- any(c(
+              self$viewEvaluatePredictionsReportPlots("pred_vs_error_scatter"),
+              self$viewEvaluatePredictionsReportPlots("roc_curve"),
+              self$viewEvaluatePredictionsReportPlots("pr_curve"),
+              self$viewEvaluatePredictionsReportPlots("legacy_conf_heatmap"),
+              self$viewEvaluatePredictionsReportPlots("accuracy_plots"),
+              self$viewEvaluatePredictionsReportPlots("multiclass_heatmap")
+            ))
             eval_result <- EvaluatePredictionsReport(
               X_validation = X_validation,
               y_validation = y_validation,
@@ -3585,8 +3605,12 @@ DDESONN <- R6::R6Class(
               all_best_val_probs = best_val_probs,
               all_best_val_labels = best_val_labels,
               verbose = verbose,
+              accuracy_plot = eval_plot_mode,
+              show_auprc = eval_show_auprc,
               tuned_threshold_override = best_threshold,
-              SONN = self$ensemble[[i]]
+              SONN = self$ensemble[[i]],
+              output_root = output_root,
+              enable_plots = eval_enable_plots
             )
             # Mirror back for downstream readers that expect the report field
             if (is.finite(best_threshold)) {
@@ -4156,7 +4180,7 @@ DDESONN <- R6::R6Class(
 
       if(verbose){print("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
       # Return the lists of plots
-      return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL))
+      return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL, eval_report_plots = eval_result$artifacts$plots %||% NULL))
 
 
     },

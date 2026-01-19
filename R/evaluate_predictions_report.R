@@ -46,6 +46,7 @@ EvaluatePredictionsReport <- function(
     # Plot selection ONLY (results always include both fixed and tuned):
     accuracy_plot = c("accuracy", "accuracy_tuned", "both"),
     tuned_threshold_override = NULL,
+    show_auprc = TRUE,
     SONN,
     # Optional extras for library metric calls; they are safely ignored if missing:
     Rdata = NULL,
@@ -575,7 +576,10 @@ EvaluatePredictionsReport <- function(
                                            y_pred_tuned, best_thr, "_tuned")
     }
     
-    # PR curve (object always computed; PNG only if enable_plots)        
+    # PR curve (object always computed; PNG only if enable_plots)
+    # - pr_obj comes from PRROC::pr.curve(curve = TRUE)
+    # - AUPRC is pr_obj$auc.integral and can be shown in the title
+    # - show_auprc = TRUE (default) appends AUPRC; FALSE keeps the legacy title
     labels_numeric <- as.numeric(y_true)
     probs_numeric  <- as.numeric(p_pos)
     pr_obj <- tryCatch(
@@ -590,7 +594,11 @@ EvaluatePredictionsReport <- function(
     if (isTRUE(enable_plots) && !is.null(pr_obj)) {                     
       tryCatch({
         grDevices::png(pr_png, width = 800, height = 600)
-        plot(pr_obj, main = "Precision-Recall Curve - Neural Network", lwd = 2)
+        pr_title <- "Precision-Recall Curve - Neural Network"
+        if (isTRUE(show_auprc) && is.finite(auprc_val)) {
+          pr_title <- sprintf("Precision-Recall Curve - Neural Network (AUPRC = %.4f)", auprc_val)
+        }
+        plot(pr_obj, main = pr_title, lwd = 2)
         graphics::grid()
         grDevices::dev.off()
         if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")  
@@ -728,7 +736,8 @@ EvaluatePredictionsReport <- function(
       configuration = list(
         classification_mode = CLASSIFICATION_MODE,
         accuracy_plot = accuracy_plot,
-        tuned_threshold_override = tuned_threshold_override
+        tuned_threshold_override = tuned_threshold_override,
+        show_auprc = show_auprc
       ),
       paths = list(
         artifacts_root = artifacts_root,

@@ -9,7 +9,9 @@ Authors@R: c(
 Description: High-level helpers for constructing, training, and evaluating
     Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The
     package wraps the legacy R6 implementations and exposes a modern API for
-    modelling workflows.
+    modelling workflows. Evaluation utilities include ROC and Precision–Recall
+    curves with default AUC/AUPRC annotation, configurable via ddesonn_run() and
+    ddesonn_fit().
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
