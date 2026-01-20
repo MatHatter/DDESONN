@@ -111,7 +111,8 @@ SONN <- R6::R6Class(
         saturation_plot = FALSE,  # output saturation
         max_weight_plot = FALSE,  # max weight magnitude
         viewAllPlots = FALSE,
-        verbose    = FALSE
+        verbose    = FALSE,
+        plotEnabled = TRUE
       )
 
     },
@@ -1688,22 +1689,52 @@ SONN <- R6::R6Class(
           max_weight_log <- c(max_weight_log, max_weight)
           
           ## =========================
-          ## SONN — Top 3 Per-epoch Plots (original scaffolding)
+          ## SONN — Per-epoch plot config (plotEnabled gate, no output_root dependency)
           ## =========================
-          if (is.null(self$PerEpochlViewPlotsConfig)) self$PerEpochlViewPlotsConfig <- list()
-          .fix_flag <- function(v, default) { if (isTRUE(v)) TRUE else if (isFALSE(v)) FALSE else default }
-          defaults <- list(accuracy_plot = FALSE, saturation_plot = FALSE, max_weight_plot = FALSE, viewAllPlots = FALSE, verbose = FALSE)
-          for (nm in names(defaults)) {
-            self$PerEpochlViewPlotsConfig[[nm]] <- .fix_flag(self$PerEpochlViewPlotsConfig[[nm]], defaults[[nm]])
+          
+          #$$$$$$$$$$$$$ FIX: migrate legacy typo field -> canonical PerEpochViewPlotsConfig
+          if (!is.null(self$PerEpochlViewPlotsConfig) && is.null(self$PerEpochViewPlotsConfig)) {
+            self$PerEpochViewPlotsConfig <- self$PerEpochlViewPlotsConfig
           }
-          pe <- self$PerEpochlViewPlotsConfig
-          message(sprintf("SONN per-epoch flags → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
-                          pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose))
-          message(sprintf("SONN gate eval → acc=%s, sat=%s, max=%s",
-                          self$viewPerEpochPlots("accuracy_plot"),
-                          self$viewPerEpochPlots("saturation_plot"),
-                          self$viewPerEpochPlots("max_weight_plot")))
-          plots_dir <- ddesonn_plots_dir(output_root)
+          
+          if (is.null(self$PerEpochViewPlotsConfig)) self$PerEpochViewPlotsConfig <- list()
+          
+          .fix_flag <- function(v, default) {
+            if (isTRUE(v)) TRUE else if (isFALSE(v)) FALSE else default
+          }
+          
+          #$$$$$$$$$$$$$ ADD: plotEnabled is the master gate (Scenario 1 friendly)
+          defaults <- list(
+            plotEnabled     = FALSE,
+            accuracy_plot   = FALSE,
+            saturation_plot = FALSE,
+            max_weight_plot = FALSE,
+            viewAllPlots    = FALSE,
+            verbose         = FALSE
+          )
+          
+          for (nm in names(defaults)) {
+            self$PerEpochViewPlotsConfig[[nm]] <- .fix_flag(self$PerEpochViewPlotsConfig[[nm]], defaults[[nm]])
+          }
+          
+          pe <- self$PerEpochViewPlotsConfig
+          
+          #$$$$$$$$$$$$$ ADD: pure gate, does NOT depend on output_root
+          plot_enabled <- isTRUE(pe$plotEnabled)
+          
+          message(sprintf(
+            "SONN per-epoch config → plotEnabled=%s | acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
+            pe$plotEnabled, pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
+          ))
+          
+          message(sprintf(
+            "SONN gate eval → enabled=%s | acc=%s, sat=%s, max=%s",
+            plot_enabled,
+            self$viewPerEpochPlots("accuracy_plot"),
+            self$viewPerEpochPlots("saturation_plot"),
+            self$viewPerEpochPlots("max_weight_plot")
+          ))
+          
           ens <- as.integer(if (!is.null(self$ensemble_number)) self$ensemble_number else get0("ensemble_number", 1L))
           mod <- as.integer(if (exists("model_iter_num", inherits = TRUE)) model_iter_num else get0("model_iter_num", 1L))
           
@@ -1899,8 +1930,9 @@ SONN <- R6::R6Class(
             StdOutput  = pad(sd_output_log, nA)
           )
           
-          if (self$viewPerEpochPlots("accuracy_plot")) {
+          if (plot_enabled && self$viewPerEpochPlots("accuracy_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
+              plots_dir <- ddesonn_plots_dir(output_root)                 #$$$$$$$$$$$$$ FIX: resolve only at write time
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
                 ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) +
                 ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) +
@@ -1908,14 +1940,16 @@ SONN <- R6::R6Class(
                               y = "Value") +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+              
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
-          if (self$viewPerEpochPlots("saturation_plot")) {
+          if (plot_enabled && self$viewPerEpochPlots("saturation_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
+              plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
                 ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) +
                 ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) +
@@ -1923,6 +1957,7 @@ SONN <- R6::R6Class(
                               y = "Output Value") +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+              
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
@@ -2098,14 +2133,16 @@ SONN <- R6::R6Class(
           }
           
           # 3) Max Weight Magnitude
-          if (self$viewPerEpochPlots("max_weight_plot")) {
+          if (plot_enabled && self$viewPerEpochPlots("max_weight_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
+              plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
               p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) +
                 ggplot2::geom_line(size = 1) +
                 ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
                               y = "Max |Weight|") +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+              
               out <- file.path(plots_dir, fname("max_weight_plot.png"))
               message("📸 save: ", out)
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
@@ -2724,8 +2761,8 @@ SONN <- R6::R6Class(
       lossesatoptimalepoch <- if (is.na(optimal_epoch)) tail(losses, 1) else losses[optimal_epoch]
       
       # --- Robust loss plot saver (base R) ---
-      if (all(is.finite(losses))) {
-        plots_dir <- ddesonn_plots_dir(output_root)
+      if (plot_enabled && all(is.finite(losses))) {                     #$$$$$$$$$$$$$ FIX
+        plots_dir <- ddesonn_plots_dir(output_root)                     #$$$$$$$$$$$$$ FIX: resolve only when saving
         
         fname_prefixer <- make_fname_prefix(
           do_ensemble     = do_ensemble,
@@ -2745,12 +2782,12 @@ SONN <- R6::R6Class(
         }
         cat("Device before:", dev.cur(), "\n")
         
-        plot(losses, type = 'l',
-             main = paste('Loss Over Epochs for DDESONN', ensemble_number,
-                          'SONN', model_iter_num, 'lr:', lr, 'lambda:', self$lambda),
-             xlab = 'Epoch', ylab = 'Loss', col = 'turquoise', lwd = 2.0)
+        plot(losses, type = "l",
+             main = paste("Loss Over Epochs for DDESONN", ensemble_number,
+                          "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
+             xlab = "Epoch", ylab = "Loss", col = "turquoise", lwd = 2.0)
         
-        points(optimal_epoch, losses[optimal_epoch], col = 'limegreen', pch = 16)
+        points(optimal_epoch, losses[optimal_epoch], col = "limegreen", pch = 16)
         offset <- max(losses) * 0.06
         eq <- paste("Optimal Epoch:", optimal_epoch,
                     "\nLoss:", round(losses[optimal_epoch], 4))
@@ -2763,9 +2800,12 @@ SONN <- R6::R6Class(
         
         fi <- file.info(output_file)
         cat("Saved OK. Size:", fi$size, "bytes\n")
+        
       } else {
-        cat("Skipping plot: non-finite losses.\n")
+        if (!plot_enabled) cat("Skipping plot: plotEnabled=FALSE.\n")    #$$$$$$$$$$$$$ ADD
+        if (!all(is.finite(losses))) cat("Skipping plot: non-finite losses.\n")
       }
+      
       
       end_time <- Sys.time()
 training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
@@ -2890,13 +2930,14 @@ DDESONN <- R6::R6Class(
       # Configuration flags for enabling/disabling per-DDESONN model performance/relevance plots
       self$FinalUpdatePerformanceandRelevanceViewPlotsConfig  <- list(
         performance_high_mean_plots = FALSE,  # high mean performance plots
-        performance_low_mean_plots  = FALSE,   # low mean performance plots
-        relevance_high_mean_plots   = FALSE,    # high mean relevance plots
-        relevance_low_mean_plots    = FALSE,     # low mean relevance plots
+        performance_low_mean_plots  = FALSE,  # low mean performance plots
+        relevance_high_mean_plots   = FALSE,  # high mean relevance plots
+        relevance_low_mean_plots    = FALSE,  # low mean relevance plots
         viewAllPlots = FALSE,
-        verbose      = FALSE
+        verbose      = FALSE,
+        saveEnabled  = TRUE   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
       )
-
+      
 
     ## ============================================================
     ## SECTION: EvaluatePredictionsReportPlotsConfig (module)       
@@ -2908,7 +2949,7 @@ DDESONN <- R6::R6Class(
         legacy_conf_heatmap   = FALSE,  # confusion_heatmap_legacy.png
         
         # Accuracy plot family (single toggle + selector)               
-        accuracy_plots         = FALSE,                                
+        accuracy_plot         = FALSE,                                
         accuracy_plot_mode     = "both",  # "accuracy"|"accuracy_tuned"|"both"  
         
         multiclass_heatmap    = FALSE,  # confusion_matrix_multiclass_heatmap.png
@@ -3032,8 +3073,54 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root = NULL) {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root = NULL, plot_controls = NULL) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
+      `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
+      
+      # ============================================================
+      # SECTION: plot_controls -> internal config bridge (NO locals)  #$$$$$$$$$$$$$
+      #   - PerEpochViewPlotsConfig: lives on each SONN (ensemble member)
+      #   - FinalUpdatePerformanceandRelevanceViewPlotsConfig: lives on self
+      #   - EvaluatePredictionsReport args are NOT defaulted here; they are read at callsite
+      # ============================================================
+      if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls)) {
+        
+        # --- Per-epoch plots (only if explicitly provided)            #$$$$$$$$$$$$$
+        if (!is.null(plot_controls$per_epoch) && is.list(plot_controls$per_epoch) && length(plot_controls$per_epoch)) {
+          per_epoch_cfg <- plot_controls$per_epoch
+          if (!is.null(self$ensemble) && length(self$ensemble)) {
+            for (i in seq_along(self$ensemble)) {
+              if (is.null(self$ensemble[[i]]$PerEpochViewPlotsConfig)) {
+                self$ensemble[[i]]$PerEpochViewPlotsConfig <- list()
+              }
+              self$ensemble[[i]]$PerEpochViewPlotsConfig <- utils::modifyList(
+                self$ensemble[[i]]$PerEpochViewPlotsConfig,
+                per_epoch_cfg,
+                keep.null = TRUE
+              )
+            }
+          }
+        }
+        
+        # --- Final update performance/relevance plots (only if explicitly provided) #$$$$$$$$$$$$$
+        if (!is.null(plot_controls$performance_relevance) &&
+            is.list(plot_controls$performance_relevance) &&
+            length(plot_controls$performance_relevance)) {
+          
+          if (is.null(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig) ||
+              !is.list(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig)) {
+            self$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list()
+          }
+          
+          self$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- utils::modifyList(
+            self$FinalUpdatePerformanceandRelevanceViewPlotsConfig,
+            plot_controls$performance_relevance,
+            keep.null = TRUE
+          )
+        }
+      }
+      
+      
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
         Rdata <- self$normalize_data(Rdata, numeric_columns)
@@ -3340,7 +3427,8 @@ DDESONN <- R6::R6Class(
         train = train,
         grouped_metrics = grouped_metrics,
         viewTables = viewTables,
-        verbose = verbose
+        verbose = verbose,
+        plot_controls = plot_controls
       )
       
       cat(sprintf("[TRACE] AFTER update_performance_and_relevance @ %s\n", #$$$$$$$$$$$$$
@@ -3384,7 +3472,7 @@ DDESONN <- R6::R6Class(
       }
       
       # Optional: allow disabling saving too (defaults TRUE if unset)
-      .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveAlso %||% TRUE)
+      .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveEnabled %||% TRUE)
       
       # Prepare output dir only if we might save
       if (.save_enabled) plots_dir <- ddesonn_plots_dir(output_root)
@@ -3490,9 +3578,25 @@ DDESONN <- R6::R6Class(
     }
     , # Method for updating performance and relevance metrics
 
-    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose) {
+    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, plot_controls) {
       if(verbose){print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")}
-
+  
+      # Guard against validation_metrics == FALSE
+      if (isFALSE(validation_metrics) ||
+          is.null(all_best_val_probs) ||
+          length(all_best_val_probs) == 0L) {
+        
+        if (verbose) {
+          message("[SKIP] performance/relevance: validation disabled or unavailable")
+        }
+        
+        return(list(
+          performance = NULL,
+          relevance   = NULL,
+          note        = "Validation disabled; relevance skipped"
+        ))
+      }
+      
       # Initialize lists to store performance and relevance metrics for each SONN
       performance_list <- list()
       relevance_list <- list()
@@ -3524,19 +3628,19 @@ DDESONN <- R6::R6Class(
         
         # might remove if, but keep contents
         if (train) {
-
-
+          
+          
           cat("___________________________________________________________________________\n")
           cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
-
+          
           single_prediction_time <- prediction_time_list[[i]]
-
+          
           #brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
           if (validation_metrics){
             Rdata = X_validation
             labels = y_validation
           }
-
+          
           # ---- PRE-REPORT TUNING (binary only) ----
           tuned <- NULL
           best_threshold <- NA_real_
@@ -3561,7 +3665,7 @@ DDESONN <- R6::R6Class(
               }
               labels_for_tuning <- as.integer(y_val_vec)
             }
-
+            
             tuned <- accuracy_precision_recall_f1_tuned(
               SONN                = self$ensemble[[i]],
               Rdata               = tryCatch(X_validation, error = function(e) NULL),
@@ -3572,55 +3676,165 @@ DDESONN <- R6::R6Class(
               threshold_grid      = seq(0.05, 0.95, by = 0.01),
               verbose             = isTRUE(verbose)
             )
-
+            
             chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
             if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
-
+            
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-# print(head(single_predicted_output))
-# print(head(y_validation))
-# stop()
+          # print(head(single_predicted_output))
+          # print(head(y_validation))
+          # stop()
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            eval_cfg <- self$EvaluatePredictionsReportPlotsConfig %||% list()
-            eval_plot_mode <- eval_cfg$accuracy_plot_mode %||% "both"
-            eval_show_auprc <- eval_cfg$show_auprc %||% TRUE
-            eval_enable_plots <- any(c(
-              self$viewEvaluatePredictionsReportPlots("pred_vs_error_scatter"),
-              self$viewEvaluatePredictionsReportPlots("roc_curve"),
-              self$viewEvaluatePredictionsReportPlots("pr_curve"),
-              self$viewEvaluatePredictionsReportPlots("legacy_conf_heatmap"),
-              self$viewEvaluatePredictionsReportPlots("accuracy_plots"),
-              self$viewEvaluatePredictionsReportPlots("multiclass_heatmap")
-            ))
-            eval_result <- EvaluatePredictionsReport(
+            
+            # Pull evaluate_report cfg ONLY (no defaults created here)      #$$$$$$$$$$$$$
+            eval_cfg <- NULL
+            if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
+                !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
+              eval_cfg <- plot_controls$evaluate_report
+            }
+            
+            # Build args list and ONLY include user-provided fields         #$$$$$$$$$$$$$
+            eval_args <- list(
               X_validation = X_validation,
               y_validation = y_validation,
               CLASSIFICATION_MODE = CLASSIFICATION_MODE,
               probs = single_predicted_output,
               predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,    # still accepted, no-op
+              threshold_function = threshold_function,    # kept for signature compatibility (not used)
               all_best_val_probs = best_val_probs,
               all_best_val_labels = best_val_labels,
               verbose = verbose,
-              accuracy_plot = eval_plot_mode,
-              show_auprc = eval_show_auprc,
               tuned_threshold_override = best_threshold,
-              SONN = self$ensemble[[i]],
-              output_root = output_root,
-              enable_plots = eval_enable_plots
+              SONN = self$ensemble[[i]]
             )
+            
+            # ============================================================
+            # viewAllPlots -> turn on the report's plot outputs             #$$$$$$$$$$$$$
+            # (Only applies if caller didn't explicitly set the individual flags)
+            # ============================================================
+            if (!is.null(eval_cfg) && length(eval_cfg) &&                               #$$$$$$$$$$$$$
+                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {     #$$$$$$$$$$$$$
+              
+              # If user didn't explicitly set enable_plots, allow plots to be written
+              if (is.null(eval_cfg$enable_plots)) eval_args$enable_plots <- TRUE        #$$$$$$$$$$$$$
+              
+              # If user didn't explicitly set accuracy_plot, default it ON
+              if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
+                eval_args$accuracy_plot <- TRUE                                         #$$$$$$$$$$$$$
+              }
+              
+              # If user didn't explicitly set roc/pr, default them ON
+              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE              #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE              #$$$$$$$$$$$$$
+            }
+            
+            if (!is.null(eval_cfg) && length(eval_cfg)) {
+              
+              # Back-compat: allow accuracy_plots -> accuracy_plot          #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$accuracy_plot)) {
+                eval_args$accuracy_plot <- eval_cfg$accuracy_plot
+              } else if (!is.null(eval_cfg$accuracy_plots)) {
+                eval_args$accuracy_plot <- eval_cfg$accuracy_plots
+              }
+              
+              # Only pass accuracy_plot_mode if user provided it (avoid match.arg(NULL)) #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$accuracy_plot_mode)) eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
+              
+              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc <- eval_cfg$show_auprc
+              if (!is.null(eval_cfg$output_root))  eval_args$output_root <- eval_cfg$output_root
+              
+              # Output controls (opt-in only)                               #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$enable_plots))  eval_args$enable_plots <- eval_cfg$enable_plots
+              if (!is.null(eval_cfg$export_excel))  eval_args$export_excel <- eval_cfg$export_excel
+              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds <- eval_cfg$save_rds
+              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name <- eval_cfg$rds_name
+              
+              # If your EvaluatePredictionsReport also reads plot toggles like roc_curve/pr_curve internally,
+              # leave them in eval_cfg (it can access via SONN/config). If it expects args, add them here. #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$roc_curve))     eval_args$roc_curve <- eval_cfg$roc_curve
+              if (!is.null(eval_cfg$pr_curve))      eval_args$pr_curve <- eval_cfg$pr_curve
+            }
+            
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)    #$$$$$$$$$$$$$
+            
             # Mirror back for downstream readers that expect the report field
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
             }
+            
+          } else if (isTRUE(train)) {                                        #$$$$$$$$$$$$$
+            
+            # === Evaluate Prediction Diagnostics (TRAIN PATH) ===           #$$$$$$$$$$$$$
+            # Pull evaluate_report cfg ONLY (no defaults created here)       #$$$$$$$$$$$$$
+            eval_cfg <- NULL                                                 #$$$$$$$$$$$$$
+            if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
+                !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
+              eval_cfg <- plot_controls$evaluate_report
+            }
+            
+            # Build args list using TRAIN data (Rdata/labels)                #$$$$$$$$$$$$$
+            eval_args <- list(                                               #$$$$$$$$$$$$$
+              X_validation = Rdata,                                          #$$$$$$$$$$$$$
+              y_validation = labels,                                        #$$$$$$$$$$$$$
+              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
+              probs = single_predicted_output,
+              predicted_outputAndTime = single_predicted_outputAndTime,
+              threshold_function = threshold_function,   # kept for signature compatibility (not used)
+              all_best_val_probs = NULL,                 #$$$$$$$$$$$$$
+              all_best_val_labels = NULL,                #$$$$$$$$$$$$$
+              verbose = verbose,
+              tuned_threshold_override = NA_real_,       #$$$$$$$$$$$$$
+              SONN = self$ensemble[[i]]
+            )
+            
+            # ============================================================
+            # viewAllPlots -> turn on the report's plot outputs             #$$$$$$$$$$$$$
+            # (Only applies if caller didn't explicitly set the individual flags)
+            # ============================================================
+            if (!is.null(eval_cfg) && length(eval_cfg) &&                               #$$$$$$$$$$$$$
+                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {     #$$$$$$$$$$$$$
+              
+              if (is.null(eval_cfg$enable_plots)) eval_args$enable_plots <- TRUE        #$$$$$$$$$$$$$
+              
+              if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
+                eval_args$accuracy_plot <- TRUE                                         #$$$$$$$$$$$$$
+              }
+              
+              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE              #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE              #$$$$$$$$$$$$$
+            }
+            
+            if (!is.null(eval_cfg) && length(eval_cfg)) {                               #$$$$$$$$$$$$$
+              
+              if (!is.null(eval_cfg$accuracy_plot)) {
+                eval_args$accuracy_plot <- eval_cfg$accuracy_plot
+              } else if (!is.null(eval_cfg$accuracy_plots)) {
+                eval_args$accuracy_plot <- eval_cfg$accuracy_plots
+              }
+              
+              if (!is.null(eval_cfg$accuracy_plot_mode)) eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
+              
+              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc <- eval_cfg$show_auprc
+              if (!is.null(eval_cfg$output_root))  eval_args$output_root <- eval_cfg$output_root
+              
+              if (!is.null(eval_cfg$enable_plots))  eval_args$enable_plots <- eval_cfg$enable_plots
+              if (!is.null(eval_cfg$export_excel))  eval_args$export_excel <- eval_cfg$export_excel
+              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds <- eval_cfg$save_rds
+              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name <- eval_cfg$rds_name
+              
+              if (!is.null(eval_cfg$roc_curve))     eval_args$roc_curve <- eval_cfg$roc_curve
+              if (!is.null(eval_cfg$pr_curve))      eval_args$pr_curve <- eval_cfg$pr_curve
+            }
+            
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)      #$$$$$$$$$$$$$
+            
           } else {
-            # Ensure eval_result exists for later fields even if no validation path
             eval_result <- list(best_threshold = NA_real_, best_thresholds = NULL, accuracy = NA_real_, accuracy_percent = NA_real_, metrics = NULL, misclassified = NULL)
           }
-
+          
           # Safely get number of columns from many shapes
           safe_ncol <- function(x) {
             if (is.null(x)) return(0L)
@@ -3640,18 +3854,18 @@ DDESONN <- R6::R6Class(
             if (is.atomic(x))      return(1L)
             0L
           }
-
+          
           k_labels <- safe_ncol(y_validation)
           k_probs  <- safe_ncol(single_predicted_output)
-
+          
           # Prefer label-driven K when available; otherwise use predictions
           K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
-
-
+          
+          
           # Pull out both fields (back-compat + multiclass)
           best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
           best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
-
+          
           # Decide what to store/use
           if (K == 1L) {
             # Binary: prefer tuned scalar; fallback to 0.5 if NA
@@ -3667,7 +3881,7 @@ DDESONN <- R6::R6Class(
               rep(0.5, K)
             }
           }
-
+          
           # Optional: logs
           if (isTRUE(verbose)) {
             if (K == 1L) {
@@ -3677,8 +3891,8 @@ DDESONN <- R6::R6Class(
                               paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
             }
           }
-
-
+          
+          
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
             probs   <- best_val_probs
             targets <- best_val_labels
@@ -3690,8 +3904,8 @@ DDESONN <- R6::R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-
-
+          
+          
           performance_list[[i]] <- calculate_performance(
             SONN = self$ensemble[[i]],
             Rdata = Rdata,
@@ -3712,7 +3926,7 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-
+          
           relevance_list[[i]] <- calculate_relevance(
             self$ensemble[[i]],
             Rdata = Rdata,
@@ -3727,9 +3941,9 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-
+          
           performance_metric <- performance_list[[i]]$metrics
-
+          
           # Fill tuned columns directly from the pre-report tuning pass
           if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
             performance_metric$accuracy_tuned  <- tuned$accuracy
@@ -3737,9 +3951,9 @@ DDESONN <- R6::R6Class(
             performance_metric$recall_tuned    <- tuned$recall
             performance_metric$f1_tuned        <- tuned$f1
           }
-
+          
           relevance_metric <- relevance_list[[i]]$metrics
-
+          
           if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
             if (verbose || viewTables) {
               message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
@@ -3756,11 +3970,11 @@ DDESONN <- R6::R6Class(
                 viewTables = viewTables
               )
             }
-
+            
           }
-
+          
         }
-
+        
 
         if (verbose) {
           message("\n=============================================")

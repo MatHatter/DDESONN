@@ -2809,6 +2809,7 @@ ddesonn_run <- function(x,
                         seed_aggregate = c("mean", "median", "none"),
                         threshold = NULL,
                         output_root = NULL,
+                        plot_controls = NULL,
                         save_models = TRUE) {
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
@@ -2843,6 +2844,14 @@ ddesonn_run <- function(x,
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
   base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
   
+  # ============================================================
+  # SECTION: Plot controls passthrough (Scenario 2)
+  # - Do NOT create local defaults here.
+  # - If user provided plot_controls, pass it through to training.
+  # ============================================================
+  if (!is.null(plot_controls)) {                               #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls <- plot_controls        #$$$$$$$$$$$$$
+  } 
   # ============================================================
   # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
   # ============================================================
@@ -2879,7 +2888,7 @@ ddesonn_run <- function(x,
     }
     test_data <- list(x = x_test, y = y_test)
   }
-
+  
   prediction_matrix <- NULL
   if (!is.null(prediction_data)) {
     prediction_matrix <- .as_numeric_matrix(prediction_data)
@@ -3524,7 +3533,7 @@ ddesonn_run <- function(x,
     ),
     runs = runs
   )
-
+  
   final_model <- NULL
   final_training <- NULL
   if (length(runs)) {
@@ -3542,7 +3551,7 @@ ddesonn_run <- function(x,
     result$metrics <- final_training$performance_relevance_data %||% NULL
     result$history <- final_training$predicted_outputAndTime %||% NULL
   }
-
+  
   per_seed_tables <- lapply(runs, function(run) {
     preds <- run$predictions
     if (!is.list(preds) || !length(preds)) {
@@ -3583,16 +3592,17 @@ ddesonn_run <- function(x,
   if (!is.null(result$`.__prediction_matrix`)) {
     result$`.__prediction_matrix` <- NULL
   }
-
+  
   test_metrics <- NULL
   if (!is.null(test_matrix) && !is.null(test_labels) && length(runs)) {
     final_model <- final_model %||% (runs[[length(runs)]]$main$model %||% NULL)
     summary_threshold <- NULL
     if (!is.null(final_training) && is.list(final_training$performance_relevance_data)) {
       summary_threshold <- final_training$performance_relevance_data$threshold %||% NULL
-      if (!is.finite(suppressWarnings(as.numeric(summary_threshold)))) {
-        summary_threshold <- NULL
-      }
+      
+      #$$$$$$$$$$$$$ FIX: length-safe + fast scalar threshold validation (prevents logical(0) in if)
+      thr_num <- suppressWarnings(as.numeric(summary_threshold))                             #$$$$$$$$$$$$$
+      summary_threshold <- if (length(thr_num) == 1L && is.finite(thr_num)) thr_num else NULL#$$$$$$$$$$$$$
     }
     test_threshold <- summary_threshold %||% threshold
     test_metrics_result <- .compute_test_metrics(
@@ -3654,11 +3664,9 @@ ddesonn_run <- function(x,
       }
     }
   }
-
+  
   result
 }
-
-
 
 #' Print a summary of a DDESONN run result
 #'

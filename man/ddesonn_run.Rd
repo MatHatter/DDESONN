@@ -28,6 +28,7 @@ ddesonn_run(
   seed_aggregate = c("mean", "median", "none"),
   threshold = NULL,
   output_root = NULL,
+  plot_controls = NULL,
   save_models = TRUE
 )
 }

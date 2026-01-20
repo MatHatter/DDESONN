@@ -1148,7 +1148,7 @@ pr_curve              <- FALSE  # pr_curve.png
 legacy_conf_heatmap   <- FALSE  # confusion_heatmap_legacy.png
 
 # Accuracy plot family (single toggle + selector)              
-accuracy_plots         <- FALSE                               
+accuracy_plot         <- FALSE                               
 accuracy_plot_mode     <- "both"  # "accuracy"|"accuracy_tuned"|"both" 
 
 multiclass_heatmap    <- FALSE 

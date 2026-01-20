@@ -152,11 +152,15 @@ Formal R vignettes for guided exploration and reproducible demonstrations are av
 
 ## Getting started
 
+---
+
 ### Prerequisites
 
 - R version 4.1 or higher
 - RStudio project file included (DDESONN.Rproj)
 - Dependencies listed in DESCRIPTION
+
+---
 
 ### Installation
 
@@ -197,6 +201,30 @@ High-level API usage (training split is always `x`/`y`):
       training_overrides = list(num_epochs = 1, validation_metrics = TRUE)
     )
 
+Evaluation plot toggles (ROC/PR/accuracy) can be enabled via `training_overrides`.
+The PR curve includes AUPRC by default; set `show_auprc = FALSE` to suppress:
+
+    res <- ddesonn_run(
+      x = train_x,
+      y = train_y,
+      classification_mode = "binary",
+      seeds = 1,
+      validation = list(x = valid_x, y = valid_y),
+      test = list(x = test_x, y = test_y),
+      training_overrides = list(
+        validation_metrics = TRUE,
+        evaluate_predictions_report_plots = list(
+          roc_curve = TRUE,
+          pr_curve = TRUE,
+          accuracy_plot = TRUE,
+          accuracy_plot_mode = "both",
+          show_auprc = TRUE
+        )
+      )
+    )
+
+---
+
 ### Prediction APIs: internal vs public
 
 Bottom line: **`ddesonn_predict()` = internal prediction engine (raw forward pass /
@@ -231,6 +259,7 @@ API design notes (optional explicit splits):
   train/validation losses) and, when a test split is supplied, adds
   `test_loss` alongside `result$test_metrics`.
 
+---
 
 ### Model usage note (post-training)
 
@@ -305,58 +334,112 @@ Verify original dataset licensing if repurposed.
 
 ---
 
-## Roadmap
+## Roadmap & Design Intent
 
-- Add structured hyperparameter grid and sweep utilities for controlled experimentation.
+> **Note on scope and intent**  
+> The items below describe **current behavior**, **explicit design intent**, and
+> **forward-looking considerations**.  
+> They are documented to clarify direction and preserve future ideas.  
+> They do **not** imply active development or any committed delivery timeline.
 
-- Optional preprocessing utilities:
-  - Capped + `log1p` transforms for heavy-tailed features (e.g., `creatinine_phosphokinase`)
-  - Designed to reduce extreme outlier influence while preserving zeros.
+### R-01 · Structured hyperparameter experimentation  
+**Status:** Design intent (future)  
+**Related To-Do:** T-01
 
-- Evaluation contract / thresholding (documentation + hardening):
-  - `evaluate_predictions_report.R` selects and applies a tuned threshold (`best_thr`) when generating
-    thresholded predictions and the corresponding confusion matrix.
-  - The final package-level summary/metadata in `DDESONN.R` uses `thr_used` as the authoritative
-    threshold value that is recorded and reported (this may be `best_thr` or a user override).
-  - Confusion matrix utilities operate on **already-thresholded** (binary) predictions and return counts only.
-  - Accuracy/precision/recall/F1 are computed from confusion-matrix counts so reported metrics + metadata
-    reflect `thr_used` (not a fixed 0.5 threshold) without introducing new metric helpers.
+Add structured hyperparameter grid and sweep utilities to support controlled,
+reproducible experimentation across model configurations.
 
-- Future diagnostic (not yet implemented): **Single-run per-epoch performance tracking**
-  - Track training and validation metrics across epochs for a single model run.
-  - Intended strictly for diagnostics (learning curves, overfitting detection, instability analysis).
-  - Will reuse existing artifact and plot helpers:
-    - `ddesonn_artifacts_root()`
-    - `ddesonn_plots_dir()`
-  - Output path:
-    ```
-    <artifacts_root>/plots/single_run_per_epoch/
-    ```
-  - Explicitly excluded from `process_performance()` and all ensemble summaries.
+### R-02 · Optional preprocessing utilities  
+**Status:** Design intent (future)  
+**Related To-Do:** T-02
 
-- Potential future change (non-trivial refactor):
-  - In single-run mode, ensemble orchestration is disabled, but ensemble slot objects
-    (`ensemble[[k]]`) and `Ensemble_Main_0_model_*_metadata` are still used.
-  - Decoupling these contracts would require a major architectural change and may be revisited later.
+Introduce optional preprocessing helpers, including:
+
+- Capped + `log1p` transforms for heavy-tailed features  
+  (e.g., `creatinine_phosphokinase`)
+- Zero-preserving behavior for interpretability and safety
+
+### R-03 · Evaluation contract and thresholding semantics  
+**Status:** Current behavior (documented)  
+**Related To-Do:** T-03
+
+The evaluation pipeline follows a strict and intentional thresholding contract:
+
+- `evaluate_predictions_report.R` selects and applies a tuned threshold (`best_thr`)
+  when generating thresholded predictions.
+- `DDESONN.R` records a single authoritative threshold value (`thr_used`), which may
+  be either the tuned threshold or a user-provided override.
+- Confusion matrix utilities operate only on **already-thresholded** binary
+  predictions and return **counts only**.
+- Accuracy, precision, recall, and F1 are derived from confusion-matrix counts so
+  all reported metrics consistently reflect `thr_used` (not a fixed 0.5 default).
+
+### R-04 · Single-run per-epoch diagnostics  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-04
+
+Potential future diagnostic capability to track training and validation metrics
+across epochs for a **single model run**.
+
+**Design constraints:**
+
+- Strictly diagnostic (non-summary)
+- Reuses existing artifact helpers:
+  - `ddesonn_artifacts_root()`
+  - `ddesonn_plots_dir()`
+- Output path:
+{artifacts_root}/plots/single_run_per_epoch/
+
+- Explicitly excluded from `process_performance()` and all ensemble summaries
+
+### R-05 · Single-run vs ensemble contract decoupling  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-05
+
+In single-run mode, ensemble orchestration is disabled, but ensemble slot objects
+(e.g., `ensemble[[k]]`) and metadata contracts remain in use.
+
+Decoupling this behavior would require a non-trivial architectural refactor and is
+documented here for clarity and future consideration.
 
 ---
 
-## To-Do (Active Work)
+## To-Do (Design-Linked)
 
-- Refactor `DDESONN_predict_eval()` so all required variables are passed explicitly and handled locally,
-  avoiding reliance on global or inherited environments.
+### T-01 · Hyperparameter sweep utilities  
+Linked from: **R-01**
 
-- Review evaluation data mapping for thresholds (`best_thr` vs `thr_used`):
-  - Confirm `best_thr` is selected/applied only within `evaluate_predictions_report.R`.
-  - Confirm `thr_used` is the single source of truth for what is stored/reported in final summaries in `DDESONN.R`
-    (including when overrides are used).
-  - Ensure all derived metrics (accuracy/precision/recall/F1) are computed from confusion matrices that reflect
-    `thr_used` (not a fixed 0.5 threshold).
+Implement structured grid and sweep tooling with explicit configuration,
+clear artifacts, and reproducibility guarantees.
 
-- Continue decompartmentalization to slim the core codebase:
-  - Initial step: move the SONN method into its own dedicated file.
-  - Preserve the primary `DDESONN` R6 class in `R/DDESONN.R`.
+### T-02 · Preprocessing utility formalization  
+Linked from: **R-02**
 
+Define a clean, opt-in preprocessing interface without implicit transformations
+or side effects.
+
+### T-03 · Threshold usage hardening  
+Linked from: **R-03**
+
+- Confirm `best_thr` selection remains localized to
+  `evaluate_predictions_report.R`
+- Ensure `thr_used` is the single source of truth in summaries and metadata
+- Ensure all derived metrics are computed from confusion matrices reflecting
+  `thr_used`
+
+### T-04 · Per-epoch diagnostic tracking  
+Linked from: **R-04**
+
+Prototype per-epoch metric capture for single runs only, with no impact on
+ensemble aggregation or performance summaries.
+
+### T-05 · Ensemble contract decoupling analysis  
+Linked from: **R-05**
+
+Assess architectural implications of separating single-run execution from
+ensemble metadata and orchestration contracts.
+
+---
 
 ## Contributing
 

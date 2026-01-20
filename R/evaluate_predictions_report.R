@@ -23,14 +23,15 @@
 # -  FIX: Excel writing is optional (export_excel). No openxlsx hard dependency unless enabled
 # -  ADD: Optional RDS save (save_rds) to reports dir as Rdata_predictions.rds
 # -  ADD: Returns legacy scalar list PLUS an attached structured report object (return$report)
+# -  #$$$$$$$$$$$$$ FIX: accuracy_plot remains logical gate; accuracy_plot_mode controls which accuracy plots to emit
 # ================================================================
 
 # ================================================================
 # SECTION: Safe %||% fallback
 # ================================================================
-`%||%` <- get0("%||%", ifnotfound = function(a, b) {               
-  if (!is.null(a) && length(a) && !all(is.na(a))) a else b         
-})                                                                 
+`%||%` <- get0("%||%", ifnotfound = function(a, b) {
+  if (!is.null(a) && length(a) && !all(is.na(a))) a else b
+})
 
 # ================================================================
 # SECTION: EvaluatePredictionsReport
@@ -44,7 +45,8 @@ EvaluatePredictionsReport <- function(
     all_best_val_labels,         # best snapshot labels (optional)
     verbose = FALSE,
     # Plot selection ONLY (results always include both fixed and tuned):
-    accuracy_plot = c("accuracy", "accuracy_tuned", "both"),
+    accuracy_plot = TRUE,
+    accuracy_plot_mode = c("accuracy", "accuracy_tuned", "both"),
     tuned_threshold_override = NULL,
     show_auprc = TRUE,
     SONN,
@@ -66,25 +68,25 @@ EvaluatePredictionsReport <- function(
     learn_time = NULL,
     output_root = NULL,
     # ================================================================
-    # SECTION: Output controls (new, opt-in only)                      
+    # SECTION: Output controls (new, opt-in only)
     # ================================================================
-    enable_plots = FALSE,                                             
-    export_excel = FALSE,                                             
-    save_rds = FALSE,                                                 
-    rds_name = "Rdata_predictions.rds"                                 
+    enable_plots = FALSE,
+    export_excel = FALSE,
+    save_rds = FALSE,
+    rds_name = "Rdata_predictions.rds"
 ) {
   
   # ================================================================
-  # SECTION: Package guard (conditional / CRAN-safe)                 
+  # SECTION: Package guard (conditional / CRAN-safe)
   # ================================================================
   # Base evaluation has no hard deps. Dependencies are required only when you opt-in:
   # - enable_plots -> ggplot2/pROC/PRROC/reshape2
   # - export_excel -> openxlsx
-  required_pkgs <- character(0)                                     
-  if (isTRUE(enable_plots)) {                                       
+  required_pkgs <- character(0)
+  if (isTRUE(enable_plots)) {
     required_pkgs <- unique(c(required_pkgs, "ggplot2", "dplyr", "tidyr", "pROC", "PRROC", "reshape2"))
   }
-  if (isTRUE(export_excel)) {                                       
+  if (isTRUE(export_excel)) {
     required_pkgs <- unique(c(required_pkgs, "openxlsx"))
   }
   missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
@@ -95,23 +97,27 @@ EvaluatePredictionsReport <- function(
     )
   }
   
-  accuracy_plot <- match.arg(accuracy_plot)
-  if (isTRUE(verbose)) cat("[Eval] Begin EvaluatePredictionsReport()\n")  
+  # ================================================================
+  # SECTION: Arg normalization (PRESERVED + FIX)
+  # ================================================================
+  # #$$$$$$$$$$$$$ FIX: accuracy_plot is a logical gate; do NOT match.arg() it
+  accuracy_plot_mode <- match.arg(accuracy_plot_mode)  # #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) cat("[Eval] Begin EvaluatePredictionsReport()\n")
   
   # ================================================================
-  # SECTION: Setup paths (artifacts-root + plots helper)             
+  # SECTION: Setup paths (artifacts-root + plots helper)
   # ================================================================
   # PRESERVE: you still get a reports dir and a plot dir, but now both live under artifacts/.
-  artifacts_root <- ddesonn_artifacts_root(output_root)                   
-  reports_dir    <- file.path(artifacts_root, "reports")                  
-  plot_dir       <- file.path(ddesonn_plots_dir(output_root),             
-                              "EvaluatePredictionsReportPlots")           
+  artifacts_root <- ddesonn_artifacts_root(output_root)
+  reports_dir    <- file.path(artifacts_root, "reports")
+  plot_dir       <- file.path(ddesonn_plots_dir(output_root),
+                              "EvaluatePredictionsReportPlots")
   
   dir.create(reports_dir, recursive = TRUE, showWarnings = FALSE)
   dir.create(plot_dir,    recursive = TRUE, showWarnings = FALSE)
   
-  report_wb_path <- file.path(reports_dir, "Rdata_predictions.xlsx")      
-  report_rds_path <- file.path(reports_dir, rds_name)                    
+  report_wb_path <- file.path(reports_dir, "Rdata_predictions.xlsx")
+  report_rds_path <- file.path(reports_dir, rds_name)
   
   # ===== Legacy plot candidates (READ-ONLY fallback) =====
   legacy_plot_dir <- file.path(getwd(), "EvaluatePredictionsReportPlots")
@@ -119,12 +125,13 @@ EvaluatePredictionsReport <- function(
   plot_candidates <- plot_candidates[!is.na(plot_candidates) & nzchar(plot_candidates)]
   plot_candidates <- unique(plot_candidates)
   
-  if (isTRUE(verbose)) {                                                 
+  if (isTRUE(verbose)) {
     cat("[Eval] artifacts_root:", artifacts_root, "\n")
     cat("[Eval] reports_dir:", reports_dir, "\n")
     cat("[Eval] plot_dir:", plot_dir, "\n")
     if (dir.exists(legacy_plot_dir)) cat("[Eval] legacy_plot_dir detected (read-only):", legacy_plot_dir, "\n")
     cat("[Eval] enable_plots:", enable_plots, " export_excel:", export_excel, " save_rds:", save_rds, "\n")
+    cat("[Eval] accuracy_plot:", accuracy_plot, " accuracy_plot_mode:", accuracy_plot_mode, "\n")  # #$$$$$$$$$$$$$
   }
   
   find_plot_file <- function(filename) {
@@ -141,12 +148,12 @@ EvaluatePredictionsReport <- function(
   if (!exists("viewTables", inherits = TRUE)) viewTables <- FALSE
   if (!exists("ML_NN", inherits = TRUE))      ML_NN      <- FALSE
   if (!exists("train", inherits = TRUE))      train      <- FALSE
-  if (isTRUE(verbose)) {                                                  
+  if (isTRUE(verbose)) {
     cat("[Eval] flags -> viewTables:", viewTables, "  ML_NN:", ML_NN, "  train:", train, "\n")
   }
   
   # ================================================================
-  # SECTION: Inspect predictions/errors (optional) (PRESERVED)       
+  # SECTION: Inspect predictions/errors (optional) (PRESERVED)
   # ================================================================
   pred_vec   <- tryCatch(as.vector(predicted_outputAndTime$predicted_output_l2$learn_output),
                          error = function(e) rep(NA_real_, length.out = 0))
@@ -155,13 +162,13 @@ EvaluatePredictionsReport <- function(
   labels_vec <- tryCatch(as.vector(y_validation), error = function(e) rep(NA_real_, length.out = 0))
   max_points <- min(length(pred_vec), length(err_vec), length(labels_vec))
   
-  if (isTRUE(verbose)) {                                                  
+  if (isTRUE(verbose)) {
     cat("[Eval] pred/err/labels lengths:", length(pred_vec), length(err_vec), length(labels_vec),
         "  max_points:", max_points, "\n")
   }
   
-  # PLOT GATE (no files unless enable_plots)                           
-  if (isTRUE(enable_plots) && max_points > 0) {                         
+  # PLOT GATE (no files unless enable_plots)
+  if (isTRUE(enable_plots) && max_points > 0) {
     tryCatch({
       grDevices::png(file.path(plot_dir, "pred_vs_error_scatter.png"), width = 800, height = 600)
       plot(pred_vec[seq_len(max_points)], err_vec[seq_len(max_points)],
@@ -169,9 +176,9 @@ EvaluatePredictionsReport <- function(
            col = "steelblue", pch = 16)
       abline(h = 0, col = "gray", lty = 2)
       grDevices::dev.off()
-      if (isTRUE(verbose)) cat("[Eval] pred_vs_error_scatter saved.\n")   
+      if (isTRUE(verbose)) cat("[Eval] pred_vs_error_scatter saved.\n")
     }, error = function(e) {
-      if (isTRUE(verbose)) message("[Eval] Pred-vs-Error plot failed: ", conditionMessage(e))  
+      if (isTRUE(verbose)) message("[Eval] Pred-vs-Error plot failed: ", conditionMessage(e))
     })
   }
   
@@ -184,13 +191,13 @@ EvaluatePredictionsReport <- function(
                       error = function(e) matrix(NA_real_, nrow = 0, ncol = 0))
     if (length(w_mat)) {
       weights_summary <- round(rowMeans(w_mat), 5)
-      if (isTRUE(verbose)) cat(">> Multi-layer weights summary (first layer) - rows:", nrow(w_mat), "cols:", ncol(w_mat), "\n")  
+      if (isTRUE(verbose)) cat(">> Multi-layer weights summary (first layer) - rows:", nrow(w_mat), "cols:", ncol(w_mat), "\n")
     }
   } else {
     w_raw <- tryCatch(predicted_outputAndTime$weights_record[[1]], error = function(e) numeric(0))
     if (length(w_raw)) {
       weights_summary <- round(as.numeric(w_raw), 5)
-      if (isTRUE(verbose)) cat(">> Single-layer weights summary len:", length(weights_summary), "\n")  
+      if (isTRUE(verbose)) cat(">> Single-layer weights summary len:", length(weights_summary), "\n")
     }
   }
   
@@ -201,11 +208,11 @@ EvaluatePredictionsReport <- function(
   if (use_best) {
     probs_use  <- all_best_val_probs
     labels_use <- all_best_val_labels
-    if (isTRUE(verbose)) cat("[Eval] Using BEST snapshot from training (probs/labels).\n")  
+    if (isTRUE(verbose)) cat("[Eval] Using BEST snapshot from training (probs/labels).\n")
   } else {
     probs_use  <- probs
     labels_use <- y_validation
-    if (isTRUE(verbose)) cat("[Eval] Using LAST-epoch predictions.\n")  
+    if (isTRUE(verbose)) cat("[Eval] Using LAST-epoch predictions.\n")
   }
   
   to_mat <- function(x) {
@@ -219,7 +226,7 @@ EvaluatePredictionsReport <- function(
   P <- to_mat(probs_use)
   n_eff <- min(nrow(L), nrow(P))
   
-  if (isTRUE(verbose)) {                                                  
+  if (isTRUE(verbose)) {
     cat("[Eval] Shapes L:", nrow(L), "x", ncol(L),
         "  P:", nrow(P), "x", ncol(P),
         "  n_eff:", n_eff, "\n")
@@ -236,20 +243,20 @@ EvaluatePredictionsReport <- function(
     if (max(ncol(L), ncol(P)) > 1L) "multiclass" else fallback
   }
   mode <- infer_mode(L, P, "binary")
-  if (isTRUE(verbose)) cat(sprintf("[Eval] mode=%s | n_eff=%d | ncol(L)=%d | ncol(P)=%d\n", mode, n_eff, ncol(L), ncol(P)))  
+  if (isTRUE(verbose)) cat(sprintf("[Eval] mode=%s | n_eff=%d | ncol(L)=%d | ncol(P)=%d\n", mode, n_eff, ncol(L), ncol(P)))
   
   # ================================================================
-  # SECTION: Helpers for plot writing (GATED)                        
+  # SECTION: Helpers for plot writing (GATED)
   # ================================================================
-  .close_devices <- function() {                                       
+  .close_devices <- function() {
     if (length(dev.list())) invisible(lapply(dev.list(), function(x) try(dev.off(), silent = TRUE)))
-  }                                                                    
+  }
   
   # ================================================================
-  # SECTION: Regression branch (PRESERVED; Excel gated)              
+  # SECTION: Regression branch (PRESERVED; Excel gated)
   # ================================================================
   if (identical(mode, "regression")) {
-    if (isTRUE(verbose)) cat("[Eval-Regression] Enter\n")              
+    if (isTRUE(verbose)) cat("[Eval-Regression] Enter\n")
     
     y    <- suppressWarnings(as.numeric(L[,1]))
     yhat <- suppressWarnings(as.numeric(P[,1]))
@@ -266,7 +273,7 @@ EvaluatePredictionsReport <- function(
     R2   <- if (SST > 0) 1 - SSE/SST else NA_real_
     Corr <- suppressWarnings(stats::cor(y, yhat))
     
-    if (isTRUE(verbose)) cat("[Eval-Regression] RMSE:", RMSE, "  MAE:", MAE, "  R2:", R2, "  Corr:", Corr, "\n")  
+    if (isTRUE(verbose)) cat("[Eval-Regression] RMSE:", RMSE, "  MAE:", MAE, "  R2:", R2, "  Corr:", Corr, "\n")
     
     legacy_df <- data.frame(y_true = y, y_pred = yhat, residual = yhat - y)
     
@@ -279,8 +286,8 @@ EvaluatePredictionsReport <- function(
       artifacts = list()
     )
     
-    # Optional Excel export                                             
-    if (isTRUE(export_excel)) {                                         
+    # Optional Excel export
+    if (isTRUE(export_excel)) {
       wb <- openxlsx::createWorkbook()
       openxlsx::addWorksheet(wb, "Metrics_Summary")
       suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary",
@@ -289,15 +296,15 @@ EvaluatePredictionsReport <- function(
       openxlsx::addWorksheet(wb, "Rdata_Predictions")
       suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", legacy_df))
       tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] Workbook save failed: ", conditionMessage(e)))  
-      if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")   
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] Workbook save failed: ", conditionMessage(e)))
+      if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
     }
     
-    # Optional RDS save                                                 
-    if (isTRUE(save_rds)) {                                             
+    # Optional RDS save
+    if (isTRUE(save_rds)) {
       tryCatch(saveRDS(report, report_rds_path),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] saveRDS failed: ", conditionMessage(e)))  
-      if (isTRUE(verbose)) cat("[Eval-Regression] RDS saved:", report_rds_path, "\n")  
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] saveRDS failed: ", conditionMessage(e)))
+      if (isTRUE(verbose)) cat("[Eval-Regression] RDS saved:", report_rds_path, "\n")
     }
     
     return(list(
@@ -315,7 +322,7 @@ EvaluatePredictionsReport <- function(
       y_pred_class_tuned = NULL,
       auc = NA_real_,
       roc_curve = NULL,
-      report = report                                                     
+      report = report
     ))
   }
   
@@ -323,7 +330,7 @@ EvaluatePredictionsReport <- function(
   # SECTION: Binary branch (PRESERVED)
   # ================================================================
   if (identical(mode, "binary")) {
-    if (isTRUE(verbose)) cat("[Eval-Binary] Enter\n")                  
+    if (isTRUE(verbose)) cat("[Eval-Binary] Enter\n")
     
     y_true <- if (ncol(L) == 1L) {
       v <- as.numeric(L[,1])
@@ -335,7 +342,7 @@ EvaluatePredictionsReport <- function(
     if (ncol(P) != 1L) stop("[Eval-Binary] Expected 1-column probabilities/logits; got ", ncol(P))
     p_pos <- as.numeric(P[,1])
     
-    if (isTRUE(verbose)) {                                              
+    if (isTRUE(verbose)) {
       cat("[Eval-Binary] y_true len:", length(y_true), "  p_pos len:", length(p_pos), "\n")
       cat("[Eval-Binary] y_true table:\n"); print(table(y_true, useNA="ifany"))
       cat("[Eval-Binary] p_pos summary: min=", suppressWarnings(min(p_pos, na.rm=TRUE)),
@@ -345,16 +352,16 @@ EvaluatePredictionsReport <- function(
     }
     
     if (any(p_pos < 0 | p_pos > 1, na.rm = TRUE)) {
-      if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] Detected logits; applying sigmoid to get probabilities.\n")  
+      if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] Detected logits; applying sigmoid to get probabilities.\n")
       p_pos <- 1 / (1 + exp(-p_pos))
-      if (isTRUE(verbose)) {                                            
+      if (isTRUE(verbose)) {
         cat("[Eval-Binary][After Sigmoid] p_pos summary: min=", suppressWarnings(min(p_pos, na.rm=TRUE)),
             " max=", suppressWarnings(max(p_pos, na.rm=TRUE)),
             " mean=", suppressWarnings(mean(p_pos, na.rm=TRUE)), "\n", sep = "")
       }
     }
     
-    if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] Computing metrics @ 0.5\n")  
+    if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] Computing metrics @ 0.5\n")
     thr_fixed <- 0.5
     y_pred_fixed <- as.integer(p_pos >= thr_fixed)
     TP <- sum(y_pred_fixed == 1L & y_true == 1L, na.rm = TRUE)
@@ -366,10 +373,10 @@ EvaluatePredictionsReport <- function(
     pre_fixed <- if ((TP + FP) > 0) TP / (TP + FP) else 0
     rec_fixed <- if ((TP + FN) > 0) TP / (TP + FN) else 0
     f1_fixed  <- if ((pre_fixed + rec_fixed) > 0) 2 * pre_fixed * rec_fixed / (pre_fixed + rec_fixed) else 0
-    if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] TP:",TP," FP:",FP," TN:",TN," FN:",FN,"  acc:",acc_fixed,"  f1:",f1_fixed,"\n")  
+    if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] TP:",TP," FP:",FP," TN:",TN," FN:",FN,"  acc:",acc_fixed,"  f1:",f1_fixed,"\n")
     
-    # ROC/AUC (object always computed; PNG only if enable_plots)         
-    if (isTRUE(verbose)) cat("[Eval-Binary][ROC] Computing ROC/AUC\n")  
+    # ROC/AUC (object always computed; PNG only if enable_plots)
+    if (isTRUE(verbose)) cat("[Eval-Binary][ROC] Computing ROC/AUC\n")
     roc_obj <- tryCatch(
       pROC::roc(response = y_true, predictor = p_pos, levels = c(0,1), direction = "<", quiet = TRUE),
       error = function(e) NULL
@@ -380,10 +387,10 @@ EvaluatePredictionsReport <- function(
                  tpr = roc_obj$sensitivities,
                  threshold = roc_obj$thresholds)
     } else NULL
-    if (isTRUE(verbose)) cat("[Eval-Binary][ROC] AUC:", ifelse(is.na(auc_val),"NA",sprintf("%.6f",auc_val)),"\n")  
+    if (isTRUE(verbose)) cat("[Eval-Binary][ROC] AUC:", ifelse(is.na(auc_val),"NA",sprintf("%.6f",auc_val)),"\n")
     
     roc_png <- file.path(plot_dir, "roc_curve.png")
-    if (isTRUE(enable_plots) && !is.null(roc_df) && nrow(roc_df) > 1) {  
+    if (isTRUE(enable_plots) && !is.null(roc_df) && nrow(roc_df) > 1) {
       tryCatch({
         p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
           ggplot2::geom_line(size = 1.1) +
@@ -392,9 +399,9 @@ EvaluatePredictionsReport <- function(
           ggplot2::theme_minimal()
         ggplot2::ggsave(filename = roc_png, p_roc, width = 6, height = 4, dpi = 300)
         .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ROC PNG saved:", roc_png, "\n")  
+        if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ROC PNG saved:", roc_png, "\n")
       }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][ROC] ggsave failed: ", conditionMessage(e))  
+        if (isTRUE(verbose)) message("[Eval-Binary][ROC] ggsave failed: ", conditionMessage(e))
       })
     }
     
@@ -402,9 +409,9 @@ EvaluatePredictionsReport <- function(
     tuned <- NULL
     if (is.numeric(tuned_threshold_override) && is.finite(tuned_threshold_override)) {
       best_thr <- as.numeric(tuned_threshold_override)
-      if (isTRUE(verbose)) message(sprintf("[Eval-Binary] Forced tuned_threshold_override=%.4f", best_thr))  
+      if (isTRUE(verbose)) message(sprintf("[Eval-Binary] Forced tuned_threshold_override=%.4f", best_thr))
       
-      if (isTRUE(verbose)) {                                                  
+      if (isTRUE(verbose)) {
         cat("[Eval-Binary][Override] START\n")
         cat("[Eval-Binary][Override] lengths -> y_true:", length(y_true), " p_pos:", length(p_pos), "\n")
         cat("[Eval-Binary][Override] y_true table:\n"); print(table(y_true, useNA="ifany"))
@@ -432,7 +439,7 @@ EvaluatePredictionsReport <- function(
       )
       
     } else {
-      if (isTRUE(verbose)) cat("[Eval-Binary][Tune] Grid sweep begin\n")  
+      if (isTRUE(verbose)) cat("[Eval-Binary][Tune] Grid sweep begin\n")
       thr_grid <- seq(0.05, 0.95, by = 0.01)
       keep     <- is.finite(y_true) & is.finite(p_pos)
       yy       <- as.integer(y_true[keep])
@@ -466,7 +473,7 @@ EvaluatePredictionsReport <- function(
         accuracy = best_acc, precision = pre_b, recall = rec_b, f1 = f1_b,
         details = list(best_threshold = best_thr, y_pred_class = y_pred_tuned_full)
       )
-      if (isTRUE(verbose)) cat("[Eval-Binary][Tune] Grid sweep done. Best thr:", best_thr, "  acc:", best_acc, "\n")  
+      if (isTRUE(verbose)) cat("[Eval-Binary][Tune] Grid sweep done. Best thr:", best_thr, "  acc:", best_acc, "\n")
     }
     
     acc_tuned    <- tuned$accuracy
@@ -475,12 +482,12 @@ EvaluatePredictionsReport <- function(
     f1_tuned     <- tuned$f1
     best_thr     <- as.numeric(tuned$details$best_threshold)
     y_pred_tuned <- as.integer(tuned$details$y_pred_class)
-    if (isTRUE(verbose)) cat("[Eval-Binary][Tuned] best_thr:", best_thr, "  acc:", acc_tuned, "  f1:", f1_tuned, "\n")  
+    if (isTRUE(verbose)) cat("[Eval-Binary][Tuned] best_thr:", best_thr, "  acc:", acc_tuned, "  f1:", f1_tuned, "\n")
     
-    # Plot bundle helper (PRESERVED; FILE WRITES GATED)                 
+    # Plot bundle helper (PRESERVED; FILE WRITES GATED)
     maybe_plot_binary <- function(mode_label, bin_preds, threshold_used, suffix) {
-      if (!isTRUE(enable_plots)) return(invisible(NULL))              
-      if (isTRUE(verbose)) cat("[Eval-Binary][Plot] start:", mode_label, "  thr:", threshold_used, "  suffix:", suffix, "\n")  
+      if (!isTRUE(enable_plots)) return(invisible(NULL))
+      if (isTRUE(verbose)) cat("[Eval-Binary][Plot] start:", mode_label, "  thr:", threshold_used, "  suffix:", suffix, "\n")
       
       TPp <- sum(bin_preds == 1 & y_true == 1, na.rm = TRUE)
       TNp <- sum(bin_preds == 0 & y_true == 0, na.rm = TRUE)
@@ -503,9 +510,9 @@ EvaluatePredictionsReport <- function(
           ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
         ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
         .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")  
+        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")
       }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e))  
+        if (isTRUE(verbose)) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e))
       })
       
       df_cal <- data.frame(prob = p_pos, label = y_true) %>%
@@ -531,8 +538,8 @@ EvaluatePredictionsReport <- function(
           ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
         ggplot2::ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
         .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")  
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot1 failed: ", conditionMessage(e)))  
+        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot1 failed: ", conditionMessage(e)))
       
       tryCatch({
         p2 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = bin_mid, y = actual_rate)) +
@@ -543,8 +550,8 @@ EvaluatePredictionsReport <- function(
           ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
         ggplot2::ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
         .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")  
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot2 failed: ", conditionMessage(e)))  
+        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot2 failed: ", conditionMessage(e)))
       
       tryCatch({
         p3 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = prob_bin)) +
@@ -556,8 +563,8 @@ EvaluatePredictionsReport <- function(
                                                     plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
         ggplot2::ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
         .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")  
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] overlay plot failed: ", conditionMessage(e)))  
+        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] overlay plot failed: ", conditionMessage(e)))
       
       invisible(list(
         heatmap_path = heatmap_path,
@@ -567,19 +574,21 @@ EvaluatePredictionsReport <- function(
       ))
     }
     
+    # ================================================================
+    # SECTION: Accuracy plot gating (FIXED)
+    # ================================================================
     artifacts <- list()
-    if (accuracy_plot %in% c("accuracy","both")) {
+    # #$$$$$$$$$$$$$ FIX: accuracy_plot (logical) gates all accuracy plots
+    # #$$$$$$$$$$$$$ FIX: accuracy_plot_mode selects which (fixed/tuned/both)
+    if (isTRUE(accuracy_plot) && accuracy_plot_mode %in% c("accuracy","both")) {  # #$$$$$$$$$$$$$
       artifacts$fixed <- maybe_plot_binary("accuracy", y_pred_fixed, 0.5, "_fixed")
     }
-    if (accuracy_plot %in% c("accuracy_tuned","both")) {
+    if (isTRUE(accuracy_plot) && accuracy_plot_mode %in% c("accuracy_tuned","both")) {  # #$$$$$$$$$$$$$
       artifacts$tuned <- maybe_plot_binary(sprintf("accuracy_tuned (thr=%.2f)", best_thr),
                                            y_pred_tuned, best_thr, "_tuned")
     }
     
     # PR curve (object always computed; PNG only if enable_plots)
-    # - pr_obj comes from PRROC::pr.curve(curve = TRUE)
-    # - AUPRC is pr_obj$auc.integral and can be shown in the title
-    # - show_auprc = TRUE (default) appends AUPRC; FALSE keeps the legacy title
     labels_numeric <- as.numeric(y_true)
     probs_numeric  <- as.numeric(p_pos)
     pr_obj <- tryCatch(
@@ -591,7 +600,7 @@ EvaluatePredictionsReport <- function(
     auprc_val <- tryCatch(round(pr_obj$auc.integral, 6), error = function(e) NA_real_)
     
     pr_png <- file.path(plot_dir, "pr_curve.png")
-    if (isTRUE(enable_plots) && !is.null(pr_obj)) {                     
+    if (isTRUE(enable_plots) && !is.null(pr_obj)) {
       tryCatch({
         grDevices::png(pr_png, width = 800, height = 600)
         pr_title <- "Precision-Recall Curve - Neural Network"
@@ -601,8 +610,8 @@ EvaluatePredictionsReport <- function(
         plot(pr_obj, main = pr_title, lwd = 2)
         graphics::grid()
         grDevices::dev.off()
-        if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")  
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e)))  
+        if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e)))
     }
     
     # Misclassified (PRESERVED)
@@ -630,7 +639,7 @@ EvaluatePredictionsReport <- function(
     colnames(conf_long) <- c("Actual", "Predicted", "Count")
     
     heatmap_path_legacy <- file.path(plot_dir, "confusion_heatmap_legacy.png")
-    if (isTRUE(enable_plots)) {                                        
+    if (isTRUE(enable_plots)) {
       tryCatch({
         heatmap_plot <- ggplot2::ggplot(conf_long, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
           ggplot2::geom_tile() +
@@ -639,18 +648,18 @@ EvaluatePredictionsReport <- function(
           ggplot2::theme_minimal() + ggplot2::ggtitle("Confusion Matrix Heatmap")
         ggplot2::ggsave(heatmap_path_legacy, heatmap_plot, width = 6, height = 4, dpi = 300)
         .close_devices()
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] legacy heatmap failed: ", conditionMessage(e)))  
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] legacy heatmap failed: ", conditionMessage(e)))
     }
     
     # Rdata_predictions
     # ============================================================
-    # Validation Predictions Frame (NO %>% PIPE)                 
+    # Validation Predictions Frame (NO %>% PIPE)
     # ============================================================
     
     Rdata_predictions <- as.data.frame(X_validation)
     
-    Rdata_predictions[["label"]]       <- labels_flat         
-    Rdata_predictions[["Predictions"]] <- binary_preds_fixed  
+    Rdata_predictions[["label"]]       <- labels_flat
+    Rdata_predictions[["Predictions"]] <- binary_preds_fixed
     Rdata_predictions[["prob"]]        <- probs_numeric
     
     mean_0 <- suppressWarnings(mean(Rdata_predictions$prob[Rdata_predictions$label == 0], na.rm = TRUE))
@@ -689,7 +698,7 @@ EvaluatePredictionsReport <- function(
       misclassified_sorted <- misclassified
     }
     
-    # Library metrics (PRESERVED; safe wrappers; verbose gated)          
+    # Library metrics (PRESERVED; safe wrappers; verbose gated)
     safe_call <- function(fn, ...) {
       f <- get0(fn, ifnotfound = NULL)
       if (is.function(f)) {
@@ -729,13 +738,14 @@ EvaluatePredictionsReport <- function(
     )
     
     # ================================================================
-    # SECTION: Structured report object (new)                          
+    # SECTION: Structured report object (new)
     # ================================================================
     report <- list(
       mode = "binary",
       configuration = list(
         classification_mode = CLASSIFICATION_MODE,
         accuracy_plot = accuracy_plot,
+        accuracy_plot_mode = accuracy_plot_mode,  # #$$$$$$$$$$$$$
         tuned_threshold_override = tuned_threshold_override,
         show_auprc = show_auprc
       ),
@@ -775,9 +785,9 @@ EvaluatePredictionsReport <- function(
       )
     )
     
-    # Optional Excel export (PRESERVED layout; now gated)               
-    if (isTRUE(export_excel)) {                                        
-      if (isTRUE(verbose)) cat("[Eval-Binary][WB] createWorkbook()\n")  
+    # Optional Excel export (PRESERVED layout; now gated)
+    if (isTRUE(export_excel)) {
+      if (isTRUE(verbose)) cat("[Eval-Binary][WB] createWorkbook()\n")
       wb <- openxlsx::createWorkbook()
       
       openxlsx::addWorksheet(wb, "Fixed")
@@ -799,18 +809,18 @@ EvaluatePredictionsReport <- function(
       
       if (file.exists(roc_png)) {
         tryCatch(openxlsx::insertImage(wb, "ROC", roc_png, startRow = 5, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage ROC failed: ", conditionMessage(e)))  
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage ROC failed: ", conditionMessage(e)))
       }
       if (file.exists(pr_png)) {
         tryCatch(openxlsx::insertImage(wb, "ROC", pr_png, startRow = 25, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage PR failed: ", conditionMessage(e)))  
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage PR failed: ", conditionMessage(e)))
       }
       
       if (!is.null(artifacts$fixed)) {
         for (p in unlist(artifacts$fixed, use.names = FALSE)) {
           if (file.exists(p)) {
             tryCatch(openxlsx::insertImage(wb, "Fixed", p, startRow = 20, startCol = 1, width = 6, height = 4),
-                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Fixed) failed: ", conditionMessage(e)))  
+                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Fixed) failed: ", conditionMessage(e)))
           }
         }
       }
@@ -818,7 +828,7 @@ EvaluatePredictionsReport <- function(
         for (p in unlist(artifacts$tuned, use.names = FALSE)) {
           if (file.exists(p)) {
             tryCatch(openxlsx::insertImage(wb, "Tuned", p, startRow = 20, startCol = 1, width = 6, height = 4),
-                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Tuned) failed: ", conditionMessage(e)))  
+                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Tuned) failed: ", conditionMessage(e)))
           }
         }
       }
@@ -830,7 +840,7 @@ EvaluatePredictionsReport <- function(
       suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", metrics_legacy))
       if (file.exists(heatmap_path_legacy)) {
         tryCatch(openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_legacy, startRow = 15, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (legacy heatmap) failed: ", conditionMessage(e)))  
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (legacy heatmap) failed: ", conditionMessage(e)))
       }
       
       openxlsx::addWorksheet(wb, "Prediction_Means")
@@ -859,11 +869,11 @@ EvaluatePredictionsReport <- function(
         
         if (!is.null(legacy_mis_heat)) {
           tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
-                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))  
+                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))
         }
         if (!is.null(legacy_box_sc)) {
           tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_box_sc, startRow = 25, startCol = 1, width = 6, height = 4),
-                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy boxplot insert failed: ", conditionMessage(e)))  
+                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy boxplot insert failed: ", conditionMessage(e)))
         }
       }
       
@@ -871,22 +881,22 @@ EvaluatePredictionsReport <- function(
       suppressWarnings(openxlsx::writeData(wb, "Metrics_Library", t(lib_metrics)))
       
       tryCatch({
-        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")  
+        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")
         openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE)
-        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")   
+        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")
       }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))  
+        if (isTRUE(verbose)) message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))
       })
     }
     
-    # Optional RDS save                                                 
-    if (isTRUE(save_rds)) {                                             
+    # Optional RDS save
+    if (isTRUE(save_rds)) {
       tryCatch(saveRDS(report, report_rds_path),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] saveRDS failed: ", conditionMessage(e)))  
-      if (isTRUE(verbose)) cat("[Eval-Binary] RDS saved:", report_rds_path, "\n")  
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] saveRDS failed: ", conditionMessage(e)))
+      if (isTRUE(verbose)) cat("[Eval-Binary] RDS saved:", report_rds_path, "\n")
     }
     
-    if (isTRUE(verbose)) cat("[Eval-Binary] RETURN\n")                  
+    if (isTRUE(verbose)) cat("[Eval-Binary] RETURN\n")
     return(list(
       best_threshold  = best_thr,
       accuracy        = acc_fixed,
@@ -902,14 +912,14 @@ EvaluatePredictionsReport <- function(
       y_pred_class_tuned = y_pred_tuned,
       auc = auc_val,
       roc_curve = roc_df,
-      report = report                                                     
+      report = report
     ))
   } # end binary
   
   # ================================================================
-  # SECTION: Multiclass branch (PRESERVED; verbose + plots gated)    
+  # SECTION: Multiclass branch (PRESERVED; verbose + plots gated)
   # ================================================================
-  if (isTRUE(verbose)) cat("[Eval-Multiclass] Enter\n")                
+  if (isTRUE(verbose)) cat("[Eval-Multiclass] Enter\n")
   
   if (ncol(L) > 1L) {
     y_true_ids <- max.col(L, ties.method = "first")
@@ -929,7 +939,7 @@ EvaluatePredictionsReport <- function(
   }
   
   acc_mc <- mean(pred_ids == y_true_ids, na.rm = TRUE)
-  if (isTRUE(verbose)) cat("[Eval-Multiclass] K:", K, "  accuracy:", acc_mc, "\n")  
+  if (isTRUE(verbose)) cat("[Eval-Multiclass] K:", K, "  accuracy:", acc_mc, "\n")
   
   TPk <- FPk <- FNk <- rep(0L, K)
   for (k in seq_len(K)) {
@@ -948,7 +958,7 @@ EvaluatePredictionsReport <- function(
   conf_matrix_df <- as.data.frame(conf_tab); names(conf_matrix_df)[3] <- "Count"
   
   heatmap_path_mc <- file.path(plot_dir, "confusion_matrix_multiclass_heatmap.png")
-  if (isTRUE(enable_plots)) {                                           
+  if (isTRUE(enable_plots)) {
     tryCatch({
       p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
         ggplot2::geom_tile(color="white") + ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
@@ -957,11 +967,11 @@ EvaluatePredictionsReport <- function(
         ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
       ggplot2::ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
       .close_devices()
-      if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")  
-    }, error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))  
+      if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")
+    }, error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))
   }
   
-  if (isTRUE(verbose)) {                                                
+  if (isTRUE(verbose)) {
     cat("=== diagnostics for evaluate_predictions_report ===\n")
     cat("nrow(X_validation):", NROW(X_validation), "\n")
     cat("length(y_true_ids):", length(y_true_ids), "\n")
@@ -1053,8 +1063,8 @@ EvaluatePredictionsReport <- function(
     )
   )
   
-  # Optional Excel export (PRESERVED; gated)                          
-  if (isTRUE(export_excel)) {                                         
+  # Optional Excel export (PRESERVED; gated)
+  if (isTRUE(export_excel)) {
     wb <- openxlsx::createWorkbook()
     openxlsx::addWorksheet(wb, "Combined")
     suppressWarnings(openxlsx::writeData(wb, "Combined", combined_df))
@@ -1064,25 +1074,25 @@ EvaluatePredictionsReport <- function(
     if (file.exists(heatmap_path_mc)) {
       tryCatch(openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_mc, startRow = nrow(ms) + 6,
                                      startCol = 1, width = 6, height = 4),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] insertImage failed: ", conditionMessage(e)))  
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] insertImage failed: ", conditionMessage(e)))
     }
     
     openxlsx::addWorksheet(wb, "Rdata_Predictions")
     suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", predictions_df))
     
     tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
-             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] Workbook save failed: ", conditionMessage(e)))  
-    if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved.\n")   
+             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] Workbook save failed: ", conditionMessage(e)))
+    if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved.\n")
   }
   
-  # Optional RDS save                                                 
-  if (isTRUE(save_rds)) {                                             
+  # Optional RDS save
+  if (isTRUE(save_rds)) {
     tryCatch(saveRDS(report, report_rds_path),
-             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] saveRDS failed: ", conditionMessage(e)))  
-    if (isTRUE(verbose)) cat("[Eval-Multiclass] RDS saved:", report_rds_path, "\n")  
+             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] saveRDS failed: ", conditionMessage(e)))
+    if (isTRUE(verbose)) cat("[Eval-Multiclass] RDS saved:", report_rds_path, "\n")
   }
   
-  if (isTRUE(verbose)) cat("[Eval-Multiclass] RETURN\n")              
+  if (isTRUE(verbose)) cat("[Eval-Multiclass] RETURN\n")
   return(list(
     best_threshold   = NA_real_,
     accuracy         = acc_mc,
@@ -1098,6 +1108,6 @@ EvaluatePredictionsReport <- function(
     y_pred_class_tuned = NULL,
     auc = NA_real_,
     roc_curve = NULL,
-    report = report                                                     
+    report = report
   ))
 }

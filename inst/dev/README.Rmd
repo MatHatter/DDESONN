@@ -135,6 +135,32 @@ They are preserved as historical reference points, not as the current recommende
 
 ---
 
+## Note on legacy `validation_metrics` behavior
+
+During the period represented by the materials in this folder, the internal logic
+governing `validation_metrics` (sometimes referred to informally as
+“validation underscore metrics”) reflects **legacy behavior that was intentionally
+left unchanged at the time**.
+
+In particular:
+
+- The core `DDESONN.R` logic **did not modify or reinterpret** the existing
+  `validation_metrics` semantics during this phase of development.
+- At that point in the project, the exact role and scope of
+  `validation_metrics` had **not yet been fully clarified or formalized**.
+- As a result, scripts and runners in this folder may exhibit behavior that
+  reflects the *original interpretation* rather than the later, documented one.
+
+Subsequent development (outside this folder) clarified what
+`validation_metrics` is responsible for, how it should be invoked, and how it
+interacts with evaluation reporting. That clarification is reflected in the
+current package implementation and documentation.
+
+This folder preserves the **historical state prior to that clarification** for
+context and transparency.
+
+---
+
 ## What this folder is NOT
 
 To be explicit, this directory is **not**:
