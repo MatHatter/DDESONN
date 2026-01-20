@@ -3628,19 +3628,19 @@ DDESONN <- R6::R6Class(
         
         # might remove if, but keep contents
         if (train) {
-          
-          
+
+
           cat("___________________________________________________________________________\n")
           cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
-          
+
           single_prediction_time <- prediction_time_list[[i]]
-          
+
           #brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
           if (validation_metrics){
             Rdata = X_validation
             labels = y_validation
           }
-          
+
           # ---- PRE-REPORT TUNING (binary only) ----
           tuned <- NULL
           best_threshold <- NA_real_
@@ -3665,7 +3665,7 @@ DDESONN <- R6::R6Class(
               }
               labels_for_tuning <- as.integer(y_val_vec)
             }
-            
+
             tuned <- accuracy_precision_recall_f1_tuned(
               SONN                = self$ensemble[[i]],
               Rdata               = tryCatch(X_validation, error = function(e) NULL),
@@ -3676,16 +3676,16 @@ DDESONN <- R6::R6Class(
               threshold_grid      = seq(0.05, 0.95, by = 0.01),
               verbose             = isTRUE(verbose)
             )
-            
+
             chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
             if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
-            
+
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-          # print(head(single_predicted_output))
-          # print(head(y_validation))
-          # stop()
+# print(head(single_predicted_output))
+# print(head(y_validation))
+# stop()
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
@@ -3765,76 +3765,10 @@ DDESONN <- R6::R6Class(
               eval_result$best_threshold <- best_threshold
             }
             
-          } else if (isTRUE(train)) {                                        #$$$$$$$$$$$$$
-            
-            # === Evaluate Prediction Diagnostics (TRAIN PATH) ===           #$$$$$$$$$$$$$
-            # Pull evaluate_report cfg ONLY (no defaults created here)       #$$$$$$$$$$$$$
-            eval_cfg <- NULL                                                 #$$$$$$$$$$$$$
-            if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
-                !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
-              eval_cfg <- plot_controls$evaluate_report
-            }
-            
-            # Build args list using TRAIN data (Rdata/labels)                #$$$$$$$$$$$$$
-            eval_args <- list(                                               #$$$$$$$$$$$$$
-              X_validation = Rdata,                                          #$$$$$$$$$$$$$
-              y_validation = labels,                                        #$$$$$$$$$$$$$
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              probs = single_predicted_output,
-              predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,   # kept for signature compatibility (not used)
-              all_best_val_probs = NULL,                 #$$$$$$$$$$$$$
-              all_best_val_labels = NULL,                #$$$$$$$$$$$$$
-              verbose = verbose,
-              tuned_threshold_override = NA_real_,       #$$$$$$$$$$$$$
-              SONN = self$ensemble[[i]]
-            )
-            
-            # ============================================================
-            # viewAllPlots -> turn on the report's plot outputs             #$$$$$$$$$$$$$
-            # (Only applies if caller didn't explicitly set the individual flags)
-            # ============================================================
-            if (!is.null(eval_cfg) && length(eval_cfg) &&                               #$$$$$$$$$$$$$
-                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {     #$$$$$$$$$$$$$
-              
-              if (is.null(eval_cfg$enable_plots)) eval_args$enable_plots <- TRUE        #$$$$$$$$$$$$$
-              
-              if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- TRUE                                         #$$$$$$$$$$$$$
-              }
-              
-              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE              #$$$$$$$$$$$$$
-              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE              #$$$$$$$$$$$$$
-            }
-            
-            if (!is.null(eval_cfg) && length(eval_cfg)) {                               #$$$$$$$$$$$$$
-              
-              if (!is.null(eval_cfg$accuracy_plot)) {
-                eval_args$accuracy_plot <- eval_cfg$accuracy_plot
-              } else if (!is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- eval_cfg$accuracy_plots
-              }
-              
-              if (!is.null(eval_cfg$accuracy_plot_mode)) eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
-              
-              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc <- eval_cfg$show_auprc
-              if (!is.null(eval_cfg$output_root))  eval_args$output_root <- eval_cfg$output_root
-              
-              if (!is.null(eval_cfg$enable_plots))  eval_args$enable_plots <- eval_cfg$enable_plots
-              if (!is.null(eval_cfg$export_excel))  eval_args$export_excel <- eval_cfg$export_excel
-              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds <- eval_cfg$save_rds
-              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name <- eval_cfg$rds_name
-              
-              if (!is.null(eval_cfg$roc_curve))     eval_args$roc_curve <- eval_cfg$roc_curve
-              if (!is.null(eval_cfg$pr_curve))      eval_args$pr_curve <- eval_cfg$pr_curve
-            }
-            
-            eval_result <- do.call(EvaluatePredictionsReport, eval_args)      #$$$$$$$$$$$$$
-            
           } else {
             eval_result <- list(best_threshold = NA_real_, best_thresholds = NULL, accuracy = NA_real_, accuracy_percent = NA_real_, metrics = NULL, misclassified = NULL)
           }
-          
+
           # Safely get number of columns from many shapes
           safe_ncol <- function(x) {
             if (is.null(x)) return(0L)
@@ -3854,18 +3788,18 @@ DDESONN <- R6::R6Class(
             if (is.atomic(x))      return(1L)
             0L
           }
-          
+
           k_labels <- safe_ncol(y_validation)
           k_probs  <- safe_ncol(single_predicted_output)
-          
+
           # Prefer label-driven K when available; otherwise use predictions
           K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
-          
-          
+
+
           # Pull out both fields (back-compat + multiclass)
           best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
           best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
-          
+
           # Decide what to store/use
           if (K == 1L) {
             # Binary: prefer tuned scalar; fallback to 0.5 if NA
@@ -3881,7 +3815,7 @@ DDESONN <- R6::R6Class(
               rep(0.5, K)
             }
           }
-          
+
           # Optional: logs
           if (isTRUE(verbose)) {
             if (K == 1L) {
@@ -3891,8 +3825,8 @@ DDESONN <- R6::R6Class(
                               paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
             }
           }
-          
-          
+
+
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
             probs   <- best_val_probs
             targets <- best_val_labels
@@ -3904,8 +3838,8 @@ DDESONN <- R6::R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-          
-          
+
+
           performance_list[[i]] <- calculate_performance(
             SONN = self$ensemble[[i]],
             Rdata = Rdata,
@@ -3926,7 +3860,7 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-          
+
           relevance_list[[i]] <- calculate_relevance(
             self$ensemble[[i]],
             Rdata = Rdata,
@@ -3941,9 +3875,9 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-          
+
           performance_metric <- performance_list[[i]]$metrics
-          
+
           # Fill tuned columns directly from the pre-report tuning pass
           if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
             performance_metric$accuracy_tuned  <- tuned$accuracy
@@ -3951,9 +3885,9 @@ DDESONN <- R6::R6Class(
             performance_metric$recall_tuned    <- tuned$recall
             performance_metric$f1_tuned        <- tuned$f1
           }
-          
+
           relevance_metric <- relevance_list[[i]]$metrics
-          
+
           if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
             if (verbose || viewTables) {
               message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
@@ -3970,11 +3904,11 @@ DDESONN <- R6::R6Class(
                 viewTables = viewTables
               )
             }
-            
+
           }
-          
+
         }
-        
+
 
         if (verbose) {
           message("\n=============================================")

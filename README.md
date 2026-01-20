@@ -1,7 +1,15 @@
-````md
 # DDESONN: Deep Dynamic Experimental Self-Organizing Neural Network
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
+
+**Note on multiple README files:**  
+This repository intentionally contains a second README at:
+
+`inst/dev/README.md`
+
+
+That file is used for development notes, internal context, and in-progress documentation during active experimentation.  
+The root `README.md` (this file) is the canonical public-facing README for users, CRAN, and external contributors.
 
 ---
 
@@ -87,6 +95,9 @@ Core implementation is modular and intentionally explicit:
 
 Formal R vignettes for guided exploration and reproducible demonstrations are available in the vignettes directory.
 
+Techila (distributed/parallel compute) support exists to scale heavier experiments across multiple servers/workers.  
+This becomes relevant quickly when you start running large seed sweeps (e.g., hundreds to thousands of seeds across hundreds of epochs).
+
 ---
 
 ## Project timeline
@@ -113,40 +124,42 @@ Formal R vignettes for guided exploration and reproducible demonstrations are av
 
 ## Repository structure
 
-"DDESONN/"
-- "R/"
-  - "DDESONN.R"
-  - "activation_functions.R"
-  - "api.R"
-  - "optimizers.R"
-  - "performance_relevance_metrics.R"
-  - "update_biases_block.R"
-  - "update_weights_block.R"
-  - "utils.R"
-  - "reports/"
-    - "evaluate_predictions_report.R"
-
-- "inst/"
-  - "scripts/"
-    - "DDESONN_mtcars_example.R"
-    - "DDESONN_mtcars_A-D_examples*.R"
-    - "Heart_failure_ScenarioA.R"
-    - "LoadandPredict.R"
-    - "TestDDESONN.R"
-
-- "data/"
-- "vignettes/"
-- "helpfulFiles/"
-- "ideas/"
-- "junk/"
-
-- "DESCRIPTION"
-- "NAMESPACE"
-- "DDESONN.Rproj"
-- "CHANGELOG.md"
-- "README.md"
-- "README_v*.md"
-- "LICENSE/"
+DDESONN/
+├─ R/
+│ ├─ DDESONN.R
+│ ├─ activation_functions.R
+│ ├─ api.R
+│ ├─ optimizers.R
+│ ├─ performance_relevance_metrics.R
+│ ├─ update_biases_block.R
+│ ├─ update_weights_block.R
+│ ├─ utils.R
+│ └─ reports/
+│ └─ evaluate_predictions_report.R
+│
+├─ inst/
+│ ├─ scripts/
+│ │ ├─ DDESONN_mtcars_example.R
+│ │ ├─ DDESONN_mtcars_A-D_examples*.R
+│ │ ├─ Heart_failure_ScenarioA.R
+│ │ ├─ LoadandPredict.R
+│ │ └─ TestDDESONN.R
+│ └─ dev/
+│ └─ README.md
+│
+├─ data/
+├─ vignettes/
+├─ helpfulFiles/
+├─ ideas/
+├─ junk/
+│
+├─ DESCRIPTION
+├─ NAMESPACE
+├─ DDESONN.Rproj
+├─ CHANGELOG.md
+├─ README.md
+├─ README_v*.md
+└─ LICENSE/
 
 ---
 
@@ -298,7 +311,6 @@ Notes on aggregation + split reports:
 - Aggregation controls how multiple ensemble members are combined (e.g., mean/median vs none), and test metrics use the same default aggregation as predict() unless overridden.
 - The binary split report helper is only for formatting Keras-style output (classification report + AUC/AUPRC + confusion matrix) in one place so Train/Validation/Test can print consistently without duplicating logic; core F1/ROC/precision/recall calculations already exist elsewhere.
 
-
 ---
 
 ## Running the examples
@@ -387,9 +399,8 @@ across epochs for a **single model run**.
 - Reuses existing artifact helpers:
   - `ddesonn_artifacts_root()`
   - `ddesonn_plots_dir()`
-- Output path:
-{artifacts_root}/plots/single_run_per_epoch/
-
+- Output path:  
+  `{artifacts_root}/plots/single_run_per_epoch/`
 - Explicitly excluded from `process_performance()` and all ensemble summaries
 
 ### R-05 · Single-run vs ensemble contract decoupling  
@@ -401,6 +412,68 @@ In single-run mode, ensemble orchestration is disabled, but ensemble slot object
 
 Decoupling this behavior would require a non-trivial architectural refactor and is
 documented here for clarity and future consideration.
+
+### R-06 · `validation_metrics` scope and stabilization checkpoint  
+**Status:** Current behavior (documented) + forward-looking consideration  
+**Related To-Do:** T-06, T-07
+
+`validation_metrics` currently gates a broad “evaluation report” pipeline (plots,
+confusion-matrix-derived metrics, artifact exports, and tuned-threshold handling).
+Over time, multiple call sites and helper functions have become dependent on this
+flag, making a full semantic cleanup a non-trivial plumbing change.
+
+**Stabilization decision (v1):**
+
+- `validation_metrics` is retained as a **pragmatic v1 switch** to enable/disable
+  the evaluation report path.
+- A non-essential training-time fallback branch (an `else` path that pushed training
+  data through the evaluation report pipeline) is treated as **non-core** and is
+  intentionally avoided/rolled back during stabilization.
+- This preserves a safer, more predictable contract for v1 release and reduces risk
+  of introducing fragile bugs late in the cycle.
+
+**Design intent (future):**
+
+- Separate **threshold tuning** from the broader evaluation report pipeline so tuned
+  thresholds can be computed independently (lower cognitive load, fewer dependencies).
+- Revisit `validation_metrics` semantics with explicitness (e.g., tri-state control:
+  `off | validation | train`) only after the tuning logic is modularized.
+
+### R-07 · `viewTables` behavior consolidation  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-08
+
+`viewTables` is camelCase and currently exists in sparse areas of the codebase.
+It is not yet guaranteed to be consistently honored across all reporting paths,
+artifacts, `.rds` outputs, or table/tibble/data-frame display points.
+
+The most reliable way to observe table display behavior in v1 is via the scripts in:
+`inst/scripts/` — especially `TestDDESONN.R`.
+
+Future work may unify table emission so `viewTables` behaves predictably across:
+- console printing
+- exported artifacts
+- `.rds` summaries
+- data frames / tibbles
+
+### R-08 · Vignettes expansion and optional interactive diagnostics  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-09
+
+The project already includes a major comparative vignette:
+`vignettes/DDESONNvKeras_1000Seeds.Rmd` (Heart Failure, 1000-seed summary).
+
+Future releases may expand the vignette suite (more datasets, more experiments,
+more reproducible walkthroughs) and optionally explore interactive diagnostics
+(e.g., Shiny) as a non-core layer.
+
+### R-09 · Techila-scale experimentation patterns  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-10
+
+Techila exists to scale heavy experiments across multiple servers/workers for seed
+sweeps and larger runs. This is particularly valuable when you want hundreds to
+thousands of seeds without waiting on a single machine.
 
 ---
 
@@ -439,6 +512,45 @@ Linked from: **R-05**
 Assess architectural implications of separating single-run execution from
 ensemble metadata and orchestration contracts.
 
+### T-06 · `validation_metrics` contract clarification (post-v1)  
+Linked from: **R-06**
+
+- Clearly define what `validation_metrics` enables/returns (evaluation report
+  pipeline + artifacts + tuned-threshold support)
+- Identify and document the call sites that currently depend on the flag
+- Reduce “hidden behavior” and ensure the name matches the behavior contract
+
+### T-07 · Extract threshold tuning into a standalone utility  
+Linked from: **R-06**
+
+- Pull tuned-threshold computation into a dedicated function that can run without
+  the full evaluation report artifacts/exports
+- Ensure the tuned threshold can be stored/returned consistently (e.g., per-model
+  `chosen_threshold`) while keeping reporting optional
+- After extraction, consider explicit tri-state evaluation routing:
+  `off | validation | train` (or separate `evaluation_report` + `evaluation_data`)
+
+### T-08 · `viewTables` standardization and coverage expansion  
+Linked from: **R-07**
+
+- Confirm where `viewTables` is currently honored and where it is ignored
+- Decide what “table viewing” means across:
+  console, data frames/tibbles, `.rds` tables, and report artifacts
+- Consolidate table emission so `viewTables` behavior is predictable across the project
+
+### T-09 · Expand vignettes and research demos  
+Linked from: **R-08**
+
+- Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
+- Keep demos reproducible and artifact-backed
+- Treat vignettes as the primary “user education layer” for v1+ releases
+
+### T-10 · Techila distributed experimentation hardening  
+Linked from: **R-09**
+
+- Provide a clean, documented Techila workflow for scaling seed sweeps
+- Make it easier to run heavy experiments across multiple servers with minimal setup friction
+
 ---
 
 ## Contributing
@@ -446,6 +558,15 @@ ensemble metadata and orchestration contracts.
 1. Fork and branch from main
 2. Run demos to confirm no regressions
 3. Submit pull requests with clear descriptions and tests
+
+Contributions are highly appreciated — especially those focused on:
+- polishing and tightening documentation
+- improving vignettes and reproducible demos
+- reporting/diagnostics improvements (tables, plots, artifacts)
+- helping implement or refine items in the Roadmap & Design Intent / To-Do list
+
+If you’re interested in helping push the project toward a cleaner plateau, the
+Roadmap & To-Do sections are the best place to pick a meaningful contribution.
 
 ---
 
@@ -459,4 +580,3 @@ Commercial use requires written authorization.
 ## Contact
 
 Mathew William Armitage Fok
-````
