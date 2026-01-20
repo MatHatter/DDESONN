@@ -3585,24 +3585,25 @@ DDESONN <- R6Class(
         
         # might remove if, but keep contents
         if (train) {
-          
+
+
           cat("___________________________________________________________________________\n")
           cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
-          
+
           single_prediction_time <- prediction_time_list[[i]]
-          
-          # brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
+
+          #brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
           if (validation_metrics){
-            Rdata  = X_validation
+            Rdata = X_validation
             labels = y_validation
           }
-          
+
           # ---- PRE-REPORT TUNING (binary only) ----
           tuned <- NULL
           best_threshold <- NA_real_
-          
-          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            
+          # need to figure out if I need to add is.null(predicted_output_val) && to the ifs below
+          if ( !is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+            # choose snapshot to tune: prefer best_val_*; else last-epoch predictions
             if (!is.null(best_val_probs) && !is.null(best_val_labels)) {
               probs_for_tuning  <- as.matrix(best_val_probs)
               labels_for_tuning <- if (is.matrix(best_val_labels)) best_val_labels[, 1] else best_val_labels
@@ -3613,21 +3614,15 @@ DDESONN <- R6Class(
                 fallback_probs <- fallback_probs$predicted_output
               }
               probs_for_tuning <- as.matrix(fallback_probs)
-              
-              n_eff <- min(
-                NROW(probs_for_tuning),
-                if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation)
-              )
-              
+              n_eff <- min(NROW(probs_for_tuning), if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation))
               y_val_vec <- if (is.matrix(y_validation)) {
                 y_validation[seq_len(n_eff), 1]
               } else {
                 y_validation[seq_len(n_eff)]
               }
-              
               labels_for_tuning <- as.integer(y_val_vec)
             }
-            
+
             tuned <- accuracy_precision_recall_f1_tuned(
               SONN                = self$ensemble[[i]],
               Rdata               = tryCatch(X_validation, error = function(e) NULL),
@@ -3638,104 +3633,88 @@ DDESONN <- R6Class(
               threshold_grid      = seq(0.05, 0.95, by = 0.01),
               verbose             = isTRUE(verbose)
             )
-            
+
             chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
             if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
-            
+
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-          
+
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            
             eval_result <- EvaluatePredictionsReport(
               X_validation = X_validation,
               y_validation = y_validation,
               CLASSIFICATION_MODE = CLASSIFICATION_MODE,
               probs = single_predicted_output,
               predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,
+              threshold_function = threshold_function,    # still accepted, no-op
               all_best_val_probs = best_val_probs,
               all_best_val_labels = best_val_labels,
               verbose = verbose,
-              accuracy_plot = "both",
+              # --- NEW: pass tuned scalar to skip sweep ---
+              accuracy_plot = "both",                    # or "default" or "both"
               tuned_threshold_override = best_threshold,
               SONN = self$ensemble[[i]]
             )
-            
+            # Mirror back for downstream readers that expect the report field
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
             }
-            
-          } else if (isTRUE(train)) {
-            
-            # === LEGACY FIX: TRAIN data now flows into evaluation report ===
-            eval_result <- EvaluatePredictionsReport(
-              X_validation = Rdata,
-              y_validation = labels,
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              probs = single_predicted_output,
-              predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,
-              all_best_val_probs = NULL,
-              all_best_val_labels = NULL,
-              verbose = verbose,
-              accuracy_plot = "both",
-              tuned_threshold_override = NA_real_,
-              SONN = self$ensemble[[i]]
-            )
-            
           } else {
-            
-            eval_result <- list(
-              best_threshold = NA_real_,
-              best_thresholds = NULL,
-              accuracy = NA_real_,
-              accuracy_percent = NA_real_,
-              metrics = NULL,
-              misclassified = NULL
-            )
-            
+            # Ensure eval_result exists for later fields even if no validation path
+            eval_result <- list(best_threshold = NA_real_, best_thresholds = NULL, accuracy = NA_real_, accuracy_percent = NA_real_, metrics = NULL, misclassified = NULL)
           }
-          
+
           # Safely get number of columns from many shapes
           safe_ncol <- function(x) {
             if (is.null(x)) return(0L)
+            # If it's a list from self$predict, try common fields first
             if (is.list(x)) {
               if (!is.null(x$predicted_output)) return(safe_ncol(x$predicted_output))
               if (!is.null(x$preds))            return(safe_ncol(x$preds))
               if (!is.null(x$output))           return(safe_ncol(x$output))
+              # last resort: if it still has a dim attribute
               if (!is.null(dim(x))) return(ncol(x))
               return(0L)
             }
-            if (is.matrix(x))     return(ncol(x))
-            if (is.data.frame(x)) return(ncol(x))
-            if (!is.null(dim(x))) return(dim(x)[2])
-            if (is.atomic(x))     return(1L)
+            if (is.matrix(x))      return(ncol(x))
+            if (is.data.frame(x))  return(ncol(x))
+            if (!is.null(dim(x)))  return(dim(x)[2])
+            # vectors/scalars count as 1 col (binary probs)
+            if (is.atomic(x))      return(1L)
             0L
           }
-          
+
           k_labels <- safe_ncol(y_validation)
           k_probs  <- safe_ncol(single_predicted_output)
-          
+
+          # Prefer label-driven K when available; otherwise use predictions
           K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
-          
-          best_threshold_scalar <- eval_result$best_threshold
-          best_thresholds_vec   <- eval_result$best_thresholds
-          
+
+
+          # Pull out both fields (back-compat + multiclass)
+          best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
+          best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
+
+          # Decide what to store/use
           if (K == 1L) {
-            threshold_used  <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
-            thresholds_used <- best_thresholds_vec
+            # Binary: prefer tuned scalar; fallback to 0.5 if NA
+            threshold_used   <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
+            thresholds_used  <- best_thresholds_vec  # length-1 vector (kept for consistency)
           } else {
-            threshold_used <- NA_real_
-            thresholds_used <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
+            # Multiclass: no single scalar; keep the whole vector
+            threshold_used   <- NA_real_
+            # if somehow missing, fallback to 0.5 per class
+            thresholds_used  <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
               best_thresholds_vec
             } else {
               rep(0.5, K)
             }
           }
-          
+
+          # Optional: logs
           if (isTRUE(verbose)) {
             if (K == 1L) {
               message(sprintf("[train] Using tuned binary threshold: %.3f", threshold_used))
@@ -3744,7 +3723,8 @@ DDESONN <- R6Class(
                               paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
             }
           }
-          
+
+
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
             probs   <- best_val_probs
             targets <- best_val_labels
@@ -3756,7 +3736,10 @@ DDESONN <- R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-          
+
+
+
+
           performance_list[[i]] <- calculate_performance(
             SONN = self$ensemble[[i]],
             Rdata = Rdata,
@@ -3777,7 +3760,7 @@ DDESONN <- R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-          
+
           relevance_list[[i]] <- calculate_relevance(
             self$ensemble[[i]],
             Rdata = Rdata,
@@ -3792,31 +3775,41 @@ DDESONN <- R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-          
+
           performance_metric <- performance_list[[i]]$metrics
-          
+
+          # Fill tuned columns directly from the pre-report tuning pass
           if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
             performance_metric$accuracy_tuned  <- tuned$accuracy
             performance_metric$precision_tuned <- tuned$precision
             performance_metric$recall_tuned    <- tuned$recall
             performance_metric$f1_tuned        <- tuned$f1
           }
-          
+
           relevance_metric <- relevance_list[[i]]$metrics
-          
-          if (ensemble_number < 1 && length(self$ensemble) >= 1 ||
-              (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
-            
+
+          if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
             if (verbose || viewTables) {
               message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
-              emit_table(performance_metric, title = "[PERFORMANCE metrics]", verbose = verbose, viewTables = viewTables)
-              emit_table(relevance_metric,   title = "[RELEVANCE metrics]",   verbose = verbose, viewTables = viewTables)
+              emit_table(
+                performance_metric,
+                title = "[PERFORMANCE metrics]",
+                verbose = verbose,
+                viewTables = viewTables
+              )
+              emit_table(
+                relevance_metric,
+                title = "[RELEVANCE metrics]",
+                verbose = verbose,
+                viewTables = viewTables
+              )
             }
+
           }
-          
+
         }
-        
-        
+
+
         if (verbose) {
           message("\n=============================================")
           message("DEBUG: Preparing to store metadata (Network Container)")
