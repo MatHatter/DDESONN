@@ -426,9 +426,10 @@ flag, making a full semantic cleanup a non-trivial plumbing change.
 
 - `validation_metrics` is retained as a **pragmatic v1 switch** to enable/disable
   the evaluation report path.
-- A non-essential training-time fallback branch (an `else` path that pushed training
-  data through the evaluation report pipeline) is treated as **non-core** and is
-  intentionally avoided/rolled back during stabilization.
+- A non-essential training-time fallback branch (an else path that pushed training
+  data through the evaluation report pipeline) is treated as non-core and was
+  strategically rolled back to avoid premature expansion of the evaluation pipeline
+  during v1 stabilization.
 - This preserves a safer, more predictable contract for v1 release and reduces risk
   of introducing fragile bugs late in the cycle.
 

@@ -1,0 +1,157 @@
+---
+title: "DDESONN — Plot Controls (Scenario 1 & 2)"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{Plot Controls (Scenario 1 & 2)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+# ============================================================
+# FILE: vignettes/plot-controls.Rmd
+# FULL WORKING — VIGNETTE SHOWS PLOTS (Scenario 1 & 2)
+# ============================================================
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = TRUE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 5,
+  fig.align = "center",
+  out.width = "900px",
+  fig.path = "plot-controls_files/figure-html/"
+)
+
+if (!requireNamespace("DDESONN", quietly = TRUE)) {
+  if (requireNamespace("devtools", quietly = TRUE)) {
+    devtools::load_all(".", quiet = TRUE)
+  } else {
+    stop("DDESONN is not installed and devtools is unavailable.")
+  }
+}
+
+library(DDESONN)
+set.seed(111)
+
+.print_core_metrics <- function(res, label = "RUN") {
+  cat("\n\n====================================================================\n")
+  cat(label, "\n")
+  cat("====================================================================\n\n")
+  if (!is.null(res$train_metrics)) print(res$train_metrics)
+  if (!is.null(res$validation_metrics)) print(res$validation_metrics)
+  if (!is.null(res$test_metrics)) print(res$test_metrics)
+}
+
+.vignette_fig_root <- function(subdir) {
+  od <- knitr::opts_knit$get("output.dir")
+  if (is.null(od) || !nzchar(od)) od <- getwd()
+  fp_rel <- knitr::opts_chunk$get("fig.path")
+  if (is.null(fp_rel) || !nzchar(fp_rel)) fp_rel <- "figure/"
+  fp_abs <- file.path(od, fp_rel)
+  dir.create(fp_abs, recursive = TRUE, showWarnings = FALSE)
+  p <- file.path(fp_abs, subdir)
+  dir.create(p, recursive = TRUE, showWarnings = FALSE)
+  p
+}
+
+.include_saved_plots <- function(output_root, max_n = 200L) {
+  if (!dir.exists(output_root)) return(invisible(NULL))
+
+  # #$$$$$$$$$$$$$ FIX: valid regex escape for literal dot in ".png"
+  imgs <- list.files(output_root, pattern = "\\.png$", recursive = TRUE, full.names = TRUE)  #$$$$$$$$$$$$$
+
+  if (!length(imgs)) return(invisible(NULL))
+  imgs <- imgs[seq_len(min(length(imgs), as.integer(max_n)))]
+
+  od <- knitr::opts_knit$get("output.dir")
+  if (is.null(od) || !nzchar(od)) od <- getwd()
+
+  base <- normalizePath(od, winslash = "/", mustWork = FALSE)
+  rel <- sub(paste0("^", base, "/?"), "", normalizePath(imgs, winslash = "/"))
+  knitr::include_graphics(rel)
+}
+```
+
+## Load example data
+
+```{r data}
+ext_dir <- system.file("extdata", package = "DDESONN")
+if (!nzchar(ext_dir)) stop("Could not find DDESONN extdata folder. Is the package installed?", call. = FALSE)
+
+df <- read.csv(file.path(ext_dir, "heart_failure_clinical_records.csv"))
+y <- as.numeric(df$DEATH_EVENT)
+x <- as.matrix(df[, setdiff(names(df), "DEATH_EVENT")])
+
+n <- nrow(x)
+idx <- sample(seq_len(n))
+n_train <- floor(0.7 * n)
+n_valid <- floor(0.15 * n)
+
+x_train <- x[idx[1:n_train], , drop = FALSE]
+y_train <- y[idx[1:n_train]]
+x_valid <- x[idx[(n_train + 1):(n_train + n_valid)], , drop = FALSE]
+y_valid <- y[idx[(n_train + 1):(n_train + n_valid)]]
+x_test  <- x[idx[(n_train + n_valid + 1):n], , drop = FALSE]
+y_test  <- y[idx[(n_train + n_valid + 1):n]]
+```
+
+## Scenario 1 — training_overrides
+
+```{r scenario1}
+out1 <- .vignette_fig_root("DDESONN_plots_s1")
+options(DDESONN_OUTPUT_ROOT = out1)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
+
+res_s1 <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  seeds = 1,
+  validation = list(x = x_valid, y = y_valid),
+  test = list(x = x_test, y = y_test),
+  training_overrides = list(
+    validation_metrics = TRUE,
+    per_epoch_view_plots = list(
+      accuracy_plot = TRUE,
+      saturation_plot = TRUE,
+      max_weight_plot = TRUE
+    )
+  )
+)
+
+.print_core_metrics(res_s1, "SCENARIO 1")
+.include_saved_plots(ddesonn_plots_dir(out1))
+```
+
+## Scenario 2 — plot_controls
+
+```{r scenario2}
+out2 <- .vignette_fig_root("DDESONN_plots_s2")
+options(DDESONN_OUTPUT_ROOT = out2)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = out2)
+
+res_s2 <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  seeds = 1,
+  validation = list(x = x_valid, y = y_valid),
+  test = list(x = x_test, y = y_test),
+  plot_controls = list(
+    per_epoch = list(
+      accuracy_plot = TRUE,
+      saturation_plot = TRUE,
+      max_weight_plot = TRUE
+    )
+  ),
+  training_overrides = list(validation_metrics = TRUE)
+)
+
+.print_core_metrics(res_s2, "SCENARIO 2")
+.include_saved_plots(ddesonn_plots_dir(out2))
+```

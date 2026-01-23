@@ -64,10 +64,14 @@ trained for each seed.}
 custom architectures.}
 
 \item{training_overrides}{Named list forwarded to \code{\link[=ddesonn_fit]{ddesonn_fit()}} for the
-main run(s).}
+main run(s). Any argument accepted by \code{\link[=ddesonn_fit]{ddesonn_fit()}} may be provided here.
+Unspecified values fall back to \code{\link[=ddesonn_training_defaults]{ddesonn_training_defaults()}} for the given
+\code{classification_mode} and \code{hidden_sizes}. See \strong{Details} and the example
+showing how to inspect defaults.}
 
 \item{temp_overrides}{Optional named list forwarded to \code{\link[=ddesonn_fit]{ddesonn_fit()}} for
-TEMP iterations. Defaults to \code{training_overrides}.}
+TEMP iterations. Defaults to \code{training_overrides}. Use this when TEMP
+candidates should train differently than the main model.}
 
 \item{prediction_data}{Optional features for prediction. When supplied,
 predictions are computed for each seed/iteration.}
@@ -95,6 +99,12 @@ keep per-seed prediction matrices.}
 \item{output_root}{Optional directory where legacy-style artifacts are
 written. When \code{NULL} (default) no files are created.}
 
+\item{plot_controls}{Optional list passed through to \code{\link[=ddesonn_fit]{ddesonn_fit()}} as
+\code{plot_controls}. Use this to enable/disable specific report plots or
+diagnostics (for example, evaluation report settings). The supported
+structure is defined by \code{\link[=ddesonn_fit]{ddesonn_fit()}}; this function does not create
+defaults.}
+
 \item{save_models}{Logical; if \code{TRUE} (default) individual models are
 persisted when \code{output_root} is supplied.}
 }
@@ -121,18 +131,168 @@ The function accepts a training set, optional validation data, and optional
 prediction features. It repeatedly instantiates \code{\link[=ddesonn_model]{ddesonn_model()}} objects,
 fits them with \code{\link[=ddesonn_fit]{ddesonn_fit()}}, and (when requested) calls
 \code{\link[=ddesonn_predict]{ddesonn_predict()}} to surface aggregated predictions.
+
+\strong{Discovering available training overrides}
+
+\code{training_overrides} is a direct pass-through to \code{\link[=ddesonn_fit]{ddesonn_fit()}}. To see the
+baseline defaults used by \code{ddesonn_run()}, call:
+
+\code{ddesonn_training_defaults(classification_mode, hidden_sizes)}
+
+To see all tunable training arguments, see \code{?ddesonn_fit}.
 }
 \examples{
 \donttest{
-data <- mtcars
-x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
-y <- data$am
+# ============================================================
+# DDESONN — FULL example using package data in inst/extdata
+# (binary classification; train/valid/test split; scale train-only)
+# ============================================================
+
+library(DDESONN)
+
+set.seed(111)
+
+# ------------------------------------------------------------
+# 1) Locate package extdata folder (inst/extdata at build-time)
+# ------------------------------------------------------------
+ext_dir <- system.file("extdata", package = "DDESONN")
+if (!nzchar(ext_dir)) {
+  stop("Could not find DDESONN extdata folder. Is the package installed?",
+       call. = FALSE)
+}
+
+csvs <- list.files(ext_dir, pattern = "\\\\\\\\.csv$", full.names = TRUE)
+if (!length(csvs)) {
+  stop(sprintf("No .csv files found in: \%s", ext_dir), call. = FALSE)
+}
+
+hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+data_path <- if (file.exists(hf_path)) hf_path else csvs[[1]]
+
+cat("[extdata] using:", data_path, "\\\\n")
+
+# ------------------------------------------------------------
+# 2) Load data
+# ------------------------------------------------------------
+df <- read.csv(data_path)
+
+# Prefer DEATH_EVENT if present; otherwise infer a binary target
+target_col <- if ("DEATH_EVENT" \%in\% names(df)) {
+  "DEATH_EVENT"
+} else {
+  cand <- names(df)[vapply(df, function(col) {
+    v <- suppressWarnings(as.numeric(col))
+    if (all(is.na(v))) return(FALSE)
+    u <- unique(v[is.finite(v)])
+    length(u) <= 2 && all(sort(u) \%in\% c(0, 1))
+  }, logical(1))]
+  if (!length(cand)) {
+    stop(
+      "Could not infer a binary target column. ",
+      "Provide a binary CSV in extdata or rename target to DEATH_EVENT.",
+      call. = FALSE
+    )
+  }
+  cand[[1]]
+}
+
+cat("[data] target_col =", target_col, "\\\\n")
+
+# ------------------------------------------------------------
+# 3) Build X and y
+# ------------------------------------------------------------
+y_all <- matrix(as.integer(df[[target_col]]), ncol = 1)
+
+x_df <- df[, setdiff(names(df), target_col), drop = FALSE]
+x_all <- as.matrix(x_df)
+storage.mode(x_all) <- "double"
+
+# ------------------------------------------------------------
+# 4) Split 70 / 15 / 15
+# ------------------------------------------------------------
+n <- nrow(x_all)
+idx <- sample.int(n)
+
+n_train <- floor(0.70 * n)
+n_valid <- floor(0.15 * n)
+
+i_tr <- idx[1:n_train]
+i_va <- idx[(n_train + 1):(n_train + n_valid)]
+i_te <- idx[(n_train + n_valid + 1):n]
+
+x_train <- x_all[i_tr, , drop = FALSE]
+y_train <- y_all[i_tr, , drop = FALSE]
+
+x_valid <- x_all[i_va, , drop = FALSE]
+y_valid <- y_all[i_va, , drop = FALSE]
+
+x_test  <- x_all[i_te, , drop = FALSE]
+y_test  <- y_all[i_te, , drop = FALSE]
+
+cat(sprintf("[split] train=\%d valid=\%d test=\%d\\\\n",
+            nrow(x_train), nrow(x_valid), nrow(x_test)))
+
+# ------------------------------------------------------------
+# 5) Scale using TRAIN stats only (no leakage)
+# ------------------------------------------------------------
+x_train_s <- scale(x_train)
+ctr <- attr(x_train_s, "scaled:center")
+scl <- attr(x_train_s, "scaled:scale")
+scl[!is.finite(scl) | scl == 0] <- 1
+
+x_valid_s <- sweep(sweep(x_valid, 2, ctr, "-"), 2, scl, "/")
+x_test_s  <- sweep(sweep(x_test,  2, ctr, "-"), 2, scl, "/")
+
+mx <- suppressWarnings(max(abs(x_train_s)))
+if (!is.finite(mx) || mx == 0) mx <- 1
+
+x_train <- x_train_s / mx
+x_valid <- x_valid_s / mx
+x_test  <- x_test_s  / mx
+
+# ------------------------------------------------------------
+# 6) Run DDESONN
+# ------------------------------------------------------------
 res <- ddesonn_run(
-  x,
-  y,
+  x = x_train,
+  y = y_train,
   classification_mode = "binary",
-  training_overrides = list(num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = FALSE,
+
+  validation = list(
+    x = x_valid,
+    y = y_valid
+  ),
+
+  test = list(
+    x = x_test,
+    y = y_test
+  ),
+
+  training_overrides = list(
+    init_method = "he",
+    optimizer = "adagrad",
+    lr = 0.125,
+    lambda = 0.00028,
+
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates = list(0.10),
+    loss_type = "CrossEntropy",
+
+    validation_metrics = TRUE,
+    num_epochs = 360,
+    final_summary_decimals = 6L
+  ),
+
+  plot_controls = list(
+    evaluate_report = list(
+      roc_curve = TRUE,
+      pr_curve  = FALSE
+    )
+  )
 )
-length(res$runs)
 }
 }

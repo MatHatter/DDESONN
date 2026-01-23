@@ -18,12 +18,14 @@
 # - PRESERVED: your original binary + regression + multiclass logic, plots, Excel sheet layout,
 #              legacy plot scanning, library metric calls, combine_for_report behavior
 # -  FIX: ALL verbose output is now gated under if (isTRUE(verbose))
-# -  FIX: ALL plot writes (png/ggsave/dev.off) are gated under enable_plots
+# -  FIX: ALL plot writes (png/ggsave/dev.off) are gated under per-plot toggles (NO enable_plots)  #$$$$$$$$$$$$$
 # -  FIX: Paths now use ddesonn_artifacts_root() + ddesonn_plots_dir()
 # -  FIX: Excel writing is optional (export_excel). No openxlsx hard dependency unless enabled
 # -  ADD: Optional RDS save (save_rds) to reports dir as Rdata_predictions.rds
 # -  ADD: Returns legacy scalar list PLUS an attached structured report object (return$report)
 # -  #$$$$$$$$$$$$$ FIX: accuracy_plot remains logical gate; accuracy_plot_mode controls which accuracy plots to emit
+# -  #$$$$$$$$$$$$$ ADD: viewAllPlots + plot_roc + plot_pr toggles (remove enable_plots)
+# -  #$$$$$$$$$$$$$ FIX: remove magrittr %>% usage (no pipe dependency)
 # ================================================================
 
 # ================================================================
@@ -70,7 +72,9 @@ EvaluatePredictionsReport <- function(
     # ================================================================
     # SECTION: Output controls (new, opt-in only)
     # ================================================================
-    enable_plots = FALSE,
+    viewAllPlots = FALSE,   # #$$$$$$$$$$$$$
+    plot_roc = TRUE,        # #$$$$$$$$$$$$$
+    plot_pr  = TRUE,        # #$$$$$$$$$$$$$
     export_excel = FALSE,
     save_rds = FALSE,
     rds_name = "Rdata_predictions.rds"
@@ -80,10 +84,13 @@ EvaluatePredictionsReport <- function(
   # SECTION: Package guard (conditional / CRAN-safe)
   # ================================================================
   # Base evaluation has no hard deps. Dependencies are required only when you opt-in:
-  # - enable_plots -> ggplot2/pROC/PRROC/reshape2
+  # - any plots -> ggplot2/pROC/PRROC/reshape2 (+ dplyr/tidyr used in existing plot code)
   # - export_excel -> openxlsx
   required_pkgs <- character(0)
-  if (isTRUE(enable_plots)) {
+  
+  do_any_plots <- isTRUE(viewAllPlots) || isTRUE(accuracy_plot) || isTRUE(plot_roc) || isTRUE(plot_pr)  # #$$$$$$$$$$$$$
+  
+  if (isTRUE(do_any_plots)) {  # #$$$$$$$$$$$$$
     required_pkgs <- unique(c(required_pkgs, "ggplot2", "dplyr", "tidyr", "pROC", "PRROC", "reshape2"))
   }
   if (isTRUE(export_excel)) {
@@ -130,7 +137,8 @@ EvaluatePredictionsReport <- function(
     cat("[Eval] reports_dir:", reports_dir, "\n")
     cat("[Eval] plot_dir:", plot_dir, "\n")
     if (dir.exists(legacy_plot_dir)) cat("[Eval] legacy_plot_dir detected (read-only):", legacy_plot_dir, "\n")
-    cat("[Eval] enable_plots:", enable_plots, " export_excel:", export_excel, " save_rds:", save_rds, "\n")
+    cat("[Eval] viewAllPlots:", viewAllPlots, " plot_roc:", plot_roc, " plot_pr:", plot_pr, "\n")  # #$$$$$$$$$$$$$
+    cat("[Eval] export_excel:", export_excel, " save_rds:", save_rds, "\n")
     cat("[Eval] accuracy_plot:", accuracy_plot, " accuracy_plot_mode:", accuracy_plot_mode, "\n")  # #$$$$$$$$$$$$$
   }
   
@@ -167,8 +175,8 @@ EvaluatePredictionsReport <- function(
         "  max_points:", max_points, "\n")
   }
   
-  # PLOT GATE (no files unless enable_plots)
-  if (isTRUE(enable_plots) && max_points > 0) {
+  # PLOT GATE (no files unless you toggled any plots)
+  if (isTRUE(do_any_plots) && max_points > 0) {  # #$$$$$$$$$$$$$
     tryCatch({
       grDevices::png(file.path(plot_dir, "pred_vs_error_scatter.png"), width = 800, height = 600)
       plot(pred_vec[seq_len(max_points)], err_vec[seq_len(max_points)],
@@ -375,7 +383,7 @@ EvaluatePredictionsReport <- function(
     f1_fixed  <- if ((pre_fixed + rec_fixed) > 0) 2 * pre_fixed * rec_fixed / (pre_fixed + rec_fixed) else 0
     if (isTRUE(verbose)) cat("[Eval-Binary][Fixed] TP:",TP," FP:",FP," TN:",TN," FN:",FN,"  acc:",acc_fixed,"  f1:",f1_fixed,"\n")
     
-    # ROC/AUC (object always computed; PNG only if enable_plots)
+    # ROC/AUC (object always computed; PNG only if plot_roc/viewAllPlots)  # #$$$$$$$$$$$$$
     if (isTRUE(verbose)) cat("[Eval-Binary][ROC] Computing ROC/AUC\n")
     roc_obj <- tryCatch(
       pROC::roc(response = y_true, predictor = p_pos, levels = c(0,1), direction = "<", quiet = TRUE),
@@ -390,7 +398,7 @@ EvaluatePredictionsReport <- function(
     if (isTRUE(verbose)) cat("[Eval-Binary][ROC] AUC:", ifelse(is.na(auc_val),"NA",sprintf("%.6f",auc_val)),"\n")
     
     roc_png <- file.path(plot_dir, "roc_curve.png")
-    if (isTRUE(enable_plots) && !is.null(roc_df) && nrow(roc_df) > 1) {
+    if ((isTRUE(viewAllPlots) || isTRUE(plot_roc)) && !is.null(roc_df) && nrow(roc_df) > 1) {  # #$$$$$$$$$$$$$
       tryCatch({
         p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
           ggplot2::geom_line(size = 1.1) +
@@ -484,9 +492,9 @@ EvaluatePredictionsReport <- function(
     y_pred_tuned <- as.integer(tuned$details$y_pred_class)
     if (isTRUE(verbose)) cat("[Eval-Binary][Tuned] best_thr:", best_thr, "  acc:", acc_tuned, "  f1:", f1_tuned, "\n")
     
-    # Plot bundle helper (PRESERVED; FILE WRITES GATED)
+    # Plot bundle helper (PRESERVED; FILE WRITES GATED)  # #$$$$$$$$$$$$$
     maybe_plot_binary <- function(mode_label, bin_preds, threshold_used, suffix) {
-      if (!isTRUE(enable_plots)) return(invisible(NULL))
+      if (!(isTRUE(viewAllPlots) || isTRUE(accuracy_plot))) return(invisible(NULL))  # #$$$$$$$$$$$$$
       if (isTRUE(verbose)) cat("[Eval-Binary][Plot] start:", mode_label, "  thr:", threshold_used, "  suffix:", suffix, "\n")
       
       TPp <- sum(bin_preds == 1 & y_true == 1, na.rm = TRUE)
@@ -515,16 +523,20 @@ EvaluatePredictionsReport <- function(
         if (isTRUE(verbose)) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e))
       })
       
-      df_cal <- data.frame(prob = p_pos, label = y_true) %>%
-        dplyr::filter(is.finite(prob), is.finite(label)) %>%
-        dplyr::mutate(prob_bin = dplyr::ntile(prob, 10)) %>%
-        dplyr::group_by(prob_bin) %>%
-        dplyr::summarise(
-          bin_mid = mean(prob, na.rm = TRUE),
-          actual_rate = mean(label, na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::mutate(prob_bin = factor(prob_bin))
+      # ============================================================
+      # Calibration bins (NO %>% PIPE)                              #$$$$$$$$$$$$$
+      # ============================================================
+      df_cal <- data.frame(prob = p_pos, label = y_true)  # #$$$$$$$$$$$$$
+      df_cal <- dplyr::filter(df_cal, is.finite(prob), is.finite(label))  # #$$$$$$$$$$$$$
+      df_cal <- dplyr::mutate(df_cal, prob_bin = dplyr::ntile(prob, 10))  # #$$$$$$$$$$$$$
+      df_cal <- dplyr::group_by(df_cal, prob_bin)  # #$$$$$$$$$$$$$
+      df_cal <- dplyr::summarise(  # #$$$$$$$$$$$$$
+        df_cal,
+        bin_mid = mean(prob, na.rm = TRUE),
+        actual_rate = mean(label, na.rm = TRUE),
+        .groups = "drop"
+      )
+      df_cal <- dplyr::mutate(df_cal, prob_bin = factor(prob_bin))  # #$$$$$$$$$$$$$
       
       plot1_path   <- file.path(plot_dir, paste0("plot1_bar_actual_rate", suffix, ".png"))
       plot2_path   <- file.path(plot_dir, paste0("plot2_calibration_curve", suffix, ".png"))
@@ -588,7 +600,7 @@ EvaluatePredictionsReport <- function(
                                            y_pred_tuned, best_thr, "_tuned")
     }
     
-    # PR curve (object always computed; PNG only if enable_plots)
+    # PR curve (object always computed; PNG only if plot_pr/viewAllPlots)  # #$$$$$$$$$$$$$
     labels_numeric <- as.numeric(y_true)
     probs_numeric  <- as.numeric(p_pos)
     pr_obj <- tryCatch(
@@ -600,7 +612,7 @@ EvaluatePredictionsReport <- function(
     auprc_val <- tryCatch(round(pr_obj$auc.integral, 6), error = function(e) NA_real_)
     
     pr_png <- file.path(plot_dir, "pr_curve.png")
-    if (isTRUE(enable_plots) && !is.null(pr_obj)) {
+    if ((isTRUE(viewAllPlots) || isTRUE(plot_pr)) && !is.null(pr_obj)) {  # #$$$$$$$$$$$$$
       tryCatch({
         grDevices::png(pr_png, width = 800, height = 600)
         pr_title <- "Precision-Recall Curve - Neural Network"
@@ -639,7 +651,7 @@ EvaluatePredictionsReport <- function(
     colnames(conf_long) <- c("Actual", "Predicted", "Count")
     
     heatmap_path_legacy <- file.path(plot_dir, "confusion_heatmap_legacy.png")
-    if (isTRUE(enable_plots)) {
+    if (isTRUE(viewAllPlots) || isTRUE(accuracy_plot)) {  # #$$$$$$$$$$$$$
       tryCatch({
         heatmap_plot <- ggplot2::ggplot(conf_long, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
           ggplot2::geom_tile() +
@@ -747,7 +759,10 @@ EvaluatePredictionsReport <- function(
         accuracy_plot = accuracy_plot,
         accuracy_plot_mode = accuracy_plot_mode,  # #$$$$$$$$$$$$$
         tuned_threshold_override = tuned_threshold_override,
-        show_auprc = show_auprc
+        show_auprc = show_auprc,
+        viewAllPlots = viewAllPlots,  # #$$$$$$$$$$$$$
+        plot_roc = plot_roc,          # #$$$$$$$$$$$$$
+        plot_pr  = plot_pr            # #$$$$$$$$$$$$$
       ),
       paths = list(
         artifacts_root = artifacts_root,
@@ -772,7 +787,7 @@ EvaluatePredictionsReport <- function(
       ),
       curves = list(
         roc_curve = roc_df
-        # PR curve is retained as a PNG or PRROC object only when you enable_plots; keeping it light here
+        # PR curve is retained as a PNG or PRROC object only when you plot; keeping it light here
       ),
       artifacts = list(
         plots = list(
@@ -855,9 +870,9 @@ EvaluatePredictionsReport <- function(
       if (nrow(misclassified_sorted)) {
         known_cols <- intersect(c("age","serum_creatinine","ejection_fraction","time"), names(misclassified_sorted))
         if (length(known_cols)) {
-          summary_by_type <- misclassified_sorted %>%
-            dplyr::group_by(Type) %>%
-            dplyr::summarise(dplyr::across(dplyr::all_of(known_cols), \(x) mean(x, na.rm = TRUE)))
+          # (PRESERVED) dplyr usage is fine; no %>% pipe needed here
+          summary_by_type <- dplyr::group_by(misclassified_sorted, Type)
+          summary_by_type <- dplyr::summarise(summary_by_type, dplyr::across(dplyr::all_of(known_cols), \(x) mean(x, na.rm = TRUE)))
         } else {
           summary_by_type <- data.frame()
         }
@@ -958,7 +973,7 @@ EvaluatePredictionsReport <- function(
   conf_matrix_df <- as.data.frame(conf_tab); names(conf_matrix_df)[3] <- "Count"
   
   heatmap_path_mc <- file.path(plot_dir, "confusion_matrix_multiclass_heatmap.png")
-  if (isTRUE(enable_plots)) {
+  if (isTRUE(do_any_plots)) {  # #$$$$$$$$$$$$$
     tryCatch({
       p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
         ggplot2::geom_tile(color="white") + ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
@@ -1006,7 +1021,7 @@ EvaluatePredictionsReport <- function(
     }
     
     m <- min(nX, ny, np)
-    if (isTRUE(verbose) && (nX != m || ny != m || np != m) && isTRUE(verbose)) {
+    if (isTRUE(verbose) && (nX != m || ny != m || np != m)) {  # #$$$$$$$$$$$$$
       message(sprintf(
         "[EvaluatePredictionsReport] Row mismatch: X=%d, y=%d, p=%d → truncating to %d rows for 'Combined'.",
         nX, ny, np, m
@@ -1037,7 +1052,12 @@ EvaluatePredictionsReport <- function(
   
   report <- list(
     mode = "multiclass",
-    configuration = list(classification_mode = CLASSIFICATION_MODE),
+    configuration = list(
+      classification_mode = CLASSIFICATION_MODE,
+      viewAllPlots = viewAllPlots,  # #$$$$$$$$$$$$$
+      plot_roc = plot_roc,          # #$$$$$$$$$$$$$
+      plot_pr  = plot_pr            # #$$$$$$$$$$$$$
+    ),
     paths = list(
       artifacts_root = artifacts_root,
       reports_dir = reports_dir,

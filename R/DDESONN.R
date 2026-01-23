@@ -1488,7 +1488,7 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, output_root = NULL) {
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, output_root = NULL, save_per_epoch) {
       
       print("----------------------------------------train_network-begin----------------------------------------")
       start_time <- Sys.time()
@@ -1689,7 +1689,7 @@ SONN <- R6::R6Class(
           max_weight_log <- c(max_weight_log, max_weight)
           
           ## =========================
-          ## SONN — Per-epoch plot config (plotEnabled gate, no output_root dependency)
+          ## SONN — Per-epoch plot config
           ## =========================
           
           #$$$$$$$$$$$$$ FIX: migrate legacy typo field -> canonical PerEpochViewPlotsConfig
@@ -1703,9 +1703,8 @@ SONN <- R6::R6Class(
             if (isTRUE(v)) TRUE else if (isFALSE(v)) FALSE else default
           }
           
-          #$$$$$$$$$$$$$ ADD: plotEnabled is the master gate (Scenario 1 friendly)
+          #$$$$$$$$$$$$$ FIX: remove plotEnabled master gate + related defaults
           defaults <- list(
-            plotEnabled     = FALSE,
             accuracy_plot   = FALSE,
             saturation_plot = FALSE,
             max_weight_plot = FALSE,
@@ -1719,17 +1718,13 @@ SONN <- R6::R6Class(
           
           pe <- self$PerEpochViewPlotsConfig
           
-          #$$$$$$$$$$$$$ ADD: pure gate, does NOT depend on output_root
-          plot_enabled <- isTRUE(pe$plotEnabled)
-          
           message(sprintf(
-            "SONN per-epoch config → plotEnabled=%s | acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
-            pe$plotEnabled, pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
+            "SONN per-epoch config → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
+            pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
           ))
           
           message(sprintf(
-            "SONN gate eval → enabled=%s | acc=%s, sat=%s, max=%s",
-            plot_enabled,
+            "SONN gate eval → acc=%s, sat=%s, max=%s",
             self$viewPerEpochPlots("accuracy_plot"),
             self$viewPerEpochPlots("saturation_plot"),
             self$viewPerEpochPlots("max_weight_plot")
@@ -1862,7 +1857,7 @@ SONN <- R6::R6Class(
             train_loss_log <- c(train_loss_log, train_loss_blockA)
             
           } else if (identical(CLASSIFICATION_MODE, "regression")) {
-            y_reg    <- if (is.matrix(labels_epoch)) as.numeric(labels_epoch[,1]) else as.numeric(labels_epoch)
+            y_reg     <- if (is.matrix(labels_epoch)) as.numeric(labels_epoch[,1]) else as.numeric(labels_epoch)
             preds_reg <- as.numeric(probs_train[,1])
             cat("[dbg] BLOCK A: y_reg head     =", paste(utils::head(y_reg, 6), collapse=", "), "\n")
             cat("[dbg] BLOCK A: preds_reg head =", paste(utils::head(preds_reg, 6), collapse=", "), "\n")
@@ -1930,7 +1925,7 @@ SONN <- R6::R6Class(
             StdOutput  = pad(sd_output_log, nA)
           )
           
-          if (plot_enabled && self$viewPerEpochPlots("accuracy_plot")) {  #$$$$$$$$$$$$$ FIX
+          if (self$viewPerEpochPlots("accuracy_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)                 #$$$$$$$$$$$$$ FIX: resolve only at write time
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
@@ -1947,7 +1942,7 @@ SONN <- R6::R6Class(
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
-          if (plot_enabled && self$viewPerEpochPlots("saturation_plot")) {  #$$$$$$$$$$$$$ FIX
+          if (self$viewPerEpochPlots("saturation_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
@@ -2053,10 +2048,10 @@ SONN <- R6::R6Class(
           
           # ===== Loss (train) =====
           losses[[epoch]] <- loss_function(
-            predictions         = predictions,     # defined right after learn_result
-            labels              = labels_epoch,    # aligned to n above
+            predictions         = predictions,
+            labels              = labels_epoch,
             CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-            reg_loss_total      = reg_loss_total,  # always defined
+            reg_loss_total      = reg_loss_total,
             loss_type           = loss_type,
             verbose             = verbose
           )
@@ -2133,7 +2128,7 @@ SONN <- R6::R6Class(
           }
           
           # 3) Max Weight Magnitude
-          if (plot_enabled && self$viewPerEpochPlots("max_weight_plot")) {  #$$$$$$$$$$$$$ FIX
+          if (self$viewPerEpochPlots("max_weight_plot")) {  #$$$$$$$$$$$$$ FIX
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
               p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) +
@@ -2148,6 +2143,8 @@ SONN <- R6::R6Class(
               ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
+          
+
           
           # Update biases
           if (update_biases) {
@@ -2761,7 +2758,7 @@ SONN <- R6::R6Class(
       lossesatoptimalepoch <- if (is.na(optimal_epoch)) tail(losses, 1) else losses[optimal_epoch]
       
       # --- Robust loss plot saver (base R) ---
-      if (plot_enabled && all(is.finite(losses))) {                     #$$$$$$$$$$$$$ FIX
+      if (all(is.finite(losses))) {                                     #$$$$$$$$$$$$$ FIX
         plots_dir <- ddesonn_plots_dir(output_root)                     #$$$$$$$$$$$$$ FIX: resolve only when saving
         
         fname_prefixer <- make_fname_prefix(
@@ -2802,7 +2799,6 @@ SONN <- R6::R6Class(
         cat("Saved OK. Size:", fi$size, "bytes\n")
         
       } else {
-        if (!plot_enabled) cat("Skipping plot: plotEnabled=FALSE.\n")    #$$$$$$$$$$$$$ ADD
         if (!all(is.finite(losses))) cat("Skipping plot: non-finite losses.\n")
       }
       
@@ -3073,7 +3069,7 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root = NULL, plot_controls = NULL) {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root, plot_controls, save_per_epoch) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
       
@@ -3629,24 +3625,23 @@ DDESONN <- R6::R6Class(
         # might remove if, but keep contents
         if (train) {
 
-
           cat("___________________________________________________________________________\n")
           cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
 
           single_prediction_time <- prediction_time_list[[i]]
 
-          #brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
+          # brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
           if (validation_metrics){
-            Rdata = X_validation
-            labels = y_validation
+            Rdata  <- X_validation
+            labels <- y_validation
           }
 
           # ---- PRE-REPORT TUNING (binary only) ----
           tuned <- NULL
           best_threshold <- NA_real_
-          # need to figure out if I need to add is.null(predicted_output_val) && to the ifs below
-          if ( !is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            # choose snapshot to tune: prefer best_val_*; else last-epoch predictions
+
+          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+
             if (!is.null(best_val_probs) && !is.null(best_val_labels)) {
               probs_for_tuning  <- as.matrix(best_val_probs)
               labels_for_tuning <- if (is.matrix(best_val_labels)) best_val_labels[, 1] else best_val_labels
@@ -3657,7 +3652,10 @@ DDESONN <- R6::R6Class(
                 fallback_probs <- fallback_probs$predicted_output
               }
               probs_for_tuning <- as.matrix(fallback_probs)
-              n_eff <- min(NROW(probs_for_tuning), if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation))
+              n_eff <- min(
+                NROW(probs_for_tuning),
+                if (is.matrix(y_validation)) NROW(y_validation) else length(y_validation)
+              )
               y_val_vec <- if (is.matrix(y_validation)) {
                 y_validation[seq_len(n_eff), 1]
               } else {
@@ -3683,162 +3681,148 @@ DDESONN <- R6::R6Class(
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-# print(head(single_predicted_output))
-# print(head(y_validation))
-# stop()
+
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-            
+
             # Pull evaluate_report cfg ONLY (no defaults created here)      #$$$$$$$$$$$$$
             eval_cfg <- NULL
             if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
               eval_cfg <- plot_controls$evaluate_report
             }
-            
-            # Build args list and ONLY include user-provided fields         #$$$$$$$$$$$$$
+
+            # Build args list — ONLY user-provided fields                  #$$$$$$$$$$$$$
             eval_args <- list(
-              X_validation = X_validation,
-              y_validation = y_validation,
-              CLASSIFICATION_MODE = CLASSIFICATION_MODE,
-              probs = single_predicted_output,
-              predicted_outputAndTime = single_predicted_outputAndTime,
-              threshold_function = threshold_function,    # kept for signature compatibility (not used)
-              all_best_val_probs = best_val_probs,
-              all_best_val_labels = best_val_labels,
-              verbose = verbose,
-              tuned_threshold_override = best_threshold,
-              SONN = self$ensemble[[i]]
+              X_validation              = X_validation,
+              y_validation              = y_validation,
+              CLASSIFICATION_MODE       = CLASSIFICATION_MODE,
+              probs                     = single_predicted_output,
+              predicted_outputAndTime   = single_predicted_outputAndTime,
+              threshold_function        = threshold_function,   # kept for signature compatibility
+              all_best_val_probs        = best_val_probs,
+              all_best_val_labels       = best_val_labels,
+              verbose                   = verbose,
+              tuned_threshold_override  = best_threshold,
+              SONN                      = self$ensemble[[i]]
             )
-            
+
             # ============================================================
-            # viewAllPlots -> turn on the report's plot outputs             #$$$$$$$$$$$$$
-            # (Only applies if caller didn't explicitly set the individual flags)
+            # viewAllPlots = MACRO (no enable_plots anywhere)              #$$$$$$$$$$$$$
+            # Turns ON plot toggles only if user did NOT set them
             # ============================================================
-            if (!is.null(eval_cfg) && length(eval_cfg) &&                               #$$$$$$$$$$$$$
-                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {     #$$$$$$$$$$$$$
-              
-              # If user didn't explicitly set enable_plots, allow plots to be written
-              if (is.null(eval_cfg$enable_plots)) eval_args$enable_plots <- TRUE        #$$$$$$$$$$$$$
-              
-              # If user didn't explicitly set accuracy_plot, default it ON
+            if (!is.null(eval_cfg) && length(eval_cfg) &&
+                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {
+
               if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- TRUE                                         #$$$$$$$$$$$$$
+                eval_args$accuracy_plot <- TRUE                               #$$$$$$$$$$$$$
               }
-              
-              # If user didn't explicitly set roc/pr, default them ON
-              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE              #$$$$$$$$$$$$$
-              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE              #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE    #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE    #$$$$$$$$$$$$$
             }
-            
+
             if (!is.null(eval_cfg) && length(eval_cfg)) {
-              
-              # Back-compat: allow accuracy_plots -> accuracy_plot          #$$$$$$$$$$$$$
+
+              # Back-compat: accuracy_plots -> accuracy_plot                #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$accuracy_plot)) {
                 eval_args$accuracy_plot <- eval_cfg$accuracy_plot
               } else if (!is.null(eval_cfg$accuracy_plots)) {
                 eval_args$accuracy_plot <- eval_cfg$accuracy_plots
               }
-              
-              # Only pass accuracy_plot_mode if user provided it (avoid match.arg(NULL)) #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$accuracy_plot_mode)) eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
-              
-              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc <- eval_cfg$show_auprc
-              if (!is.null(eval_cfg$output_root))  eval_args$output_root <- eval_cfg$output_root
-              
-              # Output controls (opt-in only)                               #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$enable_plots))  eval_args$enable_plots <- eval_cfg$enable_plots
-              if (!is.null(eval_cfg$export_excel))  eval_args$export_excel <- eval_cfg$export_excel
-              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds <- eval_cfg$save_rds
-              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name <- eval_cfg$rds_name
-              
-              # If your EvaluatePredictionsReport also reads plot toggles like roc_curve/pr_curve internally,
-              # leave them in eval_cfg (it can access via SONN/config). If it expects args, add them here. #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$roc_curve))     eval_args$roc_curve <- eval_cfg$roc_curve
-              if (!is.null(eval_cfg$pr_curve))      eval_args$pr_curve <- eval_cfg$pr_curve
+
+              # Only pass if user provided (avoid match.arg(NULL))          #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$accuracy_plot_mode)) {
+                eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
+              }
+
+              # Explicit per-plot toggles                                   #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- eval_cfg$roc_curve
+              if (!is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- eval_cfg$pr_curve
+
+              # Non-plot options (unchanged behavior)                       #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$show_auprc))  eval_args$show_auprc  <- eval_cfg$show_auprc
+              if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root
+              if (!is.null(eval_cfg$export_excel)) eval_args$export_excel <- eval_cfg$export_excel
+              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds      <- eval_cfg$save_rds
+              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name      <- eval_cfg$rds_name
             }
-            
-            eval_result <- do.call(EvaluatePredictionsReport, eval_args)    #$$$$$$$$$$$$$
-            
-            # Mirror back for downstream readers that expect the report field
+
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)       #$$$$$$$$$$$$$
+
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
             }
-            
+
           } else {
-            eval_result <- list(best_threshold = NA_real_, best_thresholds = NULL, accuracy = NA_real_, accuracy_percent = NA_real_, metrics = NULL, misclassified = NULL)
+            eval_result <- list(
+              best_threshold = NA_real_,
+              best_thresholds = NULL,
+              accuracy = NA_real_,
+              accuracy_percent = NA_real_,
+              metrics = NULL,
+              misclassified = NULL
+            )
           }
 
-          # Safely get number of columns from many shapes
+          # -------------------- unchanged downstream --------------------
+
           safe_ncol <- function(x) {
             if (is.null(x)) return(0L)
-            # If it's a list from self$predict, try common fields first
             if (is.list(x)) {
               if (!is.null(x$predicted_output)) return(safe_ncol(x$predicted_output))
               if (!is.null(x$preds))            return(safe_ncol(x$preds))
               if (!is.null(x$output))           return(safe_ncol(x$output))
-              # last resort: if it still has a dim attribute
               if (!is.null(dim(x))) return(ncol(x))
               return(0L)
             }
-            if (is.matrix(x))      return(ncol(x))
-            if (is.data.frame(x))  return(ncol(x))
-            if (!is.null(dim(x)))  return(dim(x)[2])
-            # vectors/scalars count as 1 col (binary probs)
-            if (is.atomic(x))      return(1L)
+            if (is.matrix(x))     return(ncol(x))
+            if (is.data.frame(x)) return(ncol(x))
+            if (!is.null(dim(x))) return(dim(x)[2])
+            if (is.atomic(x))     return(1L)
             0L
           }
 
           k_labels <- safe_ncol(y_validation)
           k_probs  <- safe_ncol(single_predicted_output)
-
-          # Prefer label-driven K when available; otherwise use predictions
           K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
 
+          best_threshold_scalar <- eval_result$best_threshold
+          best_thresholds_vec   <- eval_result$best_thresholds
 
-          # Pull out both fields (back-compat + multiclass)
-          best_threshold_scalar <- eval_result$best_threshold          # numeric (binary) or NA (multiclass)
-          best_thresholds_vec   <- eval_result$best_thresholds         # vector: length 1 (binary) or K (multiclass)
-
-          # Decide what to store/use
           if (K == 1L) {
-            # Binary: prefer tuned scalar; fallback to 0.5 if NA
-            threshold_used   <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
-            thresholds_used  <- best_thresholds_vec  # length-1 vector (kept for consistency)
+            threshold_used  <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
+            thresholds_used <- best_thresholds_vec
           } else {
-            # Multiclass: no single scalar; keep the whole vector
-            threshold_used   <- NA_real_
-            # if somehow missing, fallback to 0.5 per class
-            thresholds_used  <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
+            threshold_used <- NA_real_
+            thresholds_used <- if (!is.null(best_thresholds_vec) && length(best_thresholds_vec) == K) {
               best_thresholds_vec
             } else {
               rep(0.5, K)
             }
           }
 
-          # Optional: logs
           if (isTRUE(verbose)) {
             if (K == 1L) {
               message(sprintf("[train] Using tuned binary threshold: %.3f", threshold_used))
             } else {
-              message(sprintf("[train] Using tuned per-class thresholds: %s",
-                              paste0(sprintf("%.3f", thresholds_used), collapse = ", ")))
+              message(sprintf(
+                "[train] Using tuned per-class thresholds: %s",
+                paste0(sprintf("%.3f", thresholds_used), collapse = ", ")
+              ))
             }
           }
 
-
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
-            probs   <- best_val_probs
+            probs <- best_val_probs
             targets <- best_val_labels
             prediction_time <- best_val_prediction_time
             cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
           } else {
-            probs   <- single_predicted_output
+            probs <- single_predicted_output
             targets <- labels
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-
 
           performance_list[[i]] <- calculate_performance(
             SONN = self$ensemble[[i]],
@@ -3878,7 +3862,6 @@ DDESONN <- R6::R6Class(
 
           performance_metric <- performance_list[[i]]$metrics
 
-          # Fill tuned columns directly from the pre-report tuning pass
           if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
             performance_metric$accuracy_tuned  <- tuned$accuracy
             performance_metric$precision_tuned <- tuned$precision
@@ -3891,23 +3874,12 @@ DDESONN <- R6::R6Class(
           if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
             if (verbose || viewTables) {
               message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
-              emit_table(
-                performance_metric,
-                title = "[PERFORMANCE metrics]",
-                verbose = verbose,
-                viewTables = viewTables
-              )
-              emit_table(
-                relevance_metric,
-                title = "[RELEVANCE metrics]",
-                verbose = verbose,
-                viewTables = viewTables
-              )
+              emit_table(performance_metric, title = "[PERFORMANCE metrics]", verbose = verbose, viewTables = viewTables)
+              emit_table(relevance_metric,   title = "[RELEVANCE metrics]",   verbose = verbose, viewTables = viewTables)
             }
-
           }
-
         }
+
 
 
         if (verbose) {

@@ -462,6 +462,13 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
   
+  # ============================================================
+  # SECTION: Final summary formatting control (presentation-only)  #$$$$$$$$$$$$$
+  # - User override name: final_summary_decimals
+  # - Applies ONLY to values we attach for reporting / metadata display
+  # ============================================================
+  cfg$final_summary_decimals <- overrides$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+  
   plot_cfg_override <- overrides$EvaluatePredictionsReportPlotsConfig %||%
     overrides$evaluate_predictions_report_plots %||%
     overrides$eval_report_plots
@@ -469,7 +476,14 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     current_cfg <- tryCatch(model$EvaluatePredictionsReportPlotsConfig, error = function(e) list())
     model$EvaluatePredictionsReportPlotsConfig <- utils::modifyList(current_cfg %||% list(), plot_cfg_override, keep.null = TRUE)
   }
-
+  
+  # ============================================================
+  # SECTION: Plot controls wiring (required arg support)  #$$$$$$$$$$$$$
+  # - train_network()/model$train may require plot_controls with NO default
+  # - accept both plot_controls and PlotControls keys from ...
+  # ============================================================
+  cfg$plot_controls <- overrides$plot_controls %||% overrides$PlotControls %||% cfg$plot_controls %||% NULL  #$$$$$$$$$$$$$
+  
   # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
   if (identical(mode, "binary")) {
     cfg$threshold_function <- cfg$threshold_function %||% .ddesonn_get("tune_threshold_accuracy")
@@ -600,20 +614,21 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     grouped_metrics = cfg$grouped_metrics,
     viewTables = cfg$viewTables,
     verbose = cfg$verbose,
-    output_root = cfg$output_root
+    output_root = cfg$output_root,
+    plot_controls = cfg$plot_controls                              #$$$$$$$$$$$$$ FIX: always pass required arg
   )
   
   # ============================================================
   # SECTION: EVOKE — post-train enrichment (NOT per-epoch)  #$$$$$$$$$$$$$
   # ============================================================
   # if (isTRUE(cfg$verbose %||% FALSE)) {                                                                 #$$$$$$$$$$$$$
-    cat(sprintf(                                                                                        #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH] where=%s | why=%s | note=%s | epochs_configured=%s\n",                            #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
-      "About to attach per-slot metadata; this may call ddesonn_predict() again (aggregate='none')",    #$$$$$$$$$$$$$
-      "This EVOKE is NOT per-epoch; epochs run inside model$train() (not exposed here)",               #$$$$$$$$$$$$$
-      as.character(cfg$num_epochs %||% NA_integer_)                                                     #$$$$$$$$$$$$$
-    ))                                                                                                  #$$$$$$$$$$$$$
+  cat(sprintf(                                                                                        #$$$$$$$$$$$$$
+    "[EVOKE-ENRICH] where=%s | why=%s | note=%s | epochs_configured=%s\n",                            #$$$$$$$$$$$$$
+    "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
+    "About to attach per-slot metadata; this may call ddesonn_predict() again (aggregate='none')",    #$$$$$$$$$$$$$
+    "This EVOKE is NOT per-epoch; epochs run inside model$train() (not exposed here)",               #$$$$$$$$$$$$$
+    as.character(cfg$num_epochs %||% NA_integer_)                                                     #$$$$$$$$$$$$$
+  ))                                                                                                  #$$$$$$$$$$$$$
   # }                                                                                                     #$$$$$$$$$$$$$
   
   result <- do.call(model$train, train_args)
@@ -624,11 +639,11 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   # SECTION: EVOKE — starting enrichment predicts (NOT per-epoch)  #$$$$$$$$$$$$$
   # ============================================================
   # if (isTRUE(cfg$verbose %||% FALSE)) {                                                                 #$$$$$$$$$$$$$
-    cat(sprintf(                                                                                        #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH-BEGIN] where=%s | why=%s\n",                                                        #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
-      "Computing per-member TRAIN/VALID predictions for metadata (calls ddesonn_predict -> net$predict)"#$$$$$$$$$$$$$
-    ))                                                                                                  #$$$$$$$$$$$$$
+  cat(sprintf(                                                                                        #$$$$$$$$$$$$$
+    "[EVOKE-ENRICH-BEGIN] where=%s | why=%s\n",                                                        #$$$$$$$$$$$$$
+    "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
+    "Computing per-member TRAIN/VALID predictions for metadata (calls ddesonn_predict -> net$predict)"#$$$$$$$$$$$$$
+  ))                                                                                                  #$$$$$$$$$$$$$
   # }                                                                                                     #$$$$$$$$$$$$$
   
   # =========================
@@ -705,11 +720,20 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     
     best_train_acc             <- tryCatch(result$predicted_outputAndTime$best_train_acc,           error = function(e) NA_real_)
     best_epoch_train           <- tryCatch(result$predicted_outputAndTime$best_epoch_train,         error = function(e) NA_integer_)
-    best_train_loss            <- tryCatch(result$predicted_outputAndTime$best_train_loss,          error = function(e) NA_real_) 
+    best_train_loss            <- tryCatch(result$predicted_outputAndTime$best_train_loss,          error = function(e) NA_real_)
     best_epoch_train_loss      <- tryCatch(result$predicted_outputAndTime$best_epoch_train_loss,    error = function(e) NA_integer_)
     best_val_acc               <- tryCatch(result$predicted_outputAndTime$best_val_acc,             error = function(e) NA_real_)
     best_val_epoch             <- tryCatch(result$predicted_outputAndTime$best_val_epoch,           error = function(e) NA_integer_)
     best_val_prediction_time   <- tryCatch(result$predicted_outputAndTime$best_val_prediction_time, error = function(e) NA_real_)
+    
+    # ============================================================
+    # SECTION: Presentation rounding (metadata only)  #$$$$$$$$$$$$$
+    # ============================================================
+    dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+    best_train_acc           <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)           #$$$$$$$$$$$$$
+    best_train_loss          <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)          #$$$$$$$$$$$$$
+    best_val_acc             <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)             #$$$$$$$$$$$$$
+    best_val_prediction_time <- .ddesonn_format_final_summary_decimals(best_val_prediction_time, dec) #$$$$$$$$$$$$$
     
     Kslots <- try(length(model$ensemble), silent = TRUE)
     if (!inherits(Kslots, "try-error") && is.finite(Kslots) && Kslots >= 1L) {
@@ -729,6 +753,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
           } else {
             m_tr <- compute_multiclass_metrics(y_train_vec, Pt)
           }
+          # format only for display (metadata)                              #$$$$$$$$$$$$$
+          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)         #$$$$$$$$$$$$$
           slot_obj$metadata$performance_metric <- m_tr$performance_metric
           if (mode == "binary" && !is.null(m_tr$confusion_matrix)) {
             slot_obj$metadata$confusion_matrix <- m_tr$confusion_matrix
@@ -740,6 +766,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
           Pv <- as.matrix(per_model_valid[[k]])
           if (mode == "binary") {
             m_va <- compute_binary_metrics(y_valid_vec, as.numeric(Pv[,1]), thr_used)
+            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       #$$$$$$$$$$$$$
             # Only in BINARY: expose the tuned bundle (prevents utils from “thinking binary” otherwise)
             slot_obj$metadata$accuracy_precision_recall_f1_tuned <- list(
               accuracy = m_va$performance_metric$accuracy,
@@ -752,7 +779,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
           } else {
             # Multiclass: NO tuned bundle, NO confusion_matrix (keeps downstream from mapping binary fields)
             m_va <- compute_multiclass_metrics(y_valid_vec, Pv)
-            # keep validation macro metrics merged into performance_metric if you want:
+            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       #$$$$$$$$$$$$$
             # (optional) slot_obj$metadata$valid_performance_metric <- m_va$performance_metric
           }
         }
@@ -800,6 +827,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
       list(MSE=mse, RMSE=rmse, MAE=mae, R2=r2)
     }
     
+    dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+    
     Kslots <- try(length(model$ensemble), silent = TRUE)
     if (!inherits(Kslots, "try-error") && is.finite(Kslots) && Kslots >= 1L) {
       for (k in seq_len(Kslots)) {
@@ -813,13 +842,17 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
         # TRAIN metrics per-slot
         if (!is.null(per_model_train) && length(per_model_train) >= k) {
           pt <- as.numeric(per_model_train[[k]][, 1])
-          slot_obj$metadata$performance_metric <- compute_regression_metrics(y_train_vec, pt)
+          m_tr <- compute_regression_metrics(y_train_vec, pt)                                  #$$$$$$$$$$$$$
+          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)                            #$$$$$$$$$$$$$
+          slot_obj$metadata$performance_metric <- m_tr
         }
         
         # VALID metrics per-slot (optional)
         if (!is.null(per_model_valid) && length(per_model_valid) >= k && !is.null(y_valid_vec)) {
           pv <- as.numeric(per_model_valid[[k]][, 1])
-          slot_obj$metadata$validation_metrics <- compute_regression_metrics(y_valid_vec, pv)
+          m_va <- compute_regression_metrics(y_valid_vec, pv)                                  #$$$$$$$$$$$$$
+          m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)                            #$$$$$$$$$$$$$
+          slot_obj$metadata$validation_metrics <- m_va
         }
         
         # Carry best_* fields if present from training result (harmless if NA)
@@ -838,16 +871,18 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   # SECTION: EVOKE — enrichment finished (NOT per-epoch)  #$$$$$$$$$$$$$
   # ============================================================
   # if (isTRUE(cfg$verbose %||% FALSE)) {                                                                 #$$$$$$$$$$$$$
-    cat(sprintf(                                                                                        #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH-END] where=%s | why=%s | note=%s\n",                                                #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
-      "Finished attaching per-slot metadata; predict() prints after FINAL SUMMARY usually come from this block", #$$$$$$$$$$$$$
-      "Not per-epoch: epoch-level prints must live inside model$train()/train_network() predict call sites" #$$$$$$$$$$$$$
-    ))                                                                                                  #$$$$$$$$$$$$$
+  cat(sprintf(                                                                                        #$$$$$$$$$$$$$
+    "[EVOKE-ENRICH-END] where=%s | why=%s | note=%s\n",                                                #$$$$$$$$$$$$$
+    "ddesonn_fit::post_train_metadata",                                                               #$$$$$$$$$$$$$
+    "Finished attaching per-slot metadata; predict() prints after FINAL SUMMARY usually come from this block", #$$$$$$$$$$$$$
+    "Not per-epoch: epoch-level prints must live inside model$train()/train_network() predict call sites" #$$$$$$$$$$$$$
+  ))                                                                                                  #$$$$$$$$$$$$$
   # }                                                                                                     
   
   invisible(model)
 }
+
+
 
 
 .aggregate_predictions <- function(preds, aggregate) {
@@ -875,7 +910,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   if (is.null(pred_summary_final) || !length(pred_summary_final)) {
     return(invisible(NULL))
   }
-
+  
   .first_scalar <- function(x) {
     if (is.null(x) || !length(x)) return(NULL)
     if (is.list(x)) {
@@ -886,7 +921,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
     }
     x[[1]]
   }
-
+  
   best_epoch_train <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train)))
   best_epoch_train_loss <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_epoch_train_loss)))
   best_val_epoch <- suppressWarnings(as.integer(.first_scalar(pred_summary_final$best_val_epoch)))
@@ -895,60 +930,93 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   best_val_acc <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_acc)))
   best_train_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_train_loss)))
   best_val_loss <- suppressWarnings(as.numeric(.first_scalar(pred_summary_final$best_val_loss)))
-
+  
   summary_best_epoch <- if (isTRUE(cfg$validation_metrics)) {
     if (identical(mode, "regression")) best_val_epoch_loss else best_val_epoch
   } else {
     if (identical(mode, "regression")) best_epoch_train_loss else best_epoch_train
   }
-
-  summary_lines <- c("===== FINAL SUMMARY =====")
-  summary_lines <- c(summary_lines, sprintf("Best epoch           : %s", as.character(summary_best_epoch)))
-  summary_lines <- c(summary_lines, sprintf("Best train accuracy  : %s", as.character(best_train_acc)))
-  if (isTRUE(cfg$validation_metrics)) {
-    summary_lines <- c(summary_lines, sprintf("Best val accuracy    : %s", as.character(best_val_acc)))
-  }
-  if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
-    summary_lines <- c(summary_lines, sprintf("Train loss           : %s", as.character(best_train_loss)))
-  }
-  if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
-    summary_lines <- c(summary_lines, sprintf("Val loss             : %s", as.character(best_val_loss)))
-  }
+  
+  # ============================================================
+  # SECTION: Presentation decimals (FINAL SUMMARY)  #$$$$$$$$$$$$$
+  # - User control: cfg$final_summary_decimals
+  # - Applies ONLY to printed scalar metrics (epochs remain ints)
+  # ============================================================
+  dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+  
+  best_train_acc_disp  <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)   #$$$$$$$$$$$$$
+  best_val_acc_disp    <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)     #$$$$$$$$$$$$$
+  best_train_loss_disp <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)  #$$$$$$$$$$$$$
+  best_val_loss_disp   <- .ddesonn_format_final_summary_decimals(best_val_loss, dec)    #$$$$$$$$$$$$$
+  
+  threshold_disp <- NULL  #$$$$$$$$$$$$$
   if (!is.null(performance_relevance_data$threshold) &&
       is.finite(performance_relevance_data$threshold)) {
-    summary_lines <- c(summary_lines, sprintf("Threshold            : %s", as.character(performance_relevance_data$threshold)))
+    threshold_disp <- .ddesonn_format_final_summary_decimals(performance_relevance_data$threshold, dec)  #$$$$$$$$$$$$$
   }
+  
+  # ============================================================
+  # SECTION: FINAL SUMMARY line alignment (pad labels to colons)  #$$$$$$$$$$$$$
+  # ============================================================
+  .summary_line <- function(label, value, label_width) {          #$$$$$$$$$$$$$
+    sprintf(paste0("%-", label_width, "s: %s"), label, value)      #$$$$$$$$$$$$$
+  }                                                               #$$$$$$$$$$$$$
+  label_width <- 20L                                              #$$$$$$$$$$$$$
+  
+  summary_lines <- c("===== FINAL SUMMARY =====")
+  summary_lines <- c(summary_lines, .summary_line("Best epoch", as.character(summary_best_epoch), label_width))                  #$$$$$$$$$$$$$
+  summary_lines <- c(summary_lines, .summary_line("Train accuracy", as.character(best_train_acc_disp), label_width))            #$$$$$$$$$$$$$
+  if (isTRUE(cfg$validation_metrics)) {
+    summary_lines <- c(summary_lines, .summary_line("Val accuracy", as.character(best_val_acc_disp), label_width))              #$$$$$$$$$$$$$
+  }
+  if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
+    summary_lines <- c(summary_lines, .summary_line("Train loss", as.character(best_train_loss_disp), label_width))             #$$$$$$$$$$$$$
+  }
+  if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
+    summary_lines <- c(summary_lines, .summary_line("Val loss", as.character(best_val_loss_disp), label_width))                 #$$$$$$$$$$$$$
+  }
+  if (!is.null(threshold_disp)) {  #$$$$$$$$$$$$$
+    summary_lines <- c(summary_lines, .summary_line("Threshold", as.character(threshold_disp), label_width))                    #$$$$$$$$$$$$$
+  }
+  
   roc_plot <- performance_relevance_data$eval_report_plots$roc_png %||% NULL
   if (!is.null(roc_plot) && is.character(roc_plot)) {
     roc_plot <- roc_plot[1]
     if (isTRUE(nzchar(roc_plot)) && !is.na(roc_plot)) {
-      summary_lines <- c(summary_lines, sprintf("ROC plot            : %s", roc_plot))
+      summary_lines <- c(summary_lines, .summary_line("ROC plot", roc_plot, label_width))                                      #$$$$$$$$$$$$$
     }
   }
   pr_plot <- performance_relevance_data$eval_report_plots$pr_png %||% NULL
   if (!is.null(pr_plot) && is.character(pr_plot)) {
     pr_plot <- pr_plot[1]
     if (isTRUE(nzchar(pr_plot)) && !is.na(pr_plot)) {
-      summary_lines <- c(summary_lines, sprintf("PR plot             : %s", pr_plot))
+      summary_lines <- c(summary_lines, .summary_line("PR plot", pr_plot, label_width))                                        #$$$$$$$$$$$$$
     }
   }
+  
   if (is.list(test_metrics) && length(test_metrics)) {
     test_acc <- suppressWarnings(as.numeric(test_metrics$accuracy))
     test_loss <- suppressWarnings(as.numeric(test_metrics$loss))
+    
+    test_acc_disp  <- .ddesonn_format_final_summary_decimals(test_acc, dec)   #$$$$$$$$$$$$$
+    test_loss_disp <- .ddesonn_format_final_summary_decimals(test_loss, dec)  #$$$$$$$$$$$$$
+    
     if (is.finite(test_acc)) {
-      summary_lines <- c(summary_lines, sprintf("Test accuracy        : %s", as.character(test_acc)))
+      summary_lines <- c(summary_lines, .summary_line("Test accuracy", as.character(test_acc_disp), label_width))               #$$$$$$$$$$$$$
     }
     if (is.finite(test_loss)) {
-      summary_lines <- c(summary_lines, sprintf("Test loss            : %s", as.character(test_loss)))
+      summary_lines <- c(summary_lines, .summary_line("Test loss", as.character(test_loss_disp), label_width))                 #$$$$$$$$$$$$$
     }
   }
+  
   cat("# ================================================================================\n")
-  cat("# ================================== FINAL SUMMARY ==============================\n")
-  cat("# ================================================================================\n")
+  cat("# ================================= CORE METRICS =================================\n")
+  cat("# ================================================================================\n\n")
   cat(paste(summary_lines, collapse = "\n"), "\n")
   options(DDESONN_LAST_SUMMARY_TS = Sys.time())
   invisible(NULL)
 }
+
 
 .compute_test_metrics <- function(model,
                                   x_test,
@@ -1109,39 +1177,82 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   list(report = report, confusion = confusion, auc = auc_val, auprc = auprc_val)
 }
 
+# final summary Classification Report formatting (decimals)
 .format_report_value <- function(x, digits = 3L) {
-  ifelse(is.na(x), "NA", sprintf(paste0("%.", digits, "f"), x))
+  if (length(x) == 0L) return(x)
+  ifelse(
+    is.na(x),
+    "NA",
+    sprintf(paste0("%.", as.integer(digits), "f"), as.numeric(x))
+  )
 }
 
+# final summary AUC (ROC)/AUPRC formatting (decimals)
 .format_report_table <- function(df, digits = 3L) {
   formatted <- df
   for (col in names(formatted)) {
-    if (is.numeric(formatted[[col]])) {
+    # format if numeric OR character that can be numeric
+    if (is.numeric(formatted[[col]]) ||
+        (is.character(formatted[[col]]) && suppressWarnings(all(is.na(as.numeric(formatted[[col]])) == is.na(formatted[[col]]))))) {
       formatted[[col]] <- .format_report_value(formatted[[col]], digits = digits)
     }
   }
   formatted
 }
 
-.emit_binary_classification_report <- function(split_label, y_true, prob_mat, threshold) {
+
+.emit_binary_classification_report <- function(split_label,
+                                               y_true,
+                                               prob_mat,
+                                               threshold,
+                                               final_summary_decimals = NULL) {
   if (is.null(y_true) || is.null(prob_mat)) return(invisible(NULL))
+  
   probs <- try(.as_numeric_matrix(prob_mat), silent = TRUE)
-  if (inherits(probs, "try-error") || !is.matrix(probs) || !nrow(probs)) return(invisible(NULL))
+  if (inherits(probs, "try-error") || !is.matrix(probs) || !nrow(probs)) {
+    return(invisible(NULL))
+  }
+  
   p_pos <- as.numeric(probs[, 1])
   report <- .build_binary_report(y_true, p_pos, threshold)
   if (is.null(report)) return(invisible(NULL))
+  
+  # ============================================================
+  # SECTION: Presentation decimals (Classification Report + AUC)  #$$$$$$$$$$$$$
+  # ============================================================
+  dec <- suppressWarnings(as.integer(final_summary_decimals))                              #$$$$$$$$$$$$$
+  if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          #$$$$$$$$$$$$$
+  
   cat(sprintf("\n=== %s ===\n", split_label))
   cat("Classification Report:\n")
-  print(.format_report_table(report$report, digits = 3L), na.print = "")
-  cat("Confusion Matrix:\n")
-  confusion_fmt <- matrix(.format_report_value(report$confusion, digits = 3L),
-                          nrow = nrow(report$confusion),
-                          dimnames = dimnames(report$confusion))
-  print(confusion_fmt, quote = FALSE)
-  cat(sprintf("AUC (ROC): %s\n", .format_report_value(report$auc, digits = 3L)))
-  cat(sprintf("AUPRC: %s\n", .format_report_value(report$auprc, digits = 3L)))
+  
+  print(
+    .format_report_table(report$report, digits = dec),
+    na.print = ""
+  )
+  
+  cat("\nConfusion Matrix:\n")
+  
+  # ============================================================
+  # SECTION: Confusion Matrix (INTEGER-ONLY)  #$$$$$$$$$$$$$
+  # - Do NOT format with decimals.
+  # - Force storage to integer and print raw.  #$$$$$$$$$$$$$
+  # ============================================================
+  confusion_int <- report$confusion                                                      #$$$$$$$$$$$$$
+  confusion_int <- unclass(confusion_int)                                                 #$$$$$$$$$$$$$
+  storage.mode(confusion_int) <- "integer"                                                #$$$$$$$$$$$$$
+  dim(confusion_int) <- dim(report$confusion)                                             #$$$$$$$$$$$$$
+  dimnames(confusion_int) <- dimnames(report$confusion)                                   #$$$$$$$$$$$$$
+  print(confusion_int, quote = FALSE)                                                     #$$$$$$$$$$$$$
+  
+  cat(sprintf("\n%-10s : %s\n", "AUC (ROC)", .format_report_value(report$auc, digits = dec)))
+  cat(sprintf("%-10s : %s\n", "AUPRC",     .format_report_value(report$auprc, digits = dec)))
+  
   invisible(report)
 }
+
+
+
 
 #' @title Generate predictions from a fitted `ddesonn_model`
 #' @description Internal prediction engine / forward-pass primitive that
@@ -2746,9 +2857,13 @@ ddesonn_predict <- function(model, new_data,
 #' @param model_overrides Named list forwarded to [ddesonn_model()] allowing
 #'   custom architectures.
 #' @param training_overrides Named list forwarded to [ddesonn_fit()] for the
-#'   main run(s).
+#'   main run(s). Any argument accepted by [ddesonn_fit()] may be provided here.
+#'   Unspecified values fall back to [ddesonn_training_defaults()] for the given
+#'   `classification_mode` and `hidden_sizes`. See **Details** and the example
+#'   showing how to inspect defaults.
 #' @param temp_overrides Optional named list forwarded to [ddesonn_fit()] for
-#'   TEMP iterations. Defaults to `training_overrides`.
+#'   TEMP iterations. Defaults to `training_overrides`. Use this when TEMP
+#'   candidates should train differently than the main model.
 #' @param prediction_data Optional features for prediction. When supplied,
 #'   predictions are computed for each seed/iteration.
 #' @param test Optional test list with elements `x` and `y`. When supplied,
@@ -2766,8 +2881,23 @@ ddesonn_predict <- function(model, new_data,
 #' @param threshold Optional threshold override for classification prediction.
 #' @param output_root Optional directory where legacy-style artifacts are
 #'   written. When `NULL` (default) no files are created.
+#' @param plot_controls Optional list passed through to [ddesonn_fit()] as
+#'   `plot_controls`. Use this to enable/disable specific report plots or
+#'   diagnostics (for example, evaluation report settings). The supported
+#'   structure is defined by [ddesonn_fit()]; this function does not create
+#'   defaults.
 #' @param save_models Logical; if `TRUE` (default) individual models are
 #'   persisted when `output_root` is supplied.
+#'
+#' @details
+#' **Discovering available training overrides**
+#'
+#' `training_overrides` is a direct pass-through to [ddesonn_fit()]. To see the
+#' baseline defaults used by `ddesonn_run()`, call:
+#'
+#' `ddesonn_training_defaults(classification_mode, hidden_sizes)`
+#'
+#' To see all tunable training arguments, see `?ddesonn_fit`.
 #'
 #' @return A list (classed as `"ddesonn_run_result"`) containing the
 #'   configuration, per-seed models, and optional prediction summaries.
@@ -2775,17 +2905,162 @@ ddesonn_predict <- function(model, new_data,
 #'
 #' @examples
 #' \donttest{
-#' data <- mtcars
-#' x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
-#' y <- data$am
-#' res <- ddesonn_run(
-#'   x,
-#'   y,
-#'   classification_mode = "binary",
-#'   training_overrides = list(num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
-#' )
-#' length(res$runs)
+#' # ============================================================
+#' # DDESONN — FULL example using package data in inst/extdata
+#' # (binary classification; train/valid/test split; scale train-only)
+#' # ============================================================
+#'
+#' library(DDESONN)
+#'
+#' set.seed(111)
+#'
+#' # ------------------------------------------------------------
+#' # 1) Locate package extdata folder (inst/extdata at build-time)
+#' # ------------------------------------------------------------
+#' ext_dir <- system.file("extdata", package = "DDESONN")
+#' if (!nzchar(ext_dir)) {
+#'   stop("Could not find DDESONN extdata folder. Is the package installed?",
+#'        call. = FALSE)
 #' }
+#'
+#' csvs <- list.files(ext_dir, pattern = "\\\\.csv$", full.names = TRUE)
+#' if (!length(csvs)) {
+#'   stop(sprintf("No .csv files found in: %s", ext_dir), call. = FALSE)
+#' }
+#'
+#' hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+#' data_path <- if (file.exists(hf_path)) hf_path else csvs[[1]]
+#'
+#' cat("[extdata] using:", data_path, "\\n")
+#'
+#' # ------------------------------------------------------------
+#' # 2) Load data
+#' # ------------------------------------------------------------
+#' df <- read.csv(data_path)
+#'
+#' # Prefer DEATH_EVENT if present; otherwise infer a binary target
+#' target_col <- if ("DEATH_EVENT" %in% names(df)) {
+#'   "DEATH_EVENT"
+#' } else {
+#'   cand <- names(df)[vapply(df, function(col) {
+#'     v <- suppressWarnings(as.numeric(col))
+#'     if (all(is.na(v))) return(FALSE)
+#'     u <- unique(v[is.finite(v)])
+#'     length(u) <= 2 && all(sort(u) %in% c(0, 1))
+#'   }, logical(1))]
+#'   if (!length(cand)) {
+#'     stop(
+#'       "Could not infer a binary target column. ",
+#'       "Provide a binary CSV in extdata or rename target to DEATH_EVENT.",
+#'       call. = FALSE
+#'     )
+#'   }
+#'   cand[[1]]
+#' }
+#'
+#' cat("[data] target_col =", target_col, "\\n")
+#'
+#' # ------------------------------------------------------------
+#' # 3) Build X and y
+#' # ------------------------------------------------------------
+#' y_all <- matrix(as.integer(df[[target_col]]), ncol = 1)
+#'
+#' x_df <- df[, setdiff(names(df), target_col), drop = FALSE]
+#' x_all <- as.matrix(x_df)
+#' storage.mode(x_all) <- "double"
+#'
+#' # ------------------------------------------------------------
+#' # 4) Split 70 / 15 / 15
+#' # ------------------------------------------------------------
+#' n <- nrow(x_all)
+#' idx <- sample.int(n)
+#'
+#' n_train <- floor(0.70 * n)
+#' n_valid <- floor(0.15 * n)
+#'
+#' i_tr <- idx[1:n_train]
+#' i_va <- idx[(n_train + 1):(n_train + n_valid)]
+#' i_te <- idx[(n_train + n_valid + 1):n]
+#'
+#' x_train <- x_all[i_tr, , drop = FALSE]
+#' y_train <- y_all[i_tr, , drop = FALSE]
+#'
+#' x_valid <- x_all[i_va, , drop = FALSE]
+#' y_valid <- y_all[i_va, , drop = FALSE]
+#'
+#' x_test  <- x_all[i_te, , drop = FALSE]
+#' y_test  <- y_all[i_te, , drop = FALSE]
+#'
+#' cat(sprintf("[split] train=%d valid=%d test=%d\\n",
+#'             nrow(x_train), nrow(x_valid), nrow(x_test)))
+#'
+#' # ------------------------------------------------------------
+#' # 5) Scale using TRAIN stats only (no leakage)
+#' # ------------------------------------------------------------
+#' x_train_s <- scale(x_train)
+#' ctr <- attr(x_train_s, "scaled:center")
+#' scl <- attr(x_train_s, "scaled:scale")
+#' scl[!is.finite(scl) | scl == 0] <- 1
+#'
+#' x_valid_s <- sweep(sweep(x_valid, 2, ctr, "-"), 2, scl, "/")
+#' x_test_s  <- sweep(sweep(x_test,  2, ctr, "-"), 2, scl, "/")
+#'
+#' mx <- suppressWarnings(max(abs(x_train_s)))
+#' if (!is.finite(mx) || mx == 0) mx <- 1
+#'
+#' x_train <- x_train_s / mx
+#' x_valid <- x_valid_s / mx
+#' x_test  <- x_test_s  / mx
+#'
+#' # ------------------------------------------------------------
+#' # 6) Run DDESONN
+#' # ------------------------------------------------------------
+#' res <- ddesonn_run(
+#'   x = x_train,
+#'   y = y_train,
+#'   classification_mode = "binary",
+#'
+#'   hidden_sizes = c(64, 32),
+#'   seeds = 1L,
+#'   do_ensemble = FALSE,
+#'
+#'   validation = list(
+#'     x = x_valid,
+#'     y = y_valid
+#'   ),
+#'
+#'   test = list(
+#'     x = x_test,
+#'     y = y_test
+#'   ),
+#'
+#'   training_overrides = list(
+#'     init_method = "he",
+#'     optimizer = "adagrad",
+#'     lr = 0.125,
+#'     lambda = 0.00028,
+#'
+#'     activation_functions = list(relu, relu, sigmoid),
+#'     dropout_rates = list(0.10),
+#'     loss_type = "CrossEntropy",
+#'
+#'     validation_metrics = TRUE,
+#'     num_epochs = 360,
+#'     final_summary_decimals = 6L
+#'   ),
+#'
+#'   plot_controls = list(
+#'     evaluate_report = list(
+#'       roc_curve = TRUE,
+#'       pr_curve  = FALSE
+#'     )
+#'   )
+#' )
+#' }
+
+
+
+
 ddesonn_run <- function(x,
                         y,
                         classification_mode = c("binary", "multiclass", "regression"),
@@ -2842,6 +3117,28 @@ ddesonn_run <- function(x,
   # ============================================================
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
+  
+  # ============================================================
+  # SECTION: NORMALIZATION BRIDGE (Scenario 1 -> canonical)  #$$$$$$$$$$$$$
+  # - Map Scenario-1 training_overrides keys into canonical plot_controls keys
+  # - Auto-enable save_per_epoch if any per-epoch plot flag is TRUE and save_per_epoch not set
+  # - Do NOT change Scenario-2 behavior
+  # ============================================================
+  if (!is.null(training_overrides$per_epoch_view_plots)) {                                           #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls$per_epoch <- training_overrides$per_epoch_view_plots          #$$$$$$$$$$$$$
+  }                                                                                                  #$$$$$$$$$$$$$
+  if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
+      training_overrides$final_update_performance_relevance_plots                                    #$$$$$$$$$$$$$
+  }                                                                                                  #$$$$$$$$$$$$$
+  if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  #$$$$$$$$$$$$$
+    pe <- base_train_overrides$plot_controls$per_epoch                                                #$$$$$$$$$$$$$
+    pe_any_true <- isTRUE(any(vapply(pe, function(v) isTRUE(v), logical(1)), na.rm = TRUE))           #$$$$$$$$$$$$$
+    if (isTRUE(pe_any_true)) {                                                                        #$$$$$$$$$$$$$
+      base_train_overrides$save_per_epoch <- TRUE                                                     #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
+  }                                                                                                   #$$$$$$$$$$$$$
+  
   base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
   
   # ============================================================
@@ -2851,7 +3148,7 @@ ddesonn_run <- function(x,
   # ============================================================
   if (!is.null(plot_controls)) {                               #$$$$$$$$$$$$$
     base_train_overrides$plot_controls <- plot_controls        #$$$$$$$$$$$$$
-  } 
+  }
   # ============================================================
   # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
   # ============================================================
@@ -3640,33 +3937,51 @@ ddesonn_run <- function(x,
     )
   }
   if (!is.null(final_model) && identical(tolower(classification_mode), "binary")) {
+    
+    # ============================================================
+    # SECTION: Binary report decimals passthrough (call sites only)  #$$$$$$$$$$$$$
+    # ============================================================
+    dec_out <- base_train_overrides$final_summary_decimals %||% NULL                        #$$$$$$$$$$$$$
+    
     thr_used <- threshold %||%
       attr(final_model, "chosen_threshold") %||% final_model$chosen_threshold %||%
       attr(final_model, "threshold") %||%
       .ddesonn_threshold_default("binary")
+    
     train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
     if (!inherits(train_probs, "try-error") && !is.null(train_probs$prediction)) {
       y_train_vec <- .coerce_binary_labels(y_matrix)
-      .emit_binary_classification_report("Train", y_train_vec, train_probs$prediction, thr_used)
+      .emit_binary_classification_report(                                                   #$$$$$$$$$$$$$
+        "Train", y_train_vec, train_probs$prediction, thr_used,                              #$$$$$$$$$$$$$
+        final_summary_decimals = dec_out                                                     #$$$$$$$$$$$$$
+      )                                                                                      #$$$$$$$$$$$$$
     }
     if (!is.null(validation_data) && !is.null(validation_data$x)) {
       val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response"), silent = TRUE)
       if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
         y_val_vec <- .coerce_binary_labels(validation_data$y)
-        .emit_binary_classification_report("Validation", y_val_vec, val_probs$prediction, thr_used)
+        .emit_binary_classification_report(                                                  #$$$$$$$$$$$$$
+          "Validation", y_val_vec, val_probs$prediction, thr_used,                            #$$$$$$$$$$$$$
+          final_summary_decimals = dec_out                                                    #$$$$$$$$$$$$$
+        )                                                                                     #$$$$$$$$$$$$$
       }
     }
     if (!is.null(test_matrix) && !is.null(test_labels)) {
       test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
       if (!inherits(test_probs, "try-error") && !is.null(test_probs$prediction)) {
         y_test_vec <- .coerce_binary_labels(test_labels)
-        .emit_binary_classification_report("Test", y_test_vec, test_probs$prediction, thr_used)
+        .emit_binary_classification_report(                                                  #$$$$$$$$$$$$$
+          "Test", y_test_vec, test_probs$prediction, thr_used,                                #$$$$$$$$$$$$$
+          final_summary_decimals = dec_out                                                    #$$$$$$$$$$$$$
+        )                                                                                     #$$$$$$$$$$$$$
       }
     }
   }
   
   result
 }
+
+
 
 #' Print a summary of a DDESONN run result
 #'

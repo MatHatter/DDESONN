@@ -3615,12 +3615,6 @@ DDESONN_fuse_from_agg <- function(
 
 
 
-
-
-
-
-
-
 emit_table <- function(x,
                        title,
                        rows = NULL,
@@ -3659,3 +3653,23 @@ emit_table <- function(x,
   
   invisible(x)
 }
+
+
+
+
+# ============================================================
+# INTERNAL — PRESENTATION ONLY
+# Fixed decimal places for FINAL SUMMARY / CLASSIFICATION REPORTS.
+# Does NOT change training or stored metrics.
+# ============================================================
+.ddesonn_format_final_summary_decimals <- function(x, decimals) {
+  if (is.null(x) || is.null(decimals)) return(x)
+  
+  d <- suppressWarnings(as.integer(decimals))
+  if (!is.finite(d) || is.na(d) || d < 0L) return(x)
+  
+  if (!is.numeric(x) || length(x) != 1L) return(x)
+  
+  formatC(as.numeric(x), format = "f", digits = d)
+}
+
