@@ -98,7 +98,7 @@ EvaluatePredictionsReport <- function(
     viewAllPlots = FALSE,   # #$$$$$$$$$$$$$
     plot_roc = TRUE,        # #$$$$$$$$$$$$$
     plot_pr  = TRUE,        # #$$$$$$$$$$$$$
-    saveEnabled = TRUE,
+    saveEnabled = TRUE,     # #$$$$$$$$$$$$$
     export_excel = FALSE,
     save_rds = FALSE,
     rds_name = "Rdata_predictions.rds"
@@ -201,17 +201,19 @@ EvaluatePredictionsReport <- function(
   
   # PLOT GATE (no files unless you toggled any plots)
   if (isTRUE(do_any_plots) && max_points > 0) {  # #$$$$$$$$$$$$$
-    tryCatch({
-      grDevices::png(file.path(plot_dir, "pred_vs_error_scatter.png"), width = 800, height = 600)
-      plot(pred_vec[seq_len(max_points)], err_vec[seq_len(max_points)],
-           main = "Prediction vs. Error", xlab = "Prediction", ylab = "Error",
-           col = "steelblue", pch = 16)
-      abline(h = 0, col = "gray", lty = 2)
-      grDevices::dev.off()
-      if (isTRUE(verbose)) cat("[Eval] pred_vs_error_scatter saved.\n")
-    }, error = function(e) {
-      if (isTRUE(verbose)) message("[Eval] Pred-vs-Error plot failed: ", conditionMessage(e))
-    })
+    if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+      tryCatch({
+        grDevices::png(file.path(plot_dir, "pred_vs_error_scatter.png"), width = 800, height = 600)
+        plot(pred_vec[seq_len(max_points)], err_vec[seq_len(max_points)],
+             main = "Prediction vs. Error", xlab = "Prediction", ylab = "Error",
+             col = "steelblue", pch = 16)
+        abline(h = 0, col = "gray", lty = 2)
+        grDevices::dev.off()
+        if (isTRUE(verbose)) cat("[Eval] pred_vs_error_scatter saved.\n")
+      }, error = function(e) {
+        if (isTRUE(verbose)) message("[Eval] Pred-vs-Error plot failed: ", conditionMessage(e))
+      })
+    }  # #$$$$$$$$$$$$$
   }
   
   # ================================================================
@@ -327,16 +329,20 @@ EvaluatePredictionsReport <- function(
       ))
       openxlsx::addWorksheet(wb, "Rdata_Predictions")
       suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", legacy_df))
-      tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] Workbook save failed: ", conditionMessage(e)))
-      if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] Workbook save failed: ", conditionMessage(e)))
+        if (isTRUE(verbose)) cat("[Eval-Regression] Workbook saved.\n")
+      }  # #$$$$$$$$$$$$$
     }
     
     # Optional RDS save
     if (isTRUE(save_rds)) {
-      tryCatch(saveRDS(report, report_rds_path),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] saveRDS failed: ", conditionMessage(e)))
-      if (isTRUE(verbose)) cat("[Eval-Regression] RDS saved:", report_rds_path, "\n")
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch(saveRDS(report, report_rds_path),
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Regression] saveRDS failed: ", conditionMessage(e)))
+        if (isTRUE(verbose)) cat("[Eval-Regression] RDS saved:", report_rds_path, "\n")
+      }  # #$$$$$$$$$$$$$
     }
     
     return(list(
@@ -423,29 +429,31 @@ EvaluatePredictionsReport <- function(
     
     roc_png <- file.path(plot_dir, "roc_curve.png")
     if ((isTRUE(viewAllPlots) || isTRUE(plot_roc)) && !is.null(roc_df) && nrow(roc_df) > 1) {  # #$$$$$$$$$$$$$
-      tryCatch({
-        p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
-          ggplot2::geom_line(linewidth = 1.1, color = COL_NAVY) +  # #$$$$$$$$$$$$$
-          ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-          ggplot2::labs(  # #$$$$$$$$$$$$$
-            title = "ROC Curve",
-            x = "False Positive Rate",
-            y = "True Positive Rate"
-          ) +
-          ggplot2::annotate(  # #$$$$$$$$$$$$$
-            "text",
-            x = 0.75,
-            y = 0.1,
-            label = sprintf("AUC = %.4f", auc_val),
-            size = 4
-          ) +
-          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
-        ggplot2::ggsave(filename = roc_png, p_roc, width = 6, height = 4, dpi = 300)
-        .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ROC PNG saved:", roc_png, "\n")
-      }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][ROC] ggsave failed: ", conditionMessage(e))
-      })
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch({
+          p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
+            ggplot2::geom_line(linewidth = 1.1, color = COL_NAVY) +  # #$$$$$$$$$$$$$
+            ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+            ggplot2::labs(  # #$$$$$$$$$$$$$
+              title = "ROC Curve",
+              x = "False Positive Rate",
+              y = "True Positive Rate"
+            ) +
+            ggplot2::annotate(  # #$$$$$$$$$$$$$
+              "text",
+              x = 0.75,
+              y = 0.1,
+              label = sprintf("AUC = %.4f", auc_val),
+              size = 4
+            ) +
+            .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
+          ggplot2::ggsave(filename = roc_png, p_roc, width = 6, height = 4, dpi = 300)
+          .close_devices()
+          if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ROC PNG saved:", roc_png, "\n")
+        }, error = function(e) {
+          if (isTRUE(verbose)) message("[Eval-Binary][ROC] ggsave failed: ", conditionMessage(e))
+        })
+      }  # #$$$$$$$$$$$$$
     }
     
     # Threshold tuning (PRESERVED)
@@ -543,26 +551,28 @@ EvaluatePredictionsReport <- function(
       )
       
       heatmap_path <- file.path(plot_dir, paste0("confusion_matrix_heatmap", suffix, ".png"))
-      tryCatch({
-        p_conf <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
-          ggplot2::geom_tile(color = "white") +
-          ggplot2::geom_text(ggplot2::aes(label = Count), size = 5, fontface = "bold") +  # #$$$$$$$$$$$$$
-          ggplot2::scale_fill_gradient(low = "white", high = "#D73027") +  # #$$$$$$$$$$$$$
-          ggplot2::labs(
-            title = sprintf(
-              "%s — Threshold = %.4f",
-              ifelse(grepl("tuned", tolower(mode_label)), "Tuned Accuracy", "Accuracy"),  # #$$$$$$$$$$$$$                                                             # #$$$$$$$$$$$$$
-              as.numeric(threshold_used)                                                # #$$$$$$$$$$$$$
-            )
-          ) +  # #$$$$$$$$$$$$$
-          # #$$$$$$$$$$$$$
-          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
-        ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
-        .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")
-      }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e))
-      })
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch({
+          p_conf <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
+            ggplot2::geom_tile(color = "white") +
+            ggplot2::geom_text(ggplot2::aes(label = Count), size = 5, fontface = "bold") +  # #$$$$$$$$$$$$$
+            ggplot2::scale_fill_gradient(low = "white", high = "#D73027") +  # #$$$$$$$$$$$$$
+            ggplot2::labs(
+              title = sprintf(
+                "%s — Threshold = %.4f",
+                ifelse(grepl("tuned", tolower(mode_label)), "Tuned Accuracy", "Accuracy"),  # #$$$$$$$$$$$$$                                                             # #$$$$$$$$$$$$$
+                as.numeric(threshold_used)                                                # #$$$$$$$$$$$$$
+              )
+            ) +  # #$$$$$$$$$$$$$
+            # #$$$$$$$$$$$$$
+            .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
+          ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
+          .close_devices()
+          if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")
+        }, error = function(e) {
+          if (isTRUE(verbose)) message("[Eval-Binary][Plot] Failed to save heatmap: ", conditionMessage(e))
+        })
+      }  # #$$$$$$$$$$$$$
       
       # ============================================================
       # Calibration bins (NO %>% PIPE)                              #$$$$$$$$$$$$$
@@ -589,9 +599,11 @@ EvaluatePredictionsReport <- function(
           ggplot2::labs(title = paste("Observed Rate by Risk Bin (", mode_label, ")", sep = ""),
                         x = "Predicted Risk Decile (1=low,10=high)", y = "Observed Positive Rate") +
           .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
-        ggplot2::ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
-        .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")
+        if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+          ggplot2::ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
+          .close_devices()
+          if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")
+        }  # #$$$$$$$$$$$$$
       }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot1 failed: ", conditionMessage(e)))
       
       tryCatch({
@@ -602,9 +614,11 @@ EvaluatePredictionsReport <- function(
           ggplot2::labs(title = paste("Calibration Curve (", mode_label, ")", sep = ""),
                         x = "Avg Predicted Probability", y = "Observed Rate") +
           .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
-        ggplot2::ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
-        .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")
+        if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+          ggplot2::ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
+          .close_devices()
+          if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")
+        }  # #$$$$$$$$$$$$$
       }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] plot2 failed: ", conditionMessage(e)))
       
       tryCatch({
@@ -615,9 +629,11 @@ EvaluatePredictionsReport <- function(
                         x = "Predicted Risk Decile", y = "Rate", fill = NULL, color = NULL) +
           .ddesonn_plot_theme() +  # #$$$$$$$$$$$$$
           ggplot2::theme(legend.position = "bottom")
-        ggplot2::ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
-        .close_devices()
-        if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")
+        if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+          ggplot2::ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
+          .close_devices()
+          if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")
+        }  # #$$$$$$$$$$$$$
       }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][Plot] overlay plot failed: ", conditionMessage(e)))
       
       invisible(list(
@@ -655,20 +671,22 @@ EvaluatePredictionsReport <- function(
     
     pr_png <- file.path(plot_dir, "pr_curve.png")
     if ((isTRUE(viewAllPlots) || isTRUE(plot_pr)) && !is.null(pr_obj)) {  # #$$$$$$$$$$$$$
-      tryCatch({
-        grDevices::png(pr_png, width = 800, height = 600)
-        plot(pr_obj, main = "Precision–Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
-        if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
-          legend(
-            "bottomright",
-            legend = sprintf("AUPRC = %.4f", auprc_val),
-            bty = "n"
-          )
-        }
-        graphics::grid()
-        grDevices::dev.off()
-        if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e)))
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch({
+          grDevices::png(pr_png, width = 800, height = 600)
+          plot(pr_obj, main = "Precision–Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
+          if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
+            legend(
+              "bottomright",
+              legend = sprintf("AUPRC = %.4f", auprc_val),
+              bty = "n"
+            )
+          }
+          graphics::grid()
+          grDevices::dev.off()
+          if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")
+        }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e)))
+      }  # #$$$$$$$$$$$$$
     }
     
     # Misclassified (PRESERVED)
@@ -854,27 +872,35 @@ EvaluatePredictionsReport <- function(
       suppressWarnings(openxlsx::writeData(wb, "ROC", data.frame(AUC = auc_val, AUPRC = auprc_val)))
       
       if (file.exists(roc_png)) {
-        tryCatch(openxlsx::insertImage(wb, "ROC", roc_png, startRow = 5, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage ROC failed: ", conditionMessage(e)))
+        if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+          tryCatch(openxlsx::insertImage(wb, "ROC", roc_png, startRow = 5, startCol = 1, width = 6, height = 4),
+                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage ROC failed: ", conditionMessage(e)))
+        }  # #$$$$$$$$$$$$$
       }
       if (file.exists(pr_png)) {
-        tryCatch(openxlsx::insertImage(wb, "ROC", pr_png, startRow = 25, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage PR failed: ", conditionMessage(e)))
+        if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+          tryCatch(openxlsx::insertImage(wb, "ROC", pr_png, startRow = 25, startCol = 1, width = 6, height = 4),
+                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage PR failed: ", conditionMessage(e)))
+        }  # #$$$$$$$$$$$$$
       }
       
       if (!is.null(artifacts$fixed)) {
         for (p in unlist(artifacts$fixed, use.names = FALSE)) {
           if (file.exists(p)) {
-            tryCatch(openxlsx::insertImage(wb, "Fixed", p, startRow = 20, startCol = 1, width = 6, height = 4),
-                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Fixed) failed: ", conditionMessage(e)))
+            if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+              tryCatch(openxlsx::insertImage(wb, "Fixed", p, startRow = 20, startCol = 1, width = 6, height = 4),
+                       error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Fixed) failed: ", conditionMessage(e)))
+            }  # #$$$$$$$$$$$$$
           }
         }
       }
       if (!is.null(artifacts$tuned)) {
         for (p in unlist(artifacts$tuned, use.names = FALSE)) {
           if (file.exists(p)) {
-            tryCatch(openxlsx::insertImage(wb, "Tuned", p, startRow = 20, startCol = 1, width = 6, height = 4),
-                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Tuned) failed: ", conditionMessage(e)))
+            if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+              tryCatch(openxlsx::insertImage(wb, "Tuned", p, startRow = 20, startCol = 1, width = 6, height = 4),
+                       error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (Tuned) failed: ", conditionMessage(e)))
+            }  # #$$$$$$$$$$$$$
           }
         }
       }
@@ -913,32 +939,40 @@ EvaluatePredictionsReport <- function(
         legacy_box_sc   <- find_plot_file("boxplot_serum_creatinine.png")
         
         if (!is.null(legacy_mis_heat)) {
-          tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
-                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))
+          if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+            tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_mis_heat, startRow = 10, startCol = 1, width = 6, height = 4),
+                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy misclass heatmap insert failed: ", conditionMessage(e)))
+          }  # #$$$$$$$$$$$$$
         }
         if (!is.null(legacy_box_sc)) {
-          tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_box_sc, startRow = 25, startCol = 1, width = 6, height = 4),
-                   error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy boxplot insert failed: ", conditionMessage(e)))
+          if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+            tryCatch(openxlsx::insertImage(wb, "Misclass_Summary", legacy_box_sc, startRow = 25, startCol = 1, width = 6, height = 4),
+                     error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] legacy boxplot insert failed: ", conditionMessage(e)))
+          }  # #$$$$$$$$$$$$$
         }
       }
       
       openxlsx::addWorksheet(wb, "Metrics_Library")
       suppressWarnings(openxlsx::writeData(wb, "Metrics_Library", t(lib_metrics)))
       
-      tryCatch({
-        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")
-        openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE)
-        if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")
-      }, error = function(e) {
-        if (isTRUE(verbose)) message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))
-      })
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch({
+          if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() begin\n")
+          openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE)
+          if (isTRUE(verbose)) cat("[Eval-Binary][WB] saveWorkbook() done\n")
+        }, error = function(e) {
+          if (isTRUE(verbose)) message("[Eval-Binary][WB] Workbook save failed: ", conditionMessage(e))
+        })
+      }  # #$$$$$$$$$$$$$
     }
     
     # Optional RDS save
     if (isTRUE(save_rds)) {
-      tryCatch(saveRDS(report, report_rds_path),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] saveRDS failed: ", conditionMessage(e)))
-      if (isTRUE(verbose)) cat("[Eval-Binary] RDS saved:", report_rds_path, "\n")
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch(saveRDS(report, report_rds_path),
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] saveRDS failed: ", conditionMessage(e)))
+        if (isTRUE(verbose)) cat("[Eval-Binary] RDS saved:", report_rds_path, "\n")
+      }  # #$$$$$$$$$$$$$
     }
     
     if (isTRUE(verbose)) cat("[Eval-Binary] RETURN\n")
@@ -1004,17 +1038,19 @@ EvaluatePredictionsReport <- function(
   
   heatmap_path_mc <- file.path(plot_dir, "confusion_matrix_multiclass_heatmap.png")
   if (isTRUE(do_any_plots)) {  # #$$$$$$$$$$$$$
-    tryCatch({
-      p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
-        ggplot2::geom_tile(color="white") +
-        ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
-        ggplot2::scale_fill_gradient(low="white", high="#D73027") +  # #$$$$$$$$$$$$$
-        ggplot2::labs(title="Confusion Matrix", x="Predicted", y="Actual") +  # #$$$$$$$$$$$$$
-        .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
-      ggplot2::ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
-      .close_devices()
-      if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")
-    }, error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))
+    if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+      tryCatch({
+        p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
+          ggplot2::geom_tile(color="white") +
+          ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
+          ggplot2::scale_fill_gradient(low="white", high="#D73027") +  # #$$$$$$$$$$$$$
+          ggplot2::labs(title="Confusion Matrix", x="Predicted", y="Actual") +  # #$$$$$$$$$$$$$
+          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
+        ggplot2::ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
+        .close_devices()
+        if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")
+      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] heatmap failed: ", conditionMessage(e)))
+    }  # #$$$$$$$$$$$$$
   }
   
   if (isTRUE(verbose)) {
@@ -1123,24 +1159,30 @@ EvaluatePredictionsReport <- function(
     openxlsx::addWorksheet(wb, "Metrics_Summary")
     suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", ms))
     if (file.exists(heatmap_path_mc)) {
-      tryCatch(openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_mc, startRow = nrow(ms) + 6,
-                                     startCol = 1, width = 6, height = 4),
-               error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] insertImage failed: ", conditionMessage(e)))
+      if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+        tryCatch(openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_mc, startRow = nrow(ms) + 6,
+                                       startCol = 1, width = 6, height = 4),
+                 error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] insertImage failed: ", conditionMessage(e)))
+      }  # #$$$$$$$$$$$$$
     }
     
     openxlsx::addWorksheet(wb, "Rdata_Predictions")
     suppressWarnings(openxlsx::writeData(wb, "Rdata_Predictions", predictions_df))
     
-    tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
-             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] Workbook save failed: ", conditionMessage(e)))
-    if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved.\n")
+    if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+      tryCatch(openxlsx::saveWorkbook(wb, report_wb_path, overwrite = TRUE),
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] Workbook save failed: ", conditionMessage(e)))
+      if (isTRUE(verbose)) cat("[Eval-Multiclass] Workbook saved.\n")
+    }  # #$$$$$$$$$$$$$
   }
   
   # Optional RDS save
   if (isTRUE(save_rds)) {
-    tryCatch(saveRDS(report, report_rds_path),
-             error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] saveRDS failed: ", conditionMessage(e)))
-    if (isTRUE(verbose)) cat("[Eval-Multiclass] RDS saved:", report_rds_path, "\n")
+    if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
+      tryCatch(saveRDS(report, report_rds_path),
+               error = function(e) if (isTRUE(verbose)) message("[Eval-Multiclass] saveRDS failed: ", conditionMessage(e)))
+      if (isTRUE(verbose)) cat("[Eval-Multiclass] RDS saved:", report_rds_path, "\n")
+    }  # #$$$$$$$$$$$$$
   }
   
   if (isTRUE(verbose)) cat("[Eval-Multiclass] RETURN\n")

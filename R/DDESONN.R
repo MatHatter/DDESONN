@@ -2993,7 +2993,8 @@ DDESONN <- R6::R6Class(
         show_auprc            = TRUE,   # include AUPRC in PR title by default
         
         viewAllPlots          = FALSE,  # overrides everything above
-        verbose               = FALSE
+        verbose               = FALSE,
+        saveEnabled           = TRUE    #$$$$$$$$$$$$$
       )
       
       # ============================================================
@@ -3765,25 +3766,23 @@ DDESONN <- R6::R6Class(
             # NOTE:
             # - sys.frames() cannot see nested training_overrides inputs after they are stored
             # ============================================================  #$$$$$$$$$$$$$
-            eval_cfg <- NULL
+            eval_cfg <- if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&  #$$$$$$$$$$$$$
+                            is.list(self$EvaluatePredictionsReportPlotsConfig)) {  #$$$$$$$$$$$$$
+              self$EvaluatePredictionsReportPlotsConfig                         #$$$$$$$$$$$$$
+            } else {
+              list()                                                            #$$$$$$$$$$$$$
+            }
             
             # ------------------------------------------------------------
             # Scenario 2 (house) — only if explicitly provided
             # ------------------------------------------------------------
             if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
-              eval_cfg <- plot_controls$evaluate_report
+              eval_cfg <- plot_controls$evaluate_report                          #$$$$$$$$$$$$$
             }
             
-            # ------------------------------------------------------------
-            # Scenario 1 (independent) — canonical source from model config
-            # This is NOT a "fallback"; it is how Scenario 1 is persisted.
-            # ------------------------------------------------------------  #$$$$$$$$$$$$$
-            if (is.null(eval_cfg) &&
-                !is.null(self$EvaluatePredictionsReportPlotsConfig) &&
-                is.list(self$EvaluatePredictionsReportPlotsConfig)) {
-              eval_cfg <- self$EvaluatePredictionsReportPlotsConfig              #$$$$$$$$$$$$$
-            }
+            viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                        #$$$$$$$$$$$$$
+            verbose_eval <- isTRUE(eval_cfg$verbose)                             #$$$$$$$$$$$$$
             
             # ============================================================
             # Build args list — base evaluation fields always passed
@@ -3797,58 +3796,22 @@ DDESONN <- R6::R6Class(
               threshold_function        = threshold_function,   # kept for signature compatibility
               all_best_val_probs        = best_val_probs,
               all_best_val_labels       = best_val_labels,
-              verbose                   = verbose,              # may be overridden below     #$$$$$$$$$$$$$
+              verbose                   = verbose_eval,         #$$$$$$$$$$$$$
               tuned_threshold_override  = best_threshold,
-              SONN                      = self$ensemble[[i]]
+              SONN                      = self$ensemble[[i]],
+              viewAllPlots              = viewAllPlots,                        #$$$$$$$$$$$$$
+              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot),       #$$$$$$$$$$$$$
+              accuracy_plot_mode        = eval_cfg$accuracy_plot_mode %||% "both",       #$$$$$$$$$$$$$
+              plot_roc                  = isTRUE(eval_cfg$roc_curve),           #$$$$$$$$$$$$$
+              plot_pr                   = isTRUE(eval_cfg$pr_curve),            #$$$$$$$$$$$$$
+              show_auprc                = isTRUE(eval_cfg$show_auprc),          #$$$$$$$$$$$$$
+              saveEnabled               = isTRUE(eval_cfg$saveEnabled),         #$$$$$$$$$$$$$
+              export_excel              = isTRUE(eval_cfg$export_excel),        #$$$$$$$$$$$$$
+              save_rds                  = isTRUE(eval_cfg$save_rds),            #$$$$$$$$$$$$$
+              rds_name                  = eval_cfg$rds_name %||% "Rdata_predictions.rds" #$$$$$$$$$$$$$
             )
             
-            # ============================================================
-            # Forward ONLY explicitly provided EvaluatePredictionsReport knobs
-            # ============================================================
-            if (!is.null(eval_cfg) && length(eval_cfg)) {
-              
-              # Let eval_cfg control verbosity (this must happen EARLY)     #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$verbose)) {
-                eval_args$verbose <- eval_cfg$verbose                        #$$$$$$$$$$$$$
-              }
-              
-              # Back-compat: accuracy_plots -> accuracy_plot                 #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$accuracy_plot)) {
-                eval_args$accuracy_plot <- eval_cfg$accuracy_plot
-              } else if (!is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- eval_cfg$accuracy_plots
-              }
-              
-              # Only pass if user provided (avoid match.arg(NULL))           #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$accuracy_plot_mode)) {
-                eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode   #$$$$$$$$$$$$$
-              }
-              
-              # Canonical per-plot toggles expected by report                #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$plot_roc)) {
-                eval_args$plot_roc <- eval_cfg$plot_roc                       #$$$$$$$$$$$$$
-              } else if (!is.null(eval_cfg$roc_curve)) {
-                eval_args$plot_roc <- eval_cfg$roc_curve                      #$$$$$$$$$$$$$
-              }
-              
-              if (!is.null(eval_cfg$plot_pr)) {
-                eval_args$plot_pr <- eval_cfg$plot_pr                         #$$$$$$$$$$$$$
-              } else if (!is.null(eval_cfg$pr_curve)) {
-                eval_args$plot_pr <- eval_cfg$pr_curve                        #$$$$$$$$$$$$$
-              }
-              
-              # Forward viewAllPlots if explicitly provided                  #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$viewAllPlots)) {
-                eval_args$viewAllPlots <- eval_cfg$viewAllPlots               #$$$$$$$$$$$$$
-              }
-              
-              # Non-plot options (unchanged behavior)                        #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc   <- eval_cfg$show_auprc
-              if (!is.null(eval_cfg$output_root))  eval_args$output_root  <- eval_cfg$output_root
-              if (!is.null(eval_cfg$export_excel)) eval_args$export_excel <- eval_cfg$export_excel
-              if (!is.null(eval_cfg$save_rds))     eval_args$save_rds     <- eval_cfg$save_rds
-              if (!is.null(eval_cfg$rds_name))     eval_args$rds_name     <- eval_cfg$rds_name
-            }
+            if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root #$$$$$$$$$$$$$
             
             # ============================================================
             # DEBUG — MUST key off eval_args$verbose (not outer verbose)
