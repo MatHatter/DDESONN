@@ -98,6 +98,7 @@ EvaluatePredictionsReport <- function(
     viewAllPlots = FALSE,   # #$$$$$$$$$$$$$
     plot_roc = TRUE,        # #$$$$$$$$$$$$$
     plot_pr  = TRUE,        # #$$$$$$$$$$$$$
+    saveEnabled = TRUE,
     export_excel = FALSE,
     save_rds = FALSE,
     rds_name = "Rdata_predictions.rds"

@@ -2996,7 +2996,22 @@ DDESONN <- R6::R6Class(
         verbose               = FALSE
       )
       
-    
+      # ============================================================
+      # Performance/Relevance BOX PLOTS (module)                     #$$$$$$$$$$$$$
+      # - This config is consumed by viewPerformanceRelevanceBoxplots(name)
+      # - Names MUST be boxplot identities (not *_mean_plots variables)
+      # ============================================================
+      self$PerformanceRelevancePlotsConfig <- list(                 #$$$$$$$$$$$$$
+        performance_high_boxplot = FALSE,
+        performance_low_boxplot  = FALSE,
+        relevance_high_boxplot   = FALSE,
+        relevance_low_boxplot    = FALSE,
+        
+        viewAllPlots = FALSE,
+        verbose      = FALSE,
+        saveEnabled  = TRUE                                       #$$$$$$$$$$$$$
+      )
+      
     },
     # Function to normalize specific columns in the data
     normalize_data = function(Rdata, numeric_columns) {
@@ -3109,7 +3124,17 @@ DDESONN <- R6::R6Class(
       flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)
       on_all||flag
     },
-    
+    ## ============================================================
+    ## SECTION: Plot gate — Performance/Relevance Boxplots          #$$$$$$$$$$$$$
+    ## ============================================================
+    viewPerformanceRelevanceBoxplots = function(name) {
+      cfg <- self$PerformanceRelevancePlotsConfig                              #$$$$$$$$$$$$$
+      if (!is.list(cfg)) return(FALSE)
+      on_all <- isTRUE(cfg$viewAllPlots) || isTRUE(cfg$verbose)
+      val <- cfg[[name]]
+      flag <- isTRUE(val) || (is.logical(val) && length(val) == 1L && !is.na(val) && val)
+      on_all || flag
+    },
     train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root, plot_controls, save_per_epoch) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
