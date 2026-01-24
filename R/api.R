@@ -2895,7 +2895,7 @@ ddesonn_predict <- function(model, new_data,
 #' `training_overrides` is a direct pass-through to [ddesonn_fit()]. To see the
 #' baseline defaults used by `ddesonn_run()`, call:
 #'
-#' `ddesonn_training_defaults(classification_mode, hidden_sizes)`
+#' `onnddesonn_training_defaults(classification_mode, hidden_sizes)`
 #'
 #' To see all tunable training arguments, see `?ddesonn_fit`.
 #'

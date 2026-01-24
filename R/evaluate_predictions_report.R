@@ -26,6 +26,8 @@
 # -  #$$$$$$$$$$$$$ FIX: accuracy_plot remains logical gate; accuracy_plot_mode controls which accuracy plots to emit
 # -  #$$$$$$$$$$$$$ ADD: viewAllPlots + plot_roc + plot_pr toggles (remove enable_plots)
 # -  #$$$$$$$$$$$$$ FIX: remove magrittr %>% usage (no pipe dependency)
+#
+# -  #$$$$$$$$$$$$$ STYLE ONLY: global theme + canonical eval colors + title normalization (CRAN-safe)
 # ================================================================
 
 # ================================================================
@@ -36,8 +38,29 @@
 })
 
 # ================================================================
+# SECTION: Global eval plot style (CRAN-safe)                      #$$$$$$$$$$$$$
+# ================================================================
+.ddesonn_plot_theme <- function() {  # #$$$$$$$$$$$$$
+  ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 14
+      ),
+      axis.title = ggplot2::element_text(size = 12),
+      axis.text  = ggplot2::element_text(size = 11),
+      legend.title = ggplot2::element_text(size = 11),
+      legend.text  = ggplot2::element_text(size = 10)
+    )
+}
+
+COL_NAVY <- "#2C3E50"  # #$$$$$$$$$$$$$
+
+# ================================================================
 # SECTION: EvaluatePredictionsReport
 # ================================================================
+
 EvaluatePredictionsReport <- function(
     X_validation, y_validation, CLASSIFICATION_MODE,
     probs,                       # last-epoch fallback (matrix or vector)
@@ -401,10 +424,21 @@ EvaluatePredictionsReport <- function(
     if ((isTRUE(viewAllPlots) || isTRUE(plot_roc)) && !is.null(roc_df) && nrow(roc_df) > 1) {  # #$$$$$$$$$$$$$
       tryCatch({
         p_roc <- ggplot2::ggplot(roc_df, ggplot2::aes(x = fpr, y = tpr)) +
-          ggplot2::geom_line(size = 1.1) +
+          ggplot2::geom_line(linewidth = 1.1, color = COL_NAVY) +  # #$$$$$$$$$$$$$
           ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-          ggplot2::labs(title = sprintf("ROC Curve (AUC = %.4f)", auc_val), x = "FPR", y = "TPR") +
-          ggplot2::theme_minimal()
+          ggplot2::labs(  # #$$$$$$$$$$$$$
+            title = "ROC Curve",
+            x = "False Positive Rate",
+            y = "True Positive Rate"
+          ) +
+          ggplot2::annotate(  # #$$$$$$$$$$$$$
+            "text",
+            x = 0.75,
+            y = 0.1,
+            label = sprintf("AUC = %.4f", auc_val),
+            size = 4
+          ) +
+          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
         ggplot2::ggsave(filename = roc_png, p_roc, width = 6, height = 4, dpi = 300)
         .close_devices()
         if (isTRUE(verbose)) cat("[Eval-Binary][ROC] ROC PNG saved:", roc_png, "\n")
@@ -511,11 +545,17 @@ EvaluatePredictionsReport <- function(
       tryCatch({
         p_conf <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
           ggplot2::geom_tile(color = "white") +
-          ggplot2::geom_text(ggplot2::aes(label = Count), size = 6, fontface = "bold") +
-          ggplot2::scale_fill_gradient(low = "white", high = "red") +
-          ggplot2::labs(title = paste("Confusion Matrix Heatmap", toupper(mode_label))) +
-          ggplot2::theme_minimal() +
-          ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+          ggplot2::geom_text(ggplot2::aes(label = Count), size = 5, fontface = "bold") +  # #$$$$$$$$$$$$$
+          ggplot2::scale_fill_gradient(low = "white", high = "#D73027") +  # #$$$$$$$$$$$$$
+          ggplot2::labs(
+            title = sprintf(
+              "%s — Threshold = %.4f",
+              ifelse(grepl("tuned", tolower(mode_label)), "Tuned Accuracy", "Accuracy"),  # #$$$$$$$$$$$$$                                                             # #$$$$$$$$$$$$$
+              as.numeric(threshold_used)                                                # #$$$$$$$$$$$$$
+            )
+          ) +  # #$$$$$$$$$$$$$
+          # #$$$$$$$$$$$$$
+          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
         ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
         .close_devices()
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] heatmap saved:", heatmap_path, "\n")
@@ -544,10 +584,10 @@ EvaluatePredictionsReport <- function(
       
       tryCatch({
         p1 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = prob_bin, y = actual_rate)) +
-          ggplot2::geom_col() +
+          ggplot2::geom_col(fill = COL_NAVY) +  # #$$$$$$$$$$$$$
           ggplot2::labs(title = paste("Observed Rate by Risk Bin (", mode_label, ")", sep = ""),
                         x = "Predicted Risk Decile (1=low,10=high)", y = "Observed Positive Rate") +
-          ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
         ggplot2::ggsave(plot1_path, p1, width = 6, height = 4, dpi = 300)
         .close_devices()
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot1 saved:", plot1_path, "\n")
@@ -555,11 +595,12 @@ EvaluatePredictionsReport <- function(
       
       tryCatch({
         p2 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = bin_mid, y = actual_rate)) +
-          ggplot2::geom_line(size = 1.2) + ggplot2::geom_point(size = 3) +
+          ggplot2::geom_line(linewidth = 1.2, color = "black") +  # #$$$$$$$$$$$$$
+          ggplot2::geom_point(size = 3, color = "black") +  # #$$$$$$$$$$$$$
           ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
           ggplot2::labs(title = paste("Calibration Curve (", mode_label, ")", sep = ""),
                         x = "Avg Predicted Probability", y = "Observed Rate") +
-          ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+          .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
         ggplot2::ggsave(plot2_path, p2, width = 6, height = 4, dpi = 300)
         .close_devices()
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] plot2 saved:", plot2_path, "\n")
@@ -567,12 +608,12 @@ EvaluatePredictionsReport <- function(
       
       tryCatch({
         p3 <- ggplot2::ggplot(df_cal, ggplot2::aes(x = prob_bin)) +
-          ggplot2::geom_col(ggplot2::aes(y = actual_rate)) +
-          ggplot2::geom_point(ggplot2::aes(y = bin_mid), size = 3, shape = 21, stroke = 1.2) +
+          ggplot2::geom_col(ggplot2::aes(y = actual_rate), fill = COL_NAVY) +  # #$$$$$$$$$$$$$
+          ggplot2::geom_point(ggplot2::aes(y = bin_mid), size = 3, shape = 21, stroke = 1.2, color = COL_NAVY) +  # #$$$$$$$$$$$$$
           ggplot2::labs(title = paste("Overlay: Observed vs Predicted (", mode_label, ")", sep = ""),
                         x = "Predicted Risk Decile", y = "Rate", fill = NULL, color = NULL) +
-          ggplot2::theme_minimal() + ggplot2::theme(legend.position = "bottom",
-                                                    plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
+          .ddesonn_plot_theme() +  # #$$$$$$$$$$$$$
+          ggplot2::theme(legend.position = "bottom")
         ggplot2::ggsave(overlay_path, p3, width = 6, height = 4, dpi = 300)
         .close_devices()
         if (isTRUE(verbose)) cat("[Eval-Binary][Plot] overlay saved:", overlay_path, "\n")
@@ -615,11 +656,14 @@ EvaluatePredictionsReport <- function(
     if ((isTRUE(viewAllPlots) || isTRUE(plot_pr)) && !is.null(pr_obj)) {  # #$$$$$$$$$$$$$
       tryCatch({
         grDevices::png(pr_png, width = 800, height = 600)
-        pr_title <- "Precision-Recall Curve - Neural Network"
-        if (isTRUE(show_auprc) && is.finite(auprc_val)) {
-          pr_title <- sprintf("Precision-Recall Curve - Neural Network (AUPRC = %.4f)", auprc_val)
+        plot(pr_obj, main = "Precision–Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
+        if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
+          legend(
+            "bottomright",
+            legend = sprintf("AUPRC = %.4f", auprc_val),
+            bty = "n"
+          )
         }
-        plot(pr_obj, main = pr_title, lwd = 2)
         graphics::grid()
         grDevices::dev.off()
         if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")
@@ -644,24 +688,11 @@ EvaluatePredictionsReport <- function(
                  actual_label = integer(0))
     }
     
-    conf_matrix <- matrix(c(TP, FP, FN, TN), nrow = 2, byrow = TRUE,
+    conf_matrix <- matrix(c(TP, FN, FP, TN), nrow = 2, byrow = TRUE,
                           dimnames = list("Actual" = c("Positive (1)", "Negative (0)"),
                                           "Predicted" = c("Positive (1)", "Negative (0)")))
     conf_long <- reshape2::melt(conf_matrix)
     colnames(conf_long) <- c("Actual", "Predicted", "Count")
-    
-    heatmap_path_legacy <- file.path(plot_dir, "confusion_heatmap_legacy.png")
-    if (isTRUE(viewAllPlots) || isTRUE(accuracy_plot)) {  # #$$$$$$$$$$$$$
-      tryCatch({
-        heatmap_plot <- ggplot2::ggplot(conf_long, ggplot2::aes(x = Predicted, y = Actual, fill = Count)) +
-          ggplot2::geom_tile() +
-          ggplot2::geom_text(ggplot2::aes(label = Count), color = "white", size = 5, fontface = "bold") +
-          ggplot2::scale_fill_gradient(low = "#4575b4", high = "#d73027") +
-          ggplot2::theme_minimal() + ggplot2::ggtitle("Confusion Matrix Heatmap")
-        ggplot2::ggsave(heatmap_path_legacy, heatmap_plot, width = 6, height = 4, dpi = 300)
-        .close_devices()
-      }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary] legacy heatmap failed: ", conditionMessage(e)))
-    }
     
     # Rdata_predictions
     # ============================================================
@@ -794,8 +825,7 @@ EvaluatePredictionsReport <- function(
           roc_png = if (file.exists(roc_png)) roc_png else NA_character_,
           pr_png  = if (file.exists(pr_png)) pr_png else NA_character_,
           fixed_plots = artifacts$fixed,
-          tuned_plots = artifacts$tuned,
-          legacy_conf_heatmap = if (file.exists(heatmap_path_legacy)) heatmap_path_legacy else NA_character_
+          tuned_plots = artifacts$tuned
         )
       )
     )
@@ -853,10 +883,6 @@ EvaluatePredictionsReport <- function(
       
       openxlsx::addWorksheet(wb, "Metrics_Summary")
       suppressWarnings(openxlsx::writeData(wb, "Metrics_Summary", metrics_legacy))
-      if (file.exists(heatmap_path_legacy)) {
-        tryCatch(openxlsx::insertImage(wb, "Metrics_Summary", heatmap_path_legacy, startRow = 15, startCol = 1, width = 6, height = 4),
-                 error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][WB] insertImage (legacy heatmap) failed: ", conditionMessage(e)))
-      }
       
       openxlsx::addWorksheet(wb, "Prediction_Means")
       suppressWarnings(openxlsx::writeData(wb, "Prediction_Means",
@@ -872,7 +898,10 @@ EvaluatePredictionsReport <- function(
         if (length(known_cols)) {
           # (PRESERVED) dplyr usage is fine; no %>% pipe needed here
           summary_by_type <- dplyr::group_by(misclassified_sorted, Type)
-          summary_by_type <- dplyr::summarise(summary_by_type, dplyr::across(dplyr::all_of(known_cols), \(x) mean(x, na.rm = TRUE)))
+          summary_by_type <- dplyr::summarise(
+            summary_by_type,
+            dplyr::across(dplyr::all_of(known_cols), function(x) mean(x, na.rm = TRUE))
+          )
         } else {
           summary_by_type <- data.frame()
         }
@@ -976,10 +1005,11 @@ EvaluatePredictionsReport <- function(
   if (isTRUE(do_any_plots)) {  # #$$$$$$$$$$$$$
     tryCatch({
       p_mc <- ggplot2::ggplot(conf_matrix_df, ggplot2::aes(x=factor(Predicted), y=factor(Actual), fill=Count)) +
-        ggplot2::geom_tile(color="white") + ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
-        ggplot2::scale_fill_gradient(low="white", high="red") +
-        ggplot2::labs(title="Confusion Matrix Heatmap (Multiclass)", x="Predicted", y="Actual") +
-        ggplot2::theme_minimal() + ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+        ggplot2::geom_tile(color="white") +
+        ggplot2::geom_text(ggplot2::aes(label=Count), size=3, fontface="bold") +
+        ggplot2::scale_fill_gradient(low="white", high="#D73027") +  # #$$$$$$$$$$$$$
+        ggplot2::labs(title="Confusion Matrix", x="Predicted", y="Actual") +  # #$$$$$$$$$$$$$
+        .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
       ggplot2::ggsave(heatmap_path_mc, p_mc, width=6, height=5, dpi=300)
       .close_devices()
       if (isTRUE(verbose)) cat("[Eval-Multiclass] heatmap saved:", heatmap_path_mc, "\n")

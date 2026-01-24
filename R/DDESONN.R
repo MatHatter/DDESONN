@@ -1925,39 +1925,69 @@ SONN <- R6::R6Class(
             StdOutput  = pad(sd_output_log, nA)
           )
           
-          if (self$viewPerEpochPlots("accuracy_plot")) {  #$$$$$$$$$$$$$ FIX
+          if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
-              plots_dir <- ddesonn_plots_dir(output_root)                 #$$$$$$$$$$$$$ FIX: resolve only at write time
+              plots_dir <- ddesonn_plots_dir(output_root)
+              
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
-                ggplot2::geom_line(ggplot2::aes(y = Accuracy), size = 1) +
-                ggplot2::geom_line(ggplot2::aes(y = Loss),     size = 1) +
-                ggplot2::labs(title = paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)"),
-                              y = "Value") +
+                ggplot2::geom_line(ggplot2::aes(y = Accuracy),
+                                   color = "#3A7CA5", linewidth = 1) +
+                ggplot2::geom_line(ggplot2::aes(y = Loss),
+                                   color = "#E63946", linewidth = 1) +
+                ggplot2::labs(
+                  title = paste(plot_title_prefix, "— Training Accuracy & Loss"),
+                  y = "Value"
+                ) +
                 ggplot2::theme_minimal() +
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+                ggplot2::theme(
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                )
               
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(
+                filename = out,
+                plot = p,
+                width = 6,
+                height = 4,
+                dpi = 300,
+                device = "png"
+              )
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
-          if (self$viewPerEpochPlots("saturation_plot")) {  #$$$$$$$$$$$$$ FIX
+          
+          if (self$viewPerEpochPlots("saturation_plot")) {
             tryCatch({
-              plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
+              plots_dir <- ddesonn_plots_dir(output_root)
+              
               p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
-                ggplot2::geom_line(ggplot2::aes(y = MeanOutput), size = 1) +
-                ggplot2::geom_line(ggplot2::aes(y = StdOutput),  size = 1) +
-                ggplot2::labs(title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
-                              y = "Output Value") +
+                ggplot2::geom_line(ggplot2::aes(y = MeanOutput),
+                                   color = "#9A348E", linewidth = 1) +
+                ggplot2::geom_line(ggplot2::aes(y = StdOutput),
+                                   color = "#C77DFF", linewidth = 1) +
+                ggplot2::labs(
+                  title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
+                  y = "Output Value"
+                ) +
                 ggplot2::theme_minimal() +
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+                ggplot2::theme(
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                )
               
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(
+                filename = out,
+                plot = p,
+                width = 6,
+                height = 4,
+                dpi = 300,
+                device = "png"
+              )
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
+          
           
           # 5) Regularization (ensure reg_loss_total exists)
           reg_loss_total <- 0
@@ -2128,23 +2158,34 @@ SONN <- R6::R6Class(
           }
           
           # 3) Max Weight Magnitude
-          if (self$viewPerEpochPlots("max_weight_plot")) {  #$$$$$$$$$$$$$ FIX
+          if (self$viewPerEpochPlots("max_weight_plot")) {
             tryCatch({
-              plots_dir <- ddesonn_plots_dir(output_root)                   #$$$$$$$$$$$$$ FIX
+              plots_dir <- ddesonn_plots_dir(output_root)
+              
               p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) +
-                ggplot2::geom_line(size = 1) +
-                ggplot2::labs(title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
-                              y = "Max |Weight|") +
+                ggplot2::geom_line(color = "#E4572E", linewidth = 1) +
+                ggplot2::labs(
+                  title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
+                  y = "Max |Weight|"
+                ) +
                 ggplot2::theme_minimal() +
-                ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16))
+                ggplot2::theme(
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                )
               
               out <- file.path(plots_dir, fname("max_weight_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(filename = out, plot = p, width = 6, height = 4, dpi = 300, device = "png")
+              ggplot2::ggsave(
+                filename = out,
+                plot = p,
+                width = 6,
+                height = 4,
+                dpi = 300,
+                device = "png"
+              )
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
-
           
           # Update biases
           if (update_biases) {
@@ -3684,14 +3725,14 @@ DDESONN <- R6::R6Class(
 
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-
+            
             # Pull evaluate_report cfg ONLY (no defaults created here)      #$$$$$$$$$$$$$
             eval_cfg <- NULL
             if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
               eval_cfg <- plot_controls$evaluate_report
             }
-
+            
             # Build args list — ONLY user-provided fields                  #$$$$$$$$$$$$$
             eval_args <- list(
               X_validation              = X_validation,
@@ -3702,57 +3743,84 @@ DDESONN <- R6::R6Class(
               threshold_function        = threshold_function,   # kept for signature compatibility
               all_best_val_probs        = best_val_probs,
               all_best_val_labels       = best_val_labels,
-              verbose                   = verbose,
+              verbose                   = verbose,              # may be overridden below     #$$$$$$$$$$$$$
               tuned_threshold_override  = best_threshold,
               SONN                      = self$ensemble[[i]]
             )
-
+            
             # ============================================================
             # viewAllPlots = MACRO (no enable_plots anywhere)              #$$$$$$$$$$$$$
             # Turns ON plot toggles only if user did NOT set them
             # ============================================================
             if (!is.null(eval_cfg) && length(eval_cfg) &&
                 !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {
-
+              
+              # Forward macro through canonical arg name                    #$$$$$$$$$$$$$
+              eval_args$viewAllPlots <- TRUE                                #$$$$$$$$$$$$$
+              
               if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- TRUE                               #$$$$$$$$$$$$$
+                eval_args$accuracy_plot <- TRUE                             #$$$$$$$$$$$$$
               }
-              if (is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- TRUE    #$$$$$$$$$$$$$
-              if (is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- TRUE    #$$$$$$$$$$$$$
+              
+              # Canonical names expected by EvaluatePredictionsReport        #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$plot_roc) && is.null(eval_cfg$roc_curve)) eval_args$plot_roc <- TRUE  #$$$$$$$$$$$$$
+              if (is.null(eval_cfg$plot_pr)  && is.null(eval_cfg$pr_curve))  eval_args$plot_pr  <- TRUE  #$$$$$$$$$$$$$
             }
-
+            
             if (!is.null(eval_cfg) && length(eval_cfg)) {
-
-              # Back-compat: accuracy_plots -> accuracy_plot                #$$$$$$$$$$$$$
+              
+              # Let eval_cfg control verbosity (EVOKE noise is separate)     #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$verbose)) {
+                eval_args$verbose <- eval_cfg$verbose                        #$$$$$$$$$$$$$
+              }
+              
+              # Back-compat: accuracy_plots -> accuracy_plot                 #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$accuracy_plot)) {
                 eval_args$accuracy_plot <- eval_cfg$accuracy_plot
               } else if (!is.null(eval_cfg$accuracy_plots)) {
                 eval_args$accuracy_plot <- eval_cfg$accuracy_plots
               }
-
-              # Only pass if user provided (avoid match.arg(NULL))          #$$$$$$$$$$$$$
+              
+              # Only pass if user provided (avoid match.arg(NULL))           #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$accuracy_plot_mode)) {
                 eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
               }
-
-              # Explicit per-plot toggles                                   #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$roc_curve)) eval_args$roc_curve <- eval_cfg$roc_curve
-              if (!is.null(eval_cfg$pr_curve))  eval_args$pr_curve  <- eval_cfg$pr_curve
-
-              # Non-plot options (unchanged behavior)                       #$$$$$$$$$$$$$
-              if (!is.null(eval_cfg$show_auprc))  eval_args$show_auprc  <- eval_cfg$show_auprc
-              if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root
+              
+              # ------------------------------------------------------------
+              # FIX: canonical per-plot toggles expected by report           #$$$$$$$$$$$$$
+              # Accept both new (plot_roc/plot_pr) + legacy (roc_curve/pr_curve)
+              # ------------------------------------------------------------
+              if (!is.null(eval_cfg$plot_roc)) {
+                eval_args$plot_roc <- eval_cfg$plot_roc                       #$$$$$$$$$$$$$
+              } else if (!is.null(eval_cfg$roc_curve)) {
+                eval_args$plot_roc <- eval_cfg$roc_curve                      #$$$$$$$$$$$$$
+              }
+              
+              if (!is.null(eval_cfg$plot_pr)) {
+                eval_args$plot_pr <- eval_cfg$plot_pr                         #$$$$$$$$$$$$$
+              } else if (!is.null(eval_cfg$pr_curve)) {
+                eval_args$plot_pr <- eval_cfg$pr_curve                        #$$$$$$$$$$$$$
+              }
+              
+              # Forward viewAllPlots if explicitly provided                  #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$viewAllPlots)) {
+                eval_args$viewAllPlots <- eval_cfg$viewAllPlots               #$$$$$$$$$$$$$
+              }
+              
+              # Non-plot options (unchanged behavior)                        #$$$$$$$$$$$$$
+              if (!is.null(eval_cfg$show_auprc))   eval_args$show_auprc   <- eval_cfg$show_auprc
+              if (!is.null(eval_cfg$output_root))  eval_args$output_root  <- eval_cfg$output_root
               if (!is.null(eval_cfg$export_excel)) eval_args$export_excel <- eval_cfg$export_excel
-              if (!is.null(eval_cfg$save_rds))      eval_args$save_rds      <- eval_cfg$save_rds
-              if (!is.null(eval_cfg$rds_name))      eval_args$rds_name      <- eval_cfg$rds_name
+              if (!is.null(eval_cfg$save_rds))     eval_args$save_rds     <- eval_cfg$save_rds
+              if (!is.null(eval_cfg$rds_name))     eval_args$rds_name     <- eval_cfg$rds_name
             }
-
+            
             eval_result <- do.call(EvaluatePredictionsReport, eval_args)       #$$$$$$$$$$$$$
-
+            
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
             }
-
+            
           } else {
             eval_result <- list(
               best_threshold = NA_real_,
@@ -3763,6 +3831,7 @@ DDESONN <- R6::R6Class(
               misclassified = NULL
             )
           }
+          
 
           # -------------------- unchanged downstream --------------------
 

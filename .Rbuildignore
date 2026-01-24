@@ -1,3 +1,39 @@
+# ---------------------------------------------------------------
+# Git / IDE / OS noise (MUST exclude or R CMD build explodes)
+# ---------------------------------------------------------------
+^\.git$
+^\.gitignore$
+^\.github$
+^\.Rproj\.user$
+^\.Rhistory$
+^\.RData$
+^\.Ruserdata$
+^\.vscode$
+^\.idea$
+^Thumbs\.db$
+^\.DS_Store$
+
+# ---------------------------------------------------------------
+# Build artifacts / temp outputs
+# ---------------------------------------------------------------
+^stdout$
+^stderr$
+^.*\.log$
+^.*\.zip$
+^.*\.tar\.gz$
+^build$
+^dist$
+
+# ---------------------------------------------------------------
+# Python / Node / misc tooling
+# ---------------------------------------------------------------
+^node_modules$
+^__pycache__$
+^.*\.pyc$
+
+# ---------------------------------------------------------------
+# Research + internal dev folders (EXCLUDED from CRAN build)
+# ---------------------------------------------------------------
 ^inst/archives(/.*)?$
 ^analysis(/.*)?$
 ^artifacts(/.*)?$
@@ -6,5 +42,10 @@
 ^helpfulFiles(/.*)?$
 ^junk(/.*)?$
 
-# CRAN/packaging hygiene — DO NOT SHIP DEV MATERIAL
-^inst/dev(/.*)?$
+# ---------------------------------------------------------------
+# CRAN / packaging hygiene
+# ---------------------------------------------------------------
+^README\.Rmd$
+^README\.md$
+^cran-comments\.md$
+^CRAN-SUBMISSION$

@@ -1952,7 +1952,6 @@ SONN <- R6Class(
               title_full <- paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)")  #$$$$$$$$$$$$$
               title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")           #$$$$$$$$$$$$$
               
-              #$$$$$$$$$$$$$ FIX: base-R-like look (theme_classic) + explicit colors
               p <- ggplot(df_accsat, aes(x = Epoch)) +
                 geom_line(aes(y = Accuracy), size = 1.2, color = "blue") +                       #$$$$$$$$$$$$$
                 geom_line(aes(y = Loss),     size = 1.2, color = "red") +                        #$$$$$$$$$$$$$

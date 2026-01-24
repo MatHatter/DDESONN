@@ -137,7 +137,7 @@ fits them with \code{\link[=ddesonn_fit]{ddesonn_fit()}}, and (when requested) c
 \code{training_overrides} is a direct pass-through to \code{\link[=ddesonn_fit]{ddesonn_fit()}}. To see the
 baseline defaults used by \code{ddesonn_run()}, call:
 
-\code{ddesonn_training_defaults(classification_mode, hidden_sizes)}
+\code{onnddesonn_training_defaults(classification_mode, hidden_sizes)}
 
 To see all tunable training arguments, see \code{?ddesonn_fit}.
 }
