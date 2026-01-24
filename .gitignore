@@ -46,3 +46,5 @@ EvaluatePredictionsReportPlots/**/*.png
 EvaluatePredictionsReportPlots/**/*.pdf
 EvaluatePredictionsReportPlots/**/*.xlsx
 EvaluatePredictionsReportPlots/**/*.rds
+/doc/
+/Meta/

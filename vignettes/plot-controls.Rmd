@@ -186,6 +186,17 @@ This scenario assumes the caller configures evaluation-report plot behavior via
 `training_overrides`, without a single “plot_controls umbrella”.
 
 ```{r scenario1, donttest=TRUE}
+# =============================================================
+# Scenario 1 — Independent plotting knobs (NO plot_controls)
+#
+# This scenario demonstrates THREE independent plotting lanes:
+#   (1) Per-epoch training plots        -> during model$train()
+#   (2) Final performance/relevance     -> post-train metadata
+#   (3) Evaluation report diagnostics   -> EvaluatePredictionsReport
+#
+# All configuration is supplied via training_overrides.
+# =============================================================
+
 # Ensure Scenario 1 uses out1
 options(DDESONN_OUTPUT_ROOT = out1)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
@@ -203,6 +214,9 @@ res_s1 <- ddesonn_run(
   test       = list(x = x_test,  y = y_test),
 
   training_overrides = list(
+    # ------------------------------------------------------------
+    # Core training configuration
+    # ------------------------------------------------------------
     init_method = "he",
     optimizer = "adagrad",
     lr = 0.125,
@@ -213,16 +227,46 @@ res_s1 <- ddesonn_run(
     loss_type = "CrossEntropy",
 
     validation_metrics = TRUE,
-    num_epochs = 120,
+    num_epochs = 1,
     final_summary_decimals = 6L,
 
-    # ------------------------------------------------------------
-    # EvaluatePredictionsReport plot controls (Scenario 1)
-    # ------------------------------------------------------------
+    # ============================================================
+    # (1) Per-epoch training plots
+    # - Generated inside model$train() / train_network()
+    # - Examples: loss curves, probe plots, saturation diagnostics
+    # - These run DURING training, not during evaluation
+    # ============================================================
+    per_epoch_plots = list(
+      enable = TRUE,          # master switch for epoch-level plots
+      loss_curve = TRUE,      # training/validation loss curve
+      probe_plots = TRUE,     # internal probe images
+      verbose = TRUE          # epoch-level debug prints
+    ),
+
+    # ============================================================
+    # (2) Final performance / relevance diagnostics
+    # - Generated AFTER training completes
+    # - Driven by update_performance_and_relevance()
+    # - Produces performance_high/low + relevance summaries
+    # ============================================================
+    performance_relevance_plots = list(
+      enable = TRUE,          # master switch
+      performance = TRUE,     # performance_high / performance_low
+      relevance = TRUE,       # relevance_high / relevance_low
+      export_tables = TRUE,   # tabular outputs
+      verbose = TRUE
+    ),
+
+    # ============================================================
+    # (3) Evaluation report diagnostics
+    # - Generated via EvaluatePredictionsReport()
+    # - Confusion matrices, ROC/PR, calibration, etc.
+    # - This is the part we just fixed to work independently
+    # ============================================================
     evaluate_predictions_report_plots = list(
       verbose = TRUE,
       accuracy_plot = TRUE,
-      accuracy_plot_mode = "both",  # <=== FIXED + TUNED heatmaps
+      accuracy_plot_mode = "both",  # FIXED + TUNED heatmaps
       plot_roc = TRUE,
       plot_pr  = TRUE,
       show_auprc = TRUE,
@@ -230,6 +274,7 @@ res_s1 <- ddesonn_run(
     )
   )
 )
+
 ```
 
 ```{r scenario1_plots, results="asis"}
@@ -244,6 +289,19 @@ This scenario uses `plot_controls` as the unified interface, and `plot_controls$
 is passed through to `EvaluatePredictionsReport(...)`.
 
 ```{r scenario2, donttest=TRUE}
+# =============================================================
+# Scenario 2 — Plot-controls orchestration layer ("the house")
+#
+# This scenario demonstrates THREE plotting lanes controlled
+# from a single plot_controls object:
+#   (1) Per-epoch training plots
+#   (2) Final performance / relevance diagnostics
+#   (3) Evaluation report diagnostics
+#
+# training_overrides handles *training mechanics only*.
+# plot_controls is the single source of truth for plotting.
+# =============================================================
+
 # Ensure Scenario 2 uses out2
 options(DDESONN_OUTPUT_ROOT = out2)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = out2)
@@ -260,6 +318,9 @@ res_s2 <- ddesonn_run(
   validation = list(x = x_valid, y = y_valid),
   test       = list(x = x_test,  y = y_test),
 
+  # ------------------------------------------------------------
+  # Training mechanics ONLY (no plotting knobs here)
+  # ------------------------------------------------------------
   training_overrides = list(
     init_method = "he",
     optimizer = "adagrad",
@@ -271,15 +332,46 @@ res_s2 <- ddesonn_run(
     loss_type = "CrossEntropy",
 
     validation_metrics = TRUE,
-    num_epochs = 120,
+    num_epochs = 1,
     final_summary_decimals = 6L
   ),
 
+  # ============================================================
+  # Plot-controls orchestration layer
+  # - Centralized control for ALL plotting subsystems
+  # ============================================================
   plot_controls = list(
+
+    # ==========================================================
+    # (1) Per-epoch training plots
+    # - Executed during model$train() / train_network()
+    # ==========================================================
+    per_epoch = list(
+      enable = TRUE,
+      loss_curve = TRUE,
+      probe_plots = TRUE,
+      verbose = TRUE
+    ),
+
+    # ==========================================================
+    # (2) Final performance / relevance diagnostics
+    # - Executed post-training via update_performance_and_relevance()
+    # ==========================================================
+    performance_relevance = list(
+      enable = TRUE,
+      performance = TRUE,
+      relevance = TRUE,
+      export_tables = TRUE,
+      verbose = TRUE
+    ),
+
+    # ==========================================================
+    # (3) Evaluation report diagnostics
+    # - Mapped 1:1 into EvaluatePredictionsReport(...)
+    # ==========================================================
     evaluate_report = list(
-      # These keys are intended to map 1:1 into EvaluatePredictionsReport(...)
       accuracy_plot = TRUE,
-      accuracy_plot_mode = "both",  # <=== FIXED + TUNED heatmaps
+      accuracy_plot_mode = "both",  # FIXED + TUNED heatmaps
       plot_roc = TRUE,
       plot_pr  = TRUE,
       show_auprc = TRUE,

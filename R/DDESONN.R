@@ -3726,14 +3726,43 @@ DDESONN <- R6::R6Class(
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
-            # Pull evaluate_report cfg ONLY (no defaults created here)      #$$$$$$$$$$$$$
+            # ============================================================
+            # EvaluatePredictionsReport config source
+            #
+            # Scenario 1 (independent):
+            # - user passes training_overrides$evaluate_predictions_report_plots
+            # - api.R stores it on the model as self$EvaluatePredictionsReportPlotsConfig
+            # - THIS is the canonical Scenario 1 source at evaluation time
+            #
+            # Scenario 2 (orchestration):
+            # - plot_controls$evaluate_report (if provided)
+            #
+            # NOTE:
+            # - sys.frames() cannot see nested training_overrides inputs after they are stored
+            # ============================================================  #$$$$$$$$$$$$$
             eval_cfg <- NULL
+            
+            # ------------------------------------------------------------
+            # Scenario 2 (house) — only if explicitly provided
+            # ------------------------------------------------------------
             if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
               eval_cfg <- plot_controls$evaluate_report
             }
             
-            # Build args list — ONLY user-provided fields                  #$$$$$$$$$$$$$
+            # ------------------------------------------------------------
+            # Scenario 1 (independent) — canonical source from model config
+            # This is NOT a "fallback"; it is how Scenario 1 is persisted.
+            # ------------------------------------------------------------  #$$$$$$$$$$$$$
+            if (is.null(eval_cfg) &&
+                !is.null(self$EvaluatePredictionsReportPlotsConfig) &&
+                is.list(self$EvaluatePredictionsReportPlotsConfig)) {
+              eval_cfg <- self$EvaluatePredictionsReportPlotsConfig              #$$$$$$$$$$$$$
+            }
+            
+            # ============================================================
+            # Build args list — base evaluation fields always passed
+            # ============================================================
             eval_args <- list(
               X_validation              = X_validation,
               y_validation              = y_validation,
@@ -3749,27 +3778,11 @@ DDESONN <- R6::R6Class(
             )
             
             # ============================================================
-            # viewAllPlots = MACRO (no enable_plots anywhere)              #$$$$$$$$$$$$$
-            # Turns ON plot toggles only if user did NOT set them
+            # Forward ONLY explicitly provided EvaluatePredictionsReport knobs
             # ============================================================
-            if (!is.null(eval_cfg) && length(eval_cfg) &&
-                !is.null(eval_cfg$viewAllPlots) && isTRUE(eval_cfg$viewAllPlots)) {
-              
-              # Forward macro through canonical arg name                    #$$$$$$$$$$$$$
-              eval_args$viewAllPlots <- TRUE                                #$$$$$$$$$$$$$
-              
-              if (is.null(eval_cfg$accuracy_plot) && is.null(eval_cfg$accuracy_plots)) {
-                eval_args$accuracy_plot <- TRUE                             #$$$$$$$$$$$$$
-              }
-              
-              # Canonical names expected by EvaluatePredictionsReport        #$$$$$$$$$$$$$
-              if (is.null(eval_cfg$plot_roc) && is.null(eval_cfg$roc_curve)) eval_args$plot_roc <- TRUE  #$$$$$$$$$$$$$
-              if (is.null(eval_cfg$plot_pr)  && is.null(eval_cfg$pr_curve))  eval_args$plot_pr  <- TRUE  #$$$$$$$$$$$$$
-            }
-            
             if (!is.null(eval_cfg) && length(eval_cfg)) {
               
-              # Let eval_cfg control verbosity (EVOKE noise is separate)     #$$$$$$$$$$$$$
+              # Let eval_cfg control verbosity (this must happen EARLY)     #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$verbose)) {
                 eval_args$verbose <- eval_cfg$verbose                        #$$$$$$$$$$$$$
               }
@@ -3783,13 +3796,10 @@ DDESONN <- R6::R6Class(
               
               # Only pass if user provided (avoid match.arg(NULL))           #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$accuracy_plot_mode)) {
-                eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode
+                eval_args$accuracy_plot_mode <- eval_cfg$accuracy_plot_mode   #$$$$$$$$$$$$$
               }
               
-              # ------------------------------------------------------------
-              # FIX: canonical per-plot toggles expected by report           #$$$$$$$$$$$$$
-              # Accept both new (plot_roc/plot_pr) + legacy (roc_curve/pr_curve)
-              # ------------------------------------------------------------
+              # Canonical per-plot toggles expected by report                #$$$$$$$$$$$$$
               if (!is.null(eval_cfg$plot_roc)) {
                 eval_args$plot_roc <- eval_cfg$plot_roc                       #$$$$$$$$$$$$$
               } else if (!is.null(eval_cfg$roc_curve)) {
@@ -3815,7 +3825,36 @@ DDESONN <- R6::R6Class(
               if (!is.null(eval_cfg$rds_name))     eval_args$rds_name     <- eval_cfg$rds_name
             }
             
-            eval_result <- do.call(EvaluatePredictionsReport, eval_args)       #$$$$$$$$$$$$$
+            # ============================================================
+            # DEBUG — MUST key off eval_args$verbose (not outer verbose)
+            # ============================================================  #$$$$$$$$$$$$$
+            if (isTRUE(eval_args$verbose)) {
+              cat("\n[EvalReport] cfg_source=",
+                  if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
+                      !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
+                    "Scenario 2: plot_controls$evaluate_report"
+                  } else if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&
+                             is.list(self$EvaluatePredictionsReportPlotsConfig)) {
+                    "Scenario 1: self$EvaluatePredictionsReportPlotsConfig"
+                  } else {
+                    "NONE"
+                  },
+                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+              
+              cat("[EvalReport] names(eval_cfg)=",
+                  if (!is.null(eval_cfg)) paste(names(eval_cfg), collapse = ", ") else "NULL",
+                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+              
+              cat("[EvalReport] forwarded accuracy_plot=",
+                  if (!is.null(eval_args$accuracy_plot)) as.character(eval_args$accuracy_plot) else "NULL",
+                  " | accuracy_plot_mode=",
+                  if (!is.null(eval_args$accuracy_plot_mode)) as.character(eval_args$accuracy_plot_mode) else "NULL",
+                  " | viewAllPlots=",
+                  if (!is.null(eval_args$viewAllPlots)) as.character(eval_args$viewAllPlots) else "NULL",
+                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+            }
+            
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)        #$$$$$$$$$$$$$
             
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
@@ -3832,7 +3871,8 @@ DDESONN <- R6::R6Class(
             )
           }
           
-
+          
+          
           # -------------------- unchanged downstream --------------------
 
           safe_ncol <- function(x) {
