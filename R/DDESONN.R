@@ -3002,7 +3002,7 @@ DDESONN <- R6::R6Class(
       # - This config is consumed by viewPerformanceRelevanceBoxplots(name)
       # - Names MUST be boxplot identities (not *_mean_plots variables)
       # ============================================================
-      self$PerformanceRelevancePlotsConfig <- list(                 #$$$$$$$$$$$$$
+      self$PerformanceRelevanceBoxPlotsConfig <- list(                 #$$$$$$$$$$$$$
         performance_high_boxplot = FALSE,
         performance_low_boxplot  = FALSE,
         relevance_high_boxplot   = FALSE,
@@ -3129,7 +3129,7 @@ DDESONN <- R6::R6Class(
     ## SECTION: Plot gate — Performance/Relevance Boxplots          #$$$$$$$$$$$$$
     ## ============================================================
     viewPerformanceRelevanceBoxplots = function(name) {
-      cfg <- self$PerformanceRelevancePlotsConfig                              #$$$$$$$$$$$$$
+      cfg <- self$PerformanceRelevanceBoxPlotsConfig                              #$$$$$$$$$$$$$
       if (!is.list(cfg)) return(FALSE)
       on_all <- isTRUE(cfg$viewAllPlots) || isTRUE(cfg$verbose)
       val <- cfg[[name]]
