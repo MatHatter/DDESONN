@@ -1,16 +1,4 @@
----
-title: "DDESONN — Plot Controls (Scenario 1 & 2)"
-output:
-  rmarkdown::html_vignette:
-    toc: true
-    toc_depth: 2
-vignette: >
-  %\VignetteIndexEntry{Plot Controls (Scenario 1 & 2)}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r setup, include=FALSE}
+## ----setup, include=FALSE-----------------------------------------------------
 # ============================================================
 # FILE: vignettes/plot-controls.Rmd
 # FULL WORKING — VIGNETTE SHOWS PLOTS (Scenario 1 & 2)
@@ -105,25 +93,8 @@ include_saved_plots <- function(output_root, header) {
 
   knitr::asis_output(paste(out, collapse = ""))
 }
-```
 
-## What “both heatmaps” means (binary EvaluatePredictionsReport)
-
-When `classification_mode = "binary"`, your evaluation report can emit:
-
-- **Fixed threshold** confusion matrix heatmap (`_fixed`)
-- **Tuned threshold** confusion matrix heatmap (`_tuned`)
-
-To emit both:
-
-- `accuracy_plot = TRUE`
-- `accuracy_plot_mode = "both"`
-
----
-
-## Data setup (small + deterministic)
-
-```{r data}
+## ----data---------------------------------------------------------------------
 set.seed(111)
 
 ext_dir <- system.file("extdata", package = "DDESONN")
@@ -192,121 +163,4 @@ x_valid <- x_valid_s / mx
 x_test  <- x_test_s  / mx
 
 cat(sprintf("[split] train=%d valid=%d test=%d\n", nrow(x_train), nrow(x_valid), nrow(x_test)))
-```
 
----
-
-## Scenario 1 — Independent “training_overrides” knobs
-
-```{r scenario1, donttest=TRUE}
-options(DDESONN_OUTPUT_ROOT = out1)
-Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
-
-res_s1 <- ddesonn_run(
-  x = x_train,
-  y = y_train,
-  classification_mode = "binary",
-  hidden_sizes = c(64, 32),
-  seeds = 1L,
-  do_ensemble = FALSE,
-  validation = list(x = x_valid, y = y_valid),
-  test       = list(x = x_test,  y = y_test),
-  training_overrides = list(
-    init_method = "he",
-    optimizer = "adagrad",
-    lr = 0.125,
-    lambda = 0.00028,
-    activation_functions = list(relu, relu, sigmoid),
-    dropout_rates = list(0.10),
-    loss_type = "CrossEntropy",
-    validation_metrics = TRUE,
-    num_epochs = 1,
-    final_summary_decimals = 6L,
-    per_epoch_plots = list(
-      saveEnabled = TRUE,
-      loss_curve = TRUE,
-      probe_plots = TRUE,
-      verbose = TRUE
-    ),
-    final_update_performance_relevance_boxplots = list(
-      performance_high_boxplot = TRUE,
-      performance_low_boxplot  = TRUE,
-      relevance_high_boxplot   = TRUE,
-      relevance_low_boxplot    = TRUE,
-      verbose = TRUE
-    ),
-    evaluate_predictions_report_plots = list(
-      verbose = TRUE,
-      accuracy_plot = TRUE,
-      accuracy_plot_mode = "both",
-      plot_roc = TRUE,
-      plot_pr  = TRUE,
-      show_auprc = TRUE,
-      viewAllPlots = FALSE
-    )
-  )
-)
-```
-
-```{r scenario1_plots, results="asis", echo=FALSE}
-include_saved_plots(out1, "Scenario 1 — Saved plots")
-```
-
----
-
-## Scenario 2 — One `plot_controls` umbrella
-
-```{r scenario2, donttest=TRUE}
-options(DDESONN_OUTPUT_ROOT = out2)
-Sys.setenv(DDESONN_ARTIFACTS_ROOT = out2)
-
-res_s2 <- ddesonn_run(
-  x = x_train,
-  y = y_train,
-  classification_mode = "binary",
-  hidden_sizes = c(64, 32),
-  seeds = 1L,
-  do_ensemble = FALSE,
-  validation = list(x = x_valid, y = y_valid),
-  test       = list(x = x_test,  y = y_test),
-  training_overrides = list(
-    init_method = "he",
-    optimizer = "adagrad",
-    lr = 0.125,
-    lambda = 0.00028,
-    activation_functions = list(relu, relu, sigmoid),
-    dropout_rates = list(0.10),
-    loss_type = "CrossEntropy",
-    validation_metrics = TRUE,
-    num_epochs = 1,
-    final_summary_decimals = 6L
-  ),
-  plot_controls = list(
-    per_epoch = list(
-      saveEnabled = TRUE,
-      loss_curve = TRUE,
-      probe_plots = TRUE,
-      verbose = TRUE
-    ),
-    performance_relevance_boxplots = list(
-      performance_high_boxplot = TRUE,
-      performance_low_boxplot  = TRUE,
-      relevance_high_boxplot   = TRUE,
-      relevance_low_boxplot    = TRUE,
-      verbose = TRUE
-    ),
-    evaluate_report = list(
-      accuracy_plot = TRUE,
-      accuracy_plot_mode = "both",
-      plot_roc = TRUE,
-      plot_pr  = TRUE,
-      show_auprc = TRUE,
-      viewAllPlots = FALSE
-    )
-  )
-)
-```
-
-```{r scenario2_plots, results="asis", echo=FALSE}
-include_saved_plots(out2, "Scenario 2 — Saved plots")
-```

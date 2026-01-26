@@ -559,7 +559,7 @@ EvaluatePredictionsReport <- function(
             ggplot2::scale_fill_gradient(low = "white", high = "#D73027") +  # #$$$$$$$$$$$$$
             ggplot2::labs(
               title = sprintf(
-                "%s — Threshold = %.4f",
+                "%s ??? Threshold = %.4f",
                 ifelse(grepl("tuned", tolower(mode_label)), "Tuned Accuracy", "Accuracy"),  # #$$$$$$$$$$$$$                                                             # #$$$$$$$$$$$$$
                 as.numeric(threshold_used)                                                # #$$$$$$$$$$$$$
               )
@@ -674,7 +674,7 @@ EvaluatePredictionsReport <- function(
       if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
         tryCatch({
           grDevices::png(pr_png, width = 800, height = 600)
-          plot(pr_obj, main = "Precision–Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
+          plot(pr_obj, main = "Precision???Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
           if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
             legend(
               "bottomright",
@@ -728,14 +728,14 @@ EvaluatePredictionsReport <- function(
     mean_1 <- suppressWarnings(mean(Rdata_predictions$prob[Rdata_predictions$label == 1], na.rm = TRUE))
     commentary_text <- if (is.finite(mean_0) && is.finite(mean_1)) {
       if (mean_0 < 0.2 && mean_1 > 0.8) {
-        sprintf("Since your model produces mean %.4f for true label 0, and %.4f for true label 1, it’s making sharp, confident, and accurate predictions.", mean_0, mean_1)
+        sprintf("Since your model produces mean %.4f for true label 0, and %.4f for true label 1, it???s making sharp, confident, and accurate predictions.", mean_0, mean_1)
       } else if (mean_0 > 0.35 && mean_1 < 0.65) {
-        sprintf("Warning: predicted probabilities are close together (%.4f vs %.4f) — model may not be separating classes clearly.", mean_0, mean_1)
+        sprintf("Warning: predicted probabilities are close together (%.4f vs %.4f) ??? model may not be separating classes clearly.", mean_0, mean_1)
       } else {
-        sprintf("Model separation is moderate (%.4f vs %.4f) — might benefit from output sharpening or additional tuning.", mean_0, mean_1)
+        sprintf("Model separation is moderate (%.4f vs %.4f) ??? might benefit from output sharpening or additional tuning.", mean_0, mean_1)
       }
     } else {
-      "One or both class mean probabilities are NA — likely due to class imbalance or empty subset."
+      "One or both class mean probabilities are NA ??? likely due to class imbalance or empty subset."
     }
     commentary_df_means <- data.frame(Interpretation = commentary_text)
     
@@ -1090,7 +1090,7 @@ EvaluatePredictionsReport <- function(
     m <- min(nX, ny, np)
     if (isTRUE(verbose) && (nX != m || ny != m || np != m)) {  # #$$$$$$$$$$$$$
       message(sprintf(
-        "[EvaluatePredictionsReport] Row mismatch: X=%d, y=%d, p=%d → truncating to %d rows for 'Combined'.",
+        "[EvaluatePredictionsReport] Row mismatch: X=%d, y=%d, p=%d ??? truncating to %d rows for 'Combined'.",
         nX, ny, np, m
       ))
     }

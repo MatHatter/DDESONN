@@ -2972,7 +2972,7 @@ DDESONN <- R6::R6Class(
         relevance_low_mean_plots    = FALSE,  # low mean relevance plots
         viewAllPlots = FALSE,
         verbose      = FALSE,
-        saveEnabled  = TRUE   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
+        saveEnabled  = TRUE,   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
       )
       
 
@@ -2994,25 +2994,10 @@ DDESONN <- R6::R6Class(
         
         viewAllPlots          = FALSE,  # overrides everything above
         verbose               = FALSE,
-        saveEnabled           = TRUE    #$$$$$$$$$$$$$
+        saveEnabled           = TRUE
       )
       
-      # ============================================================
-      # Performance/Relevance BOX PLOTS (module)                     #$$$$$$$$$$$$$
-      # - This config is consumed by viewPerformanceRelevanceBoxplots(name)
-      # - Names MUST be boxplot identities (not *_mean_plots variables)
-      # ============================================================
-      self$PerformanceRelevanceBoxPlotsConfig <- list(                 #$$$$$$$$$$$$$
-        performance_high_boxplot = FALSE,
-        performance_low_boxplot  = FALSE,
-        relevance_high_boxplot   = FALSE,
-        relevance_low_boxplot    = FALSE,
-        
-        viewAllPlots = FALSE,
-        verbose      = FALSE,
-        saveEnabled  = TRUE                                       #$$$$$$$$$$$$$
-      )
-      
+    
     },
     # Function to normalize specific columns in the data
     normalize_data = function(Rdata, numeric_columns) {
@@ -3125,17 +3110,7 @@ DDESONN <- R6::R6Class(
       flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)
       on_all||flag
     },
-    ## ============================================================
-    ## SECTION: Plot gate — Performance/Relevance Boxplots          #$$$$$$$$$$$$$
-    ## ============================================================
-    viewPerformanceRelevanceBoxplots = function(name) {
-      cfg <- self$PerformanceRelevanceBoxPlotsConfig                              #$$$$$$$$$$$$$
-      if (!is.list(cfg)) return(FALSE)
-      on_all <- isTRUE(cfg$viewAllPlots) || isTRUE(cfg$verbose)
-      val <- cfg[[name]]
-      flag <- isTRUE(val) || (is.logical(val) && length(val) == 1L && !is.na(val) && val)
-      on_all || flag
-    },
+    
     train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root, plot_controls, save_per_epoch) {
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
@@ -3641,9 +3616,18 @@ DDESONN <- R6::R6Class(
     }
     , # Method for updating performance and relevance metrics
 
+    # ============================================================
+    # SECTION: update_performance_and_relevance (FULL FIXED)
+    # - Restores Block 1 behavior: NO ggplot calls here
+    # - Delegates all plot creation (incl boxplots) to:
+    #   self$update_performance_and_relevance_high / _low
+    # - Leaves grouped_metrics block UNTOUCHED
+    # ============================================================
+    
     update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, plot_controls) {
+      
       if(verbose){print("----------------------------------------update_performance_and_relevance-begin----------------------------------------")}
-  
+      
       # Guard against validation_metrics == FALSE
       if (isFALSE(validation_metrics) ||
           is.null(all_best_val_probs) ||
@@ -3665,23 +3649,21 @@ DDESONN <- R6::R6Class(
       relevance_list <- list()
       model_name_list <-  list()
       #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-
+      
       # Calculate performance and relevance for each SONN in the ensemble
-
       for (i in 1:length(self$ensemble)) {
-
-
+        
         best_val_probs <- all_best_val_probs[[i]]
         best_val_labels <- all_best_val_labels[[i]]
         best_val_prediction_time <- all_best_val_prediction_time[[i]]
-
+        
         best_train_acc <- all_best_train_acc[[i]]
         best_epoch_train <- all_best_epoch_train[[i]]
         best_train_loss <- all_best_train_loss[[i]]
         best_epoch_train_loss <- all_best_epoch_train_loss[[i]]
         best_val_acc <- all_best_val_acc[[i]]
         best_val_epoch <- all_best_val_epoch[[i]]
-
+        
         single_predicted_outputAndTime <- all_predicted_outputAndTime[[i]]  # metadata
         single_predicted_output <- predicted_output_list[[i]]
         single_ensemble_name_model_name <- run_id[[i]]
@@ -3691,24 +3673,24 @@ DDESONN <- R6::R6Class(
         
         # might remove if, but keep contents
         if (train) {
-
+          
           cat("___________________________________________________________________________\n")
           cat("______________________________DESONN_", ensemble_number, "_SONN_", i, "______________________________\n", sep = "")
-
+          
           single_prediction_time <- prediction_time_list[[i]]
-
+          
           # brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
           if (validation_metrics){
             Rdata  <- X_validation
             labels <- y_validation
           }
-
+          
           # ---- PRE-REPORT TUNING (binary only) ----
           tuned <- NULL
           best_threshold <- NA_real_
-
+          
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-
+            
             if (!is.null(best_val_probs) && !is.null(best_val_labels)) {
               probs_for_tuning  <- as.matrix(best_val_probs)
               labels_for_tuning <- if (is.matrix(best_val_labels)) best_val_labels[, 1] else best_val_labels
@@ -3730,7 +3712,7 @@ DDESONN <- R6::R6Class(
               }
               labels_for_tuning <- as.integer(y_val_vec)
             }
-
+            
             tuned <- accuracy_precision_recall_f1_tuned(
               SONN                = self$ensemble[[i]],
               Rdata               = tryCatch(X_validation, error = function(e) NULL),
@@ -3741,52 +3723,40 @@ DDESONN <- R6::R6Class(
               threshold_grid      = seq(0.05, 0.95, by = 0.01),
               verbose             = isTRUE(verbose)
             )
-
+            
             chosen_threshold <- suppressWarnings(as.numeric(tuned$details$best_threshold))
             if (!is.finite(chosen_threshold)) chosen_threshold <- 0.5
-
+            
             best_threshold <- chosen_threshold
             self$ensemble[[i]]$chosen_threshold <- chosen_threshold
           }
-
+          
           # === Evaluate Prediction Diagnostics ===
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
             # ============================================================
-            # EvaluatePredictionsReport config source
-            #
-            # Scenario 1 (independent):
-            # - user passes training_overrides$evaluate_predictions_report_plots
-            # - api.R stores it on the model as self$EvaluatePredictionsReportPlotsConfig
-            # - THIS is the canonical Scenario 1 source at evaluation time
-            #
-            # Scenario 2 (orchestration):
-            # - plot_controls$evaluate_report (if provided)
-            #
-            # NOTE:
-            # - sys.frames() cannot see nested training_overrides inputs after they are stored
+            # EvaluatePredictionsReport config source (PRESERVED STYLE)     #$$$$$$$$$$$$$
+            # - Scenario 2: plot_controls$evaluate_report
+            # - Scenario 1: self$EvaluatePredictionsReportPlotsConfig
             # ============================================================  #$$$$$$$$$$$$$
-            eval_cfg <- if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&  #$$$$$$$$$$$$$
-                            is.list(self$EvaluatePredictionsReportPlotsConfig)) {  #$$$$$$$$$$$$$
-              self$EvaluatePredictionsReportPlotsConfig                         #$$$$$$$$$$$$$
+            eval_cfg <- if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&
+                            is.list(self$EvaluatePredictionsReportPlotsConfig)) {
+              self$EvaluatePredictionsReportPlotsConfig
             } else {
-              list()                                                            #$$$$$$$$$$$$$
+              list()
             }
             
-            # ------------------------------------------------------------
-            # Scenario 2 (house) — only if explicitly provided
-            # ------------------------------------------------------------
             if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
-              eval_cfg <- plot_controls$evaluate_report                          #$$$$$$$$$$$$$
+              eval_cfg <- plot_controls$evaluate_report
             }
             
-            viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                        #$$$$$$$$$$$$$
-            verbose_eval <- isTRUE(eval_cfg$verbose)                             #$$$$$$$$$$$$$
+            viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                                                #$$$$$$$$$$$$$
+            verbose_eval <- isTRUE(eval_cfg$verbose)                                                     #$$$$$$$$$$$$$
             
             # ============================================================
-            # Build args list — base evaluation fields always passed
-            # ============================================================
+            # Build args list — EVERYTHING inside list (your preference)    #$$$$$$$$$$$$$
+            # ============================================================  #$$$$$$$$$$$$$
             eval_args <- list(
               X_validation              = X_validation,
               y_validation              = y_validation,
@@ -3796,27 +3766,31 @@ DDESONN <- R6::R6Class(
               threshold_function        = threshold_function,   # kept for signature compatibility
               all_best_val_probs        = best_val_probs,
               all_best_val_labels       = best_val_labels,
-              verbose                   = verbose_eval,         #$$$$$$$$$$$$$
+              
+              verbose                   = verbose_eval,                                                 #$$$$$$$$$$$$$
               tuned_threshold_override  = best_threshold,
               SONN                      = self$ensemble[[i]],
-              viewAllPlots              = viewAllPlots,                        #$$$$$$$$$$$$$
-              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot),       #$$$$$$$$$$$$$
-              accuracy_plot_mode        = eval_cfg$accuracy_plot_mode %||% "both",       #$$$$$$$$$$$$$
-              plot_roc                  = isTRUE(eval_cfg$roc_curve),           #$$$$$$$$$$$$$
-              plot_pr                   = isTRUE(eval_cfg$pr_curve),            #$$$$$$$$$$$$$
-              show_auprc                = isTRUE(eval_cfg$show_auprc),          #$$$$$$$$$$$$$
-              saveEnabled               = isTRUE(eval_cfg$saveEnabled),         #$$$$$$$$$$$$$
-              export_excel              = isTRUE(eval_cfg$export_excel),        #$$$$$$$$$$$$$
-              save_rds                  = isTRUE(eval_cfg$save_rds),            #$$$$$$$$$$$$$
-              rds_name                  = eval_cfg$rds_name %||% "Rdata_predictions.rds" #$$$$$$$$$$$$$
+              
+              viewAllPlots              = viewAllPlots,                                                  #$$$$$$$$$$$$$
+              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot %||% eval_cfg$accuracy_plots),   #$$$$$$$$$$$$$
+              accuracy_plot_mode        = (eval_cfg$accuracy_plot_mode %||% "both"),                      #$$$$$$$$$$$$$
+              plot_roc                  = isTRUE(eval_cfg$plot_roc %||% eval_cfg$roc_curve),             #$$$$$$$$$$$$$
+              plot_pr                   = isTRUE(eval_cfg$plot_pr  %||% eval_cfg$pr_curve),              #$$$$$$$$$$$$$
+              show_auprc                = isTRUE(eval_cfg$show_auprc),                                   #$$$$$$$$$$$$$
+              
+              saveEnabled               = isTRUE(eval_cfg$saveEnabled),                                   #$$$$$$$$$$$$$
+              export_excel              = isTRUE(eval_cfg$export_excel),
+              save_rds                  = isTRUE(eval_cfg$save_rds),
+              rds_name                  = (eval_cfg$rds_name %||% "Rdata_predictions.rds")                #$$$$$$$$$$$$$
             )
             
-            if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root #$$$$$$$$$$$$$
+            if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root             #$$$$$$$$$$$$$
             
             # ============================================================
-            # DEBUG — MUST key off eval_args$verbose (not outer verbose)
+            # DEBUG — MUST key off eval_args$verbose (not outer verbose)    #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
             if (isTRUE(eval_args$verbose)) {
+              
               cat("\n[EvalReport] cfg_source=",
                   if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                       !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
@@ -3827,11 +3801,11 @@ DDESONN <- R6::R6Class(
                   } else {
                     "NONE"
                   },
-                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+                  "\n", sep = "")
               
               cat("[EvalReport] names(eval_cfg)=",
                   if (!is.null(eval_cfg)) paste(names(eval_cfg), collapse = ", ") else "NULL",
-                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+                  "\n", sep = "")
               
               cat("[EvalReport] forwarded accuracy_plot=",
                   if (!is.null(eval_args$accuracy_plot)) as.character(eval_args$accuracy_plot) else "NULL",
@@ -3839,10 +3813,12 @@ DDESONN <- R6::R6Class(
                   if (!is.null(eval_args$accuracy_plot_mode)) as.character(eval_args$accuracy_plot_mode) else "NULL",
                   " | viewAllPlots=",
                   if (!is.null(eval_args$viewAllPlots)) as.character(eval_args$viewAllPlots) else "NULL",
-                  "\n", sep = "")                                               #$$$$$$$$$$$$$
+                  " | saveEnabled=",
+                  if (!is.null(eval_args$saveEnabled)) as.character(eval_args$saveEnabled) else "NULL",
+                  "\n", sep = "")
             }
             
-            eval_result <- do.call(EvaluatePredictionsReport, eval_args)        #$$$$$$$$$$$$$
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)                                  #$$$$$$$$$$$$$
             
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
@@ -3860,9 +3836,6 @@ DDESONN <- R6::R6Class(
           }
           
           
-          
-          # -------------------- unchanged downstream --------------------
-
           safe_ncol <- function(x) {
             if (is.null(x)) return(0L)
             if (is.list(x)) {
@@ -3878,14 +3851,14 @@ DDESONN <- R6::R6Class(
             if (is.atomic(x))     return(1L)
             0L
           }
-
+          
           k_labels <- safe_ncol(y_validation)
           k_probs  <- safe_ncol(single_predicted_output)
           K <- if (k_labels > 0L) max(1L, k_labels) else max(1L, k_probs)
-
+          
           best_threshold_scalar <- eval_result$best_threshold
           best_thresholds_vec   <- eval_result$best_thresholds
-
+          
           if (K == 1L) {
             threshold_used  <- if (is.finite(best_threshold_scalar)) best_threshold_scalar else 0.5
             thresholds_used <- best_thresholds_vec
@@ -3897,18 +3870,7 @@ DDESONN <- R6::R6Class(
               rep(0.5, K)
             }
           }
-
-          if (isTRUE(verbose)) {
-            if (K == 1L) {
-              message(sprintf("[train] Using tuned binary threshold: %.3f", threshold_used))
-            } else {
-              message(sprintf(
-                "[train] Using tuned per-class thresholds: %s",
-                paste0(sprintf("%.3f", thresholds_used), collapse = ", ")
-              ))
-            }
-          }
-
+          
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
             probs <- best_val_probs
             targets <- best_val_labels
@@ -3920,7 +3882,7 @@ DDESONN <- R6::R6Class(
             prediction_time <- single_prediction_time
             cat("[calculate_performance] Using last-epoch predictions\n")
           }
-
+          
           performance_list[[i]] <- calculate_performance(
             SONN = self$ensemble[[i]],
             Rdata = Rdata,
@@ -3941,7 +3903,7 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-
+          
           relevance_list[[i]] <- calculate_relevance(
             self$ensemble[[i]],
             Rdata = Rdata,
@@ -3956,18 +3918,18 @@ DDESONN <- R6::R6Class(
             ML_NN = ML_NN,
             verbose = verbose
           )
-
+          
           performance_metric <- performance_list[[i]]$metrics
-
+          
           if (!is.null(tuned) && identical(CLASSIFICATION_MODE, "binary")) {
             performance_metric$accuracy_tuned  <- tuned$accuracy
             performance_metric$precision_tuned <- tuned$precision
             performance_metric$recall_tuned    <- tuned$recall
             performance_metric$f1_tuned        <- tuned$f1
           }
-
+          
           relevance_metric <- relevance_list[[i]]$metrics
-
+          
           if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
             if (verbose || viewTables) {
               message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
@@ -3976,24 +3938,7 @@ DDESONN <- R6::R6Class(
             }
           }
         }
-
-
-
-        if (verbose) {
-          message("\n=============================================")
-          message("DEBUG: Preparing to store metadata (Network Container)")
-          message(sprintf("Ensemble number: %s", ensemble_number))
-          message(sprintf("Model iteration: %s", i))
-          message(sprintf("Run ID: %s", single_ensemble_name_model_name))
-          pred_shape <- tryCatch(paste(dim(single_predicted_output), collapse = " × "), error = function(...) "<unknown>")
-          message(sprintf("Predicted output shape: %s", pred_shape))
-          message(sprintf("Checking self$ensemble[[%s]]", i))
-          captured <- utils::capture.output(str(self$ensemble[[i]]))
-          for (line in captured) message(line)
-          message("=============================================\n")
-        }
-
-
+        
         self$store_metadata(
           single_predicted_outputAndTime, actual_values = NULL, do_ensemble = NULL, self$input_size, self$output_size, self$N,
           total_num_samples = NULL, num_test_samples = NULL, num_training_samples = NULL, num_validation_samples = NULL,
@@ -4007,42 +3952,20 @@ DDESONN <- R6::R6Class(
           self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc,
           best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL
         )
-
       }
-
-
-      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-
+      
       # Extract names and metrics for performance and relevance
-      performance_metrics <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$metrics) #<<-
-      performance_names <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$names) #<<-
-
-      relevance_metrics <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$metrics) #<<-
-      relevance_names <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$names) #<<-
-
-      # Check for NULL values in performance_metrics and relevance_metrics
-      check_null <- function(metrics_list) {
-        unlist(lapply(seq_along(metrics_list), function(i) {
-          if (is.null(metrics_list[[i]])) {
-            return(paste0("NULL at index: ", i))
-          } else {
-            return(paste0("Not NULL at index: ", i))
-          }
-        }))
-      }
-      check_null(performance_metrics)
-      null_check_performance <- check_null(performance_metrics) #<<-
-      check_null(relevance_metrics)
-      null_check_relevance <- check_null(relevance_metrics) #<<-
-
-
-
-
-      # Convert the matrix to a data frame without modifying row names
-      # Initialize empty vectors to store values and row names
-
-      # Function to process performance metrics
+      performance_metrics <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$metrics)
+      performance_names   <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$names)
+      
+      relevance_metrics <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$metrics)
+      relevance_names   <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$names)
+      
+      # ============================================================
+      # SECTION: process_performance (FULL; preserved)
+      # ============================================================
       process_performance <- function(metrics_data, model_names, high_threshold = 10, verbose = FALSE) {
+        
         EXCLUDE_METRICS_REGEX <- paste(
           c(
             "^accuracy_precision_recall_f1_tuned_details_accuracy_percent$",
@@ -4054,51 +3977,46 @@ DDESONN <- R6::R6Class(
           ),
           collapse = "|"
         )
-
-        # ---- model names handling ----
+        
         if (length(model_names) == 1L && length(metrics_data) > 1L) {
           model_names <- rep(model_names, length(metrics_data))
         }
         if (is.null(model_names) || length(model_names) != length(metrics_data)) {
           model_names <- paste0("Model_", seq_along(metrics_data))
         }
-
-        # ---- helpers ----
+        
         to_numeric_safely <- function(v) {
           v <- as.character(v)
           cleaned <- gsub("[^0-9eE+\\-\\.]", "", v)
           suppressWarnings(as.numeric(cleaned))
         }
+        
         norm_atom <- function(x) {
-          if (inherits(x, "Duration"))  return(as.numeric(x))                 # seconds
-          if (inherits(x, "difftime"))  return(as.numeric(x, units = "secs")) # seconds
+          if (inherits(x, "Duration"))  return(as.numeric(x))
+          if (inherits(x, "difftime"))  return(as.numeric(x, units = "secs"))
           if (inherits(x, "POSIXct") || inherits(x, "POSIXt")) return(as.numeric(x))
           if (inherits(x, "Date"))      return(as.numeric(x))
           if (is.logical(x))            return(as.numeric(x))
           if (is.factor(x))             return(as.character(x))
           x
         }
-        # Flatten into named atomic elements (as list of scalars/vectors)
+        
         flatten_metrics <- function(x, prefix = NULL) {
           out <- list()
           nm_prefix <- function(base, name) if (is.null(base) || base == "") name else paste0(base, "_", name)
-
           if (is.null(x)) return(out)
-
+          
           if (is.atomic(x) && length(x) >= 1L) {
-            # keep vectors; caller will split to rows
             nm <- if (is.null(prefix)) "value" else prefix
             out[[nm]] <- x
             return(out)
           }
-
+          
           if (is.data.frame(x)) {
-            for (nm in names(x)) {
-              out <- c(out, flatten_metrics(x[[nm]], nm_prefix(prefix, nm)))
-            }
+            for (nm in names(x)) out <- c(out, flatten_metrics(x[[nm]], nm_prefix(prefix, nm)))
             return(out)
           }
-
+          
           if (is.list(x)) {
             nms <- names(x)
             for (i in seq_along(x)) {
@@ -4107,10 +4025,10 @@ DDESONN <- R6::R6Class(
             }
             return(out)
           }
-
-          out  # unknown type -> ignore
+          
+          out
         }
-
+        
         build_long_df <- function(lst, model_name) {
           if (is.null(lst) || length(lst) == 0L) {
             if (verbose) message("[process_performance] empty metrics for ", model_name)
@@ -4123,8 +4041,7 @@ DDESONN <- R6::R6Class(
             if (length(val) == 0L) next
             val <- norm_atom(val)
             if (length(val) == 0L) next
-
-            # split vectors to multiple rows with indexed metric names (stable & unique)
+            
             if (length(val) > 1L) {
               for (k in seq_along(val)) {
                 rows[[idx]] <- data.frame(
@@ -4151,152 +4068,152 @@ DDESONN <- R6::R6Class(
             do.call(rbind, rows)
           }
         }
-
+        
         high_mean_df <- NULL
         low_mean_df  <- NULL
-
+        
         for (i in seq_along(metrics_data)) {
           mdl_name <- model_names[[i]]
           met_raw  <- metrics_data[[i]]
-
+          
           flat <- flatten_metrics(met_raw, NULL)
           long <- build_long_df(flat, mdl_name)
-
           if (!nrow(long)) next
-
-          # drop unwanted metrics
+          
           long <- long[!grepl(EXCLUDE_METRICS_REGEX, long$Metric), , drop = FALSE]
           if (!nrow(long)) next
-
-          # numeric coercion
+          
           long$Value <- to_numeric_safely(long$Value)
           long <- long[is.finite(long$Value), , drop = FALSE]
           if (!nrow(long)) next
-
+          
           mean_metrics <- long |>
             dplyr::group_by(Metric) |>
             dplyr::summarise(mean_value = mean(Value, na.rm = TRUE), .groups = "drop")
-
+          
           high_metrics <- mean_metrics |>
             dplyr::filter(mean_value > high_threshold) |>
             dplyr::pull(Metric)
-
+          
           high_mean_df <- dplyr::bind_rows(high_mean_df, long[long$Metric %in% high_metrics, , drop = FALSE])
           low_mean_df  <- dplyr::bind_rows(low_mean_df,  long[!long$Metric %in% high_metrics, , drop = FALSE])
         }
-
+        
         list(high_mean_df = high_mean_df, low_mean_df = low_mean_df)
       }
-
-      # Assuming performance_metrics and relevance_metrics are already defined
-      performance_results <- process_performance(performance_metrics, run_id) #<<-
-      relevance_results <- process_performance(relevance_metrics, run_id) #<<-
-
-      performance_high_mean_df <- performance_results$high_mean_df #<<-
-      performance_low_mean_df <- performance_results$low_mean_df #<<-
-
-      relevance_high_mean_df <- relevance_results$high_mean_df #<<-
-      relevance_low_mean_df <- relevance_results$low_mean_df #<<-
-
-      # Function to check and print if a dataframe is NULL
-      check_and_print_null <- function(df, df_name) {
-        if (is.null(df)) {
-          print(paste(df_name, "is NULL"))
-          return(TRUE)
-        } else {
-          print(paste(df_name, "is not NULL"))
-          return(FALSE)
-        }
-      }
-
-      # Check and print if any of the dataframes are NULL
-      performance_high_mean_is_null <- check_and_print_null(performance_high_mean_df, "performance_high_mean_df")
-      performance_low_mean_is_null <- check_and_print_null(performance_low_mean_df, "performance_low_mean_df")
-      relevance_high_mean_is_null <- check_and_print_null(relevance_high_mean_df, "relevance_high_mean_df")
-      relevance_low_mean_is_null <- check_and_print_null(relevance_low_mean_df, "relevance_low_mean_df")
-
-      # Call the functions and get the plots only if the dataframes are not NULL
-      # print("Calling Performance update_performance_and_relevance_high")
-      performance_high_mean_plots <- if (!performance_high_mean_is_null) {
-        self$update_performance_and_relevance_high(performance_high_mean_df)
-      } else {
-        NULL
-      }
-      performance_low_mean_plots <- if (!performance_low_mean_is_null) {
-        self$update_performance_and_relevance_low(performance_low_mean_df)
-      } else {
-        NULL
-      }
-      # print("Finished Performance update_performance_and_relevance_low")
-      # print("Calling Relevance update_performance_and_relevance_high")
-      relevance_high_mean_plots <- if (!relevance_high_mean_is_null) {
-        self$update_performance_and_relevance_high(relevance_high_mean_df)
-      } else {
-        NULL
-      }
-      # print("Finished Relevance update_performance_and_relevance_high")
-      # print("Calling Relevance update_performance_and_relevance_low")
-      relevance_low_mean_plots <- if (!relevance_low_mean_is_null) {
-        self$update_performance_and_relevance_low(relevance_low_mean_df)
-      } else {
-        NULL
-      }
-
-
-      # =====================================================================
-      # GROUPED METRICS  ≠  FUSED ENSEMBLE
-      #
-      # Audience (plain English):
-      # - "Fused" means we COMBINE outputs from multiple models into ONE
-      #   consensus prediction stream (used for final decisions/evaluation).
-      #   Examples: average, weighted-average, majority vote.
-      #
-      # What THIS block does:
-      # - Provides convenient, experimental insight / reporting across multiple models.
-      # - Two modes:
-      #     (A) "aggregate_predictions+rep_sonn":
-      #         We first call aggregate_predictions() to create a temporary
-      #         aggregated prediction vector (mean/median/vote), then score it
-      #         with ONE representative SONN to reuse metric code.
-      #         • More appropriate when you want a single *proxy* view of the
-      #           ensemble’s output (close to how fusion works, but reporting-only).
-      #     (B) "average_per_model":
-      #         Compute metrics for each model separately, then average the
-      #         metric values numerically.
-      #         • More of an experimental “sampling pulse” — tells you the
-      #           typical performance level across models, not a consensus output.
-      #
-      # What this is NOT:
-      # - NOT the fused-ensemble decision path (avg / wavg / vote_soft /
-      #   vote_hard) implemented in DDESONN_fuse_from_agg(), which creates the
-      #   SINGLE prediction stream used downstream.
-      #
-      # Side note:
-      # - aggregate_predictions() supports mean/median/vote for reporting use.
-      #   The true decision fusion (with weights and soft/hard voting) lives in
-      #   DDESONN_fuse_from_agg().
-      # =====================================================================
-
+      
+      performance_results <- process_performance(performance_metrics, run_id)
+      relevance_results   <- process_performance(relevance_metrics,   run_id)
+      
+      performance_high_mean_df <- performance_results$high_mean_df
+      performance_low_mean_df  <- performance_results$low_mean_df
+      
+      relevance_high_mean_df <- relevance_results$high_mean_df
+      relevance_low_mean_df  <- relevance_results$low_mean_df
+      
+      # ============================================================
+      # SECTION: performance_relevance plot cfg resolver            #$$$$$$$$$$$$$
+      # - Scenario 2: plot_controls$performance_relevance
+      # - Scenario 1: ddesonn_run bridge maps into plot_controls$performance_relevance
+      # ============================================================
+      pr_cfg <- NULL                                                                                          #$$$$$$$$$$$$$
+      if (!is.null(plot_controls) && is.list(plot_controls) &&                                                #$$$$$$$$$$$$$
+          !is.null(plot_controls$performance_relevance) && is.list(plot_controls$performance_relevance)) {    #$$$$$$$$$$$$$
+        pr_cfg <- plot_controls$performance_relevance                                                         #$$$$$$$$$$$$$
+      }                                                                                                       #$$$$$$$$$$$$$
+      
+      pr_saveEnabled <- TRUE                                                                                   #$$$$$$$$$$$$$
+      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)       #$$$$$$$$$$$$$
+      
+      pr_perf_high_mean  <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_perf_low_mean   <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_relev_high_mean <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_relev_low_mean  <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_perf_high_box   <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_perf_low_box    <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_relev_high_box  <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_relev_low_box   <- TRUE                                                                               #$$$$$$$$$$$$$
+      
+      if (!is.null(pr_cfg)) {                                                                                  #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean  <- isTRUE(pr_cfg$performance_high_mean_plots)  #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean   <- isTRUE(pr_cfg$performance_low_mean_plots)   #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$relevance_high_mean_plots))    pr_relev_high_mean <- isTRUE(pr_cfg$relevance_high_mean_plots)    #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$relevance_low_mean_plots))     pr_relev_low_mean  <- isTRUE(pr_cfg$relevance_low_mean_plots)     #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$performance_high_boxplot))     pr_perf_high_box   <- isTRUE(pr_cfg$performance_high_boxplot)     #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$performance_low_boxplot))      pr_perf_low_box    <- isTRUE(pr_cfg$performance_low_boxplot)      #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$relevance_high_boxplot))       pr_relev_high_box  <- isTRUE(pr_cfg$relevance_high_boxplot)       #$$$$$$$$$$$$$
+        if (!is.null(pr_cfg$relevance_low_boxplot))        pr_relev_low_box   <- isTRUE(pr_cfg$relevance_low_boxplot)        #$$$$$$$$$$$$$
+      }                                                                                                        #$$$$$$$$$$$$$
+      
+      # ============================================================
+      # SECTION: plots + boxplots (gated by performance_relevance)   #$$$$$$$$$$$$$
+      # ============================================================
+      performance_high_mean_plots <- NULL                                                                       #$$$$$$$$$$$$$
+      performance_low_mean_plots  <- NULL                                                                       #$$$$$$$$$$$$$
+      relevance_high_mean_plots   <- NULL                                                                       #$$$$$$$$$$$$$
+      relevance_low_mean_plots    <- NULL                                                                       #$$$$$$$$$$$$$
+      
+      performance_high_boxplot <- NULL                                                                          #$$$$$$$$$$$$$
+      performance_low_boxplot  <- NULL                                                                          #$$$$$$$$$$$$$
+      relevance_high_boxplot   <- NULL                                                                          #$$$$$$$$$$$$$
+      relevance_low_boxplot    <- NULL                                                                          #$$$$$$$$$$$$$
+      
+      if (isTRUE(pr_enabled)) {                                                                                 #$$$$$$$$$$$$$
+        
+        if (isTRUE(pr_perf_high_mean)) {                                                                        #$$$$$$$$$$$$$
+          performance_high_mean_plots <- self$update_performance_and_relevance_high(performance_high_mean_df)   #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_perf_low_mean)) {                                                                         #$$$$$$$$$$$$$
+          performance_low_mean_plots  <- self$update_performance_and_relevance_low(performance_low_mean_df)     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_relev_high_mean)) {                                                                       #$$$$$$$$$$$$$
+          relevance_high_mean_plots   <- self$update_performance_and_relevance_high(relevance_high_mean_df)     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_relev_low_mean)) {                                                                        #$$$$$$$$$$$$$
+          relevance_low_mean_plots    <- self$update_performance_and_relevance_low(relevance_low_mean_df)       #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        
+        if (isTRUE(pr_perf_high_box)) {                                                                         #$$$$$$$$$$$$$
+          performance_high_boxplot <- if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$boxplot)) performance_high_mean_plots$boxplot else NULL  #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_perf_low_box)) {                                                                          #$$$$$$$$$$$$$
+          performance_low_boxplot  <- if (is.list(performance_low_mean_plots)  && !is.null(performance_low_mean_plots$boxplot))  performance_low_mean_plots$boxplot  else NULL  #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_relev_high_box)) {                                                                        #$$$$$$$$$$$$$
+          relevance_high_boxplot   <- if (is.list(relevance_high_mean_plots)   && !is.null(relevance_high_mean_plots$boxplot))   relevance_high_mean_plots$boxplot   else NULL  #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_relev_low_box)) {                                                                         #$$$$$$$$$$$$$
+          relevance_low_boxplot    <- if (is.list(relevance_low_mean_plots)    && !is.null(relevance_low_mean_plots$boxplot))    relevance_low_mean_plots$boxplot    else NULL  #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
+        
+      } else {                                                                                                  #$$$$$$$$$$$$$
+        if (isTRUE(verbose)) message("[SKIP] performance/relevance plots disabled via plot_controls$performance_relevance")      #$$$$$$$$$$$$$
+      }                                                                                                         #$$$$$$$$$$$$$
+      
+      # ============================================================
+      # SECTION: grouped metrics block (PRESERVED EXACTLY — DO NOT TOUCH)
+      # ============================================================
+      
       # Predeclare so they're always in scope
       perf_df <- relev_df <- NULL
       perf_group_summary <- relev_group_summary <- NULL
       group_perf <- group_relev <- NULL
-
+      
       if(grouped_metrics) {
-
+        
         # Build per-model long DFs (works for 1+ models)
         perf_df  <- flatten_metrics_to_df(performance_list, run_id)
         relev_df <- flatten_metrics_to_df(relevance_list,     run_id)
-
+        
         # # --- Vanilla group summaries (across models) ---
         perf_group_summary  <- summarize_grouped(perf_df)
         relev_group_summary <- summarize_grouped(relev_df)
-
+        
         # --- Optional notify user ---
         if (!verbose && !viewTables) {
           message("[ℹ] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
         }
-
+        
         # Grouped metrics (run whenever you have ≥1 model)
         if (ensemble_number >= 1 && length(self$ensemble) > 1) {
           group_perf <- calculate_performance_grouped(
@@ -4319,7 +4236,7 @@ DDESONN <- R6::R6Class(
             biases_list           = NULL,
             act_list              = NULL
           )
-
+          
           group_relev <- calculate_relevance_grouped(
             SONN_list             = self$ensemble,
             Rdata                 = Rdata,
@@ -4333,9 +4250,7 @@ DDESONN <- R6::R6Class(
             agg_method            = "mean",
             metric_mode           = "aggregate_predictions+rep_sonn"
           )
-
-          # ---------- Printing policy ----------
-          # Tables (DF heads) print if EITHER verbose OR viewTables
+          
           if (verbose || viewTables) {
             if (!is.null(perf_df)) {
               emit_table(
@@ -4354,8 +4269,7 @@ DDESONN <- R6::R6Class(
               )
             }
           }
-
-          # Summaries + grouped metrics print ONLY when verbose = verbose
+          
           if (verbose) {
             if (!is.null(perf_group_summary)) {
               emit_table(
@@ -4390,16 +4304,45 @@ DDESONN <- R6::R6Class(
               )
             }
           }
-
+          
         }
-
+        
       } #end of if(grouped_metrics)
-
+      
       if(verbose){print("----------------------------------------update_performance_and_relevance-end----------------------------------------")}
-      # Return the lists of plots
-      return(list(performance_metric = performance_metric, relevance_metric = relevance_metric, performance_high_mean_plots = performance_high_mean_plots, performance_low_mean_plots = performance_low_mean_plots, relevance_high_mean_plots = relevance_high_mean_plots, relevance_low_mean_plots = relevance_low_mean_plots, performance_group_summary = perf_group_summary, relevance_group_summary = relev_group_summary, performance_long_df = perf_df, relevance_long_df = relev_df, performance_grouped = if (exists("group_perf")  && !is.null(group_perf))  group_perf$metrics  else NULL, relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL, threshold = threshold_used, thresholds = thresholds_used, accuracy = eval_result$accuracy, accuracy_percent = eval_result$accuracy_percent, metrics = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL, misclassified = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL, eval_report_plots = eval_result$artifacts$plots %||% NULL))
-
-
+      
+      return(list(
+        performance_metric = performance_metric,
+        relevance_metric   = relevance_metric,
+        
+        performance_high_mean_plots = performance_high_mean_plots,
+        performance_low_mean_plots  = performance_low_mean_plots,
+        relevance_high_mean_plots   = relevance_high_mean_plots,
+        relevance_low_mean_plots    = relevance_low_mean_plots,
+        
+        performance_high_boxplot = performance_high_boxplot,
+        performance_low_boxplot  = performance_low_boxplot,
+        relevance_high_boxplot   = relevance_high_boxplot,
+        relevance_low_boxplot    = relevance_low_boxplot,
+        
+        performance_group_summary = perf_group_summary,
+        relevance_group_summary   = relev_group_summary,
+        performance_long_df       = perf_df,
+        relevance_long_df         = relev_df,
+        
+        performance_grouped = if (exists("group_perf") && !is.null(group_perf)) group_perf$metrics else NULL,
+        relevance_grouped   = if (exists("group_relev") && !is.null(group_relev)) group_relev$metrics else NULL,
+        
+        threshold  = threshold_used,
+        thresholds = thresholds_used,
+        
+        accuracy         = eval_result$accuracy,
+        accuracy_percent = eval_result$accuracy_percent,
+        metrics          = if (!is.null(eval_result$metrics)) eval_result$metrics else NULL,
+        misclassified    = if (!is.null(eval_result$misclassified)) eval_result$misclassified else NULL,
+        eval_report_plots = eval_result$artifacts$plots %||% NULL
+      ))
+      
     },
     # Function to identify outliers
     identify_outliers = function(y) {
@@ -4499,7 +4442,10 @@ DDESONN <- R6::R6Class(
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::theme_minimal()
+            ggplot2::theme_minimal() +
+            ggplot2::theme(                                                    #$$$$$$$$$$$$$
+              plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
+            )
 
           # Add text labels for the outliers
           high_mean_plot <- high_mean_plot +
@@ -4574,7 +4520,10 @@ DDESONN <- R6::R6Class(
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::theme_minimal()
+            ggplot2::theme_minimal() +
+            ggplot2::theme(                                                    #$$$$$$$$$$$$$
+              plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
+            )
       
           # Add text labels for the outliers
           low_mean_plot <- low_mean_plot +

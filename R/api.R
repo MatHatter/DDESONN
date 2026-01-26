@@ -3127,10 +3127,21 @@ ddesonn_run <- function(x,
   if (!is.null(training_overrides$per_epoch_view_plots)) {                                           #$$$$$$$$$$$$$
     base_train_overrides$plot_controls$per_epoch <- training_overrides$per_epoch_view_plots          #$$$$$$$$$$$$$
   }                                                                                                  #$$$$$$$$$$$$$
+  
+  # ============================================================
+  # #$$$$$$$$$$$$$ FIX: Scenario-1 FINAL performance/relevance plots rename
+  # - New Scenario-1 key: final_update_performance_relevance_plots
+  # - Canonical key used by engine: plot_controls$performance_relevance
+  # - Backward compat: if old ..._boxplots exists, accept it too
+  # ============================================================
   if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       #$$$$$$$$$$$$$
     base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
       training_overrides$final_update_performance_relevance_plots                                    #$$$$$$$$$$$$$
+  } else if (!is.null(training_overrides$final_update_performance_relevance_boxplots)) {             #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
+      training_overrides$final_update_performance_relevance_boxplots                                  #$$$$$$$$$$$$$
   }                                                                                                  #$$$$$$$$$$$$$
+  
   if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  #$$$$$$$$$$$$$
     pe <- base_train_overrides$plot_controls$per_epoch                                                #$$$$$$$$$$$$$
     pe_any_true <- isTRUE(any(vapply(pe, function(v) isTRUE(v), logical(1)), na.rm = TRUE))           #$$$$$$$$$$$$$
@@ -3146,9 +3157,10 @@ ddesonn_run <- function(x,
   # - Do NOT create local defaults here.
   # - If user provided plot_controls, pass it through to training.
   # ============================================================
-  if (!is.null(plot_controls)) {                               #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls <- plot_controls        #$$$$$$$$$$$$$
-  }
+  if (!is.null(plot_controls)) {                                                       #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls <- plot_controls                                 #$$$$$$$$$$$$$
+  }                                                                                      #$$$$$$$$$$$$$
+  
   # ============================================================
   # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
   # ============================================================
@@ -3580,9 +3592,6 @@ ddesonn_run <- function(x,
       val <- list(x = validation_data$x, y = validation_data$y)
     }
     
-    # ============================================================
-    # SECTION: EVOKE — ddesonn_run -> ddesonn_fit (BEGIN)  #$$$$$$$$$$$$$
-    # ============================================================
     cat(sprintf(
       "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",
       "ddesonn_run::per_seed(main_fit)->ddesonn_fit",
@@ -3593,9 +3602,6 @@ ddesonn_run <- function(x,
     
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
     
-    # ============================================================
-    # SECTION: EVOKE — ddesonn_fit finished (END)  #$$$$$$$$$$$$$
-    # ============================================================
     cat(sprintf(
       "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",
       "ddesonn_run::per_seed(main_fit)->ddesonn_fit",
@@ -3607,24 +3613,22 @@ ddesonn_run <- function(x,
     main_pred <- NULL
     aggregate_pred <- NULL
     if (!is.null(prediction_matrix)) {
-      
-      # #$$$$$$$$$$$$$ FIX: Explicit BEGIN/END for main prediction (calls net$predict internally)
-      .evoke_predict_begin(                                                                 #$$$$$$$$$$$$$
-        where = "ddesonn_run::per_seed(main_fit)->main_pred",                               #$$$$$$$$$$$$$
-        why   = "User prediction_data provided; ddesonn_predict() will call net$predict() across ensemble",#$$$$$$$$$$$$$
-        seed  = seed_i,                                                                     #$$$$$$$$$$$$$
-        run_index = i                                                                       #$$$$$$$$$$$$$
-      )                                                                                     #$$$$$$$$$$$$$
+      .evoke_predict_begin(
+        where = "ddesonn_run::per_seed(main_fit)->main_pred",
+        why   = "User prediction_data provided; ddesonn_predict() will call net$predict() across ensemble",
+        seed  = seed_i,
+        run_index = i
+      )
       
       preds <- ddesonn_predict(mdl, prediction_matrix, aggregate = aggregate, type = prediction_type, threshold = threshold)
       main_pred <- preds
       
-      .evoke_predict_end(                                                                   #$$$$$$$$$$$$$
-        where = "ddesonn_run::per_seed(main_fit)->main_pred",                               #$$$$$$$$$$$$$
-        why   = "Main prediction finished",                                                 #$$$$$$$$$$$$$
-        seed  = seed_i,                                                                     #$$$$$$$$$$$$$
-        run_index = i                                                                       #$$$$$$$$$$$$$
-      )                                                                                     #$$$$$$$$$$$$$
+      .evoke_predict_end(
+        where = "ddesonn_run::per_seed(main_fit)->main_pred",
+        why   = "Main prediction finished",
+        seed  = seed_i,
+        run_index = i
+      )
     }
     
     temp_summary <- list()
@@ -3661,25 +3665,23 @@ ddesonn_run <- function(x,
         per_seed <- NULL
         aggregate_tmp <- NULL
         if (!is.null(prediction_matrix)) {
-          
-          # #$$$$$$$$$$$$$ FIX: Explicit BEGIN/END for TEMP candidate evaluation
-          .evoke_predict_begin(                                                             #$$$$$$$$$$$$$
-            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),            #$$$$$$$$$$$$$
-            why   = "TEMP evaluation on prediction_data: ddesonn_predict(aggregate='none', type='response')",#$$$$$$$$$$$$$
-            seed  = seed_i,                                                                 #$$$$$$$$$$$$$
-            run_index = i                                                                   #$$$$$$$$$$$$$
-          )                                                                                  #$$$$$$$$$$$$$
+          .evoke_predict_begin(
+            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
+            why   = "TEMP evaluation on prediction_data: ddesonn_predict(aggregate='none', type='response')",
+            seed  = seed_i,
+            run_index = i
+          )
           
           tpred <- ddesonn_predict(tmp_model, prediction_matrix, aggregate = "none", type = "response")
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
           
-          .evoke_predict_end(                                                               #$$$$$$$$$$$$$
-            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),            #$$$$$$$$$$$$$
-            why   = "TEMP evaluation finished",                                             #$$$$$$$$$$$$$
-            seed  = seed_i,                                                                 #$$$$$$$$$$$$$
-            run_index = i                                                                   #$$$$$$$$$$$$$
-          )                                                                                 #$$$$$$$$$$$$$
+          .evoke_predict_end(
+            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
+            why   = "TEMP evaluation finished",
+            seed  = seed_i,
+            run_index = i
+          )
         }
         
         temp_list[[iter]] <- list(iteration = iter, model = tmp_model, per_seed = per_seed, aggregate = aggregate_tmp)
@@ -3703,30 +3705,25 @@ ddesonn_run <- function(x,
     
     if (!is.null(prediction_matrix)) {
       if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
-        
-        # #$$$$$$$$$$$$$ FIX: Explicit BEGIN/END for post-TEMP recompute
-        .evoke_predict_begin(                                                              #$$$$$$$$$$$$$
-          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",                        #$$$$$$$$$$$$$
-          why   = "Recompute main predictions after TEMP-based mutation: ddesonn_predict() calls net$predict()",#$$$$$$$$$$$$$
-          seed  = seed_i,                                                                   #$$$$$$$$$$$$$
-          run_index = i                                                                     #$$$$$$$$$$$$$
-        )                                                                                    #$$$$$$$$$$$$$
+        .evoke_predict_begin(
+          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
+          why   = "Recompute main predictions after TEMP-based mutation: ddesonn_predict() calls net$predict()",
+          seed  = seed_i,
+          run_index = i
+        )
         
         preds <- ddesonn_predict(mdl, prediction_matrix, aggregate = aggregate, type = prediction_type, threshold = threshold)
         main_pred <- preds
         
-        .evoke_predict_end(                                                                 #$$$$$$$$$$$$$
-          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",                        #$$$$$$$$$$$$$
-          why   = "Post-TEMP main prediction finished",                                     #$$$$$$$$$$$$$
-          seed  = seed_i,                                                                   #$$$$$$$$$$$$$
-          run_index = i                                                                     #$$$$$$$$$$$$$
-        )                                                                                    #$$$$$$$$$$$$$
+        .evoke_predict_end(
+          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
+          why   = "Post-TEMP main prediction finished",
+          seed  = seed_i,
+          run_index = i
+        )
       }
     }
     
-    # ============================================================
-    # SECTION: Split tables (each triggers ddesonn_predict inside build_split_predictions)
-    # ============================================================
     run_predictions <- list(
       train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
       validation = if (!is.null(validation_data) && !is.null(validation_data$x)) {
@@ -3790,7 +3787,6 @@ ddesonn_run <- function(x,
     }
   }
   
-  # TEMP summaries (if present) — keep structure per iteration across seeds
   if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
     temp_summary <- lapply(seq_len(num_temp_iterations), function(iter) {
       preds <- lapply(runs, function(run) {
@@ -3844,7 +3840,6 @@ ddesonn_run <- function(x,
   }
   result$model <- final_model
   if (!is.null(final_training)) {
-    # history mirrors the training metadata; train/val loss live here
     result$metrics <- final_training$performance_relevance_data %||% NULL
     result$history <- final_training$predicted_outputAndTime %||% NULL
   }
@@ -3881,11 +3876,9 @@ ddesonn_run <- function(x,
   
   class(result) <- unique(c("ddesonn_run_result", class(result)))
   
-  # Optional legacy-style persistence
   if (!is.null(output_root)) {
     .persist_ddesonn_run(result, output_root = output_root, save_models = save_models)
   }
-  # Clean result before returning (drop large matrix used only for persistence)
   if (!is.null(result$`.__prediction_matrix`)) {
     result$`.__prediction_matrix` <- NULL
   }
@@ -3897,7 +3890,6 @@ ddesonn_run <- function(x,
     if (!is.null(final_training) && is.list(final_training$performance_relevance_data)) {
       summary_threshold <- final_training$performance_relevance_data$threshold %||% NULL
       
-      #$$$$$$$$$$$$$ FIX: length-safe + fast scalar threshold validation (prevents logical(0) in if)
       thr_num <- suppressWarnings(as.numeric(summary_threshold))                             #$$$$$$$$$$$$$
       summary_threshold <- if (length(thr_num) == 1L && is.finite(thr_num)) thr_num else NULL#$$$$$$$$$$$$$
     }
@@ -3938,9 +3930,6 @@ ddesonn_run <- function(x,
   }
   if (!is.null(final_model) && identical(tolower(classification_mode), "binary")) {
     
-    # ============================================================
-    # SECTION: Binary report decimals passthrough (call sites only)  #$$$$$$$$$$$$$
-    # ============================================================
     dec_out <- base_train_overrides$final_summary_decimals %||% NULL                        #$$$$$$$$$$$$$
     
     thr_used <- threshold %||%
@@ -3951,35 +3940,36 @@ ddesonn_run <- function(x,
     train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
     if (!inherits(train_probs, "try-error") && !is.null(train_probs$prediction)) {
       y_train_vec <- .coerce_binary_labels(y_matrix)
-      .emit_binary_classification_report(                                                   #$$$$$$$$$$$$$
-        "Train", y_train_vec, train_probs$prediction, thr_used,                              #$$$$$$$$$$$$$
-        final_summary_decimals = dec_out                                                     #$$$$$$$$$$$$$
-      )                                                                                      #$$$$$$$$$$$$$
+      .emit_binary_classification_report(
+        "Train", y_train_vec, train_probs$prediction, thr_used,
+        final_summary_decimals = dec_out
+      )
     }
     if (!is.null(validation_data) && !is.null(validation_data$x)) {
       val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response"), silent = TRUE)
       if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
         y_val_vec <- .coerce_binary_labels(validation_data$y)
-        .emit_binary_classification_report(                                                  #$$$$$$$$$$$$$
-          "Validation", y_val_vec, val_probs$prediction, thr_used,                            #$$$$$$$$$$$$$
-          final_summary_decimals = dec_out                                                    #$$$$$$$$$$$$$
-        )                                                                                     #$$$$$$$$$$$$$
+        .emit_binary_classification_report(
+          "Validation", y_val_vec, val_probs$prediction, thr_used,
+          final_summary_decimals = dec_out
+        )
       }
     }
     if (!is.null(test_matrix) && !is.null(test_labels)) {
       test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response"), silent = TRUE)
       if (!inherits(test_probs, "try-error") && !is.null(test_probs$prediction)) {
         y_test_vec <- .coerce_binary_labels(test_labels)
-        .emit_binary_classification_report(                                                  #$$$$$$$$$$$$$
-          "Test", y_test_vec, test_probs$prediction, thr_used,                                #$$$$$$$$$$$$$
-          final_summary_decimals = dec_out                                                    #$$$$$$$$$$$$$
-        )                                                                                     #$$$$$$$$$$$$$
+        .emit_binary_classification_report(
+          "Test", y_test_vec, test_probs$prediction, thr_used,
+          final_summary_decimals = dec_out
+        )
       }
     }
   }
   
   result
 }
+
 
 
 
