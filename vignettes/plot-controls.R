@@ -22,6 +22,13 @@
 # - Single-line call avoids knitr/rmarkdown edge cases that can throw:
 #   "argument N is empty" during vignette rebuild.
 # ============================================================
+knitr::opts_chunk$set(
+  fig.path = "figure-html/",   # keep it short
+  cache.path = "cache/",       # keep it short
+  warning = TRUE,
+  message = TRUE
+)
+
 knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = FALSE, fig.width = 8, fig.height = 5, fig.align = "center", out.width = "900px", fig.path = "plot-controls_files/figure-html/")  #$$$$$$$$$$$$$
 
 # ============================================================
@@ -95,6 +102,7 @@ include_saved_plots <- function(output_root, header) {
 }
 
 ## ----data---------------------------------------------------------------------
+
 set.seed(111)
 
 ext_dir <- system.file("extdata", package = "DDESONN")
@@ -163,4 +171,67 @@ x_valid <- x_valid_s / mx
 x_test  <- x_test_s  / mx
 
 cat(sprintf("[split] train=%d valid=%d test=%d\n", nrow(x_train), nrow(x_valid), nrow(x_test)))
+
+## ----scenario1, donttest=TRUE-------------------------------------------------
+options(DDESONN_OUTPUT_ROOT = out1)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
+
+res_s1 <- tryCatch(
+  ddesonn_run(
+    x = x_train,
+    y = y_train,
+    classification_mode = "binary",
+    hidden_sizes = c(64, 32),
+    seeds = 1L,
+    do_ensemble = FALSE,
+    validation = list(x = x_valid, y = y_valid),
+    test       = list(x = x_test,  y = y_test),
+    training_overrides = list(
+      init_method = "he",
+      optimizer = "adagrad",
+      lr = 0.125,
+      lambda = 0.00028,
+      activation_functions = list(relu, relu, sigmoid),
+      dropout_rates = list(0.10),
+      loss_type = "CrossEntropy",
+      validation_metrics = TRUE,
+      num_epochs = 100,
+      final_summary_decimals = 6L,
+      per_epoch_plots = list(
+        saveEnabled = TRUE,
+        loss_curve = TRUE,
+        probe_plots = TRUE,
+        verbose = TRUE
+      ),
+      final_update_performance_relevance_boxplots = list(
+        performance_high_boxplot = TRUE,
+        performance_low_boxplot  = TRUE,
+        relevance_high_boxplot   = TRUE,
+        relevance_low_boxplot    = TRUE,
+        verbose = TRUE
+      ),
+      evaluate_predictions_report_plots = list(
+        verbose = TRUE,
+        accuracy_plot = TRUE,
+        accuracy_plot_mode = "both",
+        plot_roc = TRUE,
+        plot_pr  = TRUE,
+        show_auprc = TRUE,
+        viewAllPlots = FALSE
+      )
+    )
+  ),
+  error = function(e) {
+    cat("\n================ DDESONN ERROR =================\n")
+    cat(conditionMessage(e), "\n\n")
+    cat("-------------- TRACEBACK -----------------------\n")
+    traceback(2)
+    cat("================================================\n\n")
+    stop(e)
+  }
+)
+
+
+## ----scenario1_plots, results="asis", echo=FALSE------------------------------
+include_saved_plots(out1, "Scenario 1 — Saved plots")
 

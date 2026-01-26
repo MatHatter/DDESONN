@@ -2972,7 +2972,7 @@ DDESONN <- R6::R6Class(
         relevance_low_mean_plots    = FALSE,  # low mean relevance plots
         viewAllPlots = FALSE,
         verbose      = FALSE,
-        saveEnabled  = TRUE,   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
+        saveEnabled  = TRUE   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
       )
       
 
@@ -4125,70 +4125,204 @@ DDESONN <- R6::R6Class(
       pr_saveEnabled <- TRUE                                                                                   #$$$$$$$$$$$$$
       if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)       #$$$$$$$$$$$$$
       
-      pr_perf_high_mean  <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_perf_low_mean   <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_relev_high_mean <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_relev_low_mean  <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_perf_high_box   <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_perf_low_box    <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_relev_high_box  <- TRUE                                                                               #$$$$$$$$$$$$$
-      pr_relev_low_box   <- TRUE                                                                               #$$$$$$$$$$$$$
+      pr_enabled <- isTRUE(pr_saveEnabled)                                                                     #$$$$$$$$$$$$$
       
-      if (!is.null(pr_cfg)) {                                                                                  #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean  <- isTRUE(pr_cfg$performance_high_mean_plots)  #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean   <- isTRUE(pr_cfg$performance_low_mean_plots)   #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$relevance_high_mean_plots))    pr_relev_high_mean <- isTRUE(pr_cfg$relevance_high_mean_plots)    #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$relevance_low_mean_plots))     pr_relev_low_mean  <- isTRUE(pr_cfg$relevance_low_mean_plots)     #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$performance_high_boxplot))     pr_perf_high_box   <- isTRUE(pr_cfg$performance_high_boxplot)     #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$performance_low_boxplot))      pr_perf_low_box    <- isTRUE(pr_cfg$performance_low_boxplot)      #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$relevance_high_boxplot))       pr_relev_high_box  <- isTRUE(pr_cfg$relevance_high_boxplot)       #$$$$$$$$$$$$$
-        if (!is.null(pr_cfg$relevance_low_boxplot))        pr_relev_low_box   <- isTRUE(pr_cfg$relevance_low_boxplot)        #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+      pr_perf_high_mean  <- TRUE
+      pr_perf_low_mean   <- TRUE
+      pr_relev_high_mean <- TRUE
+      pr_relev_low_mean  <- TRUE
+      pr_perf_high_box   <- TRUE
+      pr_perf_low_box    <- TRUE
+      pr_relev_high_box  <- TRUE
+      pr_relev_low_box   <- TRUE
+      
+      if (!is.null(pr_cfg)) {
+        if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean  <- isTRUE(pr_cfg$performance_high_mean_plots)
+        if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean   <- isTRUE(pr_cfg$performance_low_mean_plots)
+        if (!is.null(pr_cfg$relevance_high_mean_plots))    pr_relev_high_mean <- isTRUE(pr_cfg$relevance_high_mean_plots)
+        if (!is.null(pr_cfg$relevance_low_mean_plots))     pr_relev_low_mean  <- isTRUE(pr_cfg$relevance_low_mean_plots)
+        if (!is.null(pr_cfg$performance_high_boxplot))     pr_perf_high_box   <- isTRUE(pr_cfg$performance_high_boxplot)
+        if (!is.null(pr_cfg$performance_low_boxplot))      pr_perf_low_box    <- isTRUE(pr_cfg$performance_low_boxplot)
+        if (!is.null(pr_cfg$relevance_high_boxplot))       pr_relev_high_box  <- isTRUE(pr_cfg$relevance_high_boxplot)
+        if (!is.null(pr_cfg$relevance_low_boxplot))        pr_relev_low_box   <- isTRUE(pr_cfg$relevance_low_boxplot)
+      }
       
       # ============================================================
       # SECTION: plots + boxplots (gated by performance_relevance)   #$$$$$$$$$$$$$
       # ============================================================
-      performance_high_mean_plots <- NULL                                                                       #$$$$$$$$$$$$$
-      performance_low_mean_plots  <- NULL                                                                       #$$$$$$$$$$$$$
-      relevance_high_mean_plots   <- NULL                                                                       #$$$$$$$$$$$$$
-      relevance_low_mean_plots    <- NULL                                                                       #$$$$$$$$$$$$$
+      performance_high_mean_plots <- NULL
+      performance_low_mean_plots  <- NULL
+      relevance_high_mean_plots   <- NULL
+      relevance_low_mean_plots    <- NULL
       
-      performance_high_boxplot <- NULL                                                                          #$$$$$$$$$$$$$
-      performance_low_boxplot  <- NULL                                                                          #$$$$$$$$$$$$$
-      relevance_high_boxplot   <- NULL                                                                          #$$$$$$$$$$$$$
-      relevance_low_boxplot    <- NULL                                                                          #$$$$$$$$$$$$$
+      performance_high_boxplot <- NULL
+      performance_low_boxplot  <- NULL
+      relevance_high_boxplot   <- NULL
+      relevance_low_boxplot    <- NULL
       
-      if (isTRUE(pr_enabled)) {                                                                                 #$$$$$$$$$$$$$
+      # ============================================================
+      # FALLBACK: restore old high/low plot logic locally (vignette-safe)  #$$$$$$$$$$$$$
+      # - Uses self$identify_outliers + self$create_bin_labels (unchanged)
+      # - Produces per-metric ggplot list (same as old behavior)
+      # ============================================================       #$$$$$$$$$$$$$
+      .fallback_update_performance_and_relevance_high <- function(high_mean_df) {  #$$$$$$$$$$$$$
+        high_mean_plots <- list()
+        for (metric in unique(high_mean_df$Metric)) {
+          filtered_high_mean_df <- high_mean_df[
+            !(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0),
+          ]
+          filtered_high_mean_df <- filtered_high_mean_df[
+            !is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value),
+          ]
+          plot_data_high <- filtered_high_mean_df[filtered_high_mean_df$Metric == metric, ]
+          if (nrow(plot_data_high) > 0) {
+            plot_data_high$Outlier <- ifelse(
+              !is.na(plot_data_high$Value) &
+                plot_data_high$Value %in% self$identify_outliers(plot_data_high$Value),
+              plot_data_high$Value,
+              NA
+            )
+            plot_data_high$Model_Name_Outlier <- plot_data_high$Model_Name
+            plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
+            
+            if (grepl("precision", metric, ignore.case = TRUE)) {
+              plot_data_high$Title <- paste0(
+                "Boxplot for ",
+                metric,
+                " (",
+                self$create_bin_labels(plot_data_high$Value),
+                ")"
+              )
+            } else {
+              plot_data_high$Title <- paste("Boxplot for", metric)
+            }
+            
+            high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
+              ggplot2::geom_boxplot() +
+              ggplot2::labs(
+                title = unique(plot_data_high$Title),
+                x = "Metric",
+                y = "Value"
+              ) +
+              ggplot2::theme_minimal()
+            
+            high_mean_plot <- high_mean_plot +
+              ggplot2::geom_text(
+                ggplot2::aes(label = Model_Name_Outlier),
+                na.rm = TRUE,
+                hjust = -0.3
+              )
+            
+            high_mean_plots[[metric]] <- high_mean_plot
+          }
+        }
+        high_mean_plots
+      }  #$$$$$$$$$$$$$
+      
+      .fallback_update_performance_and_relevance_low <- function(low_mean_df) {   #$$$$$$$$$$$$$
+        low_mean_plots <- list()
+        for (metric in unique(low_mean_df$Metric)) {
+          filtered_low_mean_df <- low_mean_df[
+            !(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0),
+          ]
+          filtered_low_mean_df <- filtered_low_mean_df[
+            !is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value),
+          ]
+          plot_data_low <- filtered_low_mean_df[filtered_low_mean_df$Metric == metric, ]
+          if (nrow(plot_data_low) > 0) {
+            plot_data_low$Outlier <- ifelse(
+              !is.na(plot_data_low$Value) &
+                plot_data_low$Value %in% self$identify_outliers(plot_data_low$Value),
+              plot_data_low$Value,
+              NA
+            )
+            plot_data_low$Model_Name_Outlier <- plot_data_low$Model_Name
+            plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
+            
+            if (grepl("precision", metric, ignore.case = TRUE)) {
+              plot_data_low$Title <- paste0(
+                "Boxplot for ",
+                metric,
+                " (",
+                self$create_bin_labels(plot_data_low$Value),
+                ")"
+              )
+            } else {
+              plot_data_low$Title <- paste("Boxplot for", metric)
+            }
+            
+            low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
+              ggplot2::geom_boxplot() +
+              ggplot2::labs(
+                title = unique(plot_data_low$Title),
+                x = "Metric",
+                y = "Value"
+              ) +
+              ggplot2::theme_minimal()
+            
+            low_mean_plot <- low_mean_plot +
+              ggplot2::geom_text(
+                ggplot2::aes(label = Model_Name_Outlier),
+                na.rm = TRUE,
+                hjust = -0.3
+              )
+            
+            low_mean_plots[[metric]] <- low_mean_plot
+          }
+        }
+        low_mean_plots
+      }  #$$$$$$$$$$$$$
+      
+      if (isTRUE(pr_enabled)) {
         
-        if (isTRUE(pr_perf_high_mean)) {                                                                        #$$$$$$$$$$$$$
-          performance_high_mean_plots <- self$update_performance_and_relevance_high(performance_high_mean_df)   #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_perf_low_mean)) {                                                                         #$$$$$$$$$$$$$
-          performance_low_mean_plots  <- self$update_performance_and_relevance_low(performance_low_mean_df)     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_relev_high_mean)) {                                                                       #$$$$$$$$$$$$$
-          relevance_high_mean_plots   <- self$update_performance_and_relevance_high(relevance_high_mean_df)     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_relev_low_mean)) {                                                                        #$$$$$$$$$$$$$
-          relevance_low_mean_plots    <- self$update_performance_and_relevance_low(relevance_low_mean_df)       #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_perf_high_mean)) {
+          performance_high_mean_plots <- if (is.function(self$update_performance_and_relevance_high)) {           #$$$$$$$$$$$$$
+            self$update_performance_and_relevance_high(performance_high_mean_df)                                  #$$$$$$$$$$$$$
+          } else {                                                                                                #$$$$$$$$$$$$$
+            .fallback_update_performance_and_relevance_high(performance_high_mean_df)                             #$$$$$$$$$$$$$
+          }                                                                                                       #$$$$$$$$$$$$$
+        }
         
-        if (isTRUE(pr_perf_high_box)) {                                                                         #$$$$$$$$$$$$$
-          performance_high_boxplot <- if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$boxplot)) performance_high_mean_plots$boxplot else NULL  #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_perf_low_box)) {                                                                          #$$$$$$$$$$$$$
-          performance_low_boxplot  <- if (is.list(performance_low_mean_plots)  && !is.null(performance_low_mean_plots$boxplot))  performance_low_mean_plots$boxplot  else NULL  #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_relev_high_box)) {                                                                        #$$$$$$$$$$$$$
-          relevance_high_boxplot   <- if (is.list(relevance_high_mean_plots)   && !is.null(relevance_high_mean_plots$boxplot))   relevance_high_mean_plots$boxplot   else NULL  #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
-        if (isTRUE(pr_relev_low_box)) {                                                                         #$$$$$$$$$$$$$
-          relevance_low_boxplot    <- if (is.list(relevance_low_mean_plots)    && !is.null(relevance_low_mean_plots$boxplot))    relevance_low_mean_plots$boxplot    else NULL  #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
+        if (isTRUE(pr_perf_low_mean)) {
+          performance_low_mean_plots  <- if (is.function(self$update_performance_and_relevance_low)) {            #$$$$$$$$$$$$$
+            self$update_performance_and_relevance_low(performance_low_mean_df)                                    #$$$$$$$$$$$$$
+          } else {                                                                                                #$$$$$$$$$$$$$
+            .fallback_update_performance_and_relevance_low(performance_low_mean_df)                               #$$$$$$$$$$$$$
+          }                                                                                                       #$$$$$$$$$$$$$
+        }
         
-      } else {                                                                                                  #$$$$$$$$$$$$$
-        if (isTRUE(verbose)) message("[SKIP] performance/relevance plots disabled via plot_controls$performance_relevance")      #$$$$$$$$$$$$$
-      }                                                                                                         #$$$$$$$$$$$$$
+        if (isTRUE(pr_relev_high_mean)) {
+          relevance_high_mean_plots   <- if (is.function(self$update_performance_and_relevance_high)) {           #$$$$$$$$$$$$$
+            self$update_performance_and_relevance_high(relevance_high_mean_df)                                    #$$$$$$$$$$$$$
+          } else {                                                                                                #$$$$$$$$$$$$$
+            .fallback_update_performance_and_relevance_high(relevance_high_mean_df)                               #$$$$$$$$$$$$$
+          }                                                                                                       #$$$$$$$$$$$$$
+        }
+        
+        if (isTRUE(pr_relev_low_mean)) {
+          relevance_low_mean_plots    <- if (is.function(self$update_performance_and_relevance_low)) {            #$$$$$$$$$$$$$
+            self$update_performance_and_relevance_low(relevance_low_mean_df)                                      #$$$$$$$$$$$$$
+          } else {                                                                                                #$$$$$$$$$$$$$
+            .fallback_update_performance_and_relevance_low(relevance_low_mean_df)                                 #$$$$$$$$$$$$$
+          }                                                                                                       #$$$$$$$$$$$$$
+        }
+        
+        if (isTRUE(pr_perf_high_box)) {
+          performance_high_boxplot <- if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$boxplot)) performance_high_mean_plots$boxplot else NULL
+        }
+        if (isTRUE(pr_perf_low_box)) {
+          performance_low_boxplot  <- if (is.list(performance_low_mean_plots)  && !is.null(performance_low_mean_plots$boxplot))  performance_low_mean_plots$boxplot  else NULL
+        }
+        if (isTRUE(pr_relev_high_box)) {
+          relevance_high_boxplot   <- if (is.list(relevance_high_mean_plots)   && !is.null(relevance_high_mean_plots$boxplot))   relevance_high_mean_plots$boxplot   else NULL
+        }
+        if (isTRUE(pr_relev_low_box)) {
+          relevance_low_boxplot    <- if (is.list(relevance_low_mean_plots)    && !is.null(relevance_low_mean_plots$boxplot))    relevance_low_mean_plots$boxplot    else NULL
+        }
+        
+      } else {
+        if (isTRUE(verbose)) message("[SKIP] performance/relevance plots disabled via plot_controls$performance_relevance")
+      }
       
       # ============================================================
       # SECTION: grouped metrics block (PRESERVED EXACTLY — DO NOT TOUCH)
