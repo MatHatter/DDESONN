@@ -559,12 +559,12 @@ EvaluatePredictionsReport <- function(
             ggplot2::scale_fill_gradient(low = "white", high = "#D73027") +  # #$$$$$$$$$$$$$
             ggplot2::labs(
               title = sprintf(
-                "%s ??? Threshold = %.4f",
+                "%s - Threshold = %.4f",
                 ifelse(grepl("tuned", tolower(mode_label)), "Tuned Accuracy", "Accuracy"),  # #$$$$$$$$$$$$$                                                             # #$$$$$$$$$$$$$
                 as.numeric(threshold_used)                                                # #$$$$$$$$$$$$$
               )
             ) +  # #$$$$$$$$$$$$$
-            # #$$$$$$$$$$$$$
+            ggplot2::scale_y_discrete(limits = rev) +  # #$$$$$$$$$$$$$ FIX: conventional confusion-matrix row order
             .ddesonn_plot_theme()  # #$$$$$$$$$$$$$
           ggplot2::ggsave(heatmap_path, p_conf, width = 5, height = 4, dpi = 300)
           .close_devices()
@@ -659,22 +659,40 @@ EvaluatePredictionsReport <- function(
     }
     
     # PR curve (object always computed; PNG only if plot_pr/viewAllPlots)  # #$$$$$$$$$$$$$
+    # ================================================================
+    # SECTION: Precision???Recall Curve (Binary)                         #$$$$$$$$$$$$$
+    # - FIX: remove "AUC =" from PR title (PR uses AUPRC, not ROC AUC)  #$$$$$$$$$$$$$
+    # - FIX: remove any "???" title artifacts (use clean title)         #$$$$$$$$$$$$$
+    # - PRESERVE: PRROC::pr.curve usage + AUPRC legend + gating         #$$$$$$$$$$$$$
+    # ================================================================
+    
     labels_numeric <- as.numeric(y_true)
     probs_numeric  <- as.numeric(p_pos)
+    
     pr_obj <- tryCatch(
-      PRROC::pr.curve(scores.class0 = probs_numeric[labels_numeric == 1],
-                      scores.class1 = probs_numeric[labels_numeric == 0],
-                      curve = TRUE),
+      PRROC::pr.curve(
+        scores.class0 = probs_numeric[labels_numeric == 1],
+        scores.class1 = probs_numeric[labels_numeric == 0],
+        curve = TRUE
+      ),
       error = function(e) NULL
     )
-    auprc_val <- tryCatch(round(pr_obj$auc.integral, 6), error = function(e) NA_real_)
+    
+    auprc_val <- tryCatch(
+      round(pr_obj$auc.integral, 6),
+      error = function(e) NA_real_
+    )
     
     pr_png <- file.path(plot_dir, "pr_curve.png")
+    
     if ((isTRUE(viewAllPlots) || isTRUE(plot_pr)) && !is.null(pr_obj)) {  # #$$$$$$$$$$$$$
       if (isTRUE(saveEnabled)) {  # #$$$$$$$$$$$$$
         tryCatch({
           grDevices::png(pr_png, width = 800, height = 600)
+          
+          # #$$$$$$$$$$$$$ FIX: clean PR title (no AUC, no ???)
           plot(pr_obj, main = "Precision???Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
+          
           if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
             legend(
               "bottomright",
@@ -682,12 +700,18 @@ EvaluatePredictionsReport <- function(
               bty = "n"
             )
           }
+          
           graphics::grid()
           grDevices::dev.off()
+          
           if (isTRUE(verbose)) cat("[Eval-Binary][PR] PR PNG saved:", pr_png, "\n")
-        }, error = function(e) if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e)))
+        }, error = function(e) {
+          if (isTRUE(verbose)) message("[Eval-Binary][PR] PR plot failed: ", conditionMessage(e))
+          tryCatch(grDevices::dev.off(), error = function(e2) NULL)
+        })
       }  # #$$$$$$$$$$$$$
     }
+    
     
     # Misclassified (PRESERVED)
     binary_preds_fixed <- y_pred_fixed
