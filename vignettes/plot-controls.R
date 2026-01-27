@@ -195,7 +195,7 @@ res_s1 <- tryCatch(
       dropout_rates = list(0.10),
       loss_type = "CrossEntropy",
       validation_metrics = TRUE,
-      num_epochs = 100,
+      num_epochs = 10,
       final_summary_decimals = 6L,
       per_epoch_plots = list(
         saveEnabled = TRUE,
@@ -234,4 +234,57 @@ res_s1 <- tryCatch(
 
 ## ----scenario1_plots, results="asis", echo=FALSE------------------------------
 include_saved_plots(out1, "Scenario 1 — Saved plots")
+
+## ----scenario2, donttest=TRUE-------------------------------------------------
+options(DDESONN_OUTPUT_ROOT = out2)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = out2)
+
+res_s2 <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = FALSE,
+  validation = list(x = x_valid, y = y_valid),
+  test       = list(x = x_test,  y = y_test),
+  training_overrides = list(
+    init_method = "he",
+    optimizer = "adagrad",
+    lr = 0.125,
+    lambda = 0.00028,
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates = list(0.10),
+    loss_type = "CrossEntropy",
+    validation_metrics = TRUE,
+    num_epochs = 10,
+    final_summary_decimals = 6L
+  ),
+  plot_controls = list(
+    per_epoch = list(
+      saveEnabled = TRUE,
+      loss_curve = TRUE,
+      probe_plots = TRUE,
+      verbose = TRUE
+    ),
+    performance_relevance_boxplots = list(
+      performance_high_boxplot = TRUE,
+      performance_low_boxplot  = TRUE,
+      relevance_high_boxplot   = TRUE,
+      relevance_low_boxplot    = TRUE,
+      verbose = TRUE
+    ),
+    evaluate_report = list(
+      accuracy_plot = TRUE,
+      accuracy_plot_mode = "both",
+      plot_roc = TRUE,
+      plot_pr  = TRUE,
+      show_auprc = TRUE,
+      viewAllPlots = FALSE
+    )
+  )
+)
+
+## ----scenario2_plots, results="asis", echo=FALSE------------------------------
+include_saved_plots(out2, "Scenario 2 — Saved plots")
 

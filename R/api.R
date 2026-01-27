@@ -3124,8 +3124,29 @@ ddesonn_run <- function(x,
   # - Auto-enable save_per_epoch if any per-epoch plot flag is TRUE and save_per_epoch not set
   # - Do NOT change Scenario-2 behavior
   # ============================================================
+  per_epoch_cfg <- NULL
   if (!is.null(training_overrides$per_epoch_view_plots)) {                                           #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls$per_epoch <- training_overrides$per_epoch_view_plots          #$$$$$$$$$$$$$
+    per_epoch_cfg <- training_overrides$per_epoch_view_plots                                          #$$$$$$$$$$$$$
+  } else if (!is.null(training_overrides$per_epoch_plots)) {                                         #$$$$$$$$$$$$$
+    per_epoch_cfg <- training_overrides$per_epoch_plots                                               #$$$$$$$$$$$$$
+  }                                                                                                  #$$$$$$$$$$$$$
+  if (!is.null(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
+    if (isTRUE(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
+      per_epoch_cfg <- list(viewAllPlots = TRUE)                                                      #$$$$$$$$$$$$$
+    } else if (isFALSE(per_epoch_cfg)) {                                                             #$$$$$$$$$$$$$
+      per_epoch_cfg <- list(viewAllPlots = FALSE)                                                     #$$$$$$$$$$$$$
+    } else if (is.list(per_epoch_cfg)) {                                                             #$$$$$$$$$$$$$
+      legacy_cfg <- per_epoch_cfg                                                                     #$$$$$$$$$$$$$
+      per_epoch_cfg <- list(                                                                          #$$$$$$$$$$$$$
+        viewAllPlots     = legacy_cfg$viewAllPlots,                                                   #$$$$$$$$$$$$$
+        verbose          = legacy_cfg$verbose,                                                        #$$$$$$$$$$$$$
+        saveEnabled      = legacy_cfg$saveEnabled,                                                    #$$$$$$$$$$$$$
+        accuracy_plot    = legacy_cfg$accuracy_plot %||% legacy_cfg$loss_curve,                       #$$$$$$$$$$$$$
+        saturation_plot  = legacy_cfg$saturation_plot %||% legacy_cfg$probe_plots,                    #$$$$$$$$$$$$$
+        max_weight_plot  = legacy_cfg$max_weight_plot %||% legacy_cfg$probe_plots                      #$$$$$$$$$$$$$
+      )                                                                                               #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls$per_epoch <- per_epoch_cfg      
   }                                                                                                  #$$$$$$$$$$$$$
   
   # ============================================================
@@ -3599,6 +3620,17 @@ ddesonn_run <- function(x,
       as.character(seed_i),
       as.character(i)
     ))
+    
+    if (isTRUE(base_train_overrides$verbose)) {                                                       #$$$$$$$$$$$$$
+      cat("[DBG] per-epoch plot controls (base_train_overrides$plot_controls$per_epoch)\n")           #$$$$$$$$$$$$$
+      utils::str(base_train_overrides$plot_controls$per_epoch)                                        #$$$$$$$$$$$$$
+      cat("save_per_epoch:", base_train_overrides$save_per_epoch, "\n")                               #$$$$$$$$$$$$$
+      pe_cfg <- base_train_overrides$plot_controls$per_epoch                                          #$$$$$$$$$$$$$
+      saveEnabled <- if (is.list(pe_cfg)) pe_cfg$saveEnabled else NULL                                #$$$$$$$$$$$$$
+      cat("saveEnabled:", if (is.null(saveEnabled)) "NULL" else saveEnabled, "\n")                   #$$$$$$$$$$$$$
+      plots_root <- base_train_overrides$output_root %||% output_root                                 #$$$$$$$$$$$$$
+      cat("plots_dir:", ddesonn_plots_dir(plots_root), "\n")                                          #$$$$$$$$$$$$$
+    }
     
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
     

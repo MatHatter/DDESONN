@@ -112,7 +112,7 @@ SONN <- R6::R6Class(
         max_weight_plot = FALSE,  # max weight magnitude
         viewAllPlots = FALSE,
         verbose    = FALSE,
-        plotEnabled = TRUE
+        saveEnabled = TRUE
       )
 
     },
@@ -1703,13 +1703,14 @@ SONN <- R6::R6Class(
             if (isTRUE(v)) TRUE else if (isFALSE(v)) FALSE else default
           }
           
-          #$$$$$$$$$$$$$ FIX: remove plotEnabled master gate + related defaults
+          #$$$$$$$$$$$$$ FIX: remove legacy master gate + related defaults
           defaults <- list(
             accuracy_plot   = FALSE,
             saturation_plot = FALSE,
             max_weight_plot = FALSE,
             viewAllPlots    = FALSE,
-            verbose         = FALSE
+            verbose         = FALSE,
+            saveEnabled     = TRUE
           )
           
           for (nm in names(defaults)) {
@@ -1717,6 +1718,7 @@ SONN <- R6::R6Class(
           }
           
           pe <- self$PerEpochViewPlotsConfig
+          saveEnabled <- isTRUE(pe$saveEnabled)
           
           message(sprintf(
             "SONN per-epoch config → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
@@ -1945,14 +1947,16 @@ SONN <- R6::R6Class(
               
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(
-                filename = out,
-                plot = p,
-                width = 6,
-                height = 4,
-                dpi = 300,
-                device = "png"
-              )
+              if (isTRUE(saveEnabled)) {
+                ggplot2::ggsave(
+                  filename = out,
+                  plot = p,
+                  width = 6,
+                  height = 4,
+                  dpi = 300,
+                  device = "png"
+                )
+              }
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
@@ -1977,14 +1981,16 @@ SONN <- R6::R6Class(
               
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(
-                filename = out,
-                plot = p,
-                width = 6,
-                height = 4,
-                dpi = 300,
-                device = "png"
-              )
+              if (isTRUE(saveEnabled)) {
+                ggplot2::ggsave(
+                  filename = out,
+                  plot = p,
+                  width = 6,
+                  height = 4,
+                  dpi = 300,
+                  device = "png"
+                )
+              }
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
           
@@ -2175,14 +2181,16 @@ SONN <- R6::R6Class(
               
               out <- file.path(plots_dir, fname("max_weight_plot.png"))
               message("📸 save: ", out)
-              ggplot2::ggsave(
-                filename = out,
-                plot = p,
-                width = 6,
-                height = 4,
-                dpi = 300,
-                device = "png"
-              )
+              if (isTRUE(saveEnabled)) {
+                ggplot2::ggsave(
+                  filename = out,
+                  plot = p,
+                  width = 6,
+                  height = 4,
+                  dpi = 300,
+                  device = "png"
+                )
+              }
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
