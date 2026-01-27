@@ -1692,7 +1692,7 @@ SONN <- R6::R6Class(
           ## SONN — Per-epoch plot config
           ## =========================
           
-          #$$$$$$$$$$$$$ FIX: migrate legacy typo field -> canonical PerEpochViewPlotsConfig
+          # migrate legacy typo field -> canonical PerEpochViewPlotsConfig
           if (!is.null(self$PerEpochlViewPlotsConfig) && is.null(self$PerEpochViewPlotsConfig)) {
             self$PerEpochViewPlotsConfig <- self$PerEpochlViewPlotsConfig
           }
@@ -1703,7 +1703,7 @@ SONN <- R6::R6Class(
             if (isTRUE(v)) TRUE else if (isFALSE(v)) FALSE else default
           }
           
-          #$$$$$$$$$$$$$ FIX: remove legacy master gate + related defaults
+          # remove legacy master gate + related defaults
           defaults <- list(
             accuracy_plot   = FALSE,
             saturation_plot = FALSE,
@@ -1718,19 +1718,31 @@ SONN <- R6::R6Class(
           }
           
           pe <- self$PerEpochViewPlotsConfig
+          
+          #local umbrella — if TRUE, force all per-epoch plots TRUE
+          if (isTRUE(pe$viewAllPlots)) {                 
+            pe$accuracy_plot   <- TRUE                  
+            pe$saturation_plot <- TRUE                 
+            pe$max_weight_plot <- TRUE                 
+            self$PerEpochViewPlotsConfig <- pe          #ensure viewPerEpochPlots() sees forced flags
+          }
+          
           saveEnabled <- isTRUE(pe$saveEnabled)
           
-          message(sprintf(
-            "SONN per-epoch config → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
-            pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
-          ))
           
-          message(sprintf(
-            "SONN gate eval → acc=%s, sat=%s, max=%s",
-            self$viewPerEpochPlots("accuracy_plot"),
-            self$viewPerEpochPlots("saturation_plot"),
-            self$viewPerEpochPlots("max_weight_plot")
-          ))
+          if (isTRUE(pe$verbose)) {  #$$$$$$$$$$$$$
+            message(sprintf(
+              "SONN per-epoch config → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
+              pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
+            ))
+            
+            message(sprintf(
+              "SONN gate eval → acc=%s, sat=%s, max=%s",
+              self$viewPerEpochPlots("accuracy_plot"),
+              self$viewPerEpochPlots("saturation_plot"),
+              self$viewPerEpochPlots("max_weight_plot")
+            ))
+          }
           
           ens <- as.integer(if (!is.null(self$ensemble_number)) self$ensemble_number else get0("ensemble_number", 1L))
           mod <- as.integer(if (exists("model_iter_num", inherits = TRUE)) model_iter_num else get0("model_iter_num", 1L))
@@ -2140,6 +2152,10 @@ SONN <- R6::R6Class(
               max(abs(as.numeric(self$weights)), na.rm = TRUE)
             }
           }, error = function(e) NA_real_)
+          
+          # #$$$$$$$$$$$$$ FIX: sanitize non-finite (-Inf/Inf/NaN) to NA so ggplot doesn’t drop everything
+          if (!is.finite(max_weight)) max_weight <- NA_real_  #$$$$$$$$$$$$$
+          
           max_weight_log <- c(max_weight_log, max_weight)
           
           # DF for MaxWeight only
@@ -2147,6 +2163,9 @@ SONN <- R6::R6Class(
             Epoch     = seq_len(length(max_weight_log)),
             MaxWeight = max_weight_log
           )
+          
+          # #$$$$$$$$$$$$$ FIX: optional filtered DF for plotting only (keeps full log intact)
+          df_maxw_plot <- df_maxw[is.finite(df_maxw$MaxWeight), , drop = FALSE]  #$$$$$$$$$$$$$
           
           # ensure output dir + title
           plots_dir <- ddesonn_plots_dir(output_root)
@@ -2168,31 +2187,37 @@ SONN <- R6::R6Class(
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)
               
-              p <- ggplot2::ggplot(df_maxw, ggplot2::aes(x = Epoch, y = MaxWeight)) +
-                ggplot2::geom_line(color = "#E4572E", linewidth = 1) +
-                ggplot2::labs(
-                  title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
-                  y = "Max |Weight|"
-                ) +
-                ggplot2::theme_minimal() +
-                ggplot2::theme(
-                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 10)  #$$$$$$$$$$$$$
-                )
-              
-              out <- file.path(plots_dir, fname("max_weight_plot.png"))
-              message("📸 save: ", out)
-              if (isTRUE(saveEnabled)) {
-                ggplot2::ggsave(
-                  filename = out,
-                  plot = p,
-                  width = 6,
-                  height = 4,
-                  dpi = 300,
-                  device = "png"
-                )
-              }
+              # #$$$$$$$$$$$$$ FIX: if nothing finite, don’t emit an empty grid plot
+              if (nrow(df_maxw_plot) == 0L) {                                  #$$$$$$$$$$$$$
+                message("⚠️ max_weight_plot: no finite MaxWeight values yet; skip")  #$$$$$$$$$$$$$
+              } else {                                                          #$$$$$$$$$$$$$
+                p <- ggplot2::ggplot(df_maxw_plot, ggplot2::aes(x = Epoch, y = MaxWeight)) +  #$$$$$$$$$$$$$
+                  ggplot2::geom_line(color = "#E4572E", linewidth = 1, na.rm = TRUE) +       #$$$$$$$$$$$$$
+                  ggplot2::labs(
+                    title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
+                    y = "Max |Weight|"
+                  ) +
+                  ggplot2::theme_minimal() +
+                  ggplot2::theme(
+                    plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 10)
+                  )
+                
+                out <- file.path(plots_dir, fname("max_weight_plot.png"))
+                message("📸 save: ", out)
+                if (isTRUE(saveEnabled)) {
+                  ggplot2::ggsave(
+                    filename = out,
+                    plot = p,
+                    width = 6,
+                    height = 4,
+                    dpi = 300,
+                    device = "png"
+                  )
+                }
+              }                                                                  #$$$$$$$$$$$$$
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
+          
           
           
           # Update biases
@@ -3770,7 +3795,7 @@ DDESONN <- R6::R6Class(
               plot_pr            = FALSE,
               show_auprc         = TRUE,
               viewAllPlots       = FALSE,
-              verbose            = isTRUE(verbose),
+              verbose            = FALSE,
               saveEnabled        = TRUE,
               export_excel       = FALSE,
               save_rds           = FALSE,
@@ -4166,213 +4191,117 @@ DDESONN <- R6::R6Class(
       # - Scenario 2: plot_controls$performance_relevance
       # - Scenario 1: ddesonn_run bridge maps into plot_controls$performance_relevance
       # ============================================================
-      pr_cfg <- NULL                                                                                          #$$$$$$$$$$$$$
-      if (!is.null(plot_controls) && is.list(plot_controls) &&                                                #$$$$$$$$$$$$$
-          !is.null(plot_controls$performance_relevance) && is.list(plot_controls$performance_relevance)) {    #$$$$$$$$$$$$$
-        pr_cfg <- plot_controls$performance_relevance                                                         #$$$$$$$$$$$$$
-      }                                                                                                       #$$$$$$$$$$$$$
       
-      pr_saveEnabled <- TRUE                                                                                   #$$$$$$$$$$$$$
-      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)       #$$$$$$$$$$$$$
+      pr_cfg <- NULL                                                                                           #$$$$$$$$$$$$$
+      if (!is.null(plot_controls) && is.list(plot_controls) &&                                                 #$$$$$$$$$$$$$
+          !is.null(plot_controls$performance_relevance) && is.list(plot_controls$performance_relevance)) {     #$$$$$$$$$$$$$
+        pr_cfg <- plot_controls$performance_relevance                                                          #$$$$$$$$$$$$$
+      }                                                                                                        #$$$$$$$$$$$$$
       
-      pr_enabled <- isTRUE(pr_saveEnabled)                                                                     #$$$$$$$$$$$$$
+      # ============================================================
+      # SECTION: saveEnabled + viewAllPlots (USER-DRIVEN ONLY)      #$$$$$$$$$$$$$
+      # ============================================================
+      
+      pr_saveEnabled <- FALSE                                                                                   #$$$$$$$$$$$$$
+      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) {
+        pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)
+      }
+      
+      pr_viewAllPlots <- FALSE                                                                                  #$$$$$$$$$$$$$
+      if (!is.null(pr_cfg) && !is.null(pr_cfg$viewAllPlots)) {
+        pr_viewAllPlots <- isTRUE(pr_cfg$viewAllPlots)
+      }
+      
+      # ============================================================
+      # SECTION: plot toggles (defaults preserved)                  #$$$$$$$$$$$$$
+      # ============================================================
       
       pr_perf_high_mean  <- TRUE
       pr_perf_low_mean   <- TRUE
       pr_relev_high_mean <- TRUE
       pr_relev_low_mean  <- TRUE
-      pr_perf_high_box   <- TRUE
-      pr_perf_low_box    <- TRUE
-      pr_relev_high_box  <- TRUE
-      pr_relev_low_box   <- TRUE
       
       if (!is.null(pr_cfg)) {
-        if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean  <- isTRUE(pr_cfg$performance_high_mean_plots)
-        if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean   <- isTRUE(pr_cfg$performance_low_mean_plots)
+        if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean   <- isTRUE(pr_cfg$performance_high_mean_plots)
+        if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean    <- isTRUE(pr_cfg$performance_low_mean_plots)
         if (!is.null(pr_cfg$relevance_high_mean_plots))    pr_relev_high_mean <- isTRUE(pr_cfg$relevance_high_mean_plots)
         if (!is.null(pr_cfg$relevance_low_mean_plots))     pr_relev_low_mean  <- isTRUE(pr_cfg$relevance_low_mean_plots)
-        if (!is.null(pr_cfg$performance_high_boxplot))     pr_perf_high_box   <- isTRUE(pr_cfg$performance_high_boxplot)
-        if (!is.null(pr_cfg$performance_low_boxplot))      pr_perf_low_box    <- isTRUE(pr_cfg$performance_low_boxplot)
-        if (!is.null(pr_cfg$relevance_high_boxplot))       pr_relev_high_box  <- isTRUE(pr_cfg$relevance_high_boxplot)
-        if (!is.null(pr_cfg$relevance_low_boxplot))        pr_relev_low_box   <- isTRUE(pr_cfg$relevance_low_boxplot)
       }
       
       # ============================================================
-      # SECTION: plots + boxplots (gated by performance_relevance)   #$$$$$$$$$$$$$
+      # SECTION: plots (NO enabled gate)                            #$$$$$$$$$$$$$
+      # - Always compute plot objects when toggles are TRUE
+      # - pr_saveEnabled controls disk writes inside plot creators
+      # - pr_viewAllPlots controls print/view inside plot creators
       # ============================================================
+      
       performance_high_mean_plots <- NULL
       performance_low_mean_plots  <- NULL
       relevance_high_mean_plots   <- NULL
       relevance_low_mean_plots    <- NULL
       
-      performance_high_boxplot <- NULL
-      performance_low_boxplot  <- NULL
-      relevance_high_boxplot   <- NULL
-      relevance_low_boxplot    <- NULL
+      # #$$$$$$$$$$$$$ RESTORED: extracted distribution plots (formerly boxplots)
+      performance_high_dist_plots <- NULL                                               #$$$$$$$$$$$$$
+      performance_low_dist_plots  <- NULL                                               #$$$$$$$$$$$$$
+      relevance_high_dist_plots   <- NULL                                               #$$$$$$$$$$$$$
+      relevance_low_dist_plots    <- NULL                                               #$$$$$$$$$$$$$
       
-      # ============================================================
-      # FALLBACK: restore old high/low plot logic locally (vignette-safe)  #$$$$$$$$$$$$$
-      # - Uses self$identify_outliers + self$create_bin_labels (unchanged)
-      # - Produces per-metric ggplot list (same as old behavior)
-      # ============================================================       #$$$$$$$$$$$$$
-      .fallback_update_performance_and_relevance_high <- function(high_mean_df) {  #$$$$$$$$$$$$$
-        high_mean_plots <- list()
-        for (metric in unique(high_mean_df$Metric)) {
-          filtered_high_mean_df <- high_mean_df[
-            !(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0),
-          ]
-          filtered_high_mean_df <- filtered_high_mean_df[
-            !is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value),
-          ]
-          plot_data_high <- filtered_high_mean_df[filtered_high_mean_df$Metric == metric, ]
-          if (nrow(plot_data_high) > 0) {
-            plot_data_high$Outlier <- ifelse(
-              !is.na(plot_data_high$Value) &
-                plot_data_high$Value %in% self$identify_outliers(plot_data_high$Value),
-              plot_data_high$Value,
-              NA
-            )
-            plot_data_high$Model_Name_Outlier <- plot_data_high$Model_Name
-            plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
-            
-            if (grepl("precision", metric, ignore.case = TRUE)) {
-              plot_data_high$Title <- paste0(
-                "Boxplot for ",
-                metric,
-                " (",
-                self$create_bin_labels(plot_data_high$Value),
-                ")"
-              )
-            } else {
-              plot_data_high$Title <- paste("Boxplot for", metric)
-            }
-            
-            high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
-              ggplot2::geom_boxplot() +
-              ggplot2::labs(
-                title = unique(plot_data_high$Title),
-                x = "Metric",
-                y = "Value"
-              ) +
-              ggplot2::theme_minimal()
-            
-            high_mean_plot <- high_mean_plot +
-              ggplot2::geom_text(
-                ggplot2::aes(label = Model_Name_Outlier),
-                na.rm = TRUE,
-                hjust = -0.3
-              )
-            
-            high_mean_plots[[metric]] <- high_mean_plot
-          }
-        }
-        high_mean_plots
-      }  #$$$$$$$$$$$$$
+      # IMPORTANT:
+      # Plot creators already know how to save/print using saveEnabled + viewAllPlots.
+      # We do NOT change their signatures or behavior.
       
-      .fallback_update_performance_and_relevance_low <- function(low_mean_df) {   #$$$$$$$$$$$$$
-        low_mean_plots <- list()
-        for (metric in unique(low_mean_df$Metric)) {
-          filtered_low_mean_df <- low_mean_df[
-            !(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0),
-          ]
-          filtered_low_mean_df <- filtered_low_mean_df[
-            !is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value),
-          ]
-          plot_data_low <- filtered_low_mean_df[filtered_low_mean_df$Metric == metric, ]
-          if (nrow(plot_data_low) > 0) {
-            plot_data_low$Outlier <- ifelse(
-              !is.na(plot_data_low$Value) &
-                plot_data_low$Value %in% self$identify_outliers(plot_data_low$Value),
-              plot_data_low$Value,
-              NA
-            )
-            plot_data_low$Model_Name_Outlier <- plot_data_low$Model_Name
-            plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
-            
-            if (grepl("precision", metric, ignore.case = TRUE)) {
-              plot_data_low$Title <- paste0(
-                "Boxplot for ",
-                metric,
-                " (",
-                self$create_bin_labels(plot_data_low$Value),
-                ")"
-              )
-            } else {
-              plot_data_low$Title <- paste("Boxplot for", metric)
-            }
-            
-            low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
-              ggplot2::geom_boxplot() +
-              ggplot2::labs(
-                title = unique(plot_data_low$Title),
-                x = "Metric",
-                y = "Value"
-              ) +
-              ggplot2::theme_minimal()
-            
-            low_mean_plot <- low_mean_plot +
-              ggplot2::geom_text(
-                ggplot2::aes(label = Model_Name_Outlier),
-                na.rm = TRUE,
-                hjust = -0.3
-              )
-            
-            low_mean_plots[[metric]] <- low_mean_plot
-          }
-        }
-        low_mean_plots
-      }  #$$$$$$$$$$$$$
-      
-      if (isTRUE(pr_enabled)) {
+      if (isTRUE(pr_perf_high_mean)) {
+        performance_high_mean_plots <- self$update_performance_and_relevance_high(
+          performance_high_mean_df,
+          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+        )
         
-        if (isTRUE(pr_perf_high_mean)) {
-          performance_high_mean_plots <- if (is.function(self$update_performance_and_relevance_high)) {           #$$$$$$$$$$$$$
-            self$update_performance_and_relevance_high(performance_high_mean_df)                                  #$$$$$$$$$$$$$
-          } else {                                                                                                #$$$$$$$$$$$$$
-            .fallback_update_performance_and_relevance_high(performance_high_mean_df)                             #$$$$$$$$$$$$$
-          }                                                                                                       #$$$$$$$$$$$$$
+        # #$$$$$$$$$$$$$ RESTORE: extract distribution plot if returned
+        if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$distribution_plot)) {
+          performance_high_dist_plots <- performance_high_mean_plots$distribution_plot  #$$$$$$$$$$$$$
         }
-        
-        if (isTRUE(pr_perf_low_mean)) {
-          performance_low_mean_plots  <- if (is.function(self$update_performance_and_relevance_low)) {            #$$$$$$$$$$$$$
-            self$update_performance_and_relevance_low(performance_low_mean_df)                                    #$$$$$$$$$$$$$
-          } else {                                                                                                #$$$$$$$$$$$$$
-            .fallback_update_performance_and_relevance_low(performance_low_mean_df)                               #$$$$$$$$$$$$$
-          }                                                                                                       #$$$$$$$$$$$$$
-        }
-        
-        if (isTRUE(pr_relev_high_mean)) {
-          relevance_high_mean_plots   <- if (is.function(self$update_performance_and_relevance_high)) {           #$$$$$$$$$$$$$
-            self$update_performance_and_relevance_high(relevance_high_mean_df)                                    #$$$$$$$$$$$$$
-          } else {                                                                                                #$$$$$$$$$$$$$
-            .fallback_update_performance_and_relevance_high(relevance_high_mean_df)                               #$$$$$$$$$$$$$
-          }                                                                                                       #$$$$$$$$$$$$$
-        }
-        
-        if (isTRUE(pr_relev_low_mean)) {
-          relevance_low_mean_plots    <- if (is.function(self$update_performance_and_relevance_low)) {            #$$$$$$$$$$$$$
-            self$update_performance_and_relevance_low(relevance_low_mean_df)                                      #$$$$$$$$$$$$$
-          } else {                                                                                                #$$$$$$$$$$$$$
-            .fallback_update_performance_and_relevance_low(relevance_low_mean_df)                                 #$$$$$$$$$$$$$
-          }                                                                                                       #$$$$$$$$$$$$$
-        }
-        
-        if (isTRUE(pr_perf_high_box)) {
-          performance_high_boxplot <- if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$boxplot)) performance_high_mean_plots$boxplot else NULL
-        }
-        if (isTRUE(pr_perf_low_box)) {
-          performance_low_boxplot  <- if (is.list(performance_low_mean_plots)  && !is.null(performance_low_mean_plots$boxplot))  performance_low_mean_plots$boxplot  else NULL
-        }
-        if (isTRUE(pr_relev_high_box)) {
-          relevance_high_boxplot   <- if (is.list(relevance_high_mean_plots)   && !is.null(relevance_high_mean_plots$boxplot))   relevance_high_mean_plots$boxplot   else NULL
-        }
-        if (isTRUE(pr_relev_low_box)) {
-          relevance_low_boxplot    <- if (is.list(relevance_low_mean_plots)    && !is.null(relevance_low_mean_plots$boxplot))    relevance_low_mean_plots$boxplot    else NULL
-        }
-        
-      } else {
-        if (isTRUE(verbose)) message("[SKIP] performance/relevance plots disabled via plot_controls$performance_relevance")
       }
+      
+      if (isTRUE(pr_perf_low_mean)) {
+        performance_low_mean_plots <- self$update_performance_and_relevance_low(
+          performance_low_mean_df,
+          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+        )
+        
+        if (is.list(performance_low_mean_plots) && !is.null(performance_low_mean_plots$distribution_plot)) {
+          performance_low_dist_plots <- performance_low_mean_plots$distribution_plot    #$$$$$$$$$$$$$
+        }
+      }
+      
+      if (isTRUE(pr_relev_high_mean)) {
+        relevance_high_mean_plots <- self$update_performance_and_relevance_high(
+          relevance_high_mean_df,
+          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+        )
+        
+        if (is.list(relevance_high_mean_plots) && !is.null(relevance_high_mean_plots$distribution_plot)) {
+          relevance_high_dist_plots <- relevance_high_mean_plots$distribution_plot       #$$$$$$$$$$$$$
+        }
+      }
+      
+      if (isTRUE(pr_relev_low_mean)) {
+        relevance_low_mean_plots <- self$update_performance_and_relevance_low(
+          relevance_low_mean_df,
+          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+        )
+        
+        if (is.list(relevance_low_mean_plots) && !is.null(relevance_low_mean_plots$distribution_plot)) {
+          relevance_low_dist_plots <- relevance_low_mean_plots$distribution_plot         #$$$$$$$$$$$$$
+        }
+      }
+      
+      
+      
+      
       
       # ============================================================
       # SECTION: grouped metrics block (PRESERVED EXACTLY — DO NOT TOUCH)
@@ -4504,11 +4433,6 @@ DDESONN <- R6::R6Class(
         relevance_high_mean_plots   = relevance_high_mean_plots,
         relevance_low_mean_plots    = relevance_low_mean_plots,
         
-        performance_high_boxplot = performance_high_boxplot,
-        performance_low_boxplot  = performance_low_boxplot,
-        relevance_high_boxplot   = relevance_high_boxplot,
-        relevance_low_boxplot    = relevance_low_boxplot,
-        
         performance_group_summary = perf_group_summary,
         relevance_group_summary   = relev_group_summary,
         performance_long_df       = perf_df,
@@ -4559,34 +4483,66 @@ DDESONN <- R6::R6Class(
                "100%+")  # Add a catch-all label for unexpected values
       }))
     },
-    update_performance_and_relevance_high = function(high_mean_df) {
-
+    update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots) {  #$$$$$$$$$$$$$
+      
+      .wrap_title <- function(x, width = 60) {
+        paste(strwrap(x, width = width), collapse = "\n")
+      }
+      
       # ============================================================
       # Init
       # ============================================================
       high_mean_plots <- list()
-
+      
+      # ============================================================
+      # OPTIONAL: resolve output dir for saves (only used if saveEnabled)
+      # ============================================================
+      .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
+        x <- as.character(x)
+        x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
+        x <- gsub("_+", "_", x)
+        x <- gsub("^_|_$", "", x)
+        if (!nzchar(x)) "metric" else x
+      }                                                                            #$$$$$$$$$$$$$
+      
+      .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+        f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
+        base_dir <- NULL
+        if (is.function(f)) {
+          base_dir <- tryCatch(f(), error = function(e) NULL)
+        }
+        if (is.null(base_dir) || !nzchar(base_dir)) {
+          base_dir <- file.path(tempdir(), "DDESONN_plots")
+        }
+        dir <- file.path(base_dir, "performance_relevance")
+        if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+        dir
+      }                                                                            #$$$$$$$$$$$$$
+      
+      pr_plot_dir <- NULL                                                          #$$$$$$$$$$$$$
+      if (isTRUE(saveEnabled)) pr_plot_dir <- .resolve_pr_plot_dir()               #$$$$$$$$$$$$$
+      
       # ============================================================
       # Per-metric loop
       # ============================================================
       for (metric in unique(high_mean_df$Metric)) {
-
+        
         # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
         filtered_high_mean_df <- high_mean_df[
           !(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0),
         ]
-
+        
         # Filter out rows where the Value is NA or infinite
         filtered_high_mean_df <- filtered_high_mean_df[
           !is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value),
         ]
-
+        
         # Subset the data for the current metric
         plot_data_high <- filtered_high_mean_df[filtered_high_mean_df$Metric == metric, ]
-
+        
         # Check if plot_data is not empty
         if (nrow(plot_data_high) > 0) {
-
+          
           # ============================================================
           # Build plot_data + outlier labels
           # ============================================================
@@ -4599,10 +4555,10 @@ DDESONN <- R6::R6Class(
           
           # Add columns for outliers
           plot_data_high$Model_Name_Outlier <- plot_data_high$Model_Name
-
+          
           # Set the RowName to NA where there are no outliers
           plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
-
+          
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
             plot_data_high$Title <- paste0(
@@ -4615,14 +4571,14 @@ DDESONN <- R6::R6Class(
           } else {
             plot_data_high$Title <- paste("Boxplot for", metric)
           }
-
+          
           # ============================================================
           # Plot
           # ============================================================
           high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = unique(plot_data_high$Title),
+              title = .wrap_title(unique(plot_data_high$Title), width = 60),
               x = "Metric",
               y = "Value"
             ) +
@@ -4630,7 +4586,7 @@ DDESONN <- R6::R6Class(
             ggplot2::theme(                                                    #$$$$$$$$$$$$$
               plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
             )
-
+          
           # Add text labels for the outliers
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
@@ -4638,37 +4594,89 @@ DDESONN <- R6::R6Class(
               na.rm = TRUE,
               hjust = -0.3
             )
-
+          
           # Store the plot in the list
           high_mean_plots[[metric]] <- high_mean_plot
-
+          
+          # ============================================================
+          # VIEW (user-driven via viewAllPlots)                          #$$$$$$$$$$$$$
+          # ============================================================
+          if (isTRUE(viewAllPlots)) {                                        #$$$$$$$$$$$$$
+            tryCatch(print(high_mean_plot), error = function(e) NULL)        #$$$$$$$$$$$$$
+          }                                                                  #$$$$$$$$$$$$$
+          
+          # ============================================================
+          # SAVE (user-driven via saveEnabled)
+          # ============================================================
+          if (isTRUE(saveEnabled) && !is.null(pr_plot_dir)) {
+            fn <- paste0("performance_relevance_high_", .safe_filename(metric), ".png")
+            fp <- file.path(pr_plot_dir, fn)
+            tryCatch(
+              ggplot2::ggsave(filename = fp, plot = high_mean_plot, width = 10, height = 6, dpi = 300),
+              error = function(e) NULL
+            )
+          }
+          
         }
       }
-
+      
       return(high_mean_plots)
     },
-    update_performance_and_relevance_low = function(low_mean_df) {
+    update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots) {     #$$$$$$$$$$$$$
+      
+      .wrap_title <- function(x, width = 60) {
+        paste(strwrap(x, width = width), collapse = "\n")
+      }
+      
       low_mean_plots <- list()
-  
+      
+      # ============================================================
+      # OPTIONAL: resolve output dir for saves (only used if saveEnabled)
+      # ============================================================
+      .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
+        x <- as.character(x)
+        x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
+        x <- gsub("_+", "_", x)
+        x <- gsub("^_|_$", "", x)
+        if (!nzchar(x)) "metric" else x
+      }                                                                            #$$$$$$$$$$$$$
+      
+      .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+        f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
+        base_dir <- NULL
+        if (is.function(f)) {
+          base_dir <- tryCatch(f(), error = function(e) NULL)
+        }
+        if (is.null(base_dir) || !nzchar(base_dir)) {
+          base_dir <- file.path(tempdir(), "DDESONN_plots")
+        }
+        dir <- file.path(base_dir, "performance_relevance")
+        if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+        dir
+      }                                                                            #$$$$$$$$$$$$$
+      
+      pr_plot_dir <- NULL                                                          #$$$$$$$$$$$$$
+      if (isTRUE(saveEnabled)) pr_plot_dir <- .resolve_pr_plot_dir()               #$$$$$$$$$$$$$
+      
       # Loop over each unique metric
       for (metric in unique(low_mean_df$Metric)) {
-    
+        
         # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
         filtered_low_mean_df <- low_mean_df[
           !(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0),
         ]
-    
+        
         # Filter out rows where the Value is NA or infinite
         filtered_low_mean_df <- filtered_low_mean_df[
           !is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value),
         ]
-    
+        
         # Subset the data for the current metric
         plot_data_low <- filtered_low_mean_df[filtered_low_mean_df$Metric == metric, ]
-    
+        
         # Check if plot_data is not empty
         if (nrow(plot_data_low) > 0) {
-      
+          
           # Add a column to identify outliers
           plot_data_low$Outlier <- ifelse(
             !is.na(plot_data_low$Value) &
@@ -4679,10 +4687,10 @@ DDESONN <- R6::R6Class(
           
           # Add columns for outliers
           plot_data_low$Model_Name_Outlier <- plot_data_low$Model_Name
-      
+          
           # Set the RowName to NA where there are no outliers
           plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
-      
+          
           # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
             plot_data_low$Title <- paste0(
@@ -4695,12 +4703,12 @@ DDESONN <- R6::R6Class(
           } else {
             plot_data_low$Title <- paste("Boxplot for", metric)
           }
-      
+          
           # Create box plot
           low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = unique(plot_data_low$Title),
+              title = .wrap_title(unique(plot_data_low$Title), width = 60),
               x = "Metric",
               y = "Value"
             ) +
@@ -4708,7 +4716,7 @@ DDESONN <- R6::R6Class(
             ggplot2::theme(                                                    #$$$$$$$$$$$$$
               plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
             )
-      
+          
           # Add text labels for the outliers
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
@@ -4716,13 +4724,32 @@ DDESONN <- R6::R6Class(
               na.rm = TRUE,
               hjust = -0.3
             )
-      
+          
           # Store the plot in the list
           low_mean_plots[[metric]] <- low_mean_plot
-      
+          
+          # ============================================================
+          # VIEW (user-driven via viewAllPlots)                          #$$$$$$$$$$$$$
+          # ============================================================
+          if (isTRUE(viewAllPlots)) {                                        #$$$$$$$$$$$$$
+            tryCatch(print(low_mean_plot), error = function(e) NULL)         #$$$$$$$$$$$$$
+          }                                                                  #$$$$$$$$$$$$$
+          
+          # ============================================================
+          # SAVE (user-driven via saveEnabled)
+          # ============================================================
+          if (isTRUE(saveEnabled) && !is.null(pr_plot_dir)) {
+            fn <- paste0("performance_relevance_low_", .safe_filename(metric), ".png")
+            fp <- file.path(pr_plot_dir, fn)
+            tryCatch(
+              ggplot2::ggsave(filename = fp, plot = low_mean_plot, width = 10, height = 6, dpi = 300),
+              error = function(e) NULL
+            )
+          }
+          
         }
       }
-  
+      
       return(low_mean_plots)
     },
     store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {

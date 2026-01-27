@@ -67,7 +67,7 @@ if (CLASSIFICATION_MODE == "binary") {
   custom_scale <- 0.05
   ## ========= Target toggle =========
   PREDICT_NEXT_DAY <- TRUE   # TRUE = predict close[t+1]; FALSE = predict close[t]
-
+  
   ## =========================
   ## Regression target handling
   ## =========================
@@ -1230,14 +1230,14 @@ if(train) {
             viewAllPlots    = isTRUE(viewAllPlots),
             verbose         = isTRUE(verbose)
           )
-          run_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewBoxPlotsConfig <- list( #$$$$$$$$$$$$$
-            performance_high_boxplot = isTRUE(performance_high_mean_plots),                     #$$$$$$$$$$$$$
-            performance_low_boxplot  = isTRUE(performance_low_mean_plots),                      #$$$$$$$$$$$$$
-            relevance_high_boxplot   = isTRUE(relevance_high_mean_plots),                       #$$$$$$$$$$$$$
-            relevance_low_boxplot    = isTRUE(relevance_low_mean_plots),                        #$$$$$$$$$$$$$
-            viewAllPlots             = isTRUE(viewAllPlots),                                    #$$$$$$$$$$$$$
-            verbose                  = isTRUE(verbose)                                          #$$$$$$$$$$$$$
-          )                                                                                     #$$$$$$$$$$$$$
+          run_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list(
+            performance_high_mean_plots = isTRUE(performance_high_mean_plots),
+            performance_low_mean_plots  = isTRUE(performance_low_mean_plots),
+            relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),
+            relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),
+            viewAllPlots                = isTRUE(viewAllPlots),
+            verbose                     = isTRUE(verbose)
+          )
         }
       }
       
@@ -2128,14 +2128,14 @@ if(train) {
             viewAllPlots    = isTRUE(viewAllPlots),
             verbose         = isTRUE(verbose)
           )
-          main_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewBoxPlotsConfig <- list( #$$$$$$$$$$$$$
-            performance_high_boxplot = isTRUE(performance_high_mean_plots),                      #$$$$$$$$$$$$$
-            performance_low_boxplot  = isTRUE(performance_low_mean_plots),                       #$$$$$$$$$$$$$
-            relevance_high_boxplot   = isTRUE(relevance_high_mean_plots),                        #$$$$$$$$$$$$$
-            relevance_low_boxplot    = isTRUE(relevance_low_mean_plots),                         #$$$$$$$$$$$$$
-            viewAllPlots             = isTRUE(viewAllPlots),                                     #$$$$$$$$$$$$$
-            verbose                  = isTRUE(verbose)                                           #$$$$$$$$$$$$$
-          )                                                                                      #$$$$$$$$$$$$$
+          main_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list(
+            performance_high_mean_plots = isTRUE(performance_high_mean_plots),
+            performance_low_mean_plots  = isTRUE(performance_low_mean_plots),
+            relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),
+            relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),
+            viewAllPlots                = isTRUE(viewAllPlots),
+            verbose                     = isTRUE(verbose)
+          )
         }
       }
       
@@ -2479,14 +2479,14 @@ if(train) {
                 viewAllPlots    = isTRUE(viewAllPlots),
                 verbose         = isTRUE(verbose)
               )
-              temp_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewBoxPlotsConfig <- list( #$$$$$$$$$$$$$
-                performance_high_boxplot = isTRUE(performance_high_mean_plots),                     #$$$$$$$$$$$$$
-                performance_low_boxplot  = isTRUE(performance_low_mean_plots),                      #$$$$$$$$$$$$$
-                relevance_high_boxplot   = isTRUE(relevance_high_mean_plots),                       #$$$$$$$$$$$$$
-                relevance_low_boxplot    = isTRUE(relevance_low_mean_plots),                        #$$$$$$$$$$$$$
-                viewAllPlots             = isTRUE(viewAllPlots),                                    #$$$$$$$$$$$$$
-                verbose                  = isTRUE(verbose)                                          #$$$$$$$$$$$$$
-              )                                                                                      #$$$$$$$$$$$$$
+              temp_model$ensemble[[m]]$FinalUpdatePerformanceandRelevanceViewPlotsConfig <- list(
+                performance_high_mean_plots = isTRUE(performance_high_mean_plots),
+                performance_low_mean_plots  = isTRUE(performance_low_mean_plots),
+                relevance_high_mean_plots   = isTRUE(relevance_high_mean_plots),
+                relevance_low_mean_plots    = isTRUE(relevance_low_mean_plots),
+                viewAllPlots                = isTRUE(viewAllPlots),
+                verbose                     = isTRUE(verbose)
+              )
             }
           }
           
@@ -3023,6 +3023,7 @@ if(train) {
   
   
 }
+
 
 
 

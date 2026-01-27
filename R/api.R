@@ -3153,14 +3153,10 @@ ddesonn_run <- function(x,
   # #$$$$$$$$$$$$$ FIX: Scenario-1 FINAL performance/relevance plots rename
   # - New Scenario-1 key: final_update_performance_relevance_plots
   # - Canonical key used by engine: plot_controls$performance_relevance
-  # - Backward compat: if old ..._boxplots exists, accept it too
   # ============================================================
   if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       #$$$$$$$$$$$$$
     base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
       training_overrides$final_update_performance_relevance_plots                                    #$$$$$$$$$$$$$
-  } else if (!is.null(training_overrides$final_update_performance_relevance_boxplots)) {             #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
-      training_overrides$final_update_performance_relevance_boxplots                                  #$$$$$$$$$$$$$
   }                                                                                                  #$$$$$$$$$$$$$
   
   if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  #$$$$$$$$$$$$$

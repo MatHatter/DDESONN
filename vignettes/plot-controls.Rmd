@@ -26,13 +26,15 @@ vignette: >
 #     accuracy_plot = TRUE
 #     accuracy_plot_mode = "both"
 #
-# This vignette shows that wiring explicitly.
+# #$$$$$$$$$$$$$ IMPORTANT (performance/relevance):
+# - This vignette uses the *current* naming shown in your branch:
+#     plot_controls$performance_relevance
+#   and Scenario 1 uses the same key so the bridge can map it.
+# - No "boxplot" naming anywhere in config.                   #$$$$$$$$$$$$$
 # ============================================================
 
 # ============================================================
 # #$$$$$$$$$$$$$ FIX: VIGNETTE PARSE-SAFE opts_chunk$set
-# - Single-line call avoids knitr/rmarkdown edge cases that can throw:
-#   "argument N is empty" during vignette rebuild.
 # ============================================================
 knitr::opts_chunk$set(
   fig.path = "figure-html/",   # keep it short
@@ -41,7 +43,16 @@ knitr::opts_chunk$set(
   message = TRUE
 )
 
-knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = FALSE, fig.width = 8, fig.height = 5, fig.align = "center", out.width = "900px", fig.path = "plot-controls_files/figure-html/")  #$$$$$$$$$$$$$
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = TRUE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 5,
+  fig.align = "center",
+  out.width = "900px",
+  fig.path = "plot-controls_files/figure-html/"
+)  #$$$$$$$$$$$$$
 
 # ============================================================
 # #$$$$$$$$$$$$$ FIX: VIGNETTE-SAFE LOAD (no devtools::load_all)
@@ -74,11 +85,7 @@ Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
 
 # ============================================================
 # Helper: include_saved_plots()
-#
-# #$$$$$$$$$$$$$ FIX (BULLETPROOF FOR html_vignette):
-# - Use knitr::image_uri() to embed PNGs as data: URIs.
-# - This bypasses pandoc/resource-embed quirks and absolute/relative path issues.
-# - Also avoids "prints paths but no images" failure modes.
+# - Uses knitr::image_uri() to embed PNGs as data: URIs
 # ============================================================
 include_saved_plots <- function(output_root, header) {
 
@@ -100,16 +107,13 @@ include_saved_plots <- function(output_root, header) {
     ))
   }
 
-  # Emit markdown header + inline <img> tags with embedded data URIs.
   out <- character()
   out <- c(out, paste0("\n\n## ", header, "\n\n"))
 
   for (p in pngs) {
     uri <- knitr::image_uri(p)
-    # Width matches out.width; keep it simple and consistent.
     out <- c(out, paste0('<img src="', uri, '" style="width:900px; max-width:100%; height:auto;" />\n\n'))  #$$$$$$$$$$$$$
-    # ---- spacing between plots ----                                                   #$$$$$$$$$$$$$
-    out <- c(out, "<br><br>\n\n")                                                        #$$$$$$$$$$$$$
+    out <- c(out, "<br><br>\n\n")                                                                            #$$$$$$$$$$$$$
   }
 
   knitr::asis_output(paste(out, collapse = ""))
@@ -133,7 +137,6 @@ To emit both:
 ## Data setup (small + deterministic)
 
 ```{r data}
-
 set.seed(111)
 
 ext_dir <- system.file("extdata", package = "DDESONN")
@@ -231,29 +234,38 @@ res_s1 <- tryCatch(
       dropout_rates = list(0.10),
       loss_type = "CrossEntropy",
       validation_metrics = TRUE,
-      num_epochs = 10,
+      num_epochs = 360,
       final_summary_decimals = 6L,
+
       per_epoch_plots = list(
         saveEnabled = TRUE,
         loss_curve = TRUE,
         probe_plots = TRUE,
         verbose = TRUE
       ),
-      final_update_performance_relevance_boxplots = list(
-        performance_high_boxplot = TRUE,
-        performance_low_boxplot  = TRUE,
-        relevance_high_boxplot   = TRUE,
-        relevance_low_boxplot    = TRUE,
-        verbose = TRUE
-      ),
+
+      # ============================================================
+      # #$$$$$$$$$$$$$ SECTION: performance_relevance (Scenario 1)
+      # - This key is bridged into plot_controls$performance_relevance
+      # ============================================================
+      performance_relevance = list(                                                     #$$$$$$$$$$$$$
+        saveEnabled = TRUE,                                                             #$$$$$$$$$$$$$
+        viewAllPlots = FALSE,                                                           #$$$$$$$$$$$$$
+        performance_high_mean_plots = TRUE,                                              #$$$$$$$$$$$$$
+        performance_low_mean_plots  = TRUE,                                              #$$$$$$$$$$$$$
+        relevance_high_mean_plots   = TRUE,                                              #$$$$$$$$$$$$$
+        relevance_low_mean_plots    = TRUE,                                              #$$$$$$$$$$$$$
+        verbose = TRUE                                                                  #$$$$$$$$$$$$$
+      ),                                                                                #$$$$$$$$$$$$$
+
       evaluate_predictions_report_plots = list(
-        verbose = TRUE,
         accuracy_plot = TRUE,
         accuracy_plot_mode = "both",
         plot_roc = TRUE,
         plot_pr  = TRUE,
         show_auprc = TRUE,
-        viewAllPlots = FALSE
+        viewAllPlots = FALSE,
+        verbose = TRUE
       )
     )
   ),
@@ -266,7 +278,6 @@ res_s1 <- tryCatch(
     stop(e)
   }
 )
-
 ```
 
 ```{r scenario1_plots, results="asis", echo=FALSE}
@@ -299,7 +310,7 @@ res_s2 <- ddesonn_run(
     dropout_rates = list(0.10),
     loss_type = "CrossEntropy",
     validation_metrics = TRUE,
-    num_epochs = 10,
+    num_epochs = 1,
     final_summary_decimals = 6L
   ),
   plot_controls = list(
@@ -309,20 +320,28 @@ res_s2 <- ddesonn_run(
       probe_plots = TRUE,
       verbose = TRUE
     ),
-    performance_relevance_boxplots = list(
-      performance_high_boxplot = TRUE,
-      performance_low_boxplot  = TRUE,
-      relevance_high_boxplot   = TRUE,
-      relevance_low_boxplot    = TRUE,
-      verbose = TRUE
-    ),
+
+    # ============================================================
+    # #$$$$$$$$$$$$$ SECTION: performance_relevance (Scenario 2)
+    # ============================================================
+    performance_relevance = list(                                                       #$$$$$$$$$$$$$
+      saveEnabled = TRUE,                                                               #$$$$$$$$$$$$$
+      viewAllPlots = FALSE,                                                             #$$$$$$$$$$$$$
+      performance_high_mean_plots = TRUE,                                                #$$$$$$$$$$$$$
+      performance_low_mean_plots  = TRUE,                                                #$$$$$$$$$$$$$
+      relevance_high_mean_plots   = TRUE,                                                #$$$$$$$$$$$$$
+      relevance_low_mean_plots    = TRUE,                                                #$$$$$$$$$$$$$
+      verbose = TRUE                                                                    #$$$$$$$$$$$$$
+    ),                                                                                  #$$$$$$$$$$$$$
+
     evaluate_report = list(
       accuracy_plot = TRUE,
       accuracy_plot_mode = "both",
       plot_roc = TRUE,
       plot_pr  = TRUE,
       show_auprc = TRUE,
-      viewAllPlots = FALSE
+      viewAllPlots = FALSE,
+      verbose = TRUE
     )
   )
 )

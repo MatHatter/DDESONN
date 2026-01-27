@@ -691,7 +691,7 @@ EvaluatePredictionsReport <- function(
           grDevices::png(pr_png, width = 800, height = 600)
           
           # #$$$$$$$$$$$$$ FIX: clean PR title (no AUC, no ???)
-          plot(pr_obj, main = "Precision???Recall Curve", lwd = 2, adj = 0.5)  # #$$$$$$$$$$$$$
+          plot(pr_obj, main = "Precision-Recall Curve", lwd = 2, adj = 0.5, auc.main = FALSE)  #$$$$$$$$$$$$$
           
           if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
             legend(
