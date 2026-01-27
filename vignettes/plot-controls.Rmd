@@ -107,7 +107,9 @@ include_saved_plots <- function(output_root, header) {
   for (p in pngs) {
     uri <- knitr::image_uri(p)
     # Width matches out.width; keep it simple and consistent.
-    out <- c(out, paste0('<img src="', uri, '" style="width:900px; max-width:100%; height:auto;" />\n\n'))
+    out <- c(out, paste0('<img src="', uri, '" style="width:900px; max-width:100%; height:auto;" />\n\n'))  #$$$$$$$$$$$$$
+    # ---- spacing between plots ----                                                   #$$$$$$$$$$$$$
+    out <- c(out, "<br><br>\n\n")                                                        #$$$$$$$$$$$$$
   }
 
   knitr::asis_output(paste(out, collapse = ""))

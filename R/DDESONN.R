@@ -1942,7 +1942,7 @@ SONN <- R6::R6Class(
                 ) +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(
-                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 10)  #$$$$$$$$$$$$$
                 )
               
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
@@ -1976,7 +1976,7 @@ SONN <- R6::R6Class(
                 ) +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(
-                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 10)  #$$$$$$$$$$$$$
                 )
               
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
@@ -2176,7 +2176,7 @@ SONN <- R6::R6Class(
                 ) +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(
-                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+                  plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 10)  #$$$$$$$$$$$$$
                 )
               
               out <- file.path(plots_dir, fname("max_weight_plot.png"))
@@ -2831,7 +2831,7 @@ SONN <- R6::R6Class(
         plot(losses, type = "l",
              main = paste("Loss Over Epochs for DDESONN", ensemble_number,
                           "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
-             xlab = "Epoch", ylab = "Loss", col = "turquoise", lwd = 2.0)
+             xlab = "Epoch", ylab = "Loss", col = "turquoise", lwd = 2.0, adj = 0.5)  #$$$$$$$$$$$$$
         
         points(optimal_epoch, losses[optimal_epoch], col = "limegreen", pch = 16)
         offset <- max(losses) * 0.06
@@ -3113,7 +3113,7 @@ DDESONN <- R6::R6Class(
     viewEvaluatePredictionsReportPlots=function(name){
       cfg<-self$EvaluatePredictionsReportPlotsConfig
       if(!is.list(cfg))return(FALSE)
-      on_all<-isTRUE(cfg$viewAllPlots)||isTRUE(cfg$verbose)
+      on_all<-isTRUE(cfg$viewAllPlots)  #$$$$$$$$$$$$$
       val<-cfg[[name]]
       flag<-isTRUE(val)||(is.logical(val)&&length(val)==1L&&!is.na(val)&&val)
       on_all||flag
@@ -3743,21 +3743,63 @@ DDESONN <- R6::R6Class(
           if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
             # ============================================================
-            # EvaluatePredictionsReport config source (PRESERVED STYLE)     #$$$$$$$$$$$$$
-            # - Scenario 2: plot_controls$evaluate_report
-            # - Scenario 1: self$EvaluatePredictionsReportPlotsConfig
+            # EvaluatePredictionsReport config normalization (Scenario 2)   #$$$$$$$$$$$$$
+            # - Canonical config object with defaults + legacy aliases      #$$$$$$$$$$$$$
+            # - No conflicting fallbacks or overwrites later                #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
-            eval_cfg <- if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&
-                            is.list(self$EvaluatePredictionsReportPlotsConfig)) {
+            .coalesce_eval <- function(x, y) if (is.null(x) || !length(x)) y else x  #$$$$$$$$$$$$$
+            
+            eval_cfg_base <- if (!is.null(self$EvaluatePredictionsReportPlotsConfig) &&
+                                 is.list(self$EvaluatePredictionsReportPlotsConfig)) {
               self$EvaluatePredictionsReportPlotsConfig
             } else {
               list()
             }
             
-            if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
-                !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
-              eval_cfg <- plot_controls$evaluate_report
+            eval_cfg_raw <- if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
+                                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
+              plot_controls$evaluate_report
+            } else {
+              NULL
             }
+            
+            eval_cfg_defaults <- list(  #$$$$$$$$$$$$$
+              accuracy_plot      = FALSE,
+              accuracy_plot_mode = "both",
+              plot_roc           = FALSE,
+              plot_pr            = FALSE,
+              show_auprc         = TRUE,
+              viewAllPlots       = FALSE,
+              verbose            = isTRUE(verbose),
+              saveEnabled        = TRUE,
+              export_excel       = FALSE,
+              save_rds           = FALSE,
+              rds_name           = "Rdata_predictions.rds",
+              output_root        = NULL
+            )
+            
+            eval_cfg <- utils::modifyList(eval_cfg_defaults, eval_cfg_base, keep.null = TRUE)            #$$$$$$$$$$$$$
+            if (is.list(eval_cfg_raw)) {                                                                 #$$$$$$$$$$$$$
+              raw_accuracy_plot <- .coalesce_eval(eval_cfg_raw$accuracy_plot, eval_cfg_raw$accuracy_plots)  #$$$$$$$$$$$$$
+              raw_plot_roc <- .coalesce_eval(eval_cfg_raw$plot_roc, eval_cfg_raw$roc_curve)                  #$$$$$$$$$$$$$
+              raw_plot_pr  <- .coalesce_eval(eval_cfg_raw$plot_pr,  eval_cfg_raw$pr_curve)                   #$$$$$$$$$$$$$
+              eval_cfg_mapped <- list(                                                                   #$$$$$$$$$$$$$
+                accuracy_plot      = .coalesce_eval(raw_accuracy_plot, eval_cfg$accuracy_plot),
+                accuracy_plot_mode = .coalesce_eval(eval_cfg_raw$accuracy_plot_mode, eval_cfg$accuracy_plot_mode),
+                plot_roc           = .coalesce_eval(raw_plot_roc, eval_cfg$plot_roc),
+                plot_pr            = .coalesce_eval(raw_plot_pr, eval_cfg$plot_pr),
+                show_auprc         = .coalesce_eval(eval_cfg_raw$show_auprc, eval_cfg$show_auprc),
+                viewAllPlots       = .coalesce_eval(eval_cfg_raw$viewAllPlots, eval_cfg$viewAllPlots),
+                verbose            = .coalesce_eval(eval_cfg_raw$verbose, eval_cfg$verbose),
+                saveEnabled        = .coalesce_eval(eval_cfg_raw$saveEnabled, eval_cfg$saveEnabled),
+                export_excel       = .coalesce_eval(eval_cfg_raw$export_excel, eval_cfg$export_excel),
+                save_rds           = .coalesce_eval(eval_cfg_raw$save_rds, eval_cfg$save_rds),
+                rds_name           = .coalesce_eval(eval_cfg_raw$rds_name, eval_cfg$rds_name),
+                output_root        = .coalesce_eval(eval_cfg_raw$output_root, eval_cfg$output_root)
+              )
+              eval_cfg <- utils::modifyList(eval_cfg, eval_cfg_mapped, keep.null = TRUE)                 #$$$$$$$$$$$$$
+            }
+            if (isTRUE(verbose)) eval_cfg$verbose <- TRUE                                                #$$$$$$$$$$$$$
             
             viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                                                #$$$$$$$$$$$$$
             verbose_eval <- isTRUE(eval_cfg$verbose)                                                     #$$$$$$$$$$$$$
@@ -3780,16 +3822,16 @@ DDESONN <- R6::R6Class(
               SONN                      = self$ensemble[[i]],
               
               viewAllPlots              = viewAllPlots,                                                  #$$$$$$$$$$$$$
-              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot %||% eval_cfg$accuracy_plots),   #$$$$$$$$$$$$$
-              accuracy_plot_mode        = (eval_cfg$accuracy_plot_mode %||% "both"),                      #$$$$$$$$$$$$$
-              plot_roc                  = isTRUE(eval_cfg$plot_roc %||% eval_cfg$roc_curve),             #$$$$$$$$$$$$$
-              plot_pr                   = isTRUE(eval_cfg$plot_pr  %||% eval_cfg$pr_curve),              #$$$$$$$$$$$$$
-              show_auprc                = isTRUE(eval_cfg$show_auprc),                                   #$$$$$$$$$$$$$
+              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot),                                #$$$$$$$$$$$$$
+              accuracy_plot_mode        = eval_cfg$accuracy_plot_mode,                                    #$$$$$$$$$$$$$
+              plot_roc                  = isTRUE(eval_cfg$plot_roc),                                      #$$$$$$$$$$$$$
+              plot_pr                   = isTRUE(eval_cfg$plot_pr),                                       #$$$$$$$$$$$$$
+              show_auprc                = isTRUE(eval_cfg$show_auprc),                                    #$$$$$$$$$$$$$
               
               saveEnabled               = isTRUE(eval_cfg$saveEnabled),                                   #$$$$$$$$$$$$$
               export_excel              = isTRUE(eval_cfg$export_excel),
               save_rds                  = isTRUE(eval_cfg$save_rds),
-              rds_name                  = (eval_cfg$rds_name %||% "Rdata_predictions.rds")                #$$$$$$$$$$$$$
+              rds_name                  = eval_cfg$rds_name                                               #$$$$$$$$$$$$$
             )
             
             if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root             #$$$$$$$$$$$$$

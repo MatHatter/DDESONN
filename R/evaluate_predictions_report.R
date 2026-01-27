@@ -206,7 +206,7 @@ EvaluatePredictionsReport <- function(
         grDevices::png(file.path(plot_dir, "pred_vs_error_scatter.png"), width = 800, height = 600)
         plot(pred_vec[seq_len(max_points)], err_vec[seq_len(max_points)],
              main = "Prediction vs. Error", xlab = "Prediction", ylab = "Error",
-             col = "steelblue", pch = 16)
+             col = "steelblue", pch = 16, adj = 0.5)  #$$$$$$$$$$$$$
         abline(h = 0, col = "gray", lty = 2)
         grDevices::dev.off()
         if (isTRUE(verbose)) cat("[Eval] pred_vs_error_scatter saved.\n")
@@ -691,7 +691,7 @@ EvaluatePredictionsReport <- function(
           grDevices::png(pr_png, width = 800, height = 600)
           
           # #$$$$$$$$$$$$$ FIX: clean PR title (no AUC, no ???)
-          plot(pr_obj, main = "Precision???Recall Curve", lwd = 2)  # #$$$$$$$$$$$$$
+          plot(pr_obj, main = "Precision???Recall Curve", lwd = 2, adj = 0.5)  # #$$$$$$$$$$$$$
           
           if (isTRUE(show_auprc) && is.finite(auprc_val)) {  # #$$$$$$$$$$$$$
             legend(

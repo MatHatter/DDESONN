@@ -769,7 +769,7 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
       plot(
         losses, type = "l",
         main = paste("Loss over noise SD for SONN", model_iter_num),
-        xlab = "Noise step", ylab = "MSE", lwd = 2
+        xlab = "Noise step", ylab = "MSE", lwd = 2, adj = 0.5  #$$$$$$$$$$$$$
       )
     }
   }
