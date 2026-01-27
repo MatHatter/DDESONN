@@ -770,7 +770,8 @@ EvaluatePredictionsReport <- function(
       F1_Score  = f1_fixed,
       TP = TP, TN = TN, FP = FP, FN = FN,
       AUC = auc_val, AUPRC = auprc_val,
-      Threshold = 0.5
+      Threshold = 0.5,               
+      Threshold_Tuned = best_thr
     )
     
     misclassified <- as.data.frame(misclassified)

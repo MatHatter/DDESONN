@@ -1644,10 +1644,6 @@ SONN <- R6::R6Class(
             best_epoch_train_loss <- epoch
           }
           
-          # Log metrics (single source of truth)
-          train_accuracy_log <- c(train_accuracy_log, train_accuracy)
-          train_loss_log     <- c(train_loss_log,     train_loss)
-          
           # Track best training accuracy only when defined (classification)
           if (!is.na(train_accuracy) && (is.na(best_train_acc) || train_accuracy > best_train_acc)) {
             best_train_acc   <- train_accuracy
@@ -1686,7 +1682,6 @@ SONN <- R6::R6Class(
           } else {
             max_weight <- NA
           }
-          max_weight_log <- c(max_weight_log, max_weight)
           
           ## =========================
           ## SONN — Per-epoch plot config
@@ -1929,21 +1924,27 @@ SONN <- R6::R6Class(
           }
           
           pad <- function(x, n){ length(x) <- n; x }
-          nA  <- max(length(train_accuracy_log), length(train_loss_log),
-                     length(mean_output_log), length(sd_output_log))
-          df_accsat <- data.frame(
-            Epoch      = seq_len(nA),
-            Accuracy   = pad(train_accuracy_log, nA),
-            Loss       = pad(train_loss_log, nA),
-            MeanOutput = pad(mean_output_log, nA),
-            StdOutput  = pad(sd_output_log, nA)
-          )
+          
+          # #$$$$$$$$$$$$$ FIX: do NOT let longer acc/loss logs inflate saturation epoch axis
+          n_acc <- max(length(train_accuracy_log), length(train_loss_log))                    #$$$$$$$$$$$$$
+          df_acc <- data.frame(                                                               #$$$$$$$$$$$$$
+            Epoch    = seq_len(n_acc),                                                        #$$$$$$$$$$$$$
+            Accuracy = pad(train_accuracy_log, n_acc),                                         #$$$$$$$$$$$$$
+            Loss     = pad(train_loss_log, n_acc)                                              #$$$$$$$$$$$$$
+          )                                                                                   #$$$$$$$$$$$$$
+          
+          n_sat <- max(length(mean_output_log), length(sd_output_log))                         #$$$$$$$$$$$$$
+          df_sat <- data.frame(                                                               #$$$$$$$$$$$$$
+            Epoch      = seq_len(n_sat),                                                      #$$$$$$$$$$$$$
+            MeanOutput = pad(mean_output_log, n_sat),                                         #$$$$$$$$$$$$$
+            StdOutput  = pad(sd_output_log, n_sat)                                            #$$$$$$$$$$$$$
+          )                                                                                   #$$$$$$$$$$$$$
           
           if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)
               
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
+              p <- ggplot2::ggplot(df_acc, ggplot2::aes(x = Epoch)) +                          #$$$$$$$$$$$$$
                 ggplot2::geom_line(ggplot2::aes(y = Accuracy),
                                    color = "#3A7CA5", linewidth = 1) +
                 ggplot2::geom_line(ggplot2::aes(y = Loss),
@@ -1977,7 +1978,7 @@ SONN <- R6::R6Class(
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)
               
-              p <- ggplot2::ggplot(df_accsat, ggplot2::aes(x = Epoch)) +
+              p <- ggplot2::ggplot(df_sat, ggplot2::aes(x = Epoch)) +                          #$$$$$$$$$$$$$
                 ggplot2::geom_line(ggplot2::aes(y = MeanOutput),
                                    color = "#9A348E", linewidth = 1) +
                 ggplot2::geom_line(ggplot2::aes(y = StdOutput),
@@ -2005,7 +2006,6 @@ SONN <- R6::R6Class(
               }
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
-          
           
           # 5) Regularization (ensure reg_loss_total exists)
           reg_loss_total <- 0
@@ -2143,6 +2143,15 @@ SONN <- R6::R6Class(
           # =========================
           # BLOCK B — Weights (Max Weight + Plot)
           # =========================
+          
+          #$$$$$$$$$$$$$ FIX: REMOVE per-epoch reset (max_weight_log already initialized before loop)
+          #$$$$$$$$$$$$$ This caused silent history loss across runs
+          # if (exists("epoch", inherits = TRUE) && isTRUE(epoch == 1L)) {
+          #   if (exists("max_weight_log", inherits = TRUE)) {
+          #     max_weight_log <- numeric(0)
+          #   }
+          # }
+          #$$$$$$$$$$$$$
           
           # post-update max|W| and log
           max_weight <- tryCatch({
@@ -2609,9 +2618,11 @@ SONN <- R6::R6Class(
                 stop("Unknown CLASSIFICATION_MODE.")
               }
               
-              # Log metrics (training)
-              train_accuracy_log <- c(train_accuracy_log, tr_acc)
-              train_loss_log     <- c(train_loss_log,     tr_loss)
+              #$$$$$$$$$$$$$ FIX: REMOVE duplicate training log appends
+              #$$$$$$$$$$$$$ Canonical train logging happens in BLOCK A only
+              # train_accuracy_log <- c(train_accuracy_log, tr_acc)   #$$$$$$$$$$$$$
+              # train_loss_log     <- c(train_loss_log,     tr_loss)  #$$$$$$$$$$$$$
+              
               
               # Track "best" by training accuracy when validation is disabled (classification only)
               if (!identical(CLASSIFICATION_MODE, "regression")) {
@@ -2827,9 +2838,38 @@ SONN <- R6::R6Class(
         }
       }
       
-      optimal_epoch <- which(diff(losses) > 0)[1]
-      loss_increase_flag <- any(losses > losses[1])
-      lossesatoptimalepoch <- if (is.na(optimal_epoch)) tail(losses, 1) else losses[optimal_epoch]
+      # ============================================================
+      # SECTION: Optimal epoch selection (BEST VALIDATION)           #$$$$$$$$$$$$$
+      # - Classification: best validation accuracy epoch
+      # - Regression: best validation loss epoch
+      # - Fallback: best training epoch if validation not available
+      # ============================================================
+      
+      if (identical(CLASSIFICATION_MODE, "regression")) {                                              #$$$$$$$$$$$$$
+        if (isTRUE(validation_metrics) && is.finite(best_val_loss) && !is.na(best_val_epoch_loss)) {   #$$$$$$$$$$$$$
+          optimal_epoch <- best_val_epoch_loss                                                         #$$$$$$$$$$$$$
+        } else if (is.finite(best_train_loss) && !is.na(best_epoch_train_loss)) {                      #$$$$$$$$$$$$$
+          optimal_epoch <- best_epoch_train_loss                                                       #$$$$$$$$$$$$$
+        } else {                                                                                        #$$$$$$$$$$$$$
+          optimal_epoch <- NA_integer_                                                                  #$$$$$$$$$$$$$
+        }                                                                                               #$$$$$$$$$$$$$
+      } else {                                                                                          #$$$$$$$$$$$$$
+        if (isTRUE(validation_metrics) && !is.na(best_val_epoch) && is.finite(best_val_acc)) {         #$$$$$$$$$$$$$
+          optimal_epoch <- best_val_epoch                                                              #$$$$$$$$$$$$$
+        } else if (!is.na(best_epoch_train) && is.finite(best_train_acc)) {                            #$$$$$$$$$$$$$
+          optimal_epoch <- best_epoch_train                                                            #$$$$$$$$$$$$$
+        } else {                                                                                        #$$$$$$$$$$$$$
+          optimal_epoch <- NA_integer_                                                                 #$$$$$$$$$$$$$
+        }                                                                                               #$$$$$$$$$$$$$
+      }                                                                                                 #$$$$$$$$$$$$$
+      
+      # Keep these if you still want them (but now they refer to the chosen optimal_epoch)              #$$$$$$$$$$$$$
+      loss_increase_flag <- NA                                                                         #$$$$$$$$$$$$$
+      lossesatoptimalepoch <- NA                                                                       #$$$$$$$$$$$$$
+      if (!is.na(optimal_epoch) && length(losses) >= optimal_epoch && is.finite(losses[optimal_epoch])) {  #$$$$$$$$$$$$$
+        lossesatoptimalepoch <- losses[optimal_epoch]                                                  #$$$$$$$$$$$$$
+      }                                                                                                 #$$$$$$$$$$$$$
+      
       
       # --- Robust loss plot saver (base R) ---
       if (all(is.finite(losses))) {                                     #$$$$$$$$$$$$$ FIX
@@ -4200,17 +4240,18 @@ DDESONN <- R6::R6Class(
       
       # ============================================================
       # SECTION: saveEnabled + viewAllPlots (USER-DRIVEN ONLY)      #$$$$$$$$$$$$$
+      # - Defaults FALSE (no disk writes / no print unless user enables)
       # ============================================================
       
       pr_saveEnabled <- FALSE                                                                                   #$$$$$$$$$$$$$
-      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) {
-        pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)
-      }
+      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) {                                                   #$$$$$$$$$$$$$
+        pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)                                                            #$$$$$$$$$$$$$
+      }                                                                                                         #$$$$$$$$$$$$$
       
       pr_viewAllPlots <- FALSE                                                                                  #$$$$$$$$$$$$$
-      if (!is.null(pr_cfg) && !is.null(pr_cfg$viewAllPlots)) {
-        pr_viewAllPlots <- isTRUE(pr_cfg$viewAllPlots)
-      }
+      if (!is.null(pr_cfg) && !is.null(pr_cfg$viewAllPlots)) {                                                  #$$$$$$$$$$$$$
+        pr_viewAllPlots <- isTRUE(pr_cfg$viewAllPlots)                                                          #$$$$$$$$$$$$$
+      }                                                                                                         #$$$$$$$$$$$$$
       
       # ============================================================
       # SECTION: plot toggles (defaults preserved)                  #$$$$$$$$$$$$$
@@ -4233,6 +4274,7 @@ DDESONN <- R6::R6Class(
       # - Always compute plot objects when toggles are TRUE
       # - pr_saveEnabled controls disk writes inside plot creators
       # - pr_viewAllPlots controls print/view inside plot creators
+      # - boxplot extraction REMOVED entirely
       # ============================================================
       
       performance_high_mean_plots <- NULL
@@ -4240,65 +4282,40 @@ DDESONN <- R6::R6Class(
       relevance_high_mean_plots   <- NULL
       relevance_low_mean_plots    <- NULL
       
-      # #$$$$$$$$$$$$$ RESTORED: extracted distribution plots (formerly boxplots)
-      performance_high_dist_plots <- NULL                                               #$$$$$$$$$$$$$
-      performance_low_dist_plots  <- NULL                                               #$$$$$$$$$$$$$
-      relevance_high_dist_plots   <- NULL                                               #$$$$$$$$$$$$$
-      relevance_low_dist_plots    <- NULL                                               #$$$$$$$$$$$$$
-      
       # IMPORTANT:
-      # Plot creators already know how to save/print using saveEnabled + viewAllPlots.
-      # We do NOT change their signatures or behavior.
-      
+      # This assumes your plot creator functions accept `saveEnabled` + `viewAllPlots`.
+      # If they do not, do NOT add args here; instead gate ggsave/print inside those functions.
       if (isTRUE(pr_perf_high_mean)) {
         performance_high_mean_plots <- self$update_performance_and_relevance_high(
           performance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
         )
-        
-        # #$$$$$$$$$$$$$ RESTORE: extract distribution plot if returned
-        if (is.list(performance_high_mean_plots) && !is.null(performance_high_mean_plots$distribution_plot)) {
-          performance_high_dist_plots <- performance_high_mean_plots$distribution_plot  #$$$$$$$$$$$$$
-        }
       }
       
       if (isTRUE(pr_perf_low_mean)) {
-        performance_low_mean_plots <- self$update_performance_and_relevance_low(
+        performance_low_mean_plots  <- self$update_performance_and_relevance_low(
           performance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
         )
-        
-        if (is.list(performance_low_mean_plots) && !is.null(performance_low_mean_plots$distribution_plot)) {
-          performance_low_dist_plots <- performance_low_mean_plots$distribution_plot    #$$$$$$$$$$$$$
-        }
       }
       
       if (isTRUE(pr_relev_high_mean)) {
-        relevance_high_mean_plots <- self$update_performance_and_relevance_high(
+        relevance_high_mean_plots   <- self$update_performance_and_relevance_high(
           relevance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
         )
-        
-        if (is.list(relevance_high_mean_plots) && !is.null(relevance_high_mean_plots$distribution_plot)) {
-          relevance_high_dist_plots <- relevance_high_mean_plots$distribution_plot       #$$$$$$$$$$$$$
-        }
       }
       
       if (isTRUE(pr_relev_low_mean)) {
-        relevance_low_mean_plots <- self$update_performance_and_relevance_low(
+        relevance_low_mean_plots    <- self$update_performance_and_relevance_low(
           relevance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                         #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                         #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
         )
-        
-        if (is.list(relevance_low_mean_plots) && !is.null(relevance_low_mean_plots$distribution_plot)) {
-          relevance_low_dist_plots <- relevance_low_mean_plots$distribution_plot         #$$$$$$$$$$$$$
-        }
       }
-      
       
       
       
@@ -4509,7 +4526,11 @@ DDESONN <- R6::R6Class(
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          base_dir <- tryCatch(f(), error = function(e) NULL)
+          # #$$$$$$$$$$$$$ FIX: respect current output_root so Scenario 1/2 save where vignette scans
+          base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
+          if (is.null(base_dir) || !nzchar(base_dir)) {
+            base_dir <- tryCatch(f(), error = function(e) NULL)                                     #$$$$$$$$$$$$$
+          }
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           base_dir <- file.path(tempdir(), "DDESONN_plots")
@@ -4583,8 +4604,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::theme_minimal() +
-            ggplot2::theme(                                                    #$$$$$$$$$$$$$
-              plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
+            ggplot2::theme(
+              plot.title = ggplot2::element_text(hjust = 0.5)
             )
           
           # Add text labels for the outliers
@@ -4599,11 +4620,11 @@ DDESONN <- R6::R6Class(
           high_mean_plots[[metric]] <- high_mean_plot
           
           # ============================================================
-          # VIEW (user-driven via viewAllPlots)                          #$$$$$$$$$$$$$
+          # VIEW (user-driven via viewAllPlots)
           # ============================================================
-          if (isTRUE(viewAllPlots)) {                                        #$$$$$$$$$$$$$
-            tryCatch(print(high_mean_plot), error = function(e) NULL)        #$$$$$$$$$$$$$
-          }                                                                  #$$$$$$$$$$$$$
+          if (isTRUE(viewAllPlots)) {
+            tryCatch(print(high_mean_plot), error = function(e) NULL)
+          }
           
           # ============================================================
           # SAVE (user-driven via saveEnabled)
@@ -4645,7 +4666,11 @@ DDESONN <- R6::R6Class(
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          base_dir <- tryCatch(f(), error = function(e) NULL)
+          # #$$$$$$$$$$$$$ FIX: respect current output_root (Scenario 1/2 save where vignette scans)
+          base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
+          if (is.null(base_dir) || !nzchar(base_dir)) {
+            base_dir <- tryCatch(f(), error = function(e) NULL)                                    #$$$$$$$$$$$$$
+          }
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           base_dir <- file.path(tempdir(), "DDESONN_plots")
