@@ -1,4 +1,17 @@
 # ============================================================
+# FILE: .Rbuildignore
+# FULL FIXED — block vignette output folders that break Windows build copy
+#
+# PRESERVED:
+# - Your entire existing ignore set + structure
+#
+# FIX:
+# - Ignore knitr fig/cache roots that you set in vignette opts (figure-html/, cache/)   #$$$$$$$$$$$$$
+# - Ignore DDESONN vignette-run artifact roots (DDESONN_plots_*)                        #$$$$$$$$$$$$$
+# - Slightly safer tarball pattern                                                     #$$$$$$$$$$$$$
+# ============================================================
+
+# ============================================================
 # CRAN / R CMD build ignores
 # ============================================================
 
@@ -27,7 +40,7 @@
 ^dist$
 ^build$
 ^tarballs$
-^\.tar\.gz$
+^.*\.tar\.gz$                                                             #$$$$$$$$$$$$$ FIX: safer tarball ignore
 
 # OS junk
 ^Thumbs\.db$
@@ -44,5 +57,14 @@
 ^vignettes/.*\.utf8\.md$
 ^vignettes/.*_files$
 ^vignettes/.*_cache$
+
+^vignettes/figure-html$                                                    #$$$$$$$$$$$$$ FIX: knitr fig.path root
+^vignettes/figure-html/.*$                                                 #$$$$$$$$$$$$$ FIX
+^vignettes/cache$                                                          #$$$$$$$$$$$$$ FIX: knitr cache.path root
+^vignettes/cache/.*$                                                       #$$$$$$$$$$$$$ FIX
+
+^vignettes/DDESONN_plots_.*$                                               #$$$$$$$$$$$$$ FIX: your scenario outputs under vignettes
+^vignettes/DDESONN_plots_.*/.*$                                            #$$$$$$$$$$$$$ FIX
+
 ^doc$
 ^Meta$

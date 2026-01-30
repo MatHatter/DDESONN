@@ -1,0 +1,210 @@
+---
+title: "DDESONN — Plot Controls — Scenario 1 — Ensemble Runs: Scenario C & D"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{DDESONN — Plot Controls — Scenario 1 — Ensemble Runs: Scenario C & D}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+# ============================================================
+# FILE: vignettes/plot-controls_scenario1_ensemble-runs_scenarioC-D.Rmd
+# FULL FIXED — Scenario 1 — Ensemble Runs: Scenario C & D
+# ============================================================
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = TRUE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 5,
+  fig.align = "center",
+  out.width = "900px",
+  fig.path = "plot-controls_scenario1_ensemble-runs_scenarioC-D_files/figure-html/",
+  cache.path = "cache/"
+)
+
+if (!requireNamespace("DDESONN", quietly = TRUE)) {
+  stop("DDESONN must be installed to build this vignette.", call. = FALSE)
+}
+
+library(DDESONN)
+
+.fig_root <- knitr::opts_chunk$get("fig.path")
+if (!nzchar(.fig_root)) .fig_root <- "figure/"
+
+# ============================================================
+# #$$$$$$$$$$$$$ FIX: DO NOT put DDESONN outputs under vignette _files/
+# - Windows build copy fails due to very deep paths under *_files/figure-html/...
+# - Use a SHORT tempdir() root for artifacts/plots instead.
+# ============================================================
+.dd_out_root <- file.path(tempdir(), "DDESONN_vignette_plot_controls_s1_ensemble_CD")  #$$$$$$$$$$$$$
+outC <- file.path(.dd_out_root, "DDESONN_plots_scenarioC_s1")                         #$$$$$$$$$$$$$
+outD <- file.path(.dd_out_root, "DDESONN_plots_scenarioD_s1")                         #$$$$$$$$$$$$$
+
+dir.create(outC, recursive = TRUE, showWarnings = FALSE)
+dir.create(outD, recursive = TRUE, showWarnings = FALSE)
+
+include_saved_plots <- function(output_root, header) {
+  plot_dir <- ddesonn_plots_dir(output_root)
+  if (!dir.exists(plot_dir)) {
+    return(knitr::asis_output(paste0("\n\nNo plots at: ", plot_dir, "\n\n")))
+  }
+  pngs <- list.files(plot_dir, pattern = "\\.png$", recursive = TRUE, full.names = TRUE)
+  if (!length(pngs)) {
+    return(knitr::asis_output(paste0("\n\nNo PNGs under: ", plot_dir, "\n\n")))
+  }
+  out <- c(paste0("\n\n## ", header, "\n\n"))
+  for (p in sort(pngs)) {
+    uri <- knitr::image_uri(p)
+    out <- c(out, paste0('<img src="', uri,
+                         '" style="width:900px; max-width:100%; height:auto;" />\n\n'))
+  }
+  knitr::asis_output(paste(out, collapse = ""))
+}
+
+# =======================
+# DATA SPLIT
+# =======================
+set.seed(111)
+
+ext_dir <- system.file("extdata", package = "DDESONN")
+hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+df <- read.csv(hf_path)
+
+y_all <- matrix(as.integer(df$DEATH_EVENT), ncol = 1)
+x_all <- as.matrix(df[, setdiff(names(df), "DEATH_EVENT")])
+storage.mode(x_all) <- "double"
+
+n <- nrow(x_all)
+idx <- sample.int(n)
+
+n_train <- floor(0.70 * n)
+n_valid <- floor(0.15 * n)
+
+i_tr <- idx[1:n_train]
+i_va <- idx[(n_train + 1):(n_train + n_valid)]
+i_te <- idx[(n_train + n_valid + 1):n]
+
+x_train <- x_all[i_tr, , drop = FALSE]
+y_train <- y_all[i_tr, , drop = FALSE]
+x_valid <- x_all[i_va, , drop = FALSE]
+y_valid <- y_all[i_va, , drop = FALSE]
+x_test  <- x_all[i_te, , drop = FALSE]
+y_test  <- y_all[i_te, , drop = FALSE]
+
+```
+
+## Plot Controls: Scenario 1 — Ensemble Runs — Scenario C
+
+```{r scenarioC_s1, results="asis", echo=FALSE}
+options(DDESONN_OUTPUT_ROOT = outC)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = outC)
+
+res_scenarioC <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  hidden_sizes = c(64, 32),
+
+  # ----------------------------------------------------------
+  # ENSEMBLE CONFIG
+  # ----------------------------------------------------------
+  do_ensemble   = TRUE,
+  num_networks = 2L,
+  seeds        = 1:1,
+
+  validation = list(x = x_valid, y = y_valid),
+  test       = list(x = x_test,  y = y_test),
+
+  # ----------------------------------------------------------
+  # TRAINING OVERRIDES (Scenario 1 knobs)
+  # ----------------------------------------------------------
+  training_overrides = list(
+    init_method = "he",
+    optimizer   = "adagrad",
+    lr          = 0.125,
+    lambda      = 0.00028,
+
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates        = list(0.10),
+    loss_type            = "CrossEntropy",
+
+    validation_metrics = TRUE,
+    num_epochs          = 3,
+    final_summary_decimals = 6L,
+
+    # ========================================================
+    # SECTION: per_epoch_plots
+    # ========================================================
+    per_epoch_plots = list(
+      saveEnabled = TRUE,
+      loss_curve  = TRUE,
+      probe_plots = TRUE,
+      verbose     = TRUE
+    ),
+
+    # ========================================================
+    # SECTION: performance_relevance (Scenario 1)
+    # - bridged internally to plot_controls$performance_relevance
+    # ========================================================
+    performance_relevance = list(
+      saveEnabled = TRUE,
+      viewAllPlots = FALSE,
+
+      performance_high_mean_plots = TRUE,
+      performance_low_mean_plots  = TRUE,
+      relevance_high_mean_plots   = TRUE,
+      relevance_low_mean_plots    = TRUE,
+
+      verbose = TRUE
+    ),
+
+    # ========================================================
+    # SECTION: evaluate_predictions_report_plots
+    # ========================================================
+    evaluate_predictions_report_plots = list(
+      accuracy_plot      = TRUE,
+      accuracy_plot_mode = "both",
+      plot_roc           = TRUE,
+      plot_pr            = TRUE,
+      show_auprc         = TRUE,
+      viewAllPlots       = FALSE,
+      verbose            = TRUE
+    )
+  )
+)
+
+# ============================================================
+# QUICK SANITY OUTPUT
+# ============================================================
+cat("\n==============================\n")
+cat("Scenario C — Ensemble (NO TEMP)\n")
+cat("==============================\n")
+
+if (!is.null(res_scenarioC$predictions$aggregate)) {
+  cat("Aggregate prediction preview:\n")
+  print(head(res_scenarioC$predictions$aggregate))
+}
+
+# ============================================================
+# INCLUDE SAVED PLOTS (interactive / RStudio use)
+# ============================================================
+if (exists("include_saved_plots")) {
+  include_saved_plots(outC, "Scenario C — Ensemble (2 models, no TEMP)")
+}
+```
+
+## Plot Controls: Scenario 1 — Ensemble Runs — Scenario D
+
+```{r scenarioD_s1, results="asis", echo=FALSE}
+# options(DDESONN_OUTPUT_ROOT = outD)
+# Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
+
+# res_scenarioD_s1
+# include_saved_plots(outD, "Scenario D — Scenario 1 (Ensemble)")
+```

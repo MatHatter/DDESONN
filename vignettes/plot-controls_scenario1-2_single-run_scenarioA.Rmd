@@ -1,19 +1,20 @@
 ---
-title: "DDESONN — Plot Controls (Scenario 1 & 2)"
+title: "DDESONN — Plot Controls — Scenario 1 & 2 — Single Run: Scenario A"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{Plot Controls (Scenario 1 & 2)}
+  %\VignetteIndexEntry{DDESONN — Plot Controls — Scenario 1 & 2 — Single Run: Scenario A}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
+
 ```{r setup, include=FALSE}
 # ============================================================
-# FILE: vignettes/plot-controls.Rmd
-# FULL WORKING — VIGNETTE SHOWS PLOTS (Scenario 1 & 2)
+# FILE: vignettes/plot-controls_scenario1-2_single-run_scenarioA.Rmd
+# FULL WORKING — DDESONN Plot Controls — Scenario 1 & 2 — Single Run: Scenario A   #$$$$$$$$$$$$$
 #
 # GOAL:
 # - Demonstrate TWO supported user-facing interfaces for plot control:
@@ -36,23 +37,19 @@ vignette: >
 # ============================================================
 # #$$$$$$$$$$$$$ FIX: VIGNETTE PARSE-SAFE opts_chunk$set
 # ============================================================
-knitr::opts_chunk$set(
-  fig.path = "figure-html/",   # keep it short
-  cache.path = "cache/",       # keep it short
-  warning = TRUE,
-  message = TRUE
-)
-
-knitr::opts_chunk$set(
-  echo = TRUE,
-  message = TRUE,
-  warning = FALSE,
-  fig.width = 8,
-  fig.height = 5,
-  fig.align = "center",
-  out.width = "900px",
-  fig.path = "plot-controls_files/figure-html/"
-)  #$$$$$$$$$$$$$
+# knitr options (SINGLE consolidated set)
+# ============================================================
+knitr::opts_chunk$set(                                                              
+  echo = TRUE,                                                                      
+  message = TRUE,                                                                   
+  warning = FALSE,                                                                  
+  fig.width = 8,                                                                    
+  fig.height = 5,                                                                   
+  fig.align = "center",                                                             
+  out.width = "900px",                                                              
+  fig.path = "plot-controls_scenario1-2_single-run_scenarioA_files/figure-html/",   
+  cache.path = "cache/"                                                             
+)                                                                                   
 
 # ============================================================
 # #$$$$$$$$$$$$$ FIX: VIGNETTE-SAFE LOAD (no devtools::load_all)
@@ -60,7 +57,7 @@ knitr::opts_chunk$set(
 if (!requireNamespace("DDESONN", quietly = TRUE)) {
   stop(
     "DDESONN must be installed to build this vignette. ",
-    "Run: devtools::install(dependencies = TRUE) then devtools::build_vignettes().",
+    "Run: install.packages('DDESONN') (or your install flow) then rebuild vignettes.",
     call. = FALSE
   )
 }
@@ -73,8 +70,8 @@ library(DDESONN)
 # ============================================================
 .fig_root <- knitr::opts_chunk$get("fig.path")
 if (!nzchar(.fig_root)) .fig_root <- "figure/"
-out1 <- file.path(.fig_root, "DDESONN_plots_s1")
-out2 <- file.path(.fig_root, "DDESONN_plots_s2")
+out1 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s1")                               #$$$$$$$$$$$$$
+out2 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s2")                               #$$$$$$$$$$$$$
 
 dir.create(out1, recursive = TRUE, showWarnings = FALSE)
 dir.create(out2, recursive = TRUE, showWarnings = FALSE)
@@ -93,7 +90,7 @@ include_saved_plots <- function(output_root, header) {
 
   if (!dir.exists(plot_dir)) {
     return(knitr::asis_output(
-      paste0("\n\n[plot-controls] plots dir does not exist: ", plot_dir, "\n\n")
+      paste0("\n\n[plot-controls:scenarioA] plots dir does not exist: ", plot_dir, "\n\n")  #$$$$$$$$$$$$$
     ))
   }
 
@@ -103,7 +100,7 @@ include_saved_plots <- function(output_root, header) {
 
   if (!length(pngs)) {
     return(knitr::asis_output(
-      paste0("\n\n[plot-controls] no PNGs found under: ", plot_dir, "\n\n")
+      paste0("\n\n[plot-controls:scenarioA] no PNGs found under: ", plot_dir, "\n\n")       #$$$$$$$$$$$$$
     ))
   }
 
@@ -118,25 +115,9 @@ include_saved_plots <- function(output_root, header) {
 
   knitr::asis_output(paste(out, collapse = ""))
 }
-```
 
 ## What “both heatmaps” means (binary EvaluatePredictionsReport)
-
-When `classification_mode = "binary"`, your evaluation report can emit:
-
-- **Fixed threshold** confusion matrix heatmap (`_fixed`)
-- **Tuned threshold** confusion matrix heatmap (`_tuned`)
-
-To emit both:
-
-- `accuracy_plot = TRUE`
-- `accuracy_plot_mode = "both"`
-
----
-
-## Data setup (small + deterministic)
-
-```{r data}
+## (unchanged text section)
 set.seed(111)
 
 ext_dir <- system.file("extdata", package = "DDESONN")
@@ -205,17 +186,15 @@ x_valid <- x_valid_s / mx
 x_test  <- x_test_s  / mx
 
 cat(sprintf("[split] train=%d valid=%d test=%d\n", nrow(x_train), nrow(x_valid), nrow(x_test)))
+
+
 ```
 
----
-
-## Scenario 1 — Independent “training_overrides” knobs
-
-```{r scenario1, donttest=TRUE}
+```{r scenarioA_s1_plots, results="asis", echo=FALSE}
 options(DDESONN_OUTPUT_ROOT = out1)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = out1)
 
-res_s1 <- tryCatch(
+res_scenarioA_s1 <- tryCatch(
   ddesonn_run(
     x = x_train,
     y = y_train,
@@ -245,18 +224,18 @@ res_s1 <- tryCatch(
       ),
 
       # ============================================================
-      # #$$$$$$$$$$$$$ SECTION: performance_relevance (Scenario 1)
+      # SECTION: performance_relevance (Scenario 1)
       # - This key is bridged into plot_controls$performance_relevance
       # ============================================================
-      performance_relevance = list(                                                     #$$$$$$$$$$$$$
-        saveEnabled = TRUE,                                                             #$$$$$$$$$$$$$
-        viewAllPlots = FALSE,                                                           #$$$$$$$$$$$$$
-        performance_high_mean_plots = TRUE,                                              #$$$$$$$$$$$$$
-        performance_low_mean_plots  = TRUE,                                              #$$$$$$$$$$$$$
-        relevance_high_mean_plots   = TRUE,                                              #$$$$$$$$$$$$$
-        relevance_low_mean_plots    = TRUE,                                              #$$$$$$$$$$$$$
-        verbose = TRUE                                                                  #$$$$$$$$$$$$$
-      ),                                                                                #$$$$$$$$$$$$$
+      performance_relevance = list(
+        saveEnabled = TRUE,
+        viewAllPlots = FALSE,
+        performance_high_mean_plots = TRUE,
+        performance_low_mean_plots  = TRUE,
+        relevance_high_mean_plots   = TRUE,
+        relevance_low_mean_plots    = TRUE,
+        verbose = TRUE
+      ),
 
       evaluate_predictions_report_plots = list(
         accuracy_plot = TRUE,
@@ -270,29 +249,27 @@ res_s1 <- tryCatch(
     )
   ),
   error = function(e) {
-    cat("\n================ DDESONN ERROR =================\n")
+    cat("\n================ DDESONN ERROR — Scenario 1 | Scenario A =================\n")  #$$$$$$$$$$$$$
     cat(conditionMessage(e), "\n\n")
     cat("-------------- TRACEBACK -----------------------\n")
     traceback(2)
     cat("================================================\n\n")
     stop(e)
   }
-)
-```
+)                                                                                       #$$$$$$$$$$$$$
 
-```{r scenario1_plots, results="asis", echo=FALSE}
 include_saved_plots(out1, "Scenario 1 — Saved plots")
 ```
 
 ---
 
-## Scenario 2 — One `plot_controls` umbrella
+## Scenario 2 — One `plot_controls` umbrella (Single Run: Scenario A)
 
-```{r scenario2, donttest=TRUE}
+```{r scenarioA_s2_run, donttest=TRUE}
 options(DDESONN_OUTPUT_ROOT = out2)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = out2)
 
-res_s2 <- ddesonn_run(
+res_scenarioA_s2 <- ddesonn_run(
   x = x_train,
   y = y_train,
   classification_mode = "binary",
@@ -347,6 +324,6 @@ res_s2 <- ddesonn_run(
 )
 ```
 
-```{r scenario2_plots, results="asis", echo=FALSE}
+```{r scenarioA_s2_plots, results="asis", echo=FALSE}
 include_saved_plots(out2, "Scenario 2 — Saved plots")
 ```

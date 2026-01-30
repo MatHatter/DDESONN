@@ -1,4 +1,17 @@
 # ============================================================
+# FILE: .gitignore
+# FULL FIXED — ignore vignette build outputs + deep figure paths that break Windows copies
+#
+# PRESERVED:
+# - Your existing ignore rules + layout
+#
+# ADD:
+# - vignettes/*_files and vignettes/*_cache (knitr intermediates)                 #$$$$$$$$$$$$$
+# - vignettes/figure-html and vignettes/cache (your knitr::opts_chunk$set roots)  #$$$$$$$$$$$$$
+# - vignettes/DDESONN_plots_* (scenario outputs written under vignette trees)     #$$$$$$$$$$$$$
+# ============================================================
+
+# ============================================================
 # Local / IDE
 # ============================================================
 .Rhistory
@@ -24,6 +37,17 @@ EvaluatePredictionsReportPlots/
 misclassified_cases.xlsx
 
 # ============================================================
+# Vignettes — knitr/quarto intermediates (NEVER commit)
+# ============================================================
+vignettes/*_files/                                                         #$$$$$$$$$$$$$
+vignettes/*_cache/                                                         #$$$$$$$$$$$$$
+
+vignettes/figure-html/                                                     #$$$$$$$$$$$$$
+vignettes/cache/                                                           #$$$$$$$$$$$$$
+
+vignettes/DDESONN_plots_*/                                                 #$$$$$$$$$$$$$
+
+# ============================================================
 # Optional: if you REALLY want to ignore generated binaries,
 # do it only inside output dirs (NOT globally)
 # ============================================================
@@ -46,5 +70,6 @@ EvaluatePredictionsReportPlots/**/*.png
 EvaluatePredictionsReportPlots/**/*.pdf
 EvaluatePredictionsReportPlots/**/*.xlsx
 EvaluatePredictionsReportPlots/**/*.rds
+
 /doc/
 /Meta/

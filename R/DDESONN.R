@@ -2872,39 +2872,46 @@ SONN <- R6::R6Class(
       
       
       # --- Robust loss plot saver (base R) ---
-      if (all(is.finite(losses))) {                                     #$$$$$$$$$$$$$ FIX
-        plots_dir <- ddesonn_plots_dir(output_root)                     #$$$$$$$$$$$$$ FIX: resolve only when saving
+      if (all(is.finite(losses))) {
+        
+        plots_dir <- ddesonn_plots_dir(output_root)
         
         fname_prefixer <- make_fname_prefix(
-          do_ensemble     = do_ensemble,
-          num_networks    = num_networks,
-          ensemble_number = ensemble_number,
-          model_index     = model_iter_num,
-          who             = "SONN"
+          do_ensemble = do_ensemble, num_networks = num_networks,
+          ensemble_number = ensemble_number, model_index = model_iter_num,
+          who = "SONN"
         )
         
         output_file <- file.path(plots_dir, paste0(fname_prefixer("loss_plot"), ".png"))
         cat("Saving to:", normalizePath(output_file, mustWork = FALSE), "\n")
         
-        if (capabilities("cairo")) {
-          png(output_file, width = 900, height = 650, res = 96, type = "cairo-png")
-        } else {
-          png(output_file, width = 900, height = 650, res = 96)
-        }
+        if (capabilities("cairo")) png(output_file, 900, 650, res = 96, type = "cairo-png")
+        else png(output_file, 900, 650, res = 96)
+        
         cat("Device before:", dev.cur(), "\n")
         
-        plot(losses, type = "l",
-             main = paste("Loss Over Epochs for DDESONN", ensemble_number,
-                          "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
-             xlab = "Epoch", ylab = "Loss", col = "turquoise", lwd = 2.0, adj = 0.5)  #$$$$$$$$$$$$$
+        plot(
+          losses, type = "l",
+          main = paste("Loss Over Epochs for DDESONN", ensemble_number,
+                       "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
+          xlab = "Epoch", ylab = "Loss",
+          col = "turquoise", lwd = 2.0, adj = 0.5
+        )
         
-        points(optimal_epoch, losses[optimal_epoch], col = "limegreen", pch = 16)
-        offset <- max(losses) * 0.06
+        points(optimal_epoch, losses[optimal_epoch], col = "limegreen", pch = 16, cex = 1.3)
+        
+        usr <- par("usr")
+        label_x <- usr[2] - 0.02 * diff(usr[1:2])
+        label_y <- usr[4] - 0.05 * diff(usr[3:4])
+        
         eq <- paste("Optimal Epoch:", optimal_epoch,
                     "\nLoss:", round(losses[optimal_epoch], 4))
-        text(optimal_epoch + 1.65,
-             losses[optimal_epoch] + offset,
-             eq, pos = 4, col = "limegreen", adj = 0)
+        
+        points(label_x - 0.015 * diff(usr[1:2]), label_y,
+               pch = 16, col = "limegreen", cex = 1.2, xpd = TRUE)
+        
+        text(label_x, label_y, eq,
+             pos = 2, col = "limegreen", adj = c(0, 1), xpd = TRUE)
         
         dev.off()
         cat("Device after:", dev.cur(), "\n")
@@ -2913,7 +2920,7 @@ SONN <- R6::R6Class(
         cat("Saved OK. Size:", fi$size, "bytes\n")
         
       } else {
-        if (!all(is.finite(losses))) cat("Skipping plot: non-finite losses.\n")
+        cat("Skipping plot: non-finite losses.\n")
       }
       
       
@@ -3038,15 +3045,17 @@ DDESONN <- R6::R6Class(
       self$ensembles <- ensembles
 
       # Configuration flags for enabling/disabling per-DDESONN model performance/relevance plots
-      self$FinalUpdatePerformanceandRelevanceViewPlotsConfig  <- list(
-        performance_high_mean_plots = FALSE,  # high mean performance plots
-        performance_low_mean_plots  = FALSE,  # low mean performance plots
-        relevance_high_mean_plots   = FALSE,  # high mean relevance plots
-        relevance_low_mean_plots    = FALSE,  # low mean relevance plots
-        viewAllPlots = FALSE,
-        verbose      = FALSE,
-        saveEnabled  = TRUE   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
-      )
+
+        self$FinalUpdatePerformanceandRelevanceViewPlotsConfig  <- list(
+          performance_high_mean_plots = FALSE,  # high mean performance plots
+          performance_low_mean_plots  = FALSE,  # low mean performance plots
+          relevance_high_mean_plots   = FALSE,  # high mean relevance plots
+          relevance_low_mean_plots    = FALSE,  # low mean relevance plots
+          viewAllPlots = FALSE,
+          verbose      = FALSE,
+          saveEnabled  = TRUE   #$$$$$$$$$$$$$ ADD: allow scenario-1 users to disable file writes
+        )
+      
       
 
     ## ============================================================
@@ -3492,6 +3501,19 @@ DDESONN <- R6::R6Class(
         get0("y", ifnotfound = NULL, inherits = TRUE)         # legacy fallback; no X_* fallbacks
       )
       
+      pr_cfg_pre <- NULL
+      if (!is.null(plot_controls) && is.list(plot_controls) &&
+          !is.null(plot_controls$performance_relevance) && is.list(plot_controls$performance_relevance)) {
+        pr_cfg_pre <- plot_controls$performance_relevance
+      }
+      cat("[PR] PRE update_performance_and_relevance pr_cfg (mode=",
+          if (isTRUE(do_ensemble)) "ensemble" else "single",
+          ")\n", sep = "")
+      if (is.null(pr_cfg_pre)) {
+        cat("[PR] pr_cfg is NULL (using defaults)\n")
+      } else {
+        cat(paste(utils::capture.output(dput(pr_cfg_pre)), collapse = "\n"), "\n")
+      }
 
       
       cat(sprintf("[TRACE] BEFORE update_performance_and_relevance @ %s\n", #$$$$$$$$$$$$$
@@ -3721,7 +3743,7 @@ DDESONN <- R6::R6Class(
       performance_list <- list()
       relevance_list <- list()
       model_name_list <-  list()
-      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
       
       # Calculate performance and relevance for each SONN in the ensemble
       for (i in 1:length(self$ensemble)) {
@@ -3822,7 +3844,7 @@ DDESONN <- R6::R6Class(
             }
             
             eval_cfg_raw <- if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
-                                 !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
+                                !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
               plot_controls$evaluate_report
             } else {
               NULL
@@ -4069,12 +4091,27 @@ DDESONN <- R6::R6Class(
         )
       }
       
-      # Extract names and metrics for performance and relevance
+      # ============================================================
+      # SECTION: Extract names and metrics for performance and relevance
+      # ============================================================
+      
       performance_metrics <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$metrics)
       performance_names   <- lapply(seq_along(performance_list), function(i) performance_list[[i]]$names)
       
       relevance_metrics <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$metrics)
       relevance_names   <- lapply(seq_along(relevance_list), function(i) relevance_list[[i]]$names)
+      
+      # ============================================================
+      # SECTION: run_id normalize for ensemble labels                 #$$$$$$$$$$$$$
+      # - train() passes run_id as all_ensemble_name_model_name (list)
+      # - process_performance expects a character vector
+      # ============================================================
+      
+      run_id <- unlist(run_id, recursive = TRUE, use.names = FALSE)          #$$$$$$$$$$$$$
+      run_id <- as.character(run_id)                                         #$$$$$$$$$$$$$
+      run_id <- run_id[is.finite(seq_along(run_id))]                         #$$$$$$$$$$$$$
+      run_id <- run_id[!is.na(run_id)]                                       #$$$$$$$$$$$$$
+      run_id <- run_id[nzchar(run_id)]                                       #$$$$$$$$$$$$$
       
       # ============================================================
       # SECTION: process_performance (FULL; preserved)
@@ -4227,9 +4264,9 @@ DDESONN <- R6::R6Class(
       relevance_low_mean_df  <- relevance_results$low_mean_df
       
       # ============================================================
-      # SECTION: performance_relevance plot cfg resolver            #$$$$$$$$$$$$$
+      # SECTION: performance_relevance plot cfg resolver              #$$$$$$$$$$$$$
       # - Scenario 2: plot_controls$performance_relevance
-      # - Scenario 1: ddesonn_run bridge maps into plot_controls$performance_relevance
+      # - Scenario 1: bridge maps into plot_controls$performance_relevance
       # ============================================================
       
       pr_cfg <- NULL                                                                                           #$$$$$$$$$$$$$
@@ -4237,24 +4274,65 @@ DDESONN <- R6::R6Class(
           !is.null(plot_controls$performance_relevance) && is.list(plot_controls$performance_relevance)) {     #$$$$$$$$$$$$$
         pr_cfg <- plot_controls$performance_relevance                                                          #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
+      pr_do_ensemble <- isTRUE(get0("do_ensemble", ifnotfound = FALSE, inherits = TRUE))
+      cat("[PR] RESOLVED pr_cfg for update_performance_and_relevance (ensemble_number=",
+          ensemble_number,
+          ", do_ensemble=",
+          pr_do_ensemble,
+          ")\n", sep = "")
+      if (is.null(pr_cfg)) {
+        cat("[PR] pr_cfg is NULL (defaults apply)\n")
+      } else {
+        cat(paste(utils::capture.output(dput(pr_cfg)), collapse = "\n"), "\n")
+      }
+      cat("[PR] knitr.in.progress=", isTRUE(getOption("knitr.in.progress")), "\n", sep = "")
+      cat("[PR] run_id (head): ",
+          paste(utils::head(run_id, 3L), collapse = " | "),
+          " (n=",
+          length(run_id),
+          ")\n", sep = "")
       
       # ============================================================
-      # SECTION: saveEnabled + viewAllPlots (USER-DRIVEN ONLY)      #$$$$$$$$$$$$$
-      # - Defaults FALSE (no disk writes / no print unless user enables)
+      # SECTION: saveEnabled + viewAllPlots semantics                 #$$$$$$$$$$$$$
+      # - saveEnabled ONLY affects saving (never printing)
+      # - viewAllPlots forces all plot toggles TRUE
       # ============================================================
       
-      pr_saveEnabled <- FALSE                                                                                   #$$$$$$$$$$$$$
-      if (!is.null(pr_cfg) && !is.null(pr_cfg$saveEnabled)) {                                                   #$$$$$$$$$$$$$
-        pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled)                                                            #$$$$$$$$$$$$$
-      }                                                                                                         #$$$$$$$$$$$$$
+      # #$$$$$$$$$$$$$ FIX: coalesce bridge variants so saveEnabled is honored
+      pr_saveEnabled <- FALSE                                                                                  #$$$$$$$$$$$$$
+      if (!is.null(pr_cfg)) {                                                                                  #$$$$$$$$$$$$$
+        pr_saveEnabled <- isTRUE(pr_cfg$saveEnabled) || isTRUE(pr_cfg$save_enabled) || isTRUE(pr_cfg$save)     #$$$$$$$$$$$$$
+      }                                                                                                        #$$$$$$$$$$$$$
+      if (isTRUE(pr_saveEnabled)) {
+        cat("[PR] pr_saveEnabled=TRUE\n")
+      } else {
+        reason <- if (is.null(pr_cfg)) "pr_cfg is NULL" else "saveEnabled/save_enabled/save missing or FALSE"    #$$$$$$$$$$$$$
+        cat("[PR] pr_saveEnabled=FALSE (", reason, ")\n", sep = "")                                             #$$$$$$$$$$$$$
+      }
       
-      pr_viewAllPlots <- FALSE                                                                                  #$$$$$$$$$$$$$
-      if (!is.null(pr_cfg) && !is.null(pr_cfg$viewAllPlots)) {                                                  #$$$$$$$$$$$$$
-        pr_viewAllPlots <- isTRUE(pr_cfg$viewAllPlots)                                                          #$$$$$$$$$$$$$
-      }                                                                                                         #$$$$$$$$$$$$$
+      # #$$$$$$$$$$$$$ FIX: coalesce viewAllPlots variants too (same bridge pattern)
+      pr_viewAllPlots <- FALSE                                                                                 #$$$$$$$$$$$$$
+      if (!is.null(pr_cfg)) {                                                                                  #$$$$$$$$$$$$$
+        pr_viewAllPlots <- isTRUE(pr_cfg$viewAllPlots) || isTRUE(pr_cfg$view_all_plots) || isTRUE(pr_cfg$viewAll)  #$$$$$$$$$$$$$
+      }                                                                                                        #$$$$$$$$$$$$$
+      cat("[PR] pr_viewAllPlots=", pr_viewAllPlots, "\n", sep = "")                                             #$$$$$$$$$$$$$
+      
+      .log_plot_obj <- function(obj, label) {                                                                   #$$$$$$$$$$$$$
+        if (is.null(obj)) {
+          cat("[PR] ", label, " returned NULL\n", sep = "")
+          return(invisible(NULL))
+        }
+        obj_names <- tryCatch(names(obj), error = function(e) NULL)
+        cat("[PR] ", label, " class=", paste(class(obj), collapse = ","),
+            " length=", length(obj),
+            if (!is.null(obj_names)) paste0(" names(head)=", paste(utils::head(obj_names, 5L), collapse = ",")) else "",
+            "\n", sep = "")
+        invisible(NULL)
+      }                                                                                                        #$$$$$$$$$$$$$
       
       # ============================================================
-      # SECTION: plot toggles (defaults preserved)                  #$$$$$$$$$$$$$
+      # SECTION: plot toggles                                         #$$$$$$$$$$$$$
+      # - These determine PRINTING eligibility (if TRUE, plots print)
       # ============================================================
       
       pr_perf_high_mean  <- TRUE
@@ -4265,16 +4343,25 @@ DDESONN <- R6::R6Class(
       if (!is.null(pr_cfg)) {
         if (!is.null(pr_cfg$performance_high_mean_plots)) pr_perf_high_mean   <- isTRUE(pr_cfg$performance_high_mean_plots)
         if (!is.null(pr_cfg$performance_low_mean_plots))  pr_perf_low_mean    <- isTRUE(pr_cfg$performance_low_mean_plots)
-        if (!is.null(pr_cfg$relevance_high_mean_plots))    pr_relev_high_mean <- isTRUE(pr_cfg$relevance_high_mean_plots)
-        if (!is.null(pr_cfg$relevance_low_mean_plots))     pr_relev_low_mean  <- isTRUE(pr_cfg$relevance_low_mean_plots)
+        if (!is.null(pr_cfg$relevance_high_mean_plots))   pr_relev_high_mean  <- isTRUE(pr_cfg$relevance_high_mean_plots)
+        if (!is.null(pr_cfg$relevance_low_mean_plots))    pr_relev_low_mean   <- isTRUE(pr_cfg$relevance_low_mean_plots)
       }
+      cat("[PR] flags resolved: perf_high=", pr_perf_high_mean,
+          " perf_low=", pr_perf_low_mean,
+          " relev_high=", pr_relev_high_mean,
+          " relev_low=", pr_relev_low_mean, "\n", sep = "")
+      
+      if (isTRUE(pr_viewAllPlots)) {                                                                           #$$$$$$$$$$$$$
+        pr_perf_high_mean  <- TRUE                                                                             #$$$$$$$$$$$$$
+        pr_perf_low_mean   <- TRUE                                                                             #$$$$$$$$$$$$$
+        pr_relev_high_mean <- TRUE                                                                             #$$$$$$$$$$$$$
+        pr_relev_low_mean  <- TRUE                                                                             #$$$$$$$$$$$$$
+      }                                                                                                        #$$$$$$$$$$$$$
       
       # ============================================================
-      # SECTION: plots (NO enabled gate)                            #$$$$$$$$$$$$$
-      # - Always compute plot objects when toggles are TRUE
-      # - pr_saveEnabled controls disk writes inside plot creators
-      # - pr_viewAllPlots controls print/view inside plot creators
-      # - boxplot extraction REMOVED entirely
+      # SECTION: plots (compute + RETURN ggplots)                     #$$$$$$$$$$$$$
+      # - saveEnabled ONLY affects saving inside plot creators
+      # - printing happens HERE, controlled ONLY by toggles
       # ============================================================
       
       performance_high_mean_plots <- NULL
@@ -4282,46 +4369,100 @@ DDESONN <- R6::R6Class(
       relevance_high_mean_plots   <- NULL
       relevance_low_mean_plots    <- NULL
       
-      # IMPORTANT:
-      # This assumes your plot creator functions accept `saveEnabled` + `viewAllPlots`.
-      # If they do not, do NOT add args here; instead gate ggsave/print inside those functions.
+      cat("[PR TRACE] pr_viewAllPlots=", pr_viewAllPlots,
+          " pr_saveEnabled=", pr_saveEnabled, "\n")                                                            #$$$$$$$$$$$$$
+      cat("[PR TRACE] rows: perf_high=", if (is.null(performance_high_mean_df)) 0 else nrow(performance_high_mean_df),
+          " perf_low=", if (is.null(performance_low_mean_df)) 0 else nrow(performance_low_mean_df),
+          " relev_high=", if (is.null(relevance_high_mean_df)) 0 else nrow(relevance_high_mean_df),
+          " relev_low=", if (is.null(relevance_low_mean_df)) 0 else nrow(relevance_low_mean_df), "\n")         #$$$$$$$$$$$$$
+      
       if (isTRUE(pr_perf_high_mean)) {
+        cat("[PR TRACE] CALL high(perf)\n")                                                                     #$$$$$$$$$$$$$
         performance_high_mean_plots <- self$update_performance_and_relevance_high(
           performance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
+        .log_plot_obj(performance_high_mean_plots, "performance_high_mean_plots")                               #$$$$$$$$$$$$$
+        if (is.list(performance_high_mean_plots) && length(performance_high_mean_plots)) {                      #$$$$$$$$$$$$$
+          for (p in performance_high_mean_plots) {                                                              #$$$$$$$$$$$$$
+            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
+            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
+            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
+                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
+            }                                                                                                   #$$$$$$$$$$$$$
+          }                                                                                                     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_perf_low_mean)) {
-        performance_low_mean_plots  <- self$update_performance_and_relevance_low(
+        cat("[PR TRACE] CALL low(perf)\n")                                                                      #$$$$$$$$$$$$$
+        performance_low_mean_plots <- self$update_performance_and_relevance_low(
           performance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
+        .log_plot_obj(performance_low_mean_plots, "performance_low_mean_plots")                                 #$$$$$$$$$$$$$
+        if (is.list(performance_low_mean_plots) && length(performance_low_mean_plots)) {                        #$$$$$$$$$$$$$
+          for (p in performance_low_mean_plots) {                                                               #$$$$$$$$$$$$$
+            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
+            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
+            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
+                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
+            }                                                                                                   #$$$$$$$$$$$$$
+          }                                                                                                     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_relev_high_mean)) {
-        relevance_high_mean_plots   <- self$update_performance_and_relevance_high(
+        cat("[PR TRACE] CALL high(relev)\n")                                                                    #$$$$$$$$$$$$$
+        relevance_high_mean_plots <- self$update_performance_and_relevance_high(
           relevance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
+        .log_plot_obj(relevance_high_mean_plots, "relevance_high_mean_plots")                                   #$$$$$$$$$$$$$
+        if (is.list(relevance_high_mean_plots) && length(relevance_high_mean_plots)) {                          #$$$$$$$$$$$$$
+          for (p in relevance_high_mean_plots) {                                                                #$$$$$$$$$$$$$
+            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
+            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
+            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
+                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
+            }                                                                                                   #$$$$$$$$$$$$$
+          }                                                                                                     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_relev_low_mean)) {
-        relevance_low_mean_plots    <- self$update_performance_and_relevance_low(
+        cat("[PR TRACE] CALL low(relev)\n")                                                                     #$$$$$$$$$$$$$
+        relevance_low_mean_plots <- self$update_performance_and_relevance_low(
           relevance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                 #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                 #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
+        .log_plot_obj(relevance_low_mean_plots, "relevance_low_mean_plots")                                     #$$$$$$$$$$$$$
+        if (is.list(relevance_low_mean_plots) && length(relevance_low_mean_plots)) {                            #$$$$$$$$$$$$$
+          for (p in relevance_low_mean_plots) {                                                                 #$$$$$$$$$$$$$
+            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
+            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
+            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
+                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
+              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
+            }                                                                                                   #$$$$$$$$$$$$$
+          }                                                                                                     #$$$$$$$$$$$$$
+        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       
-      
-      
       # ============================================================
-      # SECTION: grouped metrics block (PRESERVED EXACTLY — DO NOT TOUCH)
+      # SECTION: grouped metrics block 
       # ============================================================
       
       # Predeclare so they're always in scope
@@ -4502,18 +4643,16 @@ DDESONN <- R6::R6Class(
     },
     update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots) {  #$$$$$$$$$$$$$
       
+      cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
+          " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
+          " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
+      
       .wrap_title <- function(x, width = 60) {
         paste(strwrap(x, width = width), collapse = "\n")
       }
       
-      # ============================================================
-      # Init
-      # ============================================================
       high_mean_plots <- list()
       
-      # ============================================================
-      # OPTIONAL: resolve output dir for saves (only used if saveEnabled)
-      # ============================================================
       .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
         x <- as.character(x)
         x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
@@ -4526,7 +4665,6 @@ DDESONN <- R6::R6Class(
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          # #$$$$$$$$$$$$$ FIX: respect current output_root so Scenario 1/2 save where vignette scans
           base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
           if (is.null(base_dir) || !nzchar(base_dir)) {
             base_dir <- tryCatch(f(), error = function(e) NULL)                                     #$$$$$$$$$$$$$
@@ -4540,33 +4678,22 @@ DDESONN <- R6::R6Class(
         dir
       }                                                                            #$$$$$$$$$$$$$
       
-      pr_plot_dir <- NULL                                                          #$$$$$$$$$$$$$
-      if (isTRUE(saveEnabled)) pr_plot_dir <- .resolve_pr_plot_dir()               #$$$$$$$$$$$$$
+      pr_plot_dir <- .resolve_pr_plot_dir()                                         #$$$$$$$$$$$$$ FIX: resolve ALWAYS (saveEnabled should not control dir)
       
-      # ============================================================
-      # Per-metric loop
-      # ============================================================
       for (metric in unique(high_mean_df$Metric)) {
         
-        # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
         filtered_high_mean_df <- high_mean_df[
           !(grepl("precision", high_mean_df$Metric, ignore.case = TRUE) & high_mean_df$Value == 0),
         ]
         
-        # Filter out rows where the Value is NA or infinite
         filtered_high_mean_df <- filtered_high_mean_df[
           !is.na(filtered_high_mean_df$Value) & !is.infinite(filtered_high_mean_df$Value),
         ]
         
-        # Subset the data for the current metric
         plot_data_high <- filtered_high_mean_df[filtered_high_mean_df$Metric == metric, ]
         
-        # Check if plot_data is not empty
         if (nrow(plot_data_high) > 0) {
           
-          # ============================================================
-          # Build plot_data + outlier labels
-          # ============================================================
           plot_data_high$Outlier <- ifelse(
             !is.na(plot_data_high$Value) &
               plot_data_high$Value %in% self$identify_outliers(plot_data_high$Value),
@@ -4574,13 +4701,9 @@ DDESONN <- R6::R6Class(
             NA
           )
           
-          # Add columns for outliers
           plot_data_high$Model_Name_Outlier <- plot_data_high$Model_Name
-          
-          # Set the RowName to NA where there are no outliers
           plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
           
-          # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
             plot_data_high$Title <- paste0(
               "Boxplot for ",
@@ -4593,9 +4716,6 @@ DDESONN <- R6::R6Class(
             plot_data_high$Title <- paste("Boxplot for", metric)
           }
           
-          # ============================================================
-          # Plot
-          # ============================================================
           high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
@@ -4604,11 +4724,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::theme_minimal() +
-            ggplot2::theme(
-              plot.title = ggplot2::element_text(hjust = 0.5)
-            )
+            ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
           
-          # Add text labels for the outliers
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
               ggplot2::aes(label = Model_Name_Outlier),
@@ -4616,18 +4733,15 @@ DDESONN <- R6::R6Class(
               hjust = -0.3
             )
           
-          # Store the plot in the list
           high_mean_plots[[metric]] <- high_mean_plot
           
           # ============================================================
-          # VIEW (user-driven via viewAllPlots)
+          # VIEW (ALWAYS when called)                                    #$$$$$$$$$$$$$
           # ============================================================
-          if (isTRUE(viewAllPlots)) {
-            tryCatch(print(high_mean_plot), error = function(e) NULL)
-          }
+          tryCatch(print(high_mean_plot), error = function(e) NULL)                  #$$$$$$$$$$$$$ FIX: keep tryCatch (more vignette-safe)
           
           # ============================================================
-          # SAVE (user-driven via saveEnabled)
+          # SAVE (ONLY when saveEnabled=TRUE)
           # ============================================================
           if (isTRUE(saveEnabled) && !is.null(pr_plot_dir)) {
             fn <- paste0("performance_relevance_high_", .safe_filename(metric), ".png")
@@ -4637,13 +4751,19 @@ DDESONN <- R6::R6Class(
               error = function(e) NULL
             )
           }
-          
         }
       }
+      
+      cat("[PR HIGH] EXIT | plots_len=", length(high_mean_plots),                                 #$$$$$$$$$$$$$
+          " names_head=", paste(utils::head(names(high_mean_plots), 3), collapse = ","), "\n")    #$$$$$$$$$$$$$
       
       return(high_mean_plots)
     },
     update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots) {     #$$$$$$$$$$$$$
+      
+      cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
+          " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
+          " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
       
       .wrap_title <- function(x, width = 60) {
         paste(strwrap(x, width = width), collapse = "\n")
@@ -4651,9 +4771,6 @@ DDESONN <- R6::R6Class(
       
       low_mean_plots <- list()
       
-      # ============================================================
-      # OPTIONAL: resolve output dir for saves (only used if saveEnabled)
-      # ============================================================
       .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
         x <- as.character(x)
         x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
@@ -4666,10 +4783,9 @@ DDESONN <- R6::R6Class(
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          # #$$$$$$$$$$$$$ FIX: respect current output_root (Scenario 1/2 save where vignette scans)
           base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
           if (is.null(base_dir) || !nzchar(base_dir)) {
-            base_dir <- tryCatch(f(), error = function(e) NULL)                                    #$$$$$$$$$$$$$
+            base_dir <- tryCatch(f(), error = function(e) NULL)                                     #$$$$$$$$$$$$$
           }
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
@@ -4680,29 +4796,22 @@ DDESONN <- R6::R6Class(
         dir
       }                                                                            #$$$$$$$$$$$$$
       
-      pr_plot_dir <- NULL                                                          #$$$$$$$$$$$$$
-      if (isTRUE(saveEnabled)) pr_plot_dir <- .resolve_pr_plot_dir()               #$$$$$$$$$$$$$
+      pr_plot_dir <- .resolve_pr_plot_dir()                                         #$$$$$$$$$$$$$ FIX: resolve ALWAYS (saveEnabled should not control dir)
       
-      # Loop over each unique metric
       for (metric in unique(low_mean_df$Metric)) {
         
-        # Filter out rows where the Value is 0 for metrics containing "precision" or "mean_precision"
         filtered_low_mean_df <- low_mean_df[
           !(grepl("precision", low_mean_df$Metric, ignore.case = TRUE) & low_mean_df$Value == 0),
         ]
         
-        # Filter out rows where the Value is NA or infinite
         filtered_low_mean_df <- filtered_low_mean_df[
           !is.na(filtered_low_mean_df$Value) & !is.infinite(filtered_low_mean_df$Value),
         ]
         
-        # Subset the data for the current metric
         plot_data_low <- filtered_low_mean_df[filtered_low_mean_df$Metric == metric, ]
         
-        # Check if plot_data is not empty
         if (nrow(plot_data_low) > 0) {
           
-          # Add a column to identify outliers
           plot_data_low$Outlier <- ifelse(
             !is.na(plot_data_low$Value) &
               plot_data_low$Value %in% self$identify_outliers(plot_data_low$Value),
@@ -4710,13 +4819,9 @@ DDESONN <- R6::R6Class(
             NA
           )
           
-          # Add columns for outliers
           plot_data_low$Model_Name_Outlier <- plot_data_low$Model_Name
-          
-          # Set the RowName to NA where there are no outliers
           plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
           
-          # Create bin labels for "precisions" or "mean_precisions"
           if (grepl("precision", metric, ignore.case = TRUE)) {
             plot_data_low$Title <- paste0(
               "Boxplot for ",
@@ -4729,7 +4834,6 @@ DDESONN <- R6::R6Class(
             plot_data_low$Title <- paste("Boxplot for", metric)
           }
           
-          # Create box plot
           low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
@@ -4738,11 +4842,10 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::theme_minimal() +
-            ggplot2::theme(                                                    #$$$$$$$$$$$$$
-              plot.title = ggplot2::element_text(hjust = 0.5)                  #$$$$$$$$$$$$$
+            ggplot2::theme(
+              plot.title = ggplot2::element_text(hjust = 0.5)
             )
           
-          # Add text labels for the outliers
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
               ggplot2::aes(label = Model_Name_Outlier),
@@ -4750,18 +4853,15 @@ DDESONN <- R6::R6Class(
               hjust = -0.3
             )
           
-          # Store the plot in the list
           low_mean_plots[[metric]] <- low_mean_plot
           
           # ============================================================
-          # VIEW (user-driven via viewAllPlots)                          #$$$$$$$$$$$$$
+          # VIEW (ALWAYS when called)                                    #$$$$$$$$$$$$$
           # ============================================================
-          if (isTRUE(viewAllPlots)) {                                        #$$$$$$$$$$$$$
-            tryCatch(print(low_mean_plot), error = function(e) NULL)         #$$$$$$$$$$$$$
-          }                                                                  #$$$$$$$$$$$$$
+          tryCatch(print(low_mean_plot), error = function(e) NULL)                   #$$$$$$$$$$$$$ FIX: keep tryCatch (more vignette-safe)
           
           # ============================================================
-          # SAVE (user-driven via saveEnabled)
+          # SAVE (ONLY when saveEnabled=TRUE)
           # ============================================================
           if (isTRUE(saveEnabled) && !is.null(pr_plot_dir)) {
             fn <- paste0("performance_relevance_low_", .safe_filename(metric), ".png")
@@ -4771,9 +4871,11 @@ DDESONN <- R6::R6Class(
               error = function(e) NULL
             )
           }
-          
         }
       }
+      
+      cat("[PR LOW] EXIT | plots_len=", length(low_mean_plots),                                   #$$$$$$$$$$$$$
+          " names_head=", paste(utils::head(names(low_mean_plots), 3), collapse = ","), "\n")     #$$$$$$$$$$$$$
       
       return(low_mean_plots)
     },
