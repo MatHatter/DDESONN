@@ -95,9 +95,9 @@
     }
     colnames(P) <- cls[seq_len(ncol(P))]
   }
-
+  
   cls <- colnames(P)
-
+  
   # Coerce labels into factor over cls
   if (is.matrix(labels) && ncol(labels) > 1L) {
     L <- labels
@@ -140,7 +140,7 @@
     P <- P[ok, , drop = FALSE]
     y_idx <- match(v, cls)
   }
-
+  
   list(
     P = P,
     y_idx = y_idx,
@@ -159,7 +159,7 @@ probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FA
     ss_res <- sum((labs - preds)^2, na.rm = TRUE)
     1 - ss_res / ss_tot
   }, error = function(e) NA_real_)
-
+  
   if (verbose) {
     message(sprintf(
       "[PROBE-R2 %s] preds min=%.4f mean=%.4f max=%.4f",
@@ -197,7 +197,7 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
                              verbose = verbose) {
   W_last <- weights[[length(weights)]]
   b_last <- biases[[length(biases)]]
-
+  
   stats <- list(
     tag = tag,
     W_last = list(
@@ -252,11 +252,11 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
     # ===== Artifacts snapshot saver ===== 
     artifacts_dir <- ddesonn_artifacts_root(get0("output_root", inherits = TRUE, ifnotfound = NULL)) 
     fname <- file.path(artifacts_dir, sprintf("probe_last_layer_%s_%s.rds", 
-                     tag, format(Sys.time(), "%Y%m%d_%H%M%S"))) 
+                                              tag, format(Sys.time(), "%Y%m%d_%H%M%S"))) 
     saveRDS(stats, fname) 
     message("[LASTLAYER] Snapshot saved to: ", fname) 
   }
-
+  
   invisible(stats)
 }
 
@@ -524,16 +524,16 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
 .ce_loss_multiclass <- function(P, Y, eps=1e-12) {
   P <- pmin(pmax(as.matrix(P), eps), 1 - eps)  # n×K
   if (is.vector(Y)) Y <- one_hot_from_ids(as.integer(Y), K=ncol(P), N=nrow(P))
-    # --- numeric guards (multiclass) ---
-    if (!is.matrix(P)) P <- as.matrix(P)
-        P[!is.finite(P)] <- 0
-              P <- pmin(pmax(P, 1e-12), 1 - 1e-12)
+  # --- numeric guards (multiclass) ---
+  if (!is.matrix(P)) P <- as.matrix(P)
+  P[!is.finite(P)] <- 0
+  P <- pmin(pmax(P, 1e-12), 1 - 1e-12)
   
-      rs <- rowSums(P)
-      bad <- !is.finite(rs) | rs <= 0
-    if (any(bad)) {
-        K <- ncol(P)
-        P[bad, ] <- 1 / K
+  rs <- rowSums(P)
+  bad <- !is.finite(rs) | rs <= 0
+  if (any(bad)) {
+    K <- ncol(P)
+    P[bad, ] <- 1 / K
   }
   P <- P / rowSums(P)
   
@@ -711,7 +711,7 @@ coerce_to_numeric_matrix <- function(x, allow_model_matrix = TRUE) {
   if (is.null(x)) {
     return(matrix(numeric(0), nrow = 0, ncol = 0))
   }
-
+  
   if (is.data.frame(x)) {
     if (!ncol(x)) {
       return(matrix(numeric(0), nrow = nrow(x), ncol = 0))
@@ -737,7 +737,7 @@ coerce_to_numeric_matrix <- function(x, allow_model_matrix = TRUE) {
       x <- as.matrix(x)
     }
   }
-
+  
   storage.mode(x) <- "double"
   x
 }
@@ -747,11 +747,11 @@ safe_one_hot_matrix <- function(idx, K) {
   if (!length(idx)) {
     return(matrix(0, nrow = 0, ncol = K))
   }
-
+  
   idx[is.na(idx)] <- 1L
   idx[idx < 1L] <- 1L
   idx[idx > K]  <- K
-
+  
   M <- one_hot_from_ids(idx, K, N = length(idx), strict = FALSE)
   storage.mode(M) <- "double"
   M
@@ -3623,18 +3623,18 @@ emit_table <- function(x,
   if (!verbose && !viewTables) {
     return(invisible(x))
   }
-
+  
   if (is.null(x)) {
     message(sprintf("%s <NULL>", title))
     return(invisible(x))
   }
-
+  
   n_rows <- tryCatch(NROW(x), error = function(...) NA_integer_)
   if (is.na(n_rows) || n_rows == 0) {
     message(sprintf("%s <empty>", title))
     return(invisible(x))
   }
-
+  
   max_rows <- rows
   if (is.null(max_rows)) {
     max_rows <- if (verbose) n_rows else min(n_rows, 10L)
@@ -3672,4 +3672,3 @@ emit_table <- function(x,
   
   formatC(as.numeric(x), format = "f", digits = d)
 }
-

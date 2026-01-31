@@ -3606,6 +3606,7 @@ DDESONN <- R6::R6Class(
       
       # Optional: allow disabling saving too (defaults TRUE if unset)
       .save_enabled <- isTRUE(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$saveEnabled %||% TRUE)
+      print_plots <- isTRUE(getOption("knitr.in.progress")) || interactive()
       
       # Prepare output dir only if we might save
       if (.save_enabled) plots_dir <- ddesonn_plots_dir(output_root)
@@ -3647,7 +3648,7 @@ DDESONN <- R6::R6Class(
         if (!is.null(y1)) return(.slug(y1))
         NULL
       }
-      
+
       # Walk any mixture of ggplot / list / nested list; save/print only if allowed(name)
       .walk_save_view <- function(x, base, idx_env, name_flag) {
         if (is.null(x) || !length(x)) return(invisible(NULL))
@@ -3670,8 +3671,10 @@ DDESONN <- R6::R6Class(
             )), silent = TRUE)
           }
           
-          # Print (view) — gated by same per-group flag
-          try(print(p), silent = TRUE)
+          # Print (view) — gated by same per-group flag + session mode
+          if (print_plots) {
+            try(print(p), silent = TRUE)
+          }
         }
         
         if (inherits(x, c("gg","ggplot"))) {
@@ -4286,12 +4289,14 @@ DDESONN <- R6::R6Class(
         cat(paste(utils::capture.output(dput(pr_cfg)), collapse = "\n"), "\n")
       }
       cat("[PR] knitr.in.progress=", isTRUE(getOption("knitr.in.progress")), "\n", sep = "")
+      cat("[PR] interactive()=", interactive(), "\n", sep = "")
+      cat("[PR] option(DDESONN_OUTPUT_ROOT)=", getOption("DDESONN_OUTPUT_ROOT"), "\n", sep = "")
+      cat("[PR] env(DDESONN_ARTIFACTS_ROOT)=", Sys.getenv("DDESONN_ARTIFACTS_ROOT"), "\n", sep = "")
       cat("[PR] run_id (head): ",
           paste(utils::head(run_id, 3L), collapse = " | "),
           " (n=",
           length(run_id),
           ")\n", sep = "")
-      
       # ============================================================
       # SECTION: saveEnabled + viewAllPlots semantics                 #$$$$$$$$$$$$$
       # - saveEnabled ONLY affects saving (never printing)
@@ -4346,17 +4351,16 @@ DDESONN <- R6::R6Class(
         if (!is.null(pr_cfg$relevance_high_mean_plots))   pr_relev_high_mean  <- isTRUE(pr_cfg$relevance_high_mean_plots)
         if (!is.null(pr_cfg$relevance_low_mean_plots))    pr_relev_low_mean   <- isTRUE(pr_cfg$relevance_low_mean_plots)
       }
-      cat("[PR] flags resolved: perf_high=", pr_perf_high_mean,
-          " perf_low=", pr_perf_low_mean,
-          " relev_high=", pr_relev_high_mean,
-          " relev_low=", pr_relev_low_mean, "\n", sep = "")
-      
       if (isTRUE(pr_viewAllPlots)) {                                                                           #$$$$$$$$$$$$$
         pr_perf_high_mean  <- TRUE                                                                             #$$$$$$$$$$$$$
         pr_perf_low_mean   <- TRUE                                                                             #$$$$$$$$$$$$$
         pr_relev_high_mean <- TRUE                                                                             #$$$$$$$$$$$$$
         pr_relev_low_mean  <- TRUE                                                                             #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
+      cat("[PR] flags resolved (post viewAll): perf_high=", pr_perf_high_mean,
+          " perf_low=", pr_perf_low_mean,
+          " relev_high=", pr_relev_high_mean,
+          " relev_low=", pr_relev_low_mean, "\n", sep = "")
       
       # ============================================================
       # SECTION: plots (compute + RETURN ggplots)                     #$$$$$$$$$$$$$
@@ -4375,6 +4379,8 @@ DDESONN <- R6::R6Class(
           " perf_low=", if (is.null(performance_low_mean_df)) 0 else nrow(performance_low_mean_df),
           " relev_high=", if (is.null(relevance_high_mean_df)) 0 else nrow(relevance_high_mean_df),
           " relev_low=", if (is.null(relevance_low_mean_df)) 0 else nrow(relevance_low_mean_df), "\n")         #$$$$$$$$$$$$$
+      print_plots <- isTRUE(getOption("knitr.in.progress")) || interactive()
+      cat("[PR TRACE] print_plots=", print_plots, "\n", sep = "")
       
       if (isTRUE(pr_perf_high_mean)) {
         cat("[PR TRACE] CALL high(perf)\n")                                                                     #$$$$$$$$$$$$$
@@ -4384,17 +4390,6 @@ DDESONN <- R6::R6Class(
           viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
         .log_plot_obj(performance_high_mean_plots, "performance_high_mean_plots")                               #$$$$$$$$$$$$$
-        if (is.list(performance_high_mean_plots) && length(performance_high_mean_plots)) {                      #$$$$$$$$$$$$$
-          for (p in performance_high_mean_plots) {                                                              #$$$$$$$$$$$$$
-            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
-            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
-            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
-                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
-            }                                                                                                   #$$$$$$$$$$$$$
-          }                                                                                                     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_perf_low_mean)) {
@@ -4405,17 +4400,6 @@ DDESONN <- R6::R6Class(
           viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
         .log_plot_obj(performance_low_mean_plots, "performance_low_mean_plots")                                 #$$$$$$$$$$$$$
-        if (is.list(performance_low_mean_plots) && length(performance_low_mean_plots)) {                        #$$$$$$$$$$$$$
-          for (p in performance_low_mean_plots) {                                                               #$$$$$$$$$$$$$
-            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
-            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
-            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
-                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
-            }                                                                                                   #$$$$$$$$$$$$$
-          }                                                                                                     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_relev_high_mean)) {
@@ -4426,17 +4410,6 @@ DDESONN <- R6::R6Class(
           viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
         .log_plot_obj(relevance_high_mean_plots, "relevance_high_mean_plots")                                   #$$$$$$$$$$$$$
-        if (is.list(relevance_high_mean_plots) && length(relevance_high_mean_plots)) {                          #$$$$$$$$$$$$$
-          for (p in relevance_high_mean_plots) {                                                                #$$$$$$$$$$$$$
-            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
-            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
-            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
-                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
-            }                                                                                                   #$$$$$$$$$$$$$
-          }                                                                                                     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       if (isTRUE(pr_relev_low_mean)) {
@@ -4447,17 +4420,6 @@ DDESONN <- R6::R6Class(
           viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
         )
         .log_plot_obj(relevance_low_mean_plots, "relevance_low_mean_plots")                                     #$$$$$$$$$$$$$
-        if (is.list(relevance_low_mean_plots) && length(relevance_low_mean_plots)) {                            #$$$$$$$$$$$$$
-          for (p in relevance_low_mean_plots) {                                                                 #$$$$$$$$$$$$$
-            if (inherits(p, c("gg", "ggplot"))) { print(p) }                                                    #$$$$$$$$$$$$$
-            else if (is.character(p) && length(p) == 1L && file.exists(p) && requireNamespace("knitr", quietly = TRUE)) {  #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p))                                                                 #$$$$$$$$$$$$$
-            } else if (is.list(p) && !is.null(p$path) && is.character(p$path) && length(p$path) == 1L &&
-                       file.exists(p$path) && requireNamespace("knitr", quietly = TRUE)) {                        #$$$$$$$$$$$$$
-              print(knitr::include_graphics(p$path))                                                            #$$$$$$$$$$$$$
-            }                                                                                                   #$$$$$$$$$$$$$
-          }                                                                                                     #$$$$$$$$$$$$$
-        }                                                                                                       #$$$$$$$$$$$$$
       }
       
       
@@ -4646,6 +4608,11 @@ DDESONN <- R6::R6Class(
       cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
           " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
           " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
+
+      if (is.null(high_mean_df) || !nrow(high_mean_df)) {
+        cat("[PR HIGH] SKIP | no data\n")                                                        #$$$$$$$$$$$$$
+        return(list())
+      }
       
       .wrap_title <- function(x, width = 60) {
         paste(strwrap(x, width = width), collapse = "\n")
@@ -4662,23 +4629,38 @@ DDESONN <- R6::R6Class(
       }                                                                            #$$$$$$$$$$$$$
       
       .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+        output_root_current <- getOption("DDESONN_OUTPUT_ROOT", default = NULL)
+        env_root <- Sys.getenv("DDESONN_ARTIFACTS_ROOT", unset = "")
+        has_root <- (is.character(output_root_current) && length(output_root_current) && nzchar(output_root_current)) ||
+          nzchar(env_root)
+        if (!has_root) {
+          msg <- "[PR HIGH] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
+          cat(msg, "\n")
+          verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
+          strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
+          if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
+          return(NULL)
+        }
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
-          if (is.null(base_dir) || !nzchar(base_dir)) {
-            base_dir <- tryCatch(f(), error = function(e) NULL)                                     #$$$$$$$$$$$$$
-          }
+          root_arg <- if (is.character(output_root_current) && nzchar(output_root_current)) output_root_current else NULL
+          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  #$$$$$$$$$$$$$
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
-          base_dir <- file.path(tempdir(), "DDESONN_plots")
+          msg <- "[PR HIGH] Unable to resolve plots dir for saving."
+          cat(msg, "\n")
+          verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
+          strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
+          if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
+          return(NULL)
         }
         dir <- file.path(base_dir, "performance_relevance")
         if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
         dir
       }                                                                            #$$$$$$$$$$$$$
       
-      pr_plot_dir <- .resolve_pr_plot_dir()                                         #$$$$$$$$$$$$$ FIX: resolve ALWAYS (saveEnabled should not control dir)
+      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      #$$$$$$$$$$$$$
       
       for (metric in unique(high_mean_df$Metric)) {
         
@@ -4736,11 +4718,6 @@ DDESONN <- R6::R6Class(
           high_mean_plots[[metric]] <- high_mean_plot
           
           # ============================================================
-          # VIEW (ALWAYS when called)                                    #$$$$$$$$$$$$$
-          # ============================================================
-          tryCatch(print(high_mean_plot), error = function(e) NULL)                  #$$$$$$$$$$$$$ FIX: keep tryCatch (more vignette-safe)
-          
-          # ============================================================
           # SAVE (ONLY when saveEnabled=TRUE)
           # ============================================================
           if (isTRUE(saveEnabled) && !is.null(pr_plot_dir)) {
@@ -4764,6 +4741,11 @@ DDESONN <- R6::R6Class(
       cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
           " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
           " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
+
+      if (is.null(low_mean_df) || !nrow(low_mean_df)) {
+        cat("[PR LOW] SKIP | no data\n")                                                          #$$$$$$$$$$$$$
+        return(list())
+      }
       
       .wrap_title <- function(x, width = 60) {
         paste(strwrap(x, width = width), collapse = "\n")
@@ -4780,23 +4762,38 @@ DDESONN <- R6::R6Class(
       }                                                                            #$$$$$$$$$$$$$
       
       .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+        output_root_current <- getOption("DDESONN_OUTPUT_ROOT", default = NULL)
+        env_root <- Sys.getenv("DDESONN_ARTIFACTS_ROOT", unset = "")
+        has_root <- (is.character(output_root_current) && length(output_root_current) && nzchar(output_root_current)) ||
+          nzchar(env_root)
+        if (!has_root) {
+          msg <- "[PR LOW] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
+          cat(msg, "\n")
+          verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
+          strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
+          if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
+          return(NULL)
+        }
         f <- get0("ddesonn_plots_dir", mode = "function", inherits = TRUE)
         base_dir <- NULL
         if (is.function(f)) {
-          base_dir <- tryCatch(f(get0("output_root", inherits = TRUE)), error = function(e) NULL)  #$$$$$$$$$$$$$
-          if (is.null(base_dir) || !nzchar(base_dir)) {
-            base_dir <- tryCatch(f(), error = function(e) NULL)                                     #$$$$$$$$$$$$$
-          }
+          root_arg <- if (is.character(output_root_current) && nzchar(output_root_current)) output_root_current else NULL
+          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  #$$$$$$$$$$$$$
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
-          base_dir <- file.path(tempdir(), "DDESONN_plots")
+          msg <- "[PR LOW] Unable to resolve plots dir for saving."
+          cat(msg, "\n")
+          verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
+          strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
+          if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
+          return(NULL)
         }
         dir <- file.path(base_dir, "performance_relevance")
         if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
         dir
       }                                                                            #$$$$$$$$$$$$$
       
-      pr_plot_dir <- .resolve_pr_plot_dir()                                         #$$$$$$$$$$$$$ FIX: resolve ALWAYS (saveEnabled should not control dir)
+      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      #$$$$$$$$$$$$$
       
       for (metric in unique(low_mean_df$Metric)) {
         
@@ -4854,11 +4851,6 @@ DDESONN <- R6::R6Class(
             )
           
           low_mean_plots[[metric]] <- low_mean_plot
-          
-          # ============================================================
-          # VIEW (ALWAYS when called)                                    #$$$$$$$$$$$$$
-          # ============================================================
-          tryCatch(print(low_mean_plot), error = function(e) NULL)                   #$$$$$$$$$$$$$ FIX: keep tryCatch (more vignette-safe)
           
           # ============================================================
           # SAVE (ONLY when saveEnabled=TRUE)

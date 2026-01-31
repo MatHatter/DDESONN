@@ -746,7 +746,7 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       message(">> Optimizer = adadelta (", target, ")")
       message("Layer: ", layer)
     }
-
+    
     err <- errors[[layer]]
     err_dims <- dim(err)
     if (verbose) {

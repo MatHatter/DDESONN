@@ -202,9 +202,43 @@ if (exists("include_saved_plots")) {
 ## Plot Controls: Scenario 1 — Ensemble Runs — Scenario D
 
 ```{r scenarioD_s1, results="asis", echo=FALSE}
-# options(DDESONN_OUTPUT_ROOT = outD)
-# Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
+options(DDESONN_OUTPUT_ROOT = outD)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
 
-# res_scenarioD_s1
-# include_saved_plots(outD, "Scenario D — Scenario 1 (Ensemble)")
+res_scenarioD_s1 <- ddesonn_run(                 #$$$$$$$$$$$$$
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  hidden_sizes = c(64, 32),
+  seeds = c(11, 22, 33),
+  do_ensemble = TRUE,
+  num_networks = 3L,
+  num_temp_iterations = 2L,
+  validation = list(x = x_valid, y = y_valid),
+  test       = list(x = x_test,  y = y_test),
+  training_overrides = list(
+    num_epochs = 360,
+    lr = 0.125,
+    validation_metrics = TRUE,
+
+    # ============================================================
+    # Plot Controls — Scenario 1
+    # ============================================================
+    per_epoch_plots = list(saveEnabled = TRUE),
+    performance_relevance = list(saveEnabled = TRUE),
+    evaluate_predictions_report_plots = list(
+      accuracy_plot = TRUE,
+      accuracy_plot_mode = "both"
+    )
+  ),
+  temp_overrides = list(
+    num_epochs = 120,
+    lr = 0.05
+  )
+)
+
+include_saved_plots(
+  outD,
+  "Plot Controls: Scenario 1 — Ensemble Runs — Scenario D"    #$$$$$$$$$$$$$
+)
 ```

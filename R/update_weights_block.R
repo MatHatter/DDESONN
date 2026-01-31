@@ -38,14 +38,14 @@ update_weights_block <- function(
   if (!update_weights) {
     return(list(updated_optimizer_params = optimizer_params_weights))
   }
-
+  
   # =========================
   # MULTI-LAYER NN BRANCH
   # =========================
   if (self$ML_NN) {
     for (layer in 1:self$num_layers) {
       if (!is.null(self$weights[[layer]]) && !is.null(optimizer)) {
-
+        
         if (is.null(optimizer_params_weights[[layer]])) {
           optimizer_params_weights[[layer]] <- initialize_optimizer_params(
             optimizer,
@@ -53,7 +53,7 @@ update_weights_block <- function(
             lookahead_step,
             layer
           )
-
+          
           if (verbose) {
             message(">>> After initialize_optimizer_params() for layer ", layer)
             for (line in utils::capture.output(str(optimizer_params_weights[[layer]]))) message(line)
@@ -348,7 +348,7 @@ update_weights_block <- function(
       } else {
         weight_update <- lr * grads_matrix
       }
-
+      
       # ------------------- DEBUG -------------------
       if (verbose) {
         message(">> SL grads_matrix dim: ", paste(dim(grads_matrix), collapse = " x "))
@@ -383,7 +383,7 @@ update_weights_block <- function(
             self$weights <- weights_mat
           }
           optimizer_params_weights[[1]] <- updated_optimizer$updated_optimizer_params
-
+          
           if (verbose) {
             message(">> SL updated weights summary: min = ", min(weights_mat),
                     ", mean = ", mean(weights_mat),
