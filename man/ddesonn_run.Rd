@@ -137,7 +137,188 @@ fits them with \code{\link[=ddesonn_fit]{ddesonn_fit()}}, and (when requested) c
 \code{training_overrides} is a direct pass-through to \code{\link[=ddesonn_fit]{ddesonn_fit()}}. To see the
 baseline defaults used by \code{ddesonn_run()}, call:
 
-\code{onnddesonn_training_defaults(classification_mode, hidden_sizes)}
+\code{ddesonn_training_defaults(classification_mode, hidden_sizes)}
 
 To see all tunable training arguments, see \code{?ddesonn_fit}.
+}
+\examples{
+\donttest{
+# ============================================================
+# DDESONN — FULL example using package data in inst/extdata
+# (binary classification; train/valid/test split; scale train-only)
+# ============================================================
+
+library(DDESONN)
+
+set.seed(111)
+
+# ------------------------------------------------------------
+# 1) Locate package extdata folder (robust across check/install)  #$$$$$$$$$$$$$
+# ------------------------------------------------------------
+ext_dir <- system.file("extdata", package = "DDESONN")
+if (!nzchar(ext_dir)) {
+  stop("Could not find DDESONN extdata folder. Is the package installed?",
+       call. = FALSE)
+}
+
+# ------------------------------------------------------------
+# 1b) Find CSVs (recursive + check-dir edge cases)               #$$$$$$$$$$$$$
+# ------------------------------------------------------------
+csvs <- list.files(
+  ext_dir,
+  pattern = "\\\\\\\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+# Defensive fallback for rare nested layouts
+if (!length(csvs)) {                                             #$$$$$$$$$$$$$
+  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               #$$$$$$$$$$$$$
+  if (dir.exists(ext_dir2)) {                                    #$$$$$$$$$$$$$
+    csvs <- list.files(
+      ext_dir2,
+      pattern = "\\\\\\\\.csv$",
+      full.names = TRUE,
+      recursive = TRUE
+    )
+  }
+}
+
+if (!length(csvs)) {
+  message(sprintf(
+    "No .csv files found under: \%s — skipping example.",
+    ext_dir
+  ))
+} else {
+
+  hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+  data_path <- if (file.exists(hf_path)) hf_path else csvs[[1]]
+
+  cat("[extdata] using:", data_path, "\\\\n")
+
+# ------------------------------------------------------------
+# 2) Load data
+# ------------------------------------------------------------
+df <- read.csv(data_path)
+
+# Prefer DEATH_EVENT if present; otherwise infer a binary target
+target_col <- if ("DEATH_EVENT" \%in\% names(df)) {
+  "DEATH_EVENT"
+} else {
+  cand <- names(df)[vapply(df, function(col) {
+    v <- suppressWarnings(as.numeric(col))
+    if (all(is.na(v))) return(FALSE)
+    u <- unique(v[is.finite(v)])
+    length(u) <= 2 && all(sort(u) \%in\% c(0, 1))
+  }, logical(1))]
+  if (!length(cand)) {
+    stop(
+      "Could not infer a binary target column. ",
+      "Provide a binary CSV in extdata or rename target to DEATH_EVENT.",
+      call. = FALSE
+    )
+  }
+  cand[[1]]
+}
+
+cat("[data] target_col =", target_col, "\\\\n")
+
+# ------------------------------------------------------------
+# 3) Build X and y
+# ------------------------------------------------------------
+y_all <- matrix(as.integer(df[[target_col]]), ncol = 1)
+
+x_df <- df[, setdiff(names(df), target_col), drop = FALSE]
+x_all <- as.matrix(x_df)
+storage.mode(x_all) <- "double"
+
+# ------------------------------------------------------------
+# 4) Split 70 / 15 / 15
+# ------------------------------------------------------------
+n <- nrow(x_all)
+idx <- sample.int(n)
+
+n_train <- floor(0.70 * n)
+n_valid <- floor(0.15 * n)
+
+i_tr <- idx[1:n_train]
+i_va <- idx[(n_train + 1):(n_train + n_valid)]
+i_te <- idx[(n_train + n_valid + 1):n]
+
+x_train <- x_all[i_tr, , drop = FALSE]
+y_train <- y_all[i_tr, , drop = FALSE]
+
+x_valid <- x_all[i_va, , drop = FALSE]
+y_valid <- y_all[i_va, , drop = FALSE]
+
+x_test  <- x_all[i_te, , drop = FALSE]
+y_test  <- y_all[i_te, , drop = FALSE]
+
+cat(sprintf("[split] train=\%d valid=\%d test=\%d\\\\n",
+            nrow(x_train), nrow(x_valid), nrow(x_test)))
+
+# ------------------------------------------------------------
+# 5) Scale using TRAIN stats only (no leakage)
+# ------------------------------------------------------------
+x_train_s <- scale(x_train)
+ctr <- attr(x_train_s, "scaled:center")
+scl <- attr(x_train_s, "scaled:scale")
+scl[!is.finite(scl) | scl == 0] <- 1
+
+x_valid_s <- sweep(sweep(x_valid, 2, ctr, "-"), 2, scl, "/")
+x_test_s  <- sweep(sweep(x_test,  2, ctr, "-"), 2, scl, "/")
+
+mx <- suppressWarnings(max(abs(x_train_s)))
+if (!is.finite(mx) || mx == 0) mx <- 1
+
+x_train <- x_train_s / mx
+x_valid <- x_valid_s / mx
+x_test  <- x_test_s  / mx
+
+# ------------------------------------------------------------
+# 6) Run DDESONN
+# ------------------------------------------------------------
+res <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = FALSE,
+
+  validation = list(
+    x = x_valid,
+    y = y_valid
+  ),
+
+  test = list(
+    x = x_test,
+    y = y_test
+  ),
+
+  training_overrides = list(
+    init_method = "he",
+    optimizer = "adagrad",
+    lr = 0.125,
+    lambda = 0.00028,
+
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates = list(0.10),
+    loss_type = "CrossEntropy",
+
+    validation_metrics = TRUE,
+    num_epochs = 360,
+    final_summary_decimals = 6L
+  ),
+
+  plot_controls = list(
+    evaluate_report = list(
+      roc_curve = TRUE,
+      pr_curve  = FALSE
+    )
+  )
+)
+}
+}
 }

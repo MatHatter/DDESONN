@@ -2895,7 +2895,7 @@ ddesonn_predict <- function(model, new_data,
 #' `training_overrides` is a direct pass-through to [ddesonn_fit()]. To see the
 #' baseline defaults used by `ddesonn_run()`, call:
 #'
-#' `onnddesonn_training_defaults(classification_mode, hidden_sizes)`
+#' `ddesonn_training_defaults(classification_mode, hidden_sizes)`
 #'
 #' To see all tunable training arguments, see `?ddesonn_fit`.
 #'
@@ -3082,7 +3082,7 @@ ddesonn_predict <- function(model, new_data,
 #'   )
 #' )
 #' }
-
+#' }
 
 
 
@@ -3156,6 +3156,9 @@ ddesonn_run <- function(x,
     per_epoch_cfg <- training_overrides$per_epoch_plots                                               #$$$$$$$$$$$$$
   }                                                                                                  #$$$$$$$$$$$$$
   if (!is.null(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
+      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
     if (isTRUE(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
       per_epoch_cfg <- list(viewAllPlots = TRUE)                                                      #$$$$$$$$$$$$$
     } else if (isFALSE(per_epoch_cfg)) {                                                             #$$$$$$$$$$$$$
@@ -3181,11 +3184,23 @@ ddesonn_run <- function(x,
   # - Backward compat: if old ..._boxplots exists, accept it too
   # ============================================================
   if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       #$$$$$$$$$$$$$
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
+      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
     base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
       training_overrides$final_update_performance_relevance_plots                                    #$$$$$$$$$$$$$
   } else if (!is.null(training_overrides$final_update_performance_relevance_boxplots)) {             #$$$$$$$$$$$$$
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
+      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
     base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
       training_overrides$final_update_performance_relevance_boxplots                                  #$$$$$$$$$$$$$
+  } else if (!is.null(training_overrides$performance_relevance)) {                                   #$$$$$$$$$$$$$
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
+      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
+    }                                                                                                 #$$$$$$$$$$$$$
+    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
+      training_overrides$performance_relevance                                                       #$$$$$$$$$$$$$
   }                                                                                                  #$$$$$$$$$$$$$
   
   if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  #$$$$$$$$$$$$$
