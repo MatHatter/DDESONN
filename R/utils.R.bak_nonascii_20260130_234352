@@ -1,5 +1,5 @@
 # ===============================================================
-# DeepDynamic -- DDESONN
+# DeepDynamic — DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
@@ -452,7 +452,7 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
         all(labels[seq_len(n), , drop=FALSE] %in% c(0,1))) {
       Y <- matrix(as.numeric(labels[seq_len(n), , drop=FALSE]), n, K)
       y_idx <- max.col(Y, ties.method = "first")
-      cat("[dbg] targets: using provided one-hot (nxK)\n")
+      cat("[dbg] targets: using provided one-hot (n×K)\n")
       return(list(Y=Y, y_idx=y_idx))
     } else {
       f <- if (is.factor(lv)) lv else factor(lv)
@@ -534,7 +534,7 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
 }
 
 .ce_loss_multiclass <- function(P, Y, eps=1e-12) {
-  P <- pmin(pmax(as.matrix(P), eps), 1 - eps)  # nxK
+  P <- pmin(pmax(as.matrix(P), eps), 1 - eps)  # n×K
   if (is.vector(Y)) Y <- one_hot_from_ids(as.integer(Y), K=ncol(P), N=nrow(P))
   # --- numeric guards (multiclass) ---
   if (!is.matrix(P)) P <- as.matrix(P)
@@ -808,7 +808,7 @@ safe_one_hot_matrix <- function(idx, K) {
     X <- sweep(sweep(X, 2, pp$center, "-"), 2, sc, "/")
   }
   
-  # Optional extra compression -- disabled unless explicitly TRUE and >1
+  # Optional extra compression — disabled unless explicitly TRUE and >1
   if (isTRUE(pp$divide_by_max_val)) {
     mv <- as.numeric(pp$max_val %||% 1)
     if (is.finite(mv) && mv > 1) X <- X / mv
@@ -968,7 +968,7 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 }
 
 ## ------------------------------------------------------------------------
-## Mode helper (global -> meta -> default) with optional tracing
+## Mode helper (global → meta → default) with optional tracing
 ## ------------------------------------------------------------------------
 .get_mode <- function(meta) {
   g <- get0("CLASSIFICATION_MODE", inherits = TRUE, ifnotfound = NULL)
@@ -1010,7 +1010,7 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
   
   # --- normalize types ---
   if (is.null(pred) || length(pred) == 0L) {
-    if (isTRUE(DEBUG)) cat("[ASPM-DBG] empty -> returning 0x1 matrix\n")
+    if (isTRUE(DEBUG)) cat("[ASPM-DBG] empty → returning 0x1 matrix\n")
     return(matrix(numeric(0), nrow = 0, ncol = 1))
   }
   if (is.data.frame(pred)) pred <- as.matrix(pred)
@@ -1145,14 +1145,14 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 ## Safe wrapper
 ## ------------------------------------------------------------------------
 # ===========================================
-# .safe_run_predict (passes verbose/debug through) -- accepts function, list$predict, or R6/env$predict
-# .safe_run_predict -- accepts function, list$predict, or R6/env$predict.
+# .safe_run_predict (passes verbose/debug through) — accepts function, list$predict, or R6/env$predict
+# .safe_run_predict — accepts function, list$predict, or R6/env$predict.
 # Passes weights/biases/activation_functions correctly (esp. for predictor_fn).
 .safe_run_predict <- function(
     X, meta,
     model_index         = 1L,
     ML_NN               = NULL,
-    CLASSIFICATION_MODE = NULL,   # <- fixed (no self-reference)
+    CLASSIFICATION_MODE = NULL,   # ← fixed (no self-reference)
     ...,
     verbose = get0("VERBOSE_SAFERUN", inherits = TRUE, ifnotfound = FALSE),
     debug   = get0("DEBUG_SAFERUN",   inherits = TRUE, ifnotfound = FALSE),
@@ -1274,10 +1274,10 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
 
 
 ## ------------------------------------------------------------------------
-## Predict shim (stateless, uses extract_best_records) -- MODE-AWARE
+## Predict shim (stateless, uses extract_best_records) — MODE-AWARE
 ## ------------------------------------------------------------------------
 ## ------------------------------------------------------------------------
-## Predict shim (stateless, uses extract_best_records) -- MODE-AWARE
+## Predict shim (stateless, uses extract_best_records) — MODE-AWARE
 ## ------------------------------------------------------------------------
 if (!exists(".run_predict", inherits = TRUE)) {
   .run_predict <- function(
@@ -1358,7 +1358,7 @@ if (!exists(".run_predict", inherits = TRUE)) {
       cat(sprintf("[HEAD-DBG %s] last_activation='%s' | last_is_linear=%s | mode=%s\n",
                   stamp, if (nzchar(last_nm)) last_nm else "<unknown>", is_linear, expected_mode))
       if (!is_linear && expected_mode != "regression") {
-        cat("[ACT-DBG] Non-linear head is correct for classification -- no regression flattening concern.\n")
+        cat("[ACT-DBG] Non-linear head is correct for classification — no regression flattening concern.\n")
       }
     }
     
@@ -1495,7 +1495,7 @@ get_metric_by_serial <- function(serial, metric_name) {
 
 ##helpers for 
 ## =========================================================================================
-## SINGLE-RUN MODE (no logs, no lineage, no temp/prune/add) -- covers Scenario A & Scenario B
+## SINGLE-RUN MODE (no logs, no lineage, no temp/prune/add) — covers Scenario A & Scenario B
 ## =========================================================================================
 ## if (!isTRUE(do_ensemble)) in TestDDESONN.R
 
@@ -1547,10 +1547,10 @@ print_ensembles_summary <- function(ensembles_container,
   if (isTRUE(explain)) {
     cat(
       "Legend:\n",
-      "  * E = ensemble_number label (E=0 denotes single-run labeling).\n",
-      "  * R lists are 1-based, so the single run lives at main_ensemble[[1]].\n",
-      "  * Role: 'main' when E in {0,1}; 'temp' when E >= 2.\n",
-      "  * 'models' = SONN models inside a DDESONN run.\n\n", sep = ""
+      "  • E = ensemble_number label (E=0 denotes single-run labeling).\n",
+      "  • R lists are 1-based, so the single run lives at main_ensemble[[1]].\n",
+      "  • Role: 'main' when E ∈ {0,1}; 'temp' when E ≥ 2.\n",
+      "  • 'models' = SONN models inside a DDESONN run.\n\n", sep = ""
     )
   }
   
@@ -1587,7 +1587,7 @@ print_ensembles_summary <- function(ensembles_container,
         if (length(act)) cat(sprintf(" | activations=%s", paste0(act, collapse = ",")))
         cat("\n")
       }
-      if (length(mods) > upto) cat(sprintf("    ... (%d more models not shown)\n", length(mods) - upto))
+      if (length(mods) > upto) cat(sprintf("    … (%d more models not shown)\n", length(mods) - upto))
     }
   }
   
@@ -1796,18 +1796,18 @@ aggregate_predictions <- function(predicted_output_list,
   }
   
   if (method == "median") {
-    arr <- simplify2array(mats)        # N x K x M
+    arr <- simplify2array(mats)        # N × K × M
     return(apply(arr, c(1,2), stats::median, na.rm = TRUE))
   }
   
-  # mean / vote -> elementwise weighted mean, keeps N x K
-  X <- do.call(cbind, lapply(mats, function(m) as.vector(m)))  # (N*K) x M
+  # mean / vote → elementwise weighted mean, keeps N × K
+  X <- do.call(cbind, lapply(mats, function(m) as.vector(m)))  # (N*K) × M
   out <- as.numeric(X %*% weights)                             # (N*K)
   matrix(out, nrow = N, ncol = K)
 }
 
 # Full replacement (compact + multiclass-safe)
-# Full replacement -- compact, NA-safe, binary/multiclass
+# Full replacement — compact, NA-safe, binary/multiclass
 pick_representative_sonn <- function(SONN_list, predicted_output_list, labels) {
   to_class <- function(y) {
     if (is.matrix(y)) {
@@ -2097,7 +2097,7 @@ safe_eval_metrics <- function(y_pred_class, y_true01, verbose = FALSE) {
   
   if (!length(maps)) return(NA_real_)
   
-  # --- flatten maps into a single name -> value registry (depth <= 2-3) ---
+  # --- flatten maps into a single name -> value registry (depth <= 2–3) ---
   key_norm   <- character()
   key_raw    <- character()
   val_store  <- list()
@@ -2218,7 +2218,7 @@ find_best_model <- function(target_metric_name_best,
   meta <- bm_select_exact(top$kind, top$ens, top$model, dir = dir)
   
   print(head(df_ok[, c("name","kind","ens","model","metric_value")], 10), row.names = FALSE)
-  cat(sprintf("-> Selected: %s | %s=%.6f (%s better)\n",
+  cat(sprintf("→ Selected: %s | %s=%.6f (%s better)\n",
               top$name, target_metric_name_best, top$metric_value,
               if (minimize) "lower" else "higher"))
   
@@ -2300,7 +2300,7 @@ compute_error <- function(
     L <- labels
     if (is.data.frame(L)) L <- as.matrix(L)
     
-    # If labels are already one-hot / probability matrix -> align & diff
+    # If labels are already one-hot / probability matrix → align & diff
     if (!is.null(dim(L)) && ncol(L) > 1L) {
       Y <- align_rows(as.matrix(L), n)
       Y <- pad_or_trim_cols(Y, k, pad = 0)
@@ -2342,8 +2342,8 @@ compute_error <- function(
   # Goal: return absolute error |Y - P| with shape n x k.
   # - Accepts labels as vector/matrix/data.frame.
   # - Coerces to numeric, aligns rows, and matches columns:
-  #   * If labels have 1 col and k > 1 -> replicate that column across k.
-  #   * If labels have >1 col -> trim or pad with zeros to match k.
+  #   * If labels have 1 col and k > 1 → replicate that column across k.
+  #   * If labels have >1 col → trim or pad with zeros to match k.
   L <- labels
   
   # Coerce to numeric matrix safely
@@ -2351,7 +2351,7 @@ compute_error <- function(
     M <- as_mat(x)
     # Try numeric coercion while preserving shape
     suppressWarnings(storage.mode(M) <- "double")
-    # If still all NA (e.g., character), try a character->numeric pass
+    # If still all NA (e.g., character), try a character→numeric pass
     if (all(is.na(M))) {
       M_chr <- as_mat(as.character(x))
       suppressWarnings(storage.mode(M_chr) <- "double")
@@ -2399,7 +2399,7 @@ optimizers_log_update <- function(
   }
   .shape <- function(x) {
     if (is.list(x)) x <- x[[1]]
-    if (is.null(x)) return("EMPTY")
+    if (is.null(x)) return("∅")
     d <- dim(x)
     if (is.null(d)) sprintf("len=%d", length(x)) else sprintf("%dx%d", d[1], d[2])
   }
@@ -2938,7 +2938,7 @@ DDESONN_predict_eval <- function(
     }
     dbg_head(agg_tbl, tag="[UPsert-METR] agg_tbl (post)")
     saveRDS(agg_tbl, AGG_METRICS_FILE)
-    dcat("WRITE agg metrics upsert OK -> ", AGG_METRICS_FILE)
+    dcat("WRITE agg metrics upsert OK → ", AGG_METRICS_FILE)
   }
   
   ## =========================
@@ -3117,10 +3117,10 @@ DDESONN_predict_eval <- function(
 # What this function does:
 # - Reads per-slot predictions (by RUN/SEED/etc.) and builds a matrix.
 # - Produces ONE consensus prediction via:
-#     * "avg"        -> unweighted mean of probabilities
-#     * "wavg"       -> weighted mean (weights from tuned_f1 / f1 / accuracy)
-#     * "vote_soft"  -> fraction of models voting positive (soft proportion)
-#     * "vote_hard"  -> majority (or quorum) hard vote (0/1 outcome)
+#     • "avg"        → unweighted mean of probabilities
+#     • "wavg"       → weighted mean (weights from tuned_f1 / f1 / accuracy)
+#     • "vote_soft"  → fraction of models voting positive (soft proportion)
+#     • "vote_hard"  → majority (or quorum) hard vote (0/1 outcome)
 # - Computes metrics on these fused outputs (currently binary path shown).
 #   (Extend here for multiclass/regression if needed.)
 #
@@ -3670,7 +3670,7 @@ emit_table <- function(x,
 
 
 # ============================================================
-# INTERNAL -- PRESENTATION ONLY
+# INTERNAL — PRESENTATION ONLY
 # Fixed decimal places for FINAL SUMMARY / CLASSIFICATION REPORTS.
 # Does NOT change training or stored metrics.
 # ============================================================

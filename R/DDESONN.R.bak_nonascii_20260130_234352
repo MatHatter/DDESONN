@@ -1,5 +1,5 @@
 # ===============================================================
-# DeepDynamic -- DDESONN
+# DeepDynamic — DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
@@ -954,7 +954,7 @@ SONN <- R6::R6Class(
           
           hidden_outputs[[layer]] <- A
           
-          # Derivatives for hidden layers; for output, we'll handle with CE shortcut
+          # Derivatives for hidden layers; for output, we’ll handle with CE shortcut
           if (is.function(activation_function)) {
             derivative_name <- paste0(attr(activation_function, "name") %||% "unnamed_function", "_derivative")
             if (!exists(derivative_name, mode = "function")) {
@@ -991,11 +991,11 @@ SONN <- R6::R6Class(
           pr <- range(P[is.finite(P)])
           cat("[LEARN-MC] P range:", paste(pr, collapse=" .. "), "\n")
           
-          # 3) If softmax, rows should sum ~ 1
+          # 3) If softmax, rows should sum ≈ 1
           if (af_last_name == "softmax") {
             rs <- rowSums(P)
             cat("[LEARN-MC] rowSums(P) min..max:", min(rs), "..", max(rs),
-                " | %==1 (+/-1e-6):", mean(abs(rs - 1) < 1e-6), "\n")
+                " | %==1 (±1e-6):", mean(abs(rs - 1) < 1e-6), "\n")
             if (any(!is.finite(rs))) stop("[LEARN-MC] non-finite rowSums(P)")
           }
           
@@ -1244,7 +1244,7 @@ SONN <- R6::R6Class(
             cat(sprintf("%s DIAG: Variance preserved across head.\n", tag))
           }
         } else if (isTRUE(verbose)) {
-          cat(sprintf("%s head=%s | sd(Z)=%.6g -> sd(A)=%.6g\n", tag, as.character(last_af_name), sdZ, sdA))
+          cat(sprintf("%s head=%s | sd(Z)=%.6g → sd(A)=%.6g\n", tag, as.character(last_af_name), sdZ, sdA))
         }
         invisible(list(sdZ = sdZ, sdA = sdA, rngZ = rngZ, rngA = rngA))
       }
@@ -1355,7 +1355,7 @@ SONN <- R6::R6Class(
         w <- as.matrix(weights[[layer]])
         b <- as.numeric(unlist(biases[[layer]]))
         
-        # Broadcast bias to match samples x units
+        # Broadcast bias to match samples × units
         n_samples <- nrow(output)
         n_units   <- ncol(w)
         if (length(b) == 1) {
@@ -1653,7 +1653,7 @@ SONN <- R6::R6Class(
           cat(sprintf(
             "Epoch %d | Train %s: %s | Loss: %.6f\n",
             epoch,
-            if (identical(CLASSIFICATION_MODE, "regression")) "R^2/Acc" else "Accuracy",
+            if (identical(CLASSIFICATION_MODE, "regression")) "R²/Acc" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else sprintf("%.2f%%", 100 * train_accuracy),
             train_loss
           ))
@@ -1684,7 +1684,7 @@ SONN <- R6::R6Class(
           }
           
           ## =========================
-          ## SONN -- Per-epoch plot config
+          ## SONN — Per-epoch plot config
           ## =========================
           
           # migrate legacy typo field -> canonical PerEpochViewPlotsConfig
@@ -1714,7 +1714,7 @@ SONN <- R6::R6Class(
           
           pe <- self$PerEpochViewPlotsConfig
           
-          #local umbrella -- if TRUE, force all per-epoch plots TRUE
+          #local umbrella — if TRUE, force all per-epoch plots TRUE
           if (isTRUE(pe$viewAllPlots)) {                 
             pe$accuracy_plot   <- TRUE                  
             pe$saturation_plot <- TRUE                 
@@ -1727,12 +1727,12 @@ SONN <- R6::R6Class(
           
           if (isTRUE(pe$verbose)) {  #$$$$$$$$$$$$$
             message(sprintf(
-              "SONN per-epoch config -> acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
+              "SONN per-epoch config → acc=%s, sat=%s, max=%s, all=%s, verbose=%s",
               pe$accuracy_plot, pe$saturation_plot, pe$max_weight_plot, pe$viewAllPlots, pe$verbose
             ))
             
             message(sprintf(
-              "SONN gate eval -> acc=%s, sat=%s, max=%s",
+              "SONN gate eval → acc=%s, sat=%s, max=%s",
               self$viewPerEpochPlots("accuracy_plot"),
               self$viewPerEpochPlots("saturation_plot"),
               self$viewPerEpochPlots("max_weight_plot")
@@ -1742,7 +1742,7 @@ SONN <- R6::R6Class(
           mod <- as.integer(if (exists("model_iter_num", inherits = TRUE)) model_iter_num else get0("model_iter_num", 1L))
           
           # =========================
-          # MERGED-IN -- gradients, normalization, BLOCK A metrics
+          # MERGED-IN — gradients, normalization, BLOCK A metrics
           # =========================
           
           # ---- Gradients & misc outputs from learn() (normalize shapes early) ----
@@ -1820,7 +1820,7 @@ SONN <- R6::R6Class(
           } else stop("Unknown CLASSIFICATION_MODE")
           
           # =========================
-          # BLOCK A -- Accuracy & Saturation (aware)
+          # BLOCK A — Accuracy & Saturation (aware)
           # =========================
           cat(sprintf("[dbg] BLOCK A: n=%d, K=%d | probs_train range=[%.6f, %.6f]\n",
                       n, K, min(probs_train), max(probs_train)))
@@ -1950,7 +1950,7 @@ SONN <- R6::R6Class(
                 ggplot2::geom_line(ggplot2::aes(y = Loss),
                                    color = "#E63946", linewidth = 1) +
                 ggplot2::labs(
-                  title = paste(plot_title_prefix, "-- Training Accuracy & Loss"),
+                  title = paste(plot_title_prefix, "— Training Accuracy & Loss"),
                   y = "Value"
                 ) +
                 ggplot2::theme_minimal() +
@@ -1959,7 +1959,7 @@ SONN <- R6::R6Class(
                 )
               
               out <- file.path(plots_dir, fname("training_accuracy_loss_plot.png"))
-              message("SAVE: save: ", out)
+              message("📸 save: ", out)
               if (isTRUE(saveEnabled)) {
                 ggplot2::ggsave(
                   filename = out,
@@ -1970,7 +1970,7 @@ SONN <- R6::R6Class(
                   device = "png"
                 )
               }
-            }, error = function(e) message("ERROR: accuracy_loss_plot: ", e$message))
+            }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
           
           
@@ -1984,7 +1984,7 @@ SONN <- R6::R6Class(
                 ggplot2::geom_line(ggplot2::aes(y = StdOutput),
                                    color = "#C77DFF", linewidth = 1) +
                 ggplot2::labs(
-                  title = paste(plot_title_prefix, "-- Output Mean & Std Dev"),
+                  title = paste(plot_title_prefix, "— Output Mean & Std Dev"),
                   y = "Output Value"
                 ) +
                 ggplot2::theme_minimal() +
@@ -1993,7 +1993,7 @@ SONN <- R6::R6Class(
                 )
               
               out <- file.path(plots_dir, fname("output_saturation_plot.png"))
-              message("SAVE: save: ", out)
+              message("📸 save: ", out)
               if (isTRUE(saveEnabled)) {
                 ggplot2::ggsave(
                   filename = out,
@@ -2004,7 +2004,7 @@ SONN <- R6::R6Class(
                   device = "png"
                 )
               }
-            }, error = function(e) message("ERROR: output_saturation_plot: ", e$message))
+            }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
           
           # 5) Regularization (ensure reg_loss_total exists)
@@ -2141,7 +2141,7 @@ SONN <- R6::R6Class(
           }
           
           # =========================
-          # BLOCK B -- Weights (Max Weight + Plot)
+          # BLOCK B — Weights (Max Weight + Plot)
           # =========================
           
           #$$$$$$$$$$$$$ FIX: REMOVE per-epoch reset (max_weight_log already initialized before loop)
@@ -2162,7 +2162,7 @@ SONN <- R6::R6Class(
             }
           }, error = function(e) NA_real_)
           
-          # #$$$$$$$$$$$$$ FIX: sanitize non-finite (-Inf/Inf/NaN) to NA so ggplot doesn't drop everything
+          # #$$$$$$$$$$$$$ FIX: sanitize non-finite (-Inf/Inf/NaN) to NA so ggplot doesn’t drop everything
           if (!is.finite(max_weight)) max_weight <- NA_real_  #$$$$$$$$$$$$$
           
           max_weight_log <- c(max_weight_log, max_weight)
@@ -2196,14 +2196,14 @@ SONN <- R6::R6Class(
             tryCatch({
               plots_dir <- ddesonn_plots_dir(output_root)
               
-              # #$$$$$$$$$$$$$ FIX: if nothing finite, don't emit an empty grid plot
+              # #$$$$$$$$$$$$$ FIX: if nothing finite, don’t emit an empty grid plot
               if (nrow(df_maxw_plot) == 0L) {                                  #$$$$$$$$$$$$$
-                message("WARN: max_weight_plot: no finite MaxWeight values yet; skip")  #$$$$$$$$$$$$$
+                message("⚠️ max_weight_plot: no finite MaxWeight values yet; skip")  #$$$$$$$$$$$$$
               } else {                                                          #$$$$$$$$$$$$$
                 p <- ggplot2::ggplot(df_maxw_plot, ggplot2::aes(x = Epoch, y = MaxWeight)) +  #$$$$$$$$$$$$$
                   ggplot2::geom_line(color = "#E4572E", linewidth = 1, na.rm = TRUE) +       #$$$$$$$$$$$$$
                   ggplot2::labs(
-                    title = paste(plot_title_prefix, "-- Max Weight Magnitude Over Time"),
+                    title = paste(plot_title_prefix, "— Max Weight Magnitude Over Time"),
                     y = "Max |Weight|"
                   ) +
                   ggplot2::theme_minimal() +
@@ -2212,7 +2212,7 @@ SONN <- R6::R6Class(
                   )
                 
                 out <- file.path(plots_dir, fname("max_weight_plot.png"))
-                message("SAVE: save: ", out)
+                message("📸 save: ", out)
                 if (isTRUE(saveEnabled)) {
                   ggplot2::ggsave(
                     filename = out,
@@ -2224,7 +2224,7 @@ SONN <- R6::R6Class(
                   )
                 }
               }                                                                  #$$$$$$$$$$$$$
-            }, error = function(e) message("ERROR: max_weight_plot: ", e$message))
+            }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }
           
           
@@ -2778,7 +2778,7 @@ SONN <- R6::R6Class(
           # --- STRICT CHECK: only when regression + validation enabled ---
           if (identical(CLASSIFICATION_MODE, "regression")) {
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
-              warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
+              warning("[WARN] Regression best snapshot missing explicit val_probs/labels — using last validation predictions instead.")
               best_val_probs  <- as.matrix(probs_val)
               best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
             }
@@ -3182,7 +3182,7 @@ DDESONN <- R6::R6Class(
       on_all || flag
     },
     ## ============================================================
-    ## SECTION: Plot gate -- EvaluatePredictionsReport               
+    ## SECTION: Plot gate — EvaluatePredictionsReport               
     ## ============================================================
     viewEvaluatePredictionsReportPlots=function(name){
       cfg<-self$EvaluatePredictionsReportPlotsConfig
@@ -3439,7 +3439,7 @@ DDESONN <- R6::R6Class(
       
       for (i in seq_along(all_predicted_outputAndTime)) {
         if (isTRUE(verbose)) {
-          message("\n== Model ", i, " ==")
+          message("\n── Model ", i, " ──")
         }
         
         model_result <- all_predicted_outputAndTime[[i]]
@@ -3592,7 +3592,7 @@ DDESONN <- R6::R6Class(
       }
       
       # =========================
-      # DDESONN -- Final perf/relevance lists (uses self$viewFinalUpdatePerformanceandRelevancePlots)
+      # DDESONN — Final perf/relevance lists (uses self$viewFinalUpdatePerformanceandRelevancePlots)
       # =========================
       
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
@@ -3671,7 +3671,7 @@ DDESONN <- R6::R6Class(
             )), silent = TRUE)
           }
           
-          # Print (view) -- gated by same per-group flag + session mode
+          # Print (view) — gated by same per-group flag + session mode
           if (print_plots) {
             try(print(p), silent = TRUE)
           }
@@ -3746,7 +3746,7 @@ DDESONN <- R6::R6Class(
       performance_list <- list()
       relevance_list <- list()
       model_name_list <-  list()
-      #############################################################################################################################################################################################################################
+      #████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
       
       # Calculate performance and relevance for each SONN in the ensemble
       for (i in 1:length(self$ensemble)) {
@@ -3895,7 +3895,7 @@ DDESONN <- R6::R6Class(
             verbose_eval <- isTRUE(eval_cfg$verbose)                                                     #$$$$$$$$$$$$$
             
             # ============================================================
-            # Build args list -- EVERYTHING inside list (your preference)    #$$$$$$$$$$$$$
+            # Build args list — EVERYTHING inside list (your preference)    #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
             eval_args <- list(
               X_validation              = X_validation,
@@ -3927,7 +3927,7 @@ DDESONN <- R6::R6Class(
             if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root             #$$$$$$$$$$$$$
             
             # ============================================================
-            # DEBUG -- MUST key off eval_args$verbose (not outer verbose)    #$$$$$$$$$$$$$
+            # DEBUG — MUST key off eval_args$verbose (not outer verbose)    #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
             if (isTRUE(eval_args$verbose)) {
               
@@ -4444,10 +4444,10 @@ DDESONN <- R6::R6Class(
         
         # --- Optional notify user ---
         if (!verbose && !viewTables) {
-          message("[INFO] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
+          message("[ℹ] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
         }
         
-        # Grouped metrics (run whenever you have >=1 model)
+        # Grouped metrics (run whenever you have ≥1 model)
         if (ensemble_number >= 1 && length(self$ensemble) > 1) {
           group_perf <- calculate_performance_grouped(
             SONN_list             = self$ensemble,
@@ -5329,9 +5329,9 @@ calculate_relevance <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, model_
 #        behaves, but is still reporting-only (not the true ensemble output).
 #
 #   2) metric_mode = "average_per_model"
-#      - Compute each model's metrics independently, then average the
+#      - Compute each model’s metrics independently, then average the
 #        numeric metric values across models.
-#      - More of an experimental "sampling pulse" -- shows the typical
+#      - More of an experimental “sampling pulse” — shows the typical
 #        performance level across models, not a consensus output.
 #
 # TL;DR:

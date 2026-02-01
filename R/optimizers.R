@@ -1,5 +1,5 @@
 # ===============================================================
-# DeepDynamic — DDESONN
+# DeepDynamic -- DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
 # Copyright (c) 2024-2025 Mathew William Fok
@@ -88,7 +88,7 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
     update_matrix <- if (is.list(update) && length(update) == 1) update[[1]] else update
     
     if (is.null(update_matrix)) {
-      stop(paste0("Update matrix for layer ", layer, " is NULL — check gradients or optimizer output."))
+      stop(paste0("Update matrix for layer ", layer, " is NULL -- check gradients or optimizer output."))
     }
     
     target_matrix <- if (target == "weights") self$weights[[layer]] else self$biases[[layer]]
@@ -1020,7 +1020,7 @@ adagrad_update <- function(params, grads, lr, epsilon) {
   return(list(
     params = params,
     weights_update = updates,
-    biases_update = updates  # If shared logic for both — differentiate if needed
+    biases_update = updates  # If shared logic for both -- differentiate if needed
   ))
 }
 

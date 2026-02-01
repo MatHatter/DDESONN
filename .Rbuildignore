@@ -9,6 +9,7 @@
 # - Ignore knitr fig/cache roots that you set in vignette opts (figure-html/, cache/)   #$$$$$$$$$$$$$
 # - Ignore DDESONN vignette-run artifact roots (DDESONN_plots_*)                        #$$$$$$$$$$$$$
 # - Slightly safer tarball pattern                                                     #$$$$$$$$$$$$$
+# - Ignore stdout / stderr runtime capture dirs                                        #$$$$$$$$$$$$$
 # ============================================================
 
 # ============================================================
@@ -52,7 +53,19 @@
 ^scratch$
 ^scratch/.*$
 
+# ============================================================
+# Runtime output capture (MUST NEVER SHIP)                     #$$$$$$$$$$$$$
+# ============================================================
+
+^stdout$                                                                   #$$$$$$$$$$$$$
+^stderr$                                                                   #$$$$$$$$$$$$$
+^DDESONN/stdout$                                                           #$$$$$$$$$$$$$
+^DDESONN/stderr$                                                           #$$$$$$$$$$$$$
+
+# ============================================================
 # Quarto / vignette intermediates (safe to ignore)
+# ============================================================
+
 ^vignettes/.*\.knit\.md$
 ^vignettes/.*\.utf8\.md$
 ^vignettes/.*_files$
@@ -65,6 +78,10 @@
 
 ^vignettes/DDESONN_plots_.*$                                               #$$$$$$$$$$$$$ FIX: your scenario outputs under vignettes
 ^vignettes/DDESONN_plots_.*/.*$                                            #$$$$$$$$$$$$$ FIX
+
+# ============================================================
+# R CMD build metadata
+# ============================================================
 
 ^doc$
 ^Meta$
