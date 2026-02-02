@@ -18,7 +18,10 @@ predict.ddesonn_model <- function(object,
                                   ...,
                                   aggregate = c("mean", "median", "none"),
                                   type = c("response", "class"),
-                                  threshold = NULL) {
+                                  threshold = NULL,  #$$$$$$$$$$$$$
+                                  verbose = FALSE,  #$$$$$$$$$$$$$
+                                  verboseLow = FALSE,  #$$$$$$$$$$$$$
+                                  debug = FALSE) {  #$$$$$$$$$$$$$
   if (is.null(object) || !inherits(object, "ddesonn_model")) {
     stop("'object' must be a ddesonn_model.", call. = FALSE)
   }
@@ -32,7 +35,10 @@ predict.ddesonn_model <- function(object,
     new_data = newdata,
     aggregate = aggregate,
     type = type,
-    threshold = threshold
+    threshold = threshold,  #$$$$$$$$$$$$$
+    verbose = verbose,  #$$$$$$$$$$$$$
+    verboseLow = verboseLow,  #$$$$$$$$$$$$$
+    debug = debug  #$$$$$$$$$$$$$
   )
   if (type == "class") {
     return(preds$class)

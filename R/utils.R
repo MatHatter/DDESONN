@@ -12,7 +12,46 @@
 # past, present, and future, including legacy releases.
 #
 # Intended future distribution: CRAN package.
-`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a
+`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a  #$$$$$$$$$$$$$
+
+
+# ============================================================
+# Console / debug / table helpers (verbosity control)           #$$$$$$$$$$$$$
+# ============================================================   #$$$$$$$$$$$$$
+ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL) {  #$$$$$$$$$$$$$
+  level <- match.arg(level)  #$$$$$$$$$$$$$
+  if (is.null(verbose)) verbose <- getOption("DDESONN.verbose", FALSE)  #$$$$$$$$$$$$$
+  if (is.null(verboseLow)) verboseLow <- getOption("DDESONN.verboseLow", FALSE)  #$$$$$$$$$$$$$
+  verbose <- isTRUE(verbose)  #$$$$$$$$$$$$$
+  verboseLow <- isTRUE(verboseLow)  #$$$$$$$$$$$$$
+  msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
+  if (identical(level, "important")) {  #$$$$$$$$$$$$$
+    if (verbose || verboseLow) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
+  } else {  #$$$$$$$$$$$$$
+    if (verbose) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
+  }  #$$$$$$$$$$$$$
+  invisible(NULL)  #$$$$$$$$$$$$$
+}  #$$$$$$$$$$$$$
+
+ddesonn_debug <- function(msg, debug = FALSE) {  #$$$$$$$$$$$$$
+  debug <- debug %||% getOption("DDESONN.debug", FALSE)  #$$$$$$$$$$$$$
+  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+  if (isTRUE(debug)) {  #$$$$$$$$$$$$$
+    msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
+    cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
+  }  #$$$$$$$$$$$$$
+  invisible(NULL)  #$$$$$$$$$$$$$
+}  #$$$$$$$$$$$$$
+
+ddesonn_viewTables <- function(x, title = NULL, ...) {  #$$$$$$$$$$$$$
+  vt <- get0("viewTables", inherits = TRUE, ifnotfound = NULL)  #$$$$$$$$$$$$$
+  if (is.function(vt)) {  #$$$$$$$$$$$$$
+    return(vt(x, title = title, ...))  #$$$$$$$$$$$$$
+  }  #$$$$$$$$$$$$$
+  if (!is.null(title)) message(title)  #$$$$$$$$$$$$$
+  print(x)  #$$$$$$$$$$$$$
+  invisible(x)  #$$$$$$$$$$$$$
+}  #$$$$$$$$$$$$$
 
 
 # ============================================================

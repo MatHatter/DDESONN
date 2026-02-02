@@ -7,7 +7,6 @@ This repository intentionally contains a second README at:
 
 `inst/dev/README.md`
 
-
 That file is used for development notes, internal context, and in-progress documentation during active experimentation.  
 The root `README.md` (this file) is the canonical public-facing README for users, CRAN, and external contributors.
 
@@ -46,6 +45,92 @@ DDESONN blends self-organizing principles with modern deep-learning practices to
 The primary design objective of DDESONN is to provide a fully customizable, entirely R-native neural network codebase and framework, intentionally avoiding external deep-learning backend library dependencies to preserve full architectural control and transparency.
 
 It is being prepared for public release on CRAN.
+
+---
+
+## Why DDESONN exists (and why I built it this way)
+
+DDESONN exists because I wanted to understand machine learning at a deeper level than "use a library and hope it works."
+
+I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into ??? layer by layer, error by error, update by update ??? and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
+
+So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** ??? and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
+
+### The honest story (trials, tribulations, and why it matters)
+
+This package took an extreme amount of time and emotional energy to build.
+
+There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard ??? because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
+
+I nearly gave up twice.
+
+What kept me going was the belief that I was on the right track ??? even when the results didn't always look right. In a weird way, life events kept pulling me back onto this path. Every time I stepped away, I came back with more clarity. And every time I came back, I pushed the implementation closer to what it should be.
+
+As I went deeper, it honestly got scarier ??? because there were moments where DDESONN looked better than the benchmark models, and other moments where it didn't. That inconsistency can mess with your head when you've invested everything into building it correctly.
+
+But the turning point wasn't "one magic upgrade." It was the final phase of **clearing out the bugs** and **aligning the implementation to the mathematically correct behavior**. Once those last issues were resolved, the model became dramatically more stable.
+
+### What "better" means here
+
+When I say "better," I don't mean one cherry-picked run.
+
+I mean repeated evaluation across large numbers of randomized initializations (seeds). In my testing, once the final correctness issues were resolved, DDESONN produced results that were:
+
+- **more stable on average**
+- with **lower standard deviation**
+- and **less extreme worst-case error**
+  across large seed sweeps (e.g., 1,000 seeds)
+
+At that point, it stopped feeling like "maybe this works" and started feeling like "this is now a stable, correct implementation that competes."
+
+### Transparency is the point
+
+DDESONN is built to show you what it's doing.
+
+Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks). High-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
+
+This is not just a model ??? it's an implementation you can learn from.
+
+### Connect with me / questions welcome
+
+If you found this package useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
+
+If you send a connection request, please include a short message saying you found DDESONN ??? I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
+
+---
+
+## Logging / Verbosity levels
+
+DDESONN supports two tiers of debug output:
+
+- **Low verbosity (default):** prints only the essential "trust" diagnostics (layer-by-layer)
+  - layer dimensions per layer
+  - activation name per layer
+  - predicted output shape
+  - error shape / key scalar metrics per layer
+  - any shape/NA/overflow guards and recovery actions
+- **High verbosity:** prints full tracing for debugging and research
+  - per-layer forward values (summary stats)
+  - per-layer backprop error stats
+  - gradient shape + update sanity checks
+  - detailed corrective actions when dimension alignment occurs
+
+This design ensures that even low verbosity is still inspectable and scientifically meaningful, while high verbosity remains available for deep debugging.
+
+---
+
+## How to implement low verbose but still layer-by-layer without spamming
+
+Use two principles:
+
+1. **Print structure once per run** (or once per epoch if something changes)
+2. **Print per-layer summaries, not full matrices** (dims + min/max/mean + NA counts)
+
+Example template (R-style pseudo you can adapt):
+
+- Always print: `dims`, `activation`, `dropout`, `label/pred dims`
+- For errors: print `dim(error)`, `mean(abs(error))`, `max(abs(error))`
+- For weights/gradients: print only `dim()` + `max(abs())` if high verbose
 
 ---
 
@@ -250,6 +335,7 @@ Why: internal code uses `ddesonn_predict()` because it???s a forward-pass primit
 that???s faster and easier to control inside training loops (no user-facing return
 formatting). User-facing inference should use `predict()` because it provides a
 stable contract (type/aggregate/threshold handling, return structure).
+
 Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model???s class order), otherwise accuracy comparisons may be incorrect.
 
 When `test = list(x = test_x, y = test_y)` is provided, the final run summary

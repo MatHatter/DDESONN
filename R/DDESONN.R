@@ -266,7 +266,8 @@ SONN <- R6::R6Class(
       on_all <- isTRUE(cfg$viewAllPlots) || isTRUE(cfg$verbose)
       isTRUE(cfg[[name]]) || on_all
     },
-    self_organize = function(Rdata, labels, lr, verbose = FALSE) {
+    self_organize = function(Rdata, labels, lr, verbose = FALSE, verboseLow = FALSE) {
+      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
       if(verbose){print("----------------------------------------self-organize-begin----------------------------------------")}
 
 
@@ -353,8 +354,10 @@ SONN <- R6::R6Class(
         }
       }
 
-      print("str(outputs)")
-      str(outputs)
+      if (isTRUE(verbose)) {
+        print("str(outputs)")
+        str(outputs)
+      }
 
 
 
@@ -399,13 +402,9 @@ SONN <- R6::R6Class(
       # Store output error
       errors <- vector("list", self$num_layers)
       errors[[self$num_layers]] <- as.matrix(error_1000x10)
-      str(errors[[self$num_layers]])
-
-
-      # Store output error
-      errors <- vector("list", self$num_layers)
-      errors[[self$num_layers]] <- as.matrix(error_1000x10)
-      str(errors[[self$num_layers]])
+      if (isTRUE(verbose)) {
+        str(errors[[self$num_layers]])
+      }
 
 
 
@@ -413,7 +412,7 @@ SONN <- R6::R6Class(
       # Propagate the error backwards
       if (self$ML_NN) {
         for (layer in (self$num_layers - 1):1) {
-          cat("Layer:", layer, "\n")
+          if (isTRUE(verbose)) cat("Layer:", layer, "\n")
 
           # Load weights and error from next layer
           weights_next <- self$weights[[layer + 1]]
@@ -421,19 +420,31 @@ SONN <- R6::R6Class(
 
           # Check for NULLs
           if (is.null(weights_next) || is.null(errors_next)) {
-            cat(paste("Skipping layer", layer, "- weights or errors are NULL\n"))
+            ddesonn_console_log(
+              sprintf("Skipping layer %d - weights or errors are NULL", layer),
+              level = "important",
+              verbose = verbose,
+              verboseLow = verboseLow
+            )
             next
           }
 
           # Print actual dimensions
           weight_dims <- dim(weights_next)
           error_dims  <- dim(errors_next)
-          cat("Weights dimensions:\n"); print(weight_dims)
-          cat("Errors dimensions:\n"); print(error_dims)
+          if (isTRUE(verbose)) {
+            cat("Weights dimensions:\n"); print(weight_dims)
+            cat("Errors dimensions:\n"); print(error_dims)
+          }
 
           # Sanity checks
           if (is.null(weight_dims) || is.null(error_dims)) {
-            cat(paste("Skipping layer", layer, "- dimensions are NULL\n"))
+            ddesonn_console_log(
+              sprintf("Skipping layer %d - dimensions are NULL", layer),
+              level = "important",
+              verbose = verbose,
+              verboseLow = verboseLow
+            )
             next
           }
 
@@ -457,13 +468,13 @@ SONN <- R6::R6Class(
 
 
           # Propagate error
-          cat("Backpropagating errors for layer", layer, "\n")
+          if (isTRUE(verbose)) cat("Backpropagating errors for layer", layer, "\n")
           errors[[layer]] <- errors_next %*% t(weights_next)
         }
       }
 
       else {
-        cat("Single Layer Backpropagation\n")
+        if (isTRUE(verbose)) cat("Single Layer Backpropagation\n")
 
         # Check existence
         weights_sl <- if (is.list(self$weights)) self$weights[[1]] else self$weights
@@ -480,8 +491,10 @@ SONN <- R6::R6Class(
         # Print current dimensions
         weight_dims <- dim(weights_sl)
         error_dims  <- dim(errors_sl)
-        cat("Weights dimensions:\n"); print(weight_dims)
-        cat("Errors dimensions:\n"); print(error_dims)
+        if (isTRUE(verbose)) {
+          cat("Weights dimensions:\n"); print(weight_dims)
+          cat("Errors dimensions:\n"); print(error_dims)
+        }
 
         if (is.null(weight_dims) || is.null(error_dims)) {
           stop("Error: Dimensions for weights or errors are NULL.")
@@ -512,18 +525,40 @@ SONN <- R6::R6Class(
           if (ncol(errors_sl) == nrow(weights_sl)) {
             weights_sl <- t(weights_sl)
           } else {
-            cat("Warning: shape mismatch persists in single-layer case\n")
+            if (isTRUE(verbose)) cat("Warning: shape mismatch persists in single-layer case\n")
           }
         }
 
         # Perform backpropagation step
-        cat("Performing matrix multiplication for single layer\n")
+        if (isTRUE(verbose)) cat("Performing matrix multiplication for single layer\n")
         errors[[1]] <- errors_sl %*% t(weights_sl)
       }
 
 
-      print("str(errors)")
-      str(errors)
+      if (isTRUE(verbose) || isTRUE(verboseLow)) {
+        err_summary <- function(x) {
+          if (is.null(x)) return("NULL")
+          x <- as.matrix(x)
+          sprintf("dims=%dx%d | mean_abs=%.6f | max_abs=%.6f | na=%d",
+                  nrow(x), ncol(x),
+                  mean(abs(x), na.rm = TRUE),
+                  max(abs(x), na.rm = TRUE),
+                  sum(is.na(x)))
+        }
+        for (layer in seq_along(errors)) {
+          ddesonn_console_log(
+            sprintf("[SELF_ORGANIZE] error L%d -> %s", layer, err_summary(errors[[layer]])),
+            level = "important",
+            verbose = verbose,
+            verboseLow = verboseLow
+          )
+        }
+      }
+
+      if (isTRUE(verbose)) {
+        print("str(errors)")
+        str(errors)
+      }
 
 
       if (self$ML_NN) {
@@ -728,7 +763,8 @@ SONN <- R6::R6Class(
     },
     #the magical function
     #the magical function
-    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE) {
+    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE) {
+      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
       if (verbose) { print("----------------------------------------learn-begin----------------------------------------") }
       start_time <- Sys.time()
       
@@ -856,26 +892,28 @@ SONN <- R6::R6Class(
       ## ---------------------------
       ## Activation functions: show RAW input (exactly as received)
       ## ---------------------------
-      cat("=== RAW activation_functions (as passed to learn) ===\n")
-      if (is.null(activation_functions)) {
-        cat("NULL\n")
-      } else if (is.function(activation_functions)) {
-        cat("single function: ", .af_name(activation_functions), "\n", sep = "")
-      } else if (is.character(activation_functions)) {
-        cat("character vector: ", paste(activation_functions, collapse = ", "), "\n", sep = "")
-      } else if (is.list(activation_functions)) {
-        cat("list len=", length(activation_functions), " (names/types)\n", sep = "")
-        for (i in seq_along(activation_functions)) {
-          v <- activation_functions[[i]]
-          cat(sprintf("  [L%02d] %s\n", i,
-                      if (is.function(v)) paste0("fn:", .af_name(v))
-                      else if (is.character(v)) paste0("str:", v)
-                      else class(v)[1]))
+      if (isTRUE(verbose)) {
+        cat("=== RAW activation_functions (as passed to learn) ===\n")
+        if (is.null(activation_functions)) {
+          cat("NULL\n")
+        } else if (is.function(activation_functions)) {
+          cat("single function: ", .af_name(activation_functions), "\n", sep = "")
+        } else if (is.character(activation_functions)) {
+          cat("character vector: ", paste(activation_functions, collapse = ", "), "\n", sep = "")
+        } else if (is.list(activation_functions)) {
+          cat("list len=", length(activation_functions), " (names/types)\n", sep = "")
+          for (i in seq_along(activation_functions)) {
+            v <- activation_functions[[i]]
+            cat(sprintf("  [L%02d] %s\n", i,
+                        if (is.function(v)) paste0("fn:", .af_name(v))
+                        else if (is.character(v)) paste0("str:", v)
+                        else class(v)[1]))
+          }
+        } else {
+          cat("type: ", class(activation_functions)[1], "\n", sep = "")
         }
-      } else {
-        cat("type: ", class(activation_functions)[1], "\n", sep = "")
+        cat("=== END RAW ===\n\n")
       }
-      cat("=== END RAW ===\n\n")
       
       ## ================================================================
       ## MULTI-LAYER MODE
@@ -899,8 +937,10 @@ SONN <- R6::R6Class(
           weights_rows <- nrow(weights_matrix)
           weights_cols <- ncol(weights_matrix)
           
-          cat(sprintf("[Debug] Layer %d : input dim = %d x %d | weights dim = %d x %d\n",
-                      layer, input_rows, ncol(input_data), weights_rows, weights_cols))
+          if (isTRUE(verbose)) {
+            cat(sprintf("[Debug] Layer %d : input dim = %d x %d | weights dim = %d x %d\n",
+                        layer, input_rows, ncol(input_data), weights_rows, weights_cols))
+          }
           
           if (ncol(input_data) != weights_rows) {
             stop(sprintf("Layer %d: input cols (%d) do not match weights rows (%d)",
@@ -933,14 +973,16 @@ SONN <- R6::R6Class(
           activation_name <- if (is.function(activation_function)) attr(activation_function, "name") else "none"
           
           # DEBUG: what exactly are we applying?
-          if (is.function(activation_function)) {
-            cat(sprintf("[Debug] Layer %d : Activation Function = %s (callable)\n", layer, activation_name %||% "unnamed_function"))
-          } else if (is.character(activation_function)) { # shouldn't happen after resolve
-            cat(sprintf("[Debug] Layer %d : Activation Function (string) = %s\n", layer, paste(activation_function, collapse = ",")))
-          } else if (is.null(activation_function)) {
-            cat(sprintf("[Debug] Layer %d : Activation Function = NULL (identity)\n", layer))
-          } else {
-            cat(sprintf("[Debug] Layer %d : Activation placeholder class = %s\n", layer, class(activation_function)[1]))
+          if (isTRUE(verbose)) {
+            if (is.function(activation_function)) {
+              cat(sprintf("[Debug] Layer %d : Activation Function = %s (callable)\n", layer, activation_name %||% "unnamed_function"))
+            } else if (is.character(activation_function)) { # shouldn't happen after resolve
+              cat(sprintf("[Debug] Layer %d : Activation Function (string) = %s\n", layer, paste(activation_function, collapse = ",")))
+            } else if (is.null(activation_function)) {
+              cat(sprintf("[Debug] Layer %d : Activation Function = NULL (identity)\n", layer))
+            } else {
+              cat(sprintf("[Debug] Layer %d : Activation placeholder class = %s\n", layer, class(activation_function)[1]))
+            }
           }
           
           A <- if (is.function(activation_function)) activation_function(Z) else Z
@@ -979,43 +1021,49 @@ SONN <- R6::R6Class(
           else if (is.function(activation_functions)) activation_functions else NULL
           af_last <- .resolve_one(af_spec_last)
           af_last_name <- if (is.function(af_last)) attr(af_last, "name") else "none"
-          cat("[LEARN-MC] output activation:", af_last_name, "\n")
+          if (isTRUE(verbose)) cat("[LEARN-MC] output activation:", af_last_name, "\n")
           
           # 2) Non-finite checks and ranges
-          cat("[LEARN-MC] P dims:", nrow(P), "x", ncol(P),
-              " | finite %:", mean(is.finite(P)), "\n")
+          if (isTRUE(verbose)) {
+            cat("[LEARN-MC] P dims:", nrow(P), "x", ncol(P),
+                " | finite %:", mean(is.finite(P)), "\n")
+          }
           if (any(!is.finite(P))) {
             bad <- which(!is.finite(P), arr.ind = TRUE)
             print(head(bad, 10)); stop("[LEARN-MC] non-finite values in P")
           }
           pr <- range(P[is.finite(P)])
-          cat("[LEARN-MC] P range:", paste(pr, collapse=" .. "), "\n")
+          if (isTRUE(verbose)) cat("[LEARN-MC] P range:", paste(pr, collapse=" .. "), "\n")
           
           # 3) If softmax, rows should sum ~ 1
           if (af_last_name == "softmax") {
             rs <- rowSums(P)
-            cat("[LEARN-MC] rowSums(P) min..max:", min(rs), "..", max(rs),
-                " | %==1 (+/-1e-6):", mean(abs(rs - 1) < 1e-6), "\n")
+            if (isTRUE(verbose)) {
+              cat("[LEARN-MC] rowSums(P) min..max:", min(rs), "..", max(rs),
+                  " | %==1 (+/-1e-6):", mean(abs(rs - 1) < 1e-6), "\n")
+            }
             if (any(!is.finite(rs))) stop("[LEARN-MC] non-finite rowSums(P)")
           }
           
           # 4) Column-order alignment with labels (critical for one-hot)
           if (!is.null(colnames(P)) && !is.null(colnames(labels))) {
             if (!identical(colnames(P), colnames(labels))) {
-              cat("[LEARN-MC][WARN] P colnames:", paste(colnames(P), collapse=", "), "\n")
-              cat("[LEARN-MC][WARN] Y colnames:", paste(colnames(labels), collapse=", "), "\n")
+              if (isTRUE(verbose)) {
+                cat("[LEARN-MC][WARN] P colnames:", paste(colnames(P), collapse=", "), "\n")
+                cat("[LEARN-MC][WARN] Y colnames:", paste(colnames(labels), collapse=", "), "\n")
+              }
               # Reorder labels to match P (safer than reordering P)
               common <- intersect(colnames(P), colnames(labels))
               if (length(common) == ncol(P) && length(common) == ncol(labels)) {
                 labels <- labels[, colnames(P), drop = FALSE]
-                cat("[LEARN-MC] Reordered labels to match P column order.\n")
+                if (isTRUE(verbose)) cat("[LEARN-MC] Reordered labels to match P column order.\n")
               } else {
                 stop("[LEARN-MC] Incompatible class columns between P and labels")
               }
             }
           } else {
             # If no names, align by index but print class_levels for visibility
-            if (!is.null(self$class_levels)) {
+            if (!is.null(self$class_levels) && isTRUE(verbose)) {
               cat("[LEARN-MC] class_levels:", paste(self$class_levels, collapse=", "), "\n")
             }
           }
@@ -1059,10 +1107,10 @@ SONN <- R6::R6Class(
           
           if (use_ce_shortcut) {
             delta <- error_learn  # (A_L - Y) * w, no multiply by derivative
-            cat(sprintf("[Debug] Layer %d : Using CE shortcut (delta = A - Y)\n", layer))
+            if (isTRUE(verbose)) cat(sprintf("[Debug] Layer %d : Using CE shortcut (delta = A - Y)\n", layer))
           } else {
             delta <- error_backprop * activation_derivatives[[layer]]
-            cat(sprintf("[Debug] Layer %d : Using derivative-backed delta\n", layer))
+            if (isTRUE(verbose)) cat(sprintf("[Debug] Layer %d : Using derivative-backed delta\n", layer))
           }
           
           # Apply SAME mask/rate as forward for this layer (output layer had rate=NULL)
@@ -1088,7 +1136,7 @@ SONN <- R6::R6Class(
         ## SINGLE-LAYER MODE
         ## ================================================================
       } else {
-        cat("Single Layer Learning Phase\n")
+        if (isTRUE(verbose)) cat("Single Layer Learning Phase\n")
         
         X <- as.matrix(Rdata)
         weights_matrix <- if (is.list(self$weights)) {
@@ -1139,14 +1187,16 @@ SONN <- R6::R6Class(
         activation_name <- if (is.function(activation_function)) attr(activation_function, "name") else "none"
         
         # DEBUG: what are we using in SL?
-        if (is.function(activation_function)) {
-          cat(sprintf("[Debug] SL : Activation Function = %s (callable)\n", .af_name(activation_function)))
-        } else if (is.character(activation_function)) {
-          cat(sprintf("[Debug] SL : Activation Function (string) = %s\n", paste(activation_function, collapse = ",")))
-        } else if (is.null(activation_function)) {
-          cat("[Debug] SL : Activation Function = NULL (identity)\n")
-        } else {
-          cat(sprintf("[Debug] SL : Activation placeholder class = %s\n", class(activation_function)[1]))
+        if (isTRUE(verbose)) {
+          if (is.function(activation_function)) {
+            cat(sprintf("[Debug] SL : Activation Function = %s (callable)\n", .af_name(activation_function)))
+          } else if (is.character(activation_function)) {
+            cat(sprintf("[Debug] SL : Activation Function (string) = %s\n", paste(activation_function, collapse = ",")))
+          } else if (is.null(activation_function)) {
+            cat("[Debug] SL : Activation Function = NULL (identity)\n")
+          } else {
+            cat(sprintf("[Debug] SL : Activation placeholder class = %s\n", class(activation_function)[1]))
+          }
         }
         
         A <- if (is.function(activation_function)) activation_function(Z) else Z
@@ -1172,7 +1222,7 @@ SONN <- R6::R6Class(
         
         if (use_ce_shortcut) {
           delta <- error_learn
-          cat("[Debug] SL : Using CE shortcut (delta = A - Y)\n")
+          if (isTRUE(verbose)) cat("[Debug] SL : Using CE shortcut (delta = A - Y)\n")
         } else {
           deriv_fn_name <- if (is.function(activation_function)) paste0(attr(activation_function, "name"), "_derivative") else NULL
           activation_deriv <- if (!is.null(deriv_fn_name) && exists(deriv_fn_name)) {
@@ -1181,7 +1231,7 @@ SONN <- R6::R6Class(
             matrix(1, nrow = nrow(Z), ncol = ncol(Z))
           }
           delta <- error_learn * activation_deriv
-          cat("[Debug] SL : Using derivative-backed delta\n")
+          if (isTRUE(verbose)) cat("[Debug] SL : Using derivative-backed delta\n")
         }
         
         # Backprop through dropout ONLY if mask matches delta's shape
@@ -1200,6 +1250,26 @@ SONN <- R6::R6Class(
       
       learn_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
       
+      if (isTRUE(verbose) || isTRUE(verboseLow)) {
+        err_summary <- function(x) {
+          if (is.null(x)) return("NULL")
+          x <- as.matrix(x)
+          sprintf("dims=%dx%d | mean_abs=%.6f | max_abs=%.6f | na=%d",
+                  nrow(x), ncol(x),
+                  mean(abs(x), na.rm = TRUE),
+                  max(abs(x), na.rm = TRUE),
+                  sum(is.na(x)))
+        }
+        for (layer in seq_along(errors)) {
+          ddesonn_console_log(
+            sprintf("[LEARN] error L%d -> %s", layer, err_summary(errors[[layer]])),
+            level = "important",
+            verbose = verbose,
+            verboseLow = verboseLow
+          )
+        }
+      }
+
       if (verbose) { print("----------------------------------------learn-end----------------------------------------") }
       
       return(list(
@@ -1488,7 +1558,16 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, output_root = NULL, save_per_epoch) {
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, verboseLow = FALSE, output_root = NULL, save_per_epoch) {
+      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+      log_important <- function(...) {
+        ddesonn_console_log(
+          sprintf(...),
+          level = "important",
+          verbose = verbose,
+          verboseLow = verboseLow
+        )
+      }
       
       print("----------------------------------------train_network-begin----------------------------------------")
       start_time <- Sys.time()
@@ -1559,7 +1638,7 @@ SONN <- R6::R6Class(
         for (epoch in 1:num_epochs) {
           
           # lr <- lr_scheduler(epoch)
-          cat("Epoch:", epoch, "| Learning Rate:", lr, "\n")
+          log_important("Epoch: %d | Learning Rate: %s", epoch, lr)
           num_epochs_check <<- num_epochs
           
           # 1) Train step
@@ -1570,16 +1649,20 @@ SONN <- R6::R6Class(
             CLASSIFICATION_MODE = CLASSIFICATION_MODE,
             activation_functions = activation_functions,
             dropout_rates = dropout_rates,
-            sample_weights = sample_weights
+            sample_weights = sample_weights,
+            verbose = verbose,
+            verboseLow = verboseLow
           )
           
           # --- Error debug ---
           if (!is.null(learn_result$error)) {
-            cat("[TRAIN-DBG] last-layer error summary ->",
-                " min=", min(learn_result$error, na.rm=TRUE),
-                " mean=", mean(learn_result$error, na.rm=TRUE),
-                " max=", max(learn_result$error, na.rm=TRUE),
-                " sd=",  sd(learn_result$error, na.rm=TRUE), "\n")
+            log_important(
+              "[TRAIN] last-layer error -> min=%.6f mean=%.6f max=%.6f sd=%.6f",
+              min(learn_result$error, na.rm = TRUE),
+              mean(learn_result$error, na.rm = TRUE),
+              max(learn_result$error, na.rm = TRUE),
+              sd(learn_result$error, na.rm = TRUE)
+            )
           }
           
           # =========================
@@ -1650,13 +1733,13 @@ SONN <- R6::R6Class(
             best_epoch_train <- epoch
           }
           
-          cat(sprintf(
-            "Epoch %d | Train %s: %s | Loss: %.6f\n",
+          log_important(
+            "Epoch %d | Train %s: %s | Loss: %.6f",
             epoch,
             if (identical(CLASSIFICATION_MODE, "regression")) "R^2/Acc" else "Accuracy",
             if (is.na(train_accuracy)) "NA" else sprintf("%.2f%%", 100 * train_accuracy),
             train_loss
-          ))
+          )
           
           predicted_output_train_reg <- learn_result
           predicted_output_train_reg_prediction_time <- learn_result$learn_time
@@ -1671,14 +1754,14 @@ SONN <- R6::R6Class(
           # Output saturation diagnostics
           mean_output <- mean(predicted_output)
           sd_output   <- sd(predicted_output)
-          cat("Mean Output:", round(mean_output, 4), "| StdDev:", round(sd_output, 4), "\n")
+          log_important("Mean Output: %.4f | StdDev: %.4f", mean_output, sd_output)
           mean_output_log <- c(mean_output_log, mean_output)
           sd_output_log   <- c(sd_output_log, sd_output)
           
           # Weight explosion diagnostics
           if (exists("best_weights_record")) {
             max_weight <- max(sapply(best_weights_record, function(w) max(abs(w))))
-            cat("Max Weight Abs:", round(max_weight, 4), "\n")
+            log_important("Max Weight Abs: %.4f", max_weight)
           } else {
             max_weight <- NA
           }
@@ -3193,7 +3276,8 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, output_root, plot_controls, save_per_epoch) {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, verboseLow = FALSE, output_root, plot_controls, save_per_epoch) {
+      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
       
@@ -3348,7 +3432,7 @@ DDESONN <- R6::R6Class(
         model_iter_num <- i
         
         if(self_org){
-          self$ensemble[[i]]$self_organize(Rdata, labels, lr)
+          self$ensemble[[i]]$self_organize(Rdata, labels, lr, verbose = verbose, verboseLow = verboseLow)
         }
         
         # might remove if, but keep contents
@@ -3356,7 +3440,7 @@ DDESONN <- R6::R6Class(
           
           predicted_outputAndTime <- suppressMessages(
             self$ensemble[[i]]$train_network(
-              Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = FALSE, output_root = output_root
+              Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, output_root = output_root
             ))
           
           # Store core model info
