@@ -2648,6 +2648,13 @@ ddesonn_predict <- function(model, new_data,
   invisible(NULL)
 }
 
+# ============================================================
+# .persist_ddesonn_run (FULL FIXED — preserved)
+# - #$$$$$$$$$$$$$ FIX: guard optional ensemble post-writes when upstream data is empty
+# - #$$$$$$$$$$$$$ FIX: prevent .write_fused_consensus() from crashing when it would read empty df (no cols)
+# - PRESERVED: all stamping, directories, model saving, metadata, metrics, logs
+# ============================================================
+
 .persist_ddesonn_run <- function(result, output_root, save_models = TRUE) {
   if (is.null(output_root) || !nzchar(output_root)) return(invisible(NULL))
   
@@ -2770,41 +2777,108 @@ ddesonn_predict <- function(model, new_data,
   
   if (isTRUE(cfg$do_ensemble)) {
     .write_ensemble_runs_metrics(result, run_dir, ts, seeds)
-    .build_ensemble_pretty_tables(
-      run_dir             = run_dir,
-      ts                  = ts,
-      seeds               = seeds,
-      CLASSIFICATION_MODE = classification_mode
-    )
+    
+    # ============================================================
+    # Optional pretty tables — do not fail builds                 #$$$$$$$$$$$$$
+    # ============================================================
+    .build_ensemble_pretty_tables_fn <- get0(".build_ensemble_pretty_tables", mode = "function") #$$$$$$$$$$$$$
+    if (!is.null(.build_ensemble_pretty_tables_fn)) {                                           #$$$$$$$$$$$$$
+      .build_ensemble_pretty_tables_fn(                                                         #$$$$$$$$$$$$$
+        run_dir             = run_dir,
+        ts                  = ts,
+        seeds               = seeds,
+        CLASSIFICATION_MODE = classification_mode
+      )
+    }                                                                                           #$$$$$$$$$$$$$
+    
   } else {
     .write_single_runs_metrics(result, run_dir, ts, seeds)
-    .build_single_pretty_tables(
-      run_dir             = run_dir,
-      ts                  = ts,
-      seeds               = seeds,
-      CLASSIFICATION_MODE = classification_mode
-    )
+    
+    # ============================================================
+    # Optional pretty tables — do not fail builds                 #$$$$$$$$$$$$$
+    # ============================================================
+    .build_single_pretty_tables_fn <- get0(".build_single_pretty_tables", mode = "function")    #$$$$$$$$$$$$$
+    if (!is.null(.build_single_pretty_tables_fn)) {                                             #$$$$$$$$$$$$$
+      .build_single_pretty_tables_fn(                                                           #$$$$$$$$$$$$$
+        run_dir             = run_dir,
+        ts                  = ts,
+        seeds               = seeds,
+        CLASSIFICATION_MODE = classification_mode
+      )
+    }                                                                                           #$$$$$$$$$$$$$
   }
   
   if (isTRUE(cfg$do_ensemble)) {
     .write_agg_predictions(result, run_dir, ts, seeds)
     .write_temp_agg_predictions(result, run_dir, ts, seeds)
-    .write_fused_consensus(result, run_dir, ts, seeds)
+    
+    # ============================================================
+    # #$$$$$$$$$$$$$ FIX: Only write fused consensus when inputs exist
+    # - Prevents crash when upstream prediction frames are empty (0 cols)
+    # - This can happen in vignette/build runs or when no per-seed tables were produced
+    # ============================================================
+    
+    has_any_pred_cols <- FALSE                                                             #$$$$$$$$$$$$$
+    
+    # Prefer in-memory tables when available
+    if (is.list(result$predictions) && is.list(result$predictions$per_seed_tables)) {       #$$$$$$$$$$$$$
+      tbls <- result$predictions$per_seed_tables                                            #$$$$$$$$$$$$$
+      for (t in tbls) {                                                                     #$$$$$$$$$$$$$
+        if (is.data.frame(t) && ncol(t) > 0L) {                                             #$$$$$$$$$$$$$
+          has_any_pred_cols <- TRUE                                                         #$$$$$$$$$$$$$
+          break                                                                             #$$$$$$$$$$$$$
+        }                                                                                   #$$$$$$$$$$$$$
+      }                                                                                     #$$$$$$$$$$$$$
+    }                                                                                       #$$$$$$$$$$$$$
+    
+    # Fallback: check the on-disk agg predictions file if your writer uses one
+    if (!isTRUE(has_any_pred_cols)) {                                                       #$$$$$$$$$$$$$
+      # try a couple of common filenames (safe no-op if none exist)
+      candidates <- c(                                                                      #$$$$$$$$$$$$$
+        file.path(run_dir, "predictions_main.rds"),                                         #$$$$$$$$$$$$$
+        file.path(run_dir, "predictions_temp.rds")                                          #$$$$$$$$$$$$$
+      )                                                                                     #$$$$$$$$$$$$$
+      for (fp in candidates) {                                                              #$$$$$$$$$$$$$
+        if (file.exists(fp)) {                                                              #$$$$$$$$$$$$$
+          obj <- try(readRDS(fp), silent = TRUE)                                             #$$$$$$$$$$$$$
+          if (!inherits(obj, "try-error") && is.data.frame(obj) && ncol(obj) > 0L) {        #$$$$$$$$$$$$$
+            has_any_pred_cols <- TRUE                                                       #$$$$$$$$$$$$$
+            break                                                                           #$$$$$$$$$$$$$
+          }                                                                                 #$$$$$$$$$$$$$
+        }                                                                                   #$$$$$$$$$$$$$
+      }                                                                                     #$$$$$$$$$$$$$
+    }                                                                                       #$$$$$$$$$$$$$
+    
+    if (isTRUE(has_any_pred_cols)) {                                                        #$$$$$$$$$$$$$
+      .write_fused_consensus(result, run_dir, ts, seeds)                                     #$$$$$$$$$$$$$
+    } else {                                                                                #$$$$$$$$$$$$$
+      # optional breadcrumb (kept quiet for CRAN/vignette stability)
+      invisible(NULL)                                                                       #$$$$$$$$$$$$$
+    }                                                                                       #$$$$$$$$$$$$$
   }
+  
   
   logs_dir <- file.path(run_dir, "logs")
   dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  log_enabled <- isTRUE(cfg$do_ensemble) &&                                          # #$$$$$$$$$$$$$
+    as.integer(cfg$num_networks %||% 0L) >= 1L &&                                    # #$$$$$$$$$$$$$
+    as.integer(cfg$num_temp_iterations %||% 0L) >= 1L                                # #$$$$$$$$$$$$$
+  
   for (i in seq_along(seeds)) {
     seed_i <- seeds[[i]]
-    paths <- c(
-      movement = file.path(logs_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts)),
-      change   = file.path(logs_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts)),
-      main     = file.path(logs_dir, sprintf("main_log_run%03d_seed%s_%s.rds",     i, seed_i, ts))
-    )
-    for (p in paths) {
-      if (!file.exists(p)) saveRDS(data.frame(), p)
-    }
+    
+    main_p <- file.path(logs_dir, sprintf("main_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
+    if (!file.exists(main_p)) saveRDS(data.frame(), main_p)
+    
+    if (isTRUE(log_enabled)) {                                                       # #$$$$$$$$$$$$$
+      mv_p <- file.path(logs_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
+      ch_p <- file.path(logs_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts))
+      if (!file.exists(mv_p)) saveRDS(data.frame(), mv_p)
+      if (!file.exists(ch_p)) saveRDS(data.frame(), ch_p)
+    }                                                                                # #$$$$$$$$$$$$$
   }
+  
   
   saveRDS(list(
     timestamp = ts,
@@ -2818,7 +2892,6 @@ ddesonn_predict <- function(model, new_data,
   
   invisible(run_dir)
 }
-
 
 #' Run DDESONN across common ensemble scenarios.
 #'
@@ -3460,28 +3533,35 @@ ddesonn_run <- function(x,
     out
   }
   
-  empty_log_tables <- function() {
-    list(
+  empty_log_tables <- function(log_enabled) {  # #$$$$$$$$$$$$$
+    out <- list(
       main_log = data.frame(
         iteration = integer(), phase = character(), slot = integer(),
         serial = character(), metric_name = character(),
         metric_value = numeric(), message = character(),
         timestamp = as.POSIXct(character()), stringsAsFactors = FALSE
-      ),
-      movement_log = data.frame(
+      )
+    )
+    
+    if (isTRUE(log_enabled)) {                # #$$$$$$$$$$$$$
+      out$movement_log <- data.frame(
         iteration = integer(), phase = character(), slot = integer(),
         role = character(), serial = character(), metric_name = character(),
         metric_value = numeric(), message = character(),
         timestamp = as.POSIXct(character()), stringsAsFactors = FALSE
-      ),
-      change_log = data.frame(
+      )
+      out$change_log <- data.frame(
         iteration = integer(), role = character(), serial = character(),
         metric_name = character(), metric_value = numeric(),
         message = character(), timestamp = as.POSIXct(character()),
         stringsAsFactors = FALSE
       )
-    )
+    }
+    
+    out
   }
+  
+  
   
   record_main_snapshot <- function(log_tables, iteration, phase) {
     serials <- snapshot_main_serials_meta()
@@ -3640,7 +3720,12 @@ ddesonn_run <- function(x,
       if (length(vars)) rm(list = vars, envir = .GlobalEnv)
     }
     
-    log_tables <- empty_log_tables()
+    log_enabled <- isTRUE(do_ensemble) &&                                              # #$$$$$$$$$$$$$
+      as.integer(num_networks %||% 0L) >= 1L &&                                        # #$$$$$$$$$$$$$
+      as.integer(num_temp_iterations %||% 0L) >= 1L                                    # #$$$$$$$$$$$$$
+    
+    log_tables <- empty_log_tables(log_enabled)                                        # #$$$$$$$$$$$$$
+    
     
     main_model_args <- base_model_args
     if (isTRUE(do_ensemble)) {

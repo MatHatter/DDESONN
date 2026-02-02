@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>DDESONN Logs - Scenario D (Ensemble TEMP Runs Only)</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">DDESONN Logs - Scenario D (Ensemble TEMP
+Runs Only)</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#data-prep" id="toc-data-prep">Data prep</a></li>
+<li><a href="#scenario-d---ensemble-run-temp-iterations-only" id="toc-scenario-d---ensemble-run-temp-iterations-only">Scenario D -
+Ensemble run (TEMP iterations only)</a></li>
+</ul>
+</div>
+
+<div id="data-prep" class="section level2">
+<h2>Data prep</h2>
+</div>
+<div id="scenario-d---ensemble-run-temp-iterations-only" class="section level2">
+<h2>Scenario D - Ensemble run (TEMP iterations only)</h2>
+<p>[EVOKE-FIT-BEGIN]
+where=ddesonn_run::per_seed(main_fit)-&gt;ddesonn_fit | why=Training
+main model; ddesonn_fit() may invoke predict() internally via
+validation/metrics/snapshots | seed=1 | run_index=1 [EVOKE-ENRICH]
+where=ddesonn_fit::post_train_metadata | why=About to attach per-slot
+metadata; this may call ddesonn_predict() again (aggregate=‘none’) |
+note=This EVOKE is NOT per-epoch; epochs run inside model$train() (not
+exposed here) | epochs_configured=3 [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999719 mean= -0.05488499 max= 0.9977196 sd= 0.8392596 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 49.91% | Loss: 0.313303 Mean
+Output: 0.4425 | StdDev: 0.235 Grad norm L1 by layer: 29295.5825309918 |
+100402.921634119 | 14950.9039898742 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000141, 0.997720] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 1, 0, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.499143 [dbg] BLOCK A: MSE
+loss=0.313303 [dbg] BLOCK A: saturation mean=0.442537 | sd=0.234962
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-0.95 mean=-0.00232 max=1.3] |
+weights_pre(12x64):[min=-1.22 mean=-0.00575 max=1.55] |
+weights_post(12x64):[min=-1.33 mean=-0.0051 max=1.42] |
+update(12x64):[min=-0.125 mean=-0.000651 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-0.57 mean=0.0157
+max=0.984] | weights_pre(64x32):[min=-0.626 mean=-0.00318 max=0.633] |
+weights_post(64x32):[min=-0.751 mean=-0.00744 max=0.656] |
+update(64x32):[min=-0.125 mean=0.00426 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-2.69 mean=-0.442
+max=0.551] | weights_pre(32x1):[min=-0.489 mean=0.0735 max=0.595] |
+weights_post(32x1):[min=-0.422 mean=0.105 max=0.648] |
+update(32x1):[min=-0.125 mean=-0.0313 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-115 mean=16.6 max=262] |
+biases_pre(64x1):[min=-0.00935 mean=-0.000592 max=0.0041] |
+biases_post(64x1):[min=-0.134 mean=-0.0123 max=0.129] |
+update(64x1):[min=-0.125 mean=0.0117 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-108 mean=21.2 max=372] |
+biases_pre(32x1):[min=-0.0133 mean=-0.000757 max=0.00384] |
+biases_post(32x1):[min=-0.138 mean=-0.00857 max=0.129] |
+update(32x1):[min=-0.125 mean=0.00781 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=-192 mean=-192 max=-192] |
+biases_pre(1x1):[min=0.00686 mean=0.00686 max=0.00686] |
+biases_post(1x1):[min=0.132 mean=0.132 max=0.132] |
+update(1x1):[min=-0.125 mean=-0.125 max=-0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 38.27 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.3826667 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.787532 mean= 0.5554618 max= 0.9999983 sd= 0.4655973 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 36.40% | Loss: 0.517241 Mean
+Output: 0.8793 | StdDev: 0.1705 Grad norm L1 by layer: 33048.6155232755
+| 264020.433733609 | 42799.2338900344 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.088268, 1.000000] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 0, 1, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.364000 [dbg] BLOCK A: MSE
+loss=0.517241 [dbg] BLOCK A: saturation mean=0.879279 | sd=0.170458
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-0.768 mean=0.0016 max=0.743] |
+weights_pre(12x64):[min=-1.3 mean=-0.0053 max=1.42] |
+weights_post(12x64):[min=-1.28 mean=-0.00311 max=1.54] |
+update(12x64):[min=-0.125 mean=-0.00219 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.366 mean=0.0344
+max=0.579] | weights_pre(64x32):[min=-0.765 mean=-0.0117 max=0.62] |
+weights_post(64x32):[min=-0.735 mean=-0.0386 max=0.729] |
+update(64x32):[min=-0.125 mean=0.0269 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=0.00844 mean=0.684
+max=2.4] | weights_pre(32x1):[min=-0.541 mean=0.0192 max=0.622] |
+weights_post(32x1):[min=-0.665 mean=-0.0764 max=0.541] |
+update(32x1):[min=0.00372 mean=0.0956 max=0.125]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-450 mean=54.5 max=458] |
+biases_pre(64x1):[min=-0.144 mean=-0.0142 max=0.142] |
+biases_post(64x1):[min=-0.267 mean=-0.0329 max=0.262] |
+update(64x1):[min=-0.125 mean=0.0187 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-514 mean=107 max=937] |
+biases_pre(32x1):[min=-0.146 mean=-0.0124 max=0.144] |
+biases_post(32x1):[min=-0.271 mean=-0.0434 max=0.269] |
+update(32x1):[min=-0.125 mean=0.031 max=0.125]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=1.94e+03 mean=1.94e+03
+max=1.94e+03] | biases_pre(1x1):[min=0.0621 mean=0.0621 max=0.0621] |
+biases_post(1x1):[min=-0.0622 mean=-0.0622 max=-0.0622] |
+update(1x1):[min=0.124 mean=0.124 max=0.124] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+2 | Val Acc (0.5 thr): 67.73 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=2 | best_val_acc=0.6773333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999781 mean= -0.3761452 max= 0.5750312 sd= 0.7800898 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 72.31% | Loss: 0.205645 Mean
+Output: 0.1642 | StdDev: 0.1746 Grad norm L1 by layer: 34660.6034279384
+| 118236.863577511 | 13710.4221875253 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000003, 0.742132] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.723143 [dbg] BLOCK A: MSE
+loss=0.205645 [dbg] BLOCK A: saturation mean=0.164238 | sd=0.174600
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-0.693 mean=0.000271 max=0.879] |
+weights_pre(12x64):[min=-1.31 mean=-0.00314 max=1.6] |
+weights_post(12x64):[min=-1.41 mean=-0.0022 max=1.62] |
+update(12x64):[min=-0.125 mean=-0.000937 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-0.187 mean=0.0378
+max=0.711] | weights_pre(64x32):[min=-0.734 mean=-0.0433 max=0.732] |
+weights_post(64x32):[min=-0.761 mean=-0.072 max=0.698] |
+update(64x32):[min=-0.1 mean=0.0287 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=-2.94 mean=-0.61
+max=-0.00195] | weights_pre(32x1):[min=-0.524 mean=-4.61e-05 max=0.555]
+| weights_post(32x1):[min=-0.424 mean=0.0601 max=0.597] |
+update(32x1):[min=-0.12 mean=-0.0602 max=-0.00202]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-295 mean=12.1 max=303] |
+biases_pre(64x1):[min=-0.274 mean=-0.0333 max=0.255] |
+biases_post(64x1):[min=-0.342 mean=-0.0392 max=0.353] |
+update(64x1):[min=-0.123 mean=0.0059 max=0.123]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-93.2 mean=58.1 max=489]
+| biases_pre(32x1):[min=-0.269 mean=-0.0454 max=0.255] |
+biases_post(32x1):[min=-0.316 mean=-0.0775 max=0.23] |
+update(32x1):[min=-0.0282 mean=0.0321 max=0.118]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=-1.32e+03 mean=-1.32e+03
+max=-1.32e+03] | biases_pre(1x1):[min=-0.0149 mean=-0.0149 max=-0.0149]
+| biases_post(1x1):[min=0.0549 mean=0.0549 max=0.0549] |
+update(1x1):[min=-0.0699 mean=-0.0699 max=-0.0699] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=2 | best_val_acc=0.6773333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 72.31% at Epoch 3 Best Epoch (validation
+accuracy): 2 Best Validation Accuracy: 67.73 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.412219 -0.273937 -0.003566
+-0.002205 0.288403 1.619648 Layer 1 biases summary: Min. 1st Qu. Median
+Mean 3rd Qu. Max. -0.34230 -0.13365 -0.06133 -0.03915 0.06871 0.35309
+Layer 2 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.76129
+-0.23884 -0.07211 -0.07198 0.09379 0.69803 Layer 2 biases summary: Min.
+1st Qu. Median Mean 3rd Qu. Max. -0.315686 -0.213874 -0.100229 -0.077461
+0.003624 0.230399 Layer 3 weights summary: Min. 1st Qu. Median Mean 3rd
+Qu. Max. -0.42415 -0.08834 0.04191 0.06014 0.22809 0.59711 Layer 3
+biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max. 0.05491 0.05491
+0.05491 0.05491 0.05491 0.05491 Saving to: C:_1_loss_plot.png Device
+before: 3 Device after: 2 Saved OK. Size: 36723 bytes [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.981888 mean= 0.09443383 max= 0.9830747 sd= 0.7194033 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 48.54% | Loss: 0.300714 Mean
+Output: 0.5426 | StdDev: 0.206 Grad norm L1 by layer: 22961.7847046118 |
+88520.9141813923 | 8743.58395442464 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.008285, 0.984716] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 0, 1, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.485429 [dbg] BLOCK A: MSE
+loss=0.300714 [dbg] BLOCK A: saturation mean=0.542633 | sd=0.206034
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-0.758 mean=4.43e-05 max=0.95] |
+weights_pre(12x64):[min=-1.2 mean=0.031 max=1.26] |
+weights_post(12x64):[min=-1.27 mean=0.0303 max=1.21] |
+update(12x64):[min=-0.125 mean=0.000651 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-0.687 mean=0.0119
+max=0.979] | weights_pre(64x32):[min=-0.65 mean=-0.00739 max=0.488] |
+weights_post(64x32):[min=-0.775 mean=-0.0294 max=0.609] |
+update(64x32):[min=-0.125 mean=0.022 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-1.79 mean=0.128
+max=2.21] | weights_pre(32x1):[min=-0.472 mean=0.00643 max=0.513] |
+weights_post(32x1):[min=-0.592 mean=0.0142 max=0.638] |
+update(32x1):[min=-0.125 mean=-0.00781 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-88.3 mean=4.56 max=112]
+| biases_pre(64x1):[min=-0.00399 mean=-0.000163 max=0.00315] |
+biases_post(64x1):[min=-0.129 mean=-0.0158 max=0.128] |
+update(64x1):[min=-0.125 mean=0.0156 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-105 mean=13.2 max=233] |
+biases_pre(32x1):[min=-0.00831 mean=-0.000473 max=0.00375] |
+biases_post(32x1):[min=-0.133 mean=-0.0473 max=0.129] |
+update(32x1):[min=-0.125 mean=0.0469 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=331 mean=331 max=331] |
+biases_pre(1x1):[min=-0.0118 mean=-0.0118 max=-0.0118] |
+biases_post(1x1):[min=-0.137 mean=-0.137 max=-0.137] |
+update(1x1):[min=0.125 mean=0.125 max=0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 76.27 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.7626667 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.983498 mean= -0.08634081 max= 0.9999207 sd= 0.6288563 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 76.20% | Loss: 0.162137 Mean
+Output: 0.3572 | StdDev: 0.2828 Grad norm L1 by layer: 12242.00765589 |
+34193.9657336885 | 3350.17026289576 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000033, 1.000000] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.762000 [dbg] BLOCK A: MSE
+loss=0.162137 [dbg] BLOCK A: saturation mean=0.357226 | sd=0.282820
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-0.931 mean=0.00147 max=1.2] |
+weights_pre(12x64):[min=-1.27 mean=0.0301 max=1.21] |
+weights_post(12x64):[min=-1.4 mean=0.0312 max=1.33] |
+update(12x64):[min=-0.125 mean=-0.00108 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.882 mean=0.00298
+max=1.02] | weights_pre(64x32):[min=-0.774 mean=-0.0297 max=0.611] |
+weights_post(64x32):[min=-0.778 mean=-0.0293 max=0.681] |
+update(64x32):[min=-0.125 mean=-0.000416 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=-2.47 mean=-0.497
+max=0.256] | weights_pre(32x1):[min=-0.427 mean=0.0763 max=0.717] |
+weights_post(32x1):[min=-0.384 mean=0.121 max=0.84] |
+update(32x1):[min=-0.124 mean=-0.0449 max=0.125]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-105 mean=0.951 max=67.8]
+| biases_pre(64x1):[min=-0.13 mean=-0.0158 max=0.129] |
+biases_post(64x1):[min=-0.252 mean=-0.0157 max=0.253] |
+update(64x1):[min=-0.124 mean=-3.98e-05 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-113 mean=0.61 max=141] |
+biases_pre(32x1):[min=-0.133 mean=-0.0473 max=0.13] |
+biases_post(32x1):[min=-0.21 mean=-0.0434 max=0.252] |
+update(32x1):[min=-0.125 mean=-0.00387 max=0.107]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=-302 mean=-302 max=-302] |
+biases_pre(1x1):[min=-0.126 mean=-0.126 max=-0.126] |
+biases_post(1x1):[min=-0.0414 mean=-0.0414 max=-0.0414] |
+update(1x1):[min=-0.0843 mean=-0.0843 max=-0.0843] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.7626667 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.083185 mean= 0.5021888 max= 1 sd= 0.4613119 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 37.06% | Loss: 0.452737 Mean
+Output: 0.8321 | StdDev: 0.1815 Grad norm L1 by layer: 32023.8119579855
+| 169036.834121946 | 19983.4874252356 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.112113, 1.000000] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 1, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.370571 [dbg] BLOCK A: MSE
+loss=0.452737 [dbg] BLOCK A: saturation mean=0.832142 | sd=0.181521
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-0.77 mean=0.0095 max=0.841] |
+weights_pre(12x64):[min=-1.38 mean=0.03 max=1.31] |
+weights_post(12x64):[min=-1.5 mean=0.0281 max=1.36] |
+update(12x64):[min=-0.125 mean=0.00191 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-0.313 mean=0.0369
+max=0.614] | weights_pre(64x32):[min=-0.779 mean=-0.0339 max=0.677] |
+weights_post(64x32):[min=-0.76 mean=-0.0554 max=0.631] |
+update(64x32):[min=-0.125 mean=0.0215 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=0.00375 mean=0.544
+max=3.51] | weights_pre(32x1):[min=-0.443 mean=0.0531 max=0.758] |
+weights_post(32x1):[min=-0.563 mean=0.000471 max=0.669] |
+update(32x1):[min=0.00399 mean=0.0527 max=0.121]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-292 mean=41.9 max=663] |
+biases_pre(64x1):[min=-0.251 mean=-0.0172 max=0.229] |
+biases_post(64x1):[min=-0.268 mean=-0.0246 max=0.342] |
+update(64x1):[min=-0.125 mean=0.00744 max=0.125]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-257 mean=88.4 max=726] |
+biases_pre(32x1):[min=-0.21 mean=-0.0465 max=0.249] |
+biases_post(32x1):[min=-0.312 mean=-0.0692 max=0.292] |
+update(32x1):[min=-0.123 mean=0.0227 max=0.125]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=1.76e+03 mean=1.76e+03
+max=1.76e+03] | biases_pre(1x1):[min=-0.104 mean=-0.104 max=-0.104] |
+biases_post(1x1):[min=-0.225 mean=-0.225 max=-0.225] |
+update(1x1):[min=0.121 mean=0.121 max=0.121] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.7626667 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 76.20% at Epoch 2 Best Epoch (validation
+accuracy): 1 Best Validation Accuracy: 76.27 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.50041 -0.28555 0.04212 0.02809
+0.32520 1.36207 Layer 1 biases summary: Min. 1st Qu. Median Mean 3rd Qu.
+Max. -0.26786 -0.13916 -0.04392 -0.02464 0.09790 0.34247 Layer 2 weights
+summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.75974 -0.21016
+-0.06217 -0.05539 0.09950 0.63074 Layer 2 biases summary: Min. 1st Qu.
+Median Mean 3rd Qu. Max. -0.31201 -0.15141 -0.11978 -0.06919 0.05115
+0.29209 Layer 3 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max.
+-0.5634695 -0.1429217 -0.0317968 0.0004707 0.1684081 0.6686437 Layer 3
+biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.225 -0.225
+-0.225 -0.225 -0.225 -0.225 Saving to: C:<em>2_loss_plot.png Device
+before: 3 Device after: 2 Saved OK. Size: 29811 bytes [PR] PRE
+update_performance_and_relevance pr_cfg (mode=single) [PR] pr_cfg is
+NULL (using defaults) [TRACE] BEFORE update_performance_and_relevance @
+00:16:50.123
+</em>__________________________________________________________________________
+______________________________DESONN_0_SONN_1______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 1 as 0.0.1”
+___________________________________________________________________________
+______________________________DESONN_0_SONN_2______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 2 as 0.0.2” [PR] RESOLVED pr_cfg for
+update_performance_and_relevance (ensemble_number=0, do_ensemble=FALSE)
+[PR] pr_cfg is NULL (defaults apply) [PR] knitr.in.progress=TRUE [PR]
+interactive()=FALSE [PR] option(DDESONN_OUTPUT_ROOT)= [PR]
+env(DDESONN_ARTIFACTS_ROOT)= [PR] run_id (head): Ensemble: 1 Model: 1 |
+Ensemble: 1 Model: 2 (n=2) [PR] pr_saveEnabled=FALSE (pr_cfg is NULL)
+[PR] pr_viewAllPlots=FALSE [PR] flags resolved (post viewAll):
+perf_high=TRUE perf_low=TRUE relev_high=TRUE relev_low=TRUE [PR TRACE]
+pr_viewAllPlots= FALSE pr_saveEnabled= FALSE [PR TRACE] rows: perf_high=
+15 perf_low= 41 relev_high= 0 relev_low= 6 [PR TRACE] print_plots=TRUE
+[PR TRACE] CALL high(perf) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 15 [PR HIGH] EXIT | plots_len= 9 names_head=
+confusion_matrix_TP,confusion_matrix_FP,accuracy_precision_recall_f1_tuned_confusion_matrix_TP
+[PR] performance_high_mean_plots class=list length=9
+names(head)=confusion_matrix_TP,confusion_matrix_FP,accuracy_precision_recall_f1_tuned_confusion_matrix_TP,accuracy_precision_recall_f1_tuned_confusion_matrix_FP,accuracy_precision_recall_f1_tuned_confusion_matrix_TN
+[PR TRACE] CALL low(perf) [PR LOW] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 41 [PR LOW] EXIT | plots_len= 22 names_head=
+quantization_error,topographic_error,clustering_quality_db [PR]
+performance_low_mean_plots class=list length=22
+names(head)=quantization_error,topographic_error,clustering_quality_db,MSE,MAE
+[PR TRACE] CALL high(relev) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 0 [PR HIGH] SKIP | no data [PR]
+relevance_high_mean_plots class=list length=0 [PR TRACE] CALL low(relev)
+[PR LOW] ENTER | saveEnabled= FALSE viewAllPlots= FALSE rows= 6 [PR LOW]
+EXIT | plots_len= 3 names_head= ndcg,diversity,serendipity [PR]
+relevance_low_mean_plots class=list length=3
+names(head)=ndcg,diversity,serendipity [TRACE] AFTER
+update_performance_and_relevance @ 00:16:55.146 [EVOKE-ENRICH-BEGIN]
+where=ddesonn_fit::post_train_metadata | why=Computing per-member
+TRAIN/VALID predictions for metadata (calls ddesonn_predict -&gt;
+net<span class="math inline">\(predict)
+[EVOKE-ENRICH-END] where=ddesonn_fit::post_train_metadata | why=Finished
+attaching per-slot metadata; predict() prints after FINAL SUMMARY
+usually come from this block | note=Not per-epoch: epoch-level prints
+must live inside model\)</span>train()/train_network() predict call
+sites [EVOKE-FIT-END]
+where=ddesonn_run::per_seed(main_fit)-&gt;ddesonn_fit |
+why=ddesonn_fit() returned to ddesonn_run; any predict() emitted above
+could have originated inside training/metrics/validation | seed=1 |
+run_index=1 [EVOKE-FIT-BEGIN]
+where=ddesonn_run::TEMP(iter=1)-&gt;ddesonn_fit | why=Training TEMP
+candidate model; ddesonn_fit() may invoke predict() internally via
+validation/metrics/snapshots | seed=1 | run_index=1 [EVOKE-ENRICH]
+where=ddesonn_fit::post_train_metadata | why=About to attach per-slot
+metadata; this may call ddesonn_predict() again (aggregate=‘none’) |
+note=This EVOKE is NOT per-epoch; epochs run inside model$train() (not
+exposed here) | epochs_configured=3 [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.989515 mean= 0.09434522 max= 0.9881388 sd= 0.7266475 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 46.57% | Loss: 0.307280 Mean
+Output: 0.5447 | StdDev: 0.2058 Grad norm L1 by layer: 19614.0251341423
+| 70617.4293261171 | 7639.6371337854 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.005242, 0.988139] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.465714 [dbg] BLOCK A: MSE
+loss=0.307280 [dbg] BLOCK A: saturation mean=0.544732 | sd=0.205809
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-0.915 mean=0.00262 max=1.1] |
+weights_pre(12x64):[min=-1.63 mean=-0.0259 max=1.11] |
+weights_post(12x64):[min=-1.76 mean=-0.0288 max=1.23] |
+update(12x64):[min=-0.125 mean=0.00293 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-1.04 mean=0.0104
+max=0.828] | weights_pre(64x32):[min=-0.618 mean=0.000303 max=0.657] |
+weights_post(64x32):[min=-0.735 mean=-0.0183 max=0.782] |
+update(64x32):[min=-0.125 mean=0.0186 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-1.34 mean=0.393
+max=2.49] | weights_pre(32x1):[min=-0.587 mean=-0.0358 max=0.253] |
+weights_post(32x1):[min=-0.712 mean=-0.0748 max=0.378] |
+update(32x1):[min=-0.125 mean=0.0391 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-168 mean=5.73 max=159] |
+biases_pre(64x1):[min=-0.00566 mean=-0.000205 max=0.00601] |
+biases_post(64x1):[min=-0.131 mean=-0.00802 max=0.131] |
+update(64x1):[min=-0.125 mean=0.00781 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-124 mean=10.3 max=161] |
+biases_pre(32x1):[min=-0.00576 mean=-0.000367 max=0.00444] |
+biases_post(32x1):[min=-0.131 mean=-0.0316 max=0.129] |
+update(32x1):[min=-0.125 mean=0.0313 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=330 mean=330 max=330] |
+biases_pre(1x1):[min=-0.0118 mean=-0.0118 max=-0.0118] |
+biases_post(1x1):[min=-0.137 mean=-0.137 max=-0.137] |
+update(1x1):[min=0.125 mean=0.125 max=0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 68.93 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999811 mean= -0.2989737 max= 0.7742901 sd= 0.7494786 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 71.43% | Loss: 0.190671 Mean
+Output: 0.2238 | StdDev: 0.1663 Grad norm L1 by layer: 17664.2301375756
+| 84509.479272038 | 15947.3204453721 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000000, 0.821380] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.714286 [dbg] BLOCK A: MSE
+loss=0.190671 [dbg] BLOCK A: saturation mean=0.223783 | sd=0.166310
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-1 mean=0.000117 max=1.08] |
+weights_pre(12x64):[min=-1.75 mean=-0.0288 max=1.2] |
+weights_post(12x64):[min=-1.86 mean=-0.0254 max=1.25] |
+update(12x64):[min=-0.125 mean=-0.00343 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.83 mean=0.0249
+max=0.712] | weights_pre(64x32):[min=-0.737 mean=-0.0213 max=0.779] |
+weights_post(64x32):[min=-0.851 mean=-0.0488 max=0.774] |
+update(64x32):[min=-0.125 mean=0.0274 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=-2.49 mean=-0.609
+max=-0.00128] | weights_pre(32x1):[min=-0.665 mean=0.00135 max=0.59] |
+weights_post(32x1):[min=-0.589 mean=0.0698 max=0.687] |
+update(32x1):[min=-0.125 mean=-0.0685 max=-0.00356]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-122 mean=6.37 max=173] |
+biases_pre(64x1):[min=-0.132 mean=-0.00823 max=0.13] |
+biases_post(64x1):[min=-0.253 mean=-0.00826 max=0.254] |
+update(64x1):[min=-0.125 mean=3.5e-05 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-270 mean=23.6 max=239] |
+biases_pre(32x1):[min=-0.132 mean=-0.0324 max=0.135] |
+biases_post(32x1):[min=-0.255 mean=-0.0629 max=0.26] |
+update(32x1):[min=-0.125 mean=0.0305 max=0.125]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=-1.05e+03 mean=-1.05e+03
+max=-1.05e+03] | biases_pre(1x1):[min=-0.0991 mean=-0.0991 max=-0.0991]
+| biases_post(1x1):[min=0.0201 mean=0.0201 max=0.0201] |
+update(1x1):[min=-0.119 mean=-0.119 max=-0.119] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.108589 mean= 0.414689 max= 0.9999961 sd= 0.542275 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 36.17% | Loss: 0.418899 Mean
+Output: 0.7742 | StdDev: 0.1823 Grad norm L1 by layer: 27565.3230153391
+| 87807.6513890182 | 9981.89274220781 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.179180, 1.000000] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.361714 [dbg] BLOCK A: MSE
+loss=0.418899 [dbg] BLOCK A: saturation mean=0.774151 | sd=0.182335
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-0.873 mean=-0.00122 max=1.13] |
+weights_pre(12x64):[min=-1.86 mean=-0.0252 max=1.25] |
+weights_post(12x64):[min=-1.75 mean=-0.0238 max=1.31] |
+update(12x64):[min=-0.125 mean=-0.00139 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-0.223 mean=0.0324
+max=1.13] | weights_pre(64x32):[min=-0.853 mean=-0.0528 max=0.771] |
+weights_post(64x32):[min=-0.791 mean=-0.0717 max=0.762] |
+update(64x32):[min=-0.124 mean=0.0189 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=0.00188 mean=0.462
+max=4.16] | weights_pre(32x1):[min=-0.594 mean=0.012 max=0.426] |
+weights_post(32x1):[min=-0.602 mean=-0.0335 max=0.312] |
+update(32x1):[min=0.000407 mean=0.0455 max=0.114]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-217 mean=16.2 max=529] |
+biases_pre(64x1):[min=-0.252 mean=-0.00882 max=0.257] |
+biases_post(64x1):[min=-0.366 mean=-0.0111 max=0.38] |
+update(64x1):[min=-0.125 mean=0.00225 max=0.125]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-123 mean=53.6 max=858] |
+biases_pre(32x1):[min=-0.258 mean=-0.0647 max=0.25] |
+biases_post(32x1):[min=-0.329 mean=-0.0933 max=0.173] |
+update(32x1):[min=-0.0995 mean=0.0286 max=0.122]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=1.45e+03 mean=1.45e+03
+max=1.45e+03] | biases_pre(1x1):[min=-0.0321 mean=-0.0321 max=-0.0321] |
+biases_post(1x1):[min=-0.132 mean=-0.132 max=-0.132] |
+update(1x1):[min=0.0997 mean=0.0997 max=0.0997] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 71.43% at Epoch 2 Best Epoch (validation
+accuracy): 1 Best Validation Accuracy: 68.93 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.75103 -0.33379 -0.01510
+-0.02384 0.27806 1.31354 Layer 1 biases summary: Min. 1st Qu. Median
+Mean 3rd Qu. Max. -0.36621 -0.12862 0.00988 -0.01107 0.11953 0.37952
+Layer 2 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.79123
+-0.22610 -0.07235 -0.07166 0.08732 0.76198 Layer 2 biases summary: Min.
+1st Qu. Median Mean 3rd Qu. Max. -0.32948 -0.17807 -0.12007 -0.09326
+0.02535 0.17337 Layer 3 weights summary: Min. 1st Qu. Median Mean 3rd
+Qu. Max. -0.60154 -0.12511 -0.01902 -0.03347 0.08317 0.31234 Layer 3
+biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.1318 -0.1318
+-0.1318 -0.1318 -0.1318 -0.1318 Saving to: C:_1_loss_plot.png Device
+before: 3 Device after: 2 Saved OK. Size: 31998 bytes [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.884899 mean= 0.167588 max= 0.9863008 sd= 0.621541 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 52.91% | Loss: 0.275073 Mean
+Output: 0.5827 | StdDev: 0.1949 Grad norm L1 by layer: 15192.8020955036
+| 66043.9226430754 | 7410.76457246852 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.034753, 0.993528] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 1, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.529143 [dbg] BLOCK A: MSE
+loss=0.275073 [dbg] BLOCK A: saturation mean=0.582675 | sd=0.194863
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-1.37 mean=0.0013 max=0.673] |
+weights_pre(12x64):[min=-1.16 mean=0.00607 max=1.16] |
+weights_post(12x64):[min=-1.22 mean=0.00379 max=1.28] |
+update(12x64):[min=-0.125 mean=0.00228 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-0.517 mean=0.00577
+max=0.491] | weights_pre(64x32):[min=-0.592 mean=-0.00947 max=0.569] |
+weights_post(64x32):[min=-0.642 mean=-0.0289 max=0.694] |
+update(64x32):[min=-0.125 mean=0.0194 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-0.619 mean=0.513
+max=3.51] | weights_pre(32x1):[min=-0.675 mean=-0.0513 max=0.595] |
+weights_post(32x1):[min=-0.623 mean=-0.137 max=0.47] |
+update(32x1):[min=-0.125 mean=0.0859 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-165 mean=4.2 max=138] |
+biases_pre(64x1):[min=-0.00492 mean=-0.00015 max=0.00589] |
+biases_post(64x1):[min=-0.13 mean=-0.0275 max=0.131] |
+update(64x1):[min=-0.125 mean=0.0273 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-129 mean=6.14 max=133] |
+biases_pre(32x1):[min=-0.00474 mean=-0.000219 max=0.00462] |
+biases_post(32x1):[min=-0.13 mean=-0.0315 max=0.13] |
+update(32x1):[min=-0.125 mean=0.0313 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=587 mean=587 max=587] |
+biases_pre(1x1):[min=-0.0209 mean=-0.0209 max=-0.0209] |
+biases_post(1x1):[min=-0.146 mean=-0.146 max=-0.146] |
+update(1x1):[min=0.125 mean=0.125 max=0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 65.33 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6533333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999991 mean= -0.4948477 max= 0.4669831 sd= 0.8581782 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 68.94% | Loss: 0.251916 Mean
+Output: 0.0889 | StdDev: 0.0958 Grad norm L1 by layer: 35904.9200277032
+| 130836.135603896 | 20779.8981658405 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000001, 0.500338] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.689429 [dbg] BLOCK A: MSE
+loss=0.251916 [dbg] BLOCK A: saturation mean=0.088863 | sd=0.095765
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-0.855 mean=8.19e-06 max=0.971] |
+weights_pre(12x64):[min=-1.19 mean=0.0038 max=1.27] |
+weights_post(12x64):[min=-1.31 mean=0.00666 max=1.28] |
+update(12x64):[min=-0.125 mean=-0.00286 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.183 mean=0.0468
+max=0.751] | weights_pre(64x32):[min=-0.635 mean=-0.0347 max=0.637] |
+weights_post(64x32):[min=-0.709 mean=-0.073 max=0.615] |
+update(64x32):[min=-0.125 mean=0.0383 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=-3.7 mean=-0.512
+max=-0.00648] | weights_pre(32x1):[min=-0.602 mean=-0.0731 max=0.482] |
+weights_post(32x1):[min=-0.564 mean=-0.00421 max=0.536] |
+update(32x1):[min=-0.125 mean=-0.0689 max=-0.00351]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-293 mean=36.5 max=373] |
+biases_pre(64x1):[min=-0.139 mean=-0.0287 max=0.132] |
+biases_post(64x1):[min=-0.263 mean=-0.0487 max=0.255] |
+update(64x1):[min=-0.125 mean=0.02 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-89.8 mean=81.4 max=553]
+| biases_pre(32x1):[min=-0.134 mean=-0.0343 max=0.126] |
+biases_post(32x1):[min=-0.256 mean=-0.085 max=0.229] |
+update(32x1):[min=-0.119 mean=0.0507 max=0.125]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=-1.73e+03 mean=-1.73e+03
+max=-1.73e+03] | biases_pre(1x1):[min=-0.0838 mean=-0.0838 max=-0.0838]
+| biases_post(1x1):[min=0.0346 mean=0.0346 max=0.0346] |
+update(1x1):[min=-0.118 mean=-0.118 max=-0.118] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6533333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.842515 mean= 0.05059235 max= 0.8196807 sd= 0.6545704 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 54.26% | Loss: 0.235180 Mean
+Output: 0.5016 | StdDev: 0.1186 Grad norm L1 by layer: 5308.27374368234
+| 11611.0384414266 | 945.241381816452 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.006196, 0.916554] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.542571 [dbg] BLOCK A: MSE
+loss=0.235180 [dbg] BLOCK A: saturation mean=0.501621 | sd=0.118638
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-1.2 mean=0.000594 max=0.609] |
+weights_pre(12x64):[min=-1.3 mean=0.00659 max=1.39] |
+weights_post(12x64):[min=-1.22 mean=0.00614 max=1.49] |
+update(12x64):[min=-0.125 mean=0.00045 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-1.19 mean=-0.0302
+max=0.556] | weights_pre(64x32):[min=-0.709 mean=-0.0692 max=0.738] |
+weights_post(64x32):[min=-0.767 mean=-0.0551 max=0.759] |
+update(64x32):[min=-0.125 mean=-0.0141 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=-0.719 mean=0.337
+max=3.18] | weights_pre(32x1):[min=-0.752 mean=-0.0464 max=0.548] |
+weights_post(32x1):[min=-0.871 mean=-0.0704 max=0.597] |
+update(32x1):[min=-0.07 mean=0.024 max=0.122]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-77.2 mean=2.61 max=31.7]
+| biases_pre(64x1):[min=-0.263 mean=-0.0487 max=0.254] |
+biases_post(64x1):[min=-0.278 mean=-0.0571 max=0.277] |
+update(64x1):[min=-0.106 mean=0.00836 max=0.0934]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-87.5 mean=-5.68
+max=31.1] | biases_pre(32x1):[min=-0.256 mean=-0.0847 max=0.229] |
+biases_post(32x1):[min=-0.303 mean=-0.0808 max=0.307] |
+update(32x1):[min=-0.0773 mean=-0.00383 max=0.0991]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=177 mean=177 max=177] |
+biases_pre(1x1):[min=0.028 mean=0.028 max=0.028] |
+biases_post(1x1):[min=0.0159 mean=0.0159 max=0.0159] |
+update(1x1):[min=0.012 mean=0.012 max=0.012] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+3 | Val Acc (0.5 thr): 81.6 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=3 | best_val_acc=0.8160000 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 68.94% at Epoch 2 Best Epoch (validation
+accuracy): 3 Best Validation Accuracy: 81.6 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.217578 -0.299370 -0.002866
+0.006139 0.312549 1.493668 Layer 1 biases summary: Min. 1st Qu. Median
+Mean 3rd Qu. Max. -0.277584 -0.239179 -0.029820 -0.057107 0.008942
+0.277214 Layer 2 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max.
+-0.76725 -0.23124 -0.06254 -0.05508 0.11165 0.75916 Layer 2 biases
+summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.302570 -0.199454
+-0.069126 -0.080839 0.007866 0.306682 Layer 3 weights summary: Min. 1st
+Qu. Median Mean 3rd Qu. Max. -0.87077 -0.29859 0.04943 -0.07041 0.16109
+0.59662 Layer 3 biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max.
+0.01593 0.01593 0.01593 0.01593 0.01593 0.01593 Saving to:
+C:<em>2_loss_plot.png Device before: 3 Device after: 2 Saved OK. Size:
+35707 bytes [PR] PRE update_performance_and_relevance pr_cfg
+(mode=single) [PR] pr_cfg is NULL (using defaults) [TRACE] BEFORE
+update_performance_and_relevance @ 00:16:56.431
+</em>__________________________________________________________________________
+______________________________DESONN_0_SONN_1______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 1 as 0.0.1”
+___________________________________________________________________________
+______________________________DESONN_0_SONN_2______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 2 as 0.0.2” [PR] RESOLVED pr_cfg for
+update_performance_and_relevance (ensemble_number=0, do_ensemble=FALSE)
+[PR] pr_cfg is NULL (defaults apply) [PR] knitr.in.progress=TRUE [PR]
+interactive()=FALSE [PR] option(DDESONN_OUTPUT_ROOT)= [PR]
+env(DDESONN_ARTIFACTS_ROOT)= [PR] run_id (head): Ensemble: 2 Model: 1 |
+Ensemble: 2 Model: 2 (n=2) [PR] pr_saveEnabled=FALSE (pr_cfg is NULL)
+[PR] pr_viewAllPlots=FALSE [PR] flags resolved (post viewAll):
+perf_high=TRUE perf_low=TRUE relev_high=TRUE relev_low=TRUE [PR TRACE]
+pr_viewAllPlots= FALSE pr_saveEnabled= FALSE [PR TRACE] rows: perf_high=
+17 perf_low= 55 relev_high= 0 relev_low= 6 [PR TRACE] print_plots=TRUE
+[PR TRACE] CALL high(perf) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 17 [PR HIGH] EXIT | plots_len= 9 names_head=
+confusion_matrix_TP,confusion_matrix_FP,confusion_matrix_TN [PR]
+performance_high_mean_plots class=list length=9
+names(head)=confusion_matrix_TP,confusion_matrix_FP,confusion_matrix_TN,accuracy_precision_recall_f1_tuned_confusion_matrix_TP,accuracy_precision_recall_f1_tuned_confusion_matrix_FP
+[PR TRACE] CALL low(perf) [PR LOW] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 55 [PR LOW] EXIT | plots_len= 36 names_head=
+quantization_error,topographic_error,clustering_quality_db [PR]
+performance_low_mean_plots class=list length=36
+names(head)=quantization_error,topographic_error,clustering_quality_db,MSE,MAE
+[PR TRACE] CALL high(relev) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 0 [PR HIGH] SKIP | no data [PR]
+relevance_high_mean_plots class=list length=0 [PR TRACE] CALL low(relev)
+[PR LOW] ENTER | saveEnabled= FALSE viewAllPlots= FALSE rows= 6 [PR LOW]
+EXIT | plots_len= 3 names_head= ndcg,diversity,serendipity [PR]
+relevance_low_mean_plots class=list length=3
+names(head)=ndcg,diversity,serendipity [TRACE] AFTER
+update_performance_and_relevance @ 00:17:00.981 [EVOKE-ENRICH-BEGIN]
+where=ddesonn_fit::post_train_metadata | why=Computing per-member
+TRAIN/VALID predictions for metadata (calls ddesonn_predict -&gt;
+net<span class="math inline">\(predict)
+[EVOKE-ENRICH-END] where=ddesonn_fit::post_train_metadata | why=Finished
+attaching per-slot metadata; predict() prints after FINAL SUMMARY
+usually come from this block | note=Not per-epoch: epoch-level prints
+must live inside model\)</span>train()/train_network() predict call
+sites [EVOKE-FIT-END] where=ddesonn_run::TEMP(iter=1)-&gt;ddesonn_fit |
+why=ddesonn_fit() returned to ddesonn_run for TEMP candidate; any
+predict() emitted above could have originated inside
+training/metrics/validation | seed=1 | run_index=1 [EVOKE-FIT-BEGIN]
+where=ddesonn_run::TEMP(iter=2)-&gt;ddesonn_fit | why=Training TEMP
+candidate model; ddesonn_fit() may invoke predict() internally via
+validation/metrics/snapshots | seed=1 | run_index=1 [EVOKE-ENRICH]
+where=ddesonn_fit::post_train_metadata | why=About to attach per-slot
+metadata; this may call ddesonn_predict() again (aggregate=‘none’) |
+note=This EVOKE is NOT per-epoch; epochs run inside model$train() (not
+exposed here) | epochs_configured=3 [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.989515 mean= 0.09434522 max= 0.9881388 sd= 0.7266475 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 46.57% | Loss: 0.307280 Mean
+Output: 0.5447 | StdDev: 0.2058 Grad norm L1 by layer: 19614.0251341423
+| 70617.4293261171 | 7639.6371337854 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.005242, 0.988139] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.465714 [dbg] BLOCK A: MSE
+loss=0.307280 [dbg] BLOCK A: saturation mean=0.544732 | sd=0.205809
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-0.915 mean=0.00262 max=1.1] |
+weights_pre(12x64):[min=-1.63 mean=-0.0259 max=1.11] |
+weights_post(12x64):[min=-1.76 mean=-0.0288 max=1.23] |
+update(12x64):[min=-0.125 mean=0.00293 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-1.04 mean=0.0104
+max=0.828] | weights_pre(64x32):[min=-0.618 mean=0.000303 max=0.657] |
+weights_post(64x32):[min=-0.735 mean=-0.0183 max=0.782] |
+update(64x32):[min=-0.125 mean=0.0186 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-1.34 mean=0.393
+max=2.49] | weights_pre(32x1):[min=-0.587 mean=-0.0358 max=0.253] |
+weights_post(32x1):[min=-0.712 mean=-0.0748 max=0.378] |
+update(32x1):[min=-0.125 mean=0.0391 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-168 mean=5.73 max=159] |
+biases_pre(64x1):[min=-0.00566 mean=-0.000205 max=0.00601] |
+biases_post(64x1):[min=-0.131 mean=-0.00802 max=0.131] |
+update(64x1):[min=-0.125 mean=0.00781 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-124 mean=10.3 max=161] |
+biases_pre(32x1):[min=-0.00576 mean=-0.000367 max=0.00444] |
+biases_post(32x1):[min=-0.131 mean=-0.0316 max=0.129] |
+update(32x1):[min=-0.125 mean=0.0313 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=330 mean=330 max=330] |
+biases_pre(1x1):[min=-0.0118 mean=-0.0118 max=-0.0118] |
+biases_post(1x1):[min=-0.137 mean=-0.137 max=-0.137] |
+update(1x1):[min=0.125 mean=0.125 max=0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 68.93 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999811 mean= -0.2989737 max= 0.7742901 sd= 0.7494786 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 71.43% | Loss: 0.190671 Mean
+Output: 0.2238 | StdDev: 0.1663 Grad norm L1 by layer: 17664.2301375756
+| 84509.479272038 | 15947.3204453721 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000000, 0.821380] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.714286 [dbg] BLOCK A: MSE
+loss=0.190671 [dbg] BLOCK A: saturation mean=0.223783 | sd=0.166310
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-1 mean=0.000117 max=1.08] |
+weights_pre(12x64):[min=-1.75 mean=-0.0288 max=1.2] |
+weights_post(12x64):[min=-1.86 mean=-0.0254 max=1.25] |
+update(12x64):[min=-0.125 mean=-0.00343 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.83 mean=0.0249
+max=0.712] | weights_pre(64x32):[min=-0.737 mean=-0.0213 max=0.779] |
+weights_post(64x32):[min=-0.851 mean=-0.0488 max=0.774] |
+update(64x32):[min=-0.125 mean=0.0274 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=-2.49 mean=-0.609
+max=-0.00128] | weights_pre(32x1):[min=-0.665 mean=0.00135 max=0.59] |
+weights_post(32x1):[min=-0.589 mean=0.0698 max=0.687] |
+update(32x1):[min=-0.125 mean=-0.0685 max=-0.00356]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-122 mean=6.37 max=173] |
+biases_pre(64x1):[min=-0.132 mean=-0.00823 max=0.13] |
+biases_post(64x1):[min=-0.253 mean=-0.00826 max=0.254] |
+update(64x1):[min=-0.125 mean=3.5e-05 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-270 mean=23.6 max=239] |
+biases_pre(32x1):[min=-0.132 mean=-0.0324 max=0.135] |
+biases_post(32x1):[min=-0.255 mean=-0.0629 max=0.26] |
+update(32x1):[min=-0.125 mean=0.0305 max=0.125]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=-1.05e+03 mean=-1.05e+03
+max=-1.05e+03] | biases_pre(1x1):[min=-0.0991 mean=-0.0991 max=-0.0991]
+| biases_post(1x1):[min=0.0201 mean=0.0201 max=0.0201] |
+update(1x1):[min=-0.119 mean=-0.119 max=-0.119] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.108589 mean= 0.414689 max= 0.9999961 sd= 0.542275 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 36.17% | Loss: 0.418899 Mean
+Output: 0.7742 | StdDev: 0.1823 Grad norm L1 by layer: 27565.3230153391
+| 87807.6513890182 | 9981.89274220781 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.179180, 1.000000] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.361714 [dbg] BLOCK A: MSE
+loss=0.418899 [dbg] BLOCK A: saturation mean=0.774151 | sd=0.182335
+[fname probe] -&gt; SONN_1_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-0.873 mean=-0.00122 max=1.13] |
+weights_pre(12x64):[min=-1.86 mean=-0.0252 max=1.25] |
+weights_post(12x64):[min=-1.75 mean=-0.0238 max=1.31] |
+update(12x64):[min=-0.125 mean=-0.00139 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-0.223 mean=0.0324
+max=1.13] | weights_pre(64x32):[min=-0.853 mean=-0.0528 max=0.771] |
+weights_post(64x32):[min=-0.791 mean=-0.0717 max=0.762] |
+update(64x32):[min=-0.124 mean=0.0189 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=0.00188 mean=0.462
+max=4.16] | weights_pre(32x1):[min=-0.594 mean=0.012 max=0.426] |
+weights_post(32x1):[min=-0.602 mean=-0.0335 max=0.312] |
+update(32x1):[min=0.000407 mean=0.0455 max=0.114]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-217 mean=16.2 max=529] |
+biases_pre(64x1):[min=-0.252 mean=-0.00882 max=0.257] |
+biases_post(64x1):[min=-0.366 mean=-0.0111 max=0.38] |
+update(64x1):[min=-0.125 mean=0.00225 max=0.125]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-123 mean=53.6 max=858] |
+biases_pre(32x1):[min=-0.258 mean=-0.0647 max=0.25] |
+biases_post(32x1):[min=-0.329 mean=-0.0933 max=0.173] |
+update(32x1):[min=-0.0995 mean=0.0286 max=0.122]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=1.45e+03 mean=1.45e+03
+max=1.45e+03] | biases_pre(1x1):[min=-0.0321 mean=-0.0321 max=-0.0321] |
+biases_post(1x1):[min=-0.132 mean=-0.132 max=-0.132] |
+update(1x1):[min=0.0997 mean=0.0997 max=0.0997] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6893333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 71.43% at Epoch 2 Best Epoch (validation
+accuracy): 1 Best Validation Accuracy: 68.93 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.75103 -0.33379 -0.01510
+-0.02384 0.27806 1.31354 Layer 1 biases summary: Min. 1st Qu. Median
+Mean 3rd Qu. Max. -0.36621 -0.12862 0.00988 -0.01107 0.11953 0.37952
+Layer 2 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.79123
+-0.22610 -0.07235 -0.07166 0.08732 0.76198 Layer 2 biases summary: Min.
+1st Qu. Median Mean 3rd Qu. Max. -0.32948 -0.17807 -0.12007 -0.09326
+0.02535 0.17337 Layer 3 weights summary: Min. 1st Qu. Median Mean 3rd
+Qu. Max. -0.60154 -0.12511 -0.01902 -0.03347 0.08317 0.31234 Layer 3
+biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.1318 -0.1318
+-0.1318 -0.1318 -0.1318 -0.1318 Saving to: C:_1_loss_plot.png Device
+before: 3 Device after: 2 Saved OK. Size: 31998 bytes [1]
+“—————————————-train_network-begin—————————————-” Epoch: 1 | Learning
+Rate: 0.125 === RAW activation_functions (as passed to learn) === list
+len=3 (names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END
+RAW ===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.884899 mean= 0.167588 max= 0.9863008 sd= 0.621541 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 1 | Train Accuracy: 52.91% | Loss: 0.275073 Mean
+Output: 0.5827 | StdDev: 0.1949 Grad norm L1 by layer: 15192.8020955036
+| 66043.9226430754 | 7410.76457246852 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.034753, 0.993528] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 1, 1, 1, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.529143 [dbg] BLOCK A: MSE
+loss=0.275073 [dbg] BLOCK A: saturation mean=0.582675 | sd=0.194863
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E1][L1][weights]
+grads(12x64):[min=-1.37 mean=0.0013 max=0.673] |
+weights_pre(12x64):[min=-1.16 mean=0.00607 max=1.16] |
+weights_post(12x64):[min=-1.22 mean=0.00379 max=1.28] |
+update(12x64):[min=-0.125 mean=0.00228 max=0.125]
+[OPT=ADAGRAD][E1][L2][weights] grads(64x32):[min=-0.517 mean=0.00577
+max=0.491] | weights_pre(64x32):[min=-0.592 mean=-0.00947 max=0.569] |
+weights_post(64x32):[min=-0.642 mean=-0.0289 max=0.694] |
+update(64x32):[min=-0.125 mean=0.0194 max=0.125]
+[OPT=ADAGRAD][E1][L3][weights] grads(32x1):[min=-0.619 mean=0.513
+max=3.51] | weights_pre(32x1):[min=-0.675 mean=-0.0513 max=0.595] |
+weights_post(32x1):[min=-0.623 mean=-0.137 max=0.47] |
+update(32x1):[min=-0.125 mean=0.0859 max=0.125]
+[OPT=ADAGRAD][E1][L1][biases] grads(64x1):[min=-165 mean=4.2 max=138] |
+biases_pre(64x1):[min=-0.00492 mean=-0.00015 max=0.00589] |
+biases_post(64x1):[min=-0.13 mean=-0.0275 max=0.131] |
+update(64x1):[min=-0.125 mean=0.0273 max=0.125]
+[OPT=ADAGRAD][E1][L2][biases] grads(32x1):[min=-129 mean=6.14 max=133] |
+biases_pre(32x1):[min=-0.00474 mean=-0.000219 max=0.00462] |
+biases_post(32x1):[min=-0.13 mean=-0.0315 max=0.13] |
+update(32x1):[min=-0.125 mean=0.0313 max=0.125]
+[OPT=ADAGRAD][E1][L3][biases] grads(1x1):[min=587 mean=587 max=587] |
+biases_pre(1x1):[min=-0.0209 mean=-0.0209 max=-0.0209] |
+biases_post(1x1):[min=-0.146 mean=-0.146 max=-0.146] |
+update(1x1):[min=0.125 mean=0.125 max=0.125] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=1 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+1 | Val Acc (0.5 thr): 65.33 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=1 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=1 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6533333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=1 | caller=implicit_last_val_predict Epoch: 2 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.999991 mean= -0.4948477 max= 0.4669831 sd= 0.8581782 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 2 | Train Accuracy: 68.94% | Loss: 0.251916 Mean
+Output: 0.0889 | StdDev: 0.0958 Grad norm L1 by layer: 35904.9200277032
+| 130836.135603896 | 20779.8981658405 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.000001, 0.500338] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 0, 0, 0 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.689429 [dbg] BLOCK A: MSE
+loss=0.251916 [dbg] BLOCK A: saturation mean=0.088863 | sd=0.095765
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E2][L1][weights]
+grads(12x64):[min=-0.855 mean=8.19e-06 max=0.971] |
+weights_pre(12x64):[min=-1.19 mean=0.0038 max=1.27] |
+weights_post(12x64):[min=-1.31 mean=0.00666 max=1.28] |
+update(12x64):[min=-0.125 mean=-0.00286 max=0.125]
+[OPT=ADAGRAD][E2][L2][weights] grads(64x32):[min=-0.183 mean=0.0468
+max=0.751] | weights_pre(64x32):[min=-0.635 mean=-0.0347 max=0.637] |
+weights_post(64x32):[min=-0.709 mean=-0.073 max=0.615] |
+update(64x32):[min=-0.125 mean=0.0383 max=0.125]
+[OPT=ADAGRAD][E2][L3][weights] grads(32x1):[min=-3.7 mean=-0.512
+max=-0.00648] | weights_pre(32x1):[min=-0.602 mean=-0.0731 max=0.482] |
+weights_post(32x1):[min=-0.564 mean=-0.00421 max=0.536] |
+update(32x1):[min=-0.125 mean=-0.0689 max=-0.00351]
+[OPT=ADAGRAD][E2][L1][biases] grads(64x1):[min=-293 mean=36.5 max=373] |
+biases_pre(64x1):[min=-0.139 mean=-0.0287 max=0.132] |
+biases_post(64x1):[min=-0.263 mean=-0.0487 max=0.255] |
+update(64x1):[min=-0.125 mean=0.02 max=0.125]
+[OPT=ADAGRAD][E2][L2][biases] grads(32x1):[min=-89.8 mean=81.4 max=553]
+| biases_pre(32x1):[min=-0.134 mean=-0.0343 max=0.126] |
+biases_post(32x1):[min=-0.256 mean=-0.085 max=0.229] |
+update(32x1):[min=-0.119 mean=0.0507 max=0.125]
+[OPT=ADAGRAD][E2][L3][biases] grads(1x1):[min=-1.73e+03 mean=-1.73e+03
+max=-1.73e+03] | biases_pre(1x1):[min=-0.0838 mean=-0.0838 max=-0.0838]
+| biases_post(1x1):[min=0.0346 mean=0.0346 max=0.0346] |
+update(1x1):[min=-0.118 mean=-0.118 max=-0.118] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=2 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 [PRED-INVOKE]
+train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=2 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=2 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=1 | best_val_acc=0.6533333 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=2 | caller=implicit_last_val_predict Epoch: 3 | Learning Rate:
+0.125 === RAW activation_functions (as passed to learn) === list len=3
+(names/types) [L01] fn:relu [L02] fn:relu [L03] fn:sigmoid === END RAW
+===</p>
+<p>[Debug] Layer 1 : input dim = 3500 x 12 | weights dim = 12 x 64
+[Debug] Layer 1 : Activation Function = relu (callable) [Debug] Layer 2
+: input dim = 3500 x 64 | weights dim = 64 x 32 [Debug] Layer 2 :
+Activation Function = relu (callable) [Debug] Layer 3 : input dim = 3500
+x 32 | weights dim = 32 x 1 [Debug] Layer 3 : Activation Function =
+sigmoid (callable) [Debug] Layer 3 : Using CE shortcut (delta = A - Y)
+[Debug] Layer 2 : Using derivative-backed delta [Debug] Layer 1 : Using
+derivative-backed delta [TRAIN-DBG] last-layer error summary -&gt; min=
+-1.842515 mean= 0.05059235 max= 0.8196807 sd= 0.6545704 [dbg] targets:
+CLASSIFICATION_MODE = binary [dbg] targets: labels class = matrix,array
+| lv length = 3500 [dbg] targets: binary y summary -&gt; mean= 0.3108571
+| sum= 1088 Epoch 3 | Train Accuracy: 54.26% | Loss: 0.235180 Mean
+Output: 0.5016 | StdDev: 0.1186 Grad norm L1 by layer: 5308.27374368234
+| 11611.0384414266 | 945.241381816452 [dbg] BLOCK A: n=3500, K=1 |
+probs_train range=[0.006196, 0.916554] [dbg] BLOCK A:
+CLASSIFICATION_MODE = binary [dbg] targets: CLASSIFICATION_MODE = binary
+[dbg] targets: labels class = matrix,array | lv length = 3500 [dbg]
+targets: binary y summary -&gt; mean= 0.3108571 | sum= 1088 [dbg] BLOCK
+A: preds_bin head = 0, 0, 0, 1, 1, 1 [dbg] BLOCK A: y head = 0, 0, 0, 0,
+0, 1 [dbg] BLOCK A: train_accuracy=0.542571 [dbg] BLOCK A: MSE
+loss=0.235180 [dbg] BLOCK A: saturation mean=0.501621 | sd=0.118638
+[fname probe] -&gt; SONN_2_probe.png [OPT=ADAGRAD][E3][L1][weights]
+grads(12x64):[min=-1.2 mean=0.000594 max=0.609] |
+weights_pre(12x64):[min=-1.3 mean=0.00659 max=1.39] |
+weights_post(12x64):[min=-1.22 mean=0.00614 max=1.49] |
+update(12x64):[min=-0.125 mean=0.00045 max=0.125]
+[OPT=ADAGRAD][E3][L2][weights] grads(64x32):[min=-1.19 mean=-0.0302
+max=0.556] | weights_pre(64x32):[min=-0.709 mean=-0.0692 max=0.738] |
+weights_post(64x32):[min=-0.767 mean=-0.0551 max=0.759] |
+update(64x32):[min=-0.125 mean=-0.0141 max=0.125]
+[OPT=ADAGRAD][E3][L3][weights] grads(32x1):[min=-0.719 mean=0.337
+max=3.18] | weights_pre(32x1):[min=-0.752 mean=-0.0464 max=0.548] |
+weights_post(32x1):[min=-0.871 mean=-0.0704 max=0.597] |
+update(32x1):[min=-0.07 mean=0.024 max=0.122]
+[OPT=ADAGRAD][E3][L1][biases] grads(64x1):[min=-77.2 mean=2.61 max=31.7]
+| biases_pre(64x1):[min=-0.263 mean=-0.0487 max=0.254] |
+biases_post(64x1):[min=-0.278 mean=-0.0571 max=0.277] |
+update(64x1):[min=-0.106 mean=0.00836 max=0.0934]
+[OPT=ADAGRAD][E3][L2][biases] grads(32x1):[min=-87.5 mean=-5.68
+max=31.1] | biases_pre(32x1):[min=-0.256 mean=-0.0847 max=0.229] |
+biases_post(32x1):[min=-0.303 mean=-0.0808 max=0.307] |
+update(32x1):[min=-0.0773 mean=-0.00383 max=0.0991]
+[OPT=ADAGRAD][E3][L3][biases] grads(1x1):[min=177 mean=177 max=177] |
+biases_pre(1x1):[min=0.028 mean=0.028 max=0.028] |
+biases_post(1x1):[min=0.0159 mean=0.0159 max=0.0159] |
+update(1x1):[min=0.012 mean=0.012 max=0.012] [PRED-INVOKE]
+train_network(): per-epoch VALIDATION predict() | epoch=3 |
+caller=validation_metrics Debug (val): nrow(X_val)= 750 nrow(probs_val)=
+750 ncol(probs_val)= 1 [DBG] Captured LAST-epoch validation probs/labels
+and predict() list [dbg] targets: CLASSIFICATION_MODE = binary [dbg]
+targets: labels class = numeric | lv length = 750 [dbg] targets: binary
+y summary -&gt; mean= 0.3466667 | sum= 260 New best model saved at epoch
+3 | Val Acc (0.5 thr): 81.6 % [PRED-INVOKE] train_network():
+BEST-SNAPSHOT recompute TRAIN predict() | epoch=3 |
+caller=best_snapshot_train [PRED-INVOKE] train_network(): BEST-SNAPSHOT
+recompute VALIDATION predict() | epoch=3 |
+caller=best_snapshot_validation [BEST-SNAPSHOT] using validation-best
+epoch=3 | best_val_acc=0.8160000 | thr=0.5 | n_eff=750 [PRED-INVOKE]
+train_network(): implicit last_val_predict selection (NO new predict) |
+epoch=3 | caller=implicit_last_val_predict</p>
+<p>Best Training Accuracy: 68.94% at Epoch 2 Best Epoch (validation
+accuracy): 3 Best Validation Accuracy: 81.6 % Layer 1 weights summary:
+Min. 1st Qu. Median Mean 3rd Qu. Max. -1.217578 -0.299370 -0.002866
+0.006139 0.312549 1.493668 Layer 1 biases summary: Min. 1st Qu. Median
+Mean 3rd Qu. Max. -0.277584 -0.239179 -0.029820 -0.057107 0.008942
+0.277214 Layer 2 weights summary: Min. 1st Qu. Median Mean 3rd Qu. Max.
+-0.76725 -0.23124 -0.06254 -0.05508 0.11165 0.75916 Layer 2 biases
+summary: Min. 1st Qu. Median Mean 3rd Qu. Max. -0.302570 -0.199454
+-0.069126 -0.080839 0.007866 0.306682 Layer 3 weights summary: Min. 1st
+Qu. Median Mean 3rd Qu. Max. -0.87077 -0.29859 0.04943 -0.07041 0.16109
+0.59662 Layer 3 biases summary: Min. 1st Qu. Median Mean 3rd Qu. Max.
+0.01593 0.01593 0.01593 0.01593 0.01593 0.01593 Saving to:
+C:<em>2_loss_plot.png Device before: 3 Device after: 2 Saved OK. Size:
+35707 bytes [PR] PRE update_performance_and_relevance pr_cfg
+(mode=single) [PR] pr_cfg is NULL (using defaults) [TRACE] BEFORE
+update_performance_and_relevance @ 00:17:02.557
+</em>__________________________________________________________________________
+______________________________DESONN_0_SONN_1______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 1 as 0.0.1”
+___________________________________________________________________________
+______________________________DESONN_0_SONN_2______________________________
+[calculate_performance] Using last-epoch predictions Length of SONN<span class="math inline">\(weights:  3
+Length of SONN\)</span>map: 1 [1] “Storing metadata for main ensemble
+model 2 as 0.0.2” [PR] RESOLVED pr_cfg for
+update_performance_and_relevance (ensemble_number=0, do_ensemble=FALSE)
+[PR] pr_cfg is NULL (defaults apply) [PR] knitr.in.progress=TRUE [PR]
+interactive()=FALSE [PR] option(DDESONN_OUTPUT_ROOT)= [PR]
+env(DDESONN_ARTIFACTS_ROOT)= [PR] run_id (head): Ensemble: 3 Model: 1 |
+Ensemble: 3 Model: 2 (n=2) [PR] pr_saveEnabled=FALSE (pr_cfg is NULL)
+[PR] pr_viewAllPlots=FALSE [PR] flags resolved (post viewAll):
+perf_high=TRUE perf_low=TRUE relev_high=TRUE relev_low=TRUE [PR TRACE]
+pr_viewAllPlots= FALSE pr_saveEnabled= FALSE [PR TRACE] rows: perf_high=
+17 perf_low= 55 relev_high= 0 relev_low= 6 [PR TRACE] print_plots=TRUE
+[PR TRACE] CALL high(perf) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 17 [PR HIGH] EXIT | plots_len= 9 names_head=
+confusion_matrix_TP,confusion_matrix_FP,confusion_matrix_TN [PR]
+performance_high_mean_plots class=list length=9
+names(head)=confusion_matrix_TP,confusion_matrix_FP,confusion_matrix_TN,accuracy_precision_recall_f1_tuned_confusion_matrix_TP,accuracy_precision_recall_f1_tuned_confusion_matrix_FP
+[PR TRACE] CALL low(perf) [PR LOW] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 55 [PR LOW] EXIT | plots_len= 36 names_head=
+quantization_error,topographic_error,clustering_quality_db [PR]
+performance_low_mean_plots class=list length=36
+names(head)=quantization_error,topographic_error,clustering_quality_db,MSE,MAE
+[PR TRACE] CALL high(relev) [PR HIGH] ENTER | saveEnabled= FALSE
+viewAllPlots= FALSE rows= 0 [PR HIGH] SKIP | no data [PR]
+relevance_high_mean_plots class=list length=0 [PR TRACE] CALL low(relev)
+[PR LOW] ENTER | saveEnabled= FALSE viewAllPlots= FALSE rows= 6 [PR LOW]
+EXIT | plots_len= 3 names_head= ndcg,diversity,serendipity [PR]
+relevance_low_mean_plots class=list length=3
+names(head)=ndcg,diversity,serendipity [TRACE] AFTER
+update_performance_and_relevance @ 00:17:05.938 [EVOKE-ENRICH-BEGIN]
+where=ddesonn_fit::post_train_metadata | why=Computing per-member
+TRAIN/VALID predictions for metadata (calls ddesonn_predict -&gt;
+net<span class="math inline">\(predict)
+[EVOKE-ENRICH-END] where=ddesonn_fit::post_train_metadata | why=Finished
+attaching per-slot metadata; predict() prints after FINAL SUMMARY
+usually come from this block | note=Not per-epoch: epoch-level prints
+must live inside model\)</span>train()/train_network() predict call
+sites [EVOKE-FIT-END] where=ddesonn_run::TEMP(iter=2)-&gt;ddesonn_fit |
+why=ddesonn_fit() returned to ddesonn_run for TEMP candidate; any
+predict() emitted above could have originated inside
+training/metrics/validation | seed=1 | run_index=1 [EVOKE-PREDICT-BEGIN]
+where=ddesonn_run::build_split_predictions(split=train) | why=Split
+diagnostics: ddesonn_predict(aggregate=‘none’, type=‘response’) -&gt;
+per-model tables | seed=1 | run_index=1 [EVOKE-PREDICT-END]
+where=ddesonn_run::build_split_predictions(split=train) | why=Split
+diagnostics predict finished (if you saw predict() above, it came from
+this block) | seed=1 | run_index=1 [EVOKE-PREDICT-BEGIN]
+where=ddesonn_run::build_split_predictions(split=validation) | why=Split
+diagnostics: ddesonn_predict(aggregate=‘none’, type=‘response’) -&gt;
+per-model tables | seed=1 | run_index=1 [EVOKE-PREDICT-END]
+where=ddesonn_run::build_split_predictions(split=validation) | why=Split
+diagnostics predict finished (if you saw predict() above, it came from
+this block) | seed=1 | run_index=1 [EVOKE-PREDICT-BEGIN]
+where=ddesonn_run::build_split_predictions(split=test) | why=Split
+diagnostics: ddesonn_predict(aggregate=‘none’, type=‘response’) -&gt;
+per-model tables | seed=1 | run_index=1 [EVOKE-PREDICT-END]
+where=ddesonn_run::build_split_predictions(split=test) | why=Split
+diagnostics predict finished (if you saw predict() above, it came from
+this block) | seed=1 | run_index=1 [dbg] targets: CLASSIFICATION_MODE =
+binary [dbg] targets: labels class = integer | lv length = 750 [dbg]
+targets: binary y summary -&gt; mean= 0.2933333 | sum= 220 #
+================================================================================
+# ================================= CORE METRICS
+================================= #
+================================================================================</p>
+<p>===== FINAL SUMMARY ===== Best epoch : 1 Train accuracy : 0.762000
+Val accuracy : 0.762667 Train loss : 0.162137 Val loss : 0.158374
+Threshold : 0.570000 Test accuracy : 0.740000 Test loss : 0.571433</p>
+<p>=== Train === Classification Report: precision recall f1-score
+support 0 0.781282 0.955224 0.859541 2412.000000 1 0.803993 0.407169
+0.540574 1088.000000 accuracy 0.784857 0.784857 0.784857 3500.000000
+macro avg 0.792637 0.681196 0.700057 3500.000000 weighted avg 0.788342
+0.784857 0.760388 3500.000000</p>
+<p>Confusion Matrix: Predicted Actual Positive (1) Negative (0) Positive
+(1) 443 108 Negative (0) 645 2304</p>
+<p>AUC (ROC) : 0.833371 AUPRC : 0.721644</p>
+<p>=== Validation === Classification Report: precision recall f1-score
+support 0 0.742188 0.969388 0.840708 490.000000 1 0.863636 0.365385
+0.513514 260.000000 accuracy 0.760000 0.760000 0.760000 750.000000 macro
+avg 0.802912 0.667386 0.677111 750.000000 weighted avg 0.784290 0.760000
+0.727281 750.000000</p>
+<p>Confusion Matrix: Predicted Actual Positive (1) Negative (0) Positive
+(1) 95 15 Negative (0) 165 475</p>
+<p>AUC (ROC) : 0.856888 AUPRC : 0.767956</p>
+<p>=== Test === Classification Report: precision recall f1-score support
+0 0.780031 0.943396 0.853971 530.000000 1 0.724771 0.359091 0.480243
+220.000000 accuracy 0.772000 0.772000 0.772000 750.000000 macro avg
+0.752401 0.651244 0.667107 750.000000 weighted avg 0.763821 0.772000
+0.744344 750.000000</p>
+<p>Confusion Matrix: Predicted Actual Positive (1) Negative (0) Positive
+(1) 79 30 Negative (0) 141 500</p>
+AUC (ROC) : 0.801844 AUPRC : 0.644767
+<div class="dd-table-title">
+Scenario D - Main Log
+</div>
+<div class="dd-scroll">
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+serial
+</th>
+<th style="text-align:right;">
+iteration
+</th>
+<th style="text-align:left;">
+phase
+</th>
+<th style="text-align:left;">
+metric_name
+</th>
+<th style="text-align:right;">
+metric_value
+</th>
+<th style="text-align:left;">
+message
+</th>
+<th style="text-align:left;">
+timestamp
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+main_before
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.5386667
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:16:55
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+main_before
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.6933333
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:16:55
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+main_after
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.6693333
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+main_after
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.8160000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+main_before
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.6693333
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.2
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+main_before
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.8160000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+main_after
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.6693333
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:06
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.2
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+main_after
+</td>
+<td style="text-align:left;">
+accuracy
+</td>
+<td style="text-align:right;">
+0.8160000
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:06
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="dd-table-title">
+Scenario D - Movement Log
+</div>
+<div class="dd-scroll">
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+serial
+</th>
+<th style="text-align:right;">
+iteration
+</th>
+<th style="text-align:left;">
+message
+</th>
+<th style="text-align:left;">
+timestamp
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+removed (no replacement)
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+removed (no replacement)
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:06
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="dd-table-title">
+Scenario D - Change Log
+</div>
+<div class="dd-scroll">
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+serial
+</th>
+<th style="text-align:right;">
+iteration
+</th>
+<th style="text-align:left;">
+message
+</th>
+<th style="text-align:left;">
+timestamp
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+model removed from main
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:01
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0.0.1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+model removed from main
+</td>
+<td style="text-align:left;">
+2026-02-02 00:17:06
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="dd-note">
+<p><b>Note:</b> Tables are preview-capped for vignette readability. Full
+tables remain available in <code>res_D<span class="math inline">\(runs[[1]]\)</span>tables</code>. Artifact writing
+is <b>OFF</b> by default for CRAN-safety.</p>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

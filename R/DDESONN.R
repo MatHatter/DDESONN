@@ -3778,7 +3778,8 @@ DDESONN <- R6::R6Class(
           single_prediction_time <- prediction_time_list[[i]]
           
           # brought X_validation and y_validation as close as possible to metrics without "doubling-up" vars per se
-          if (validation_metrics){
+          # #$$$$$$$$$$$$$
+          if (isTRUE(validation_metrics) && !is.null(X_validation) && !is.null(y_validation)) {
             Rdata  <- X_validation
             labels <- y_validation
           }

@@ -102,7 +102,7 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 
 ## Project timeline
 
-- 2024-05-07 — Project origin  
+- 2024-05-07 ??? Project origin  
   The project formally began in May 2024 as a research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
 
 - Initial intensive sprint (approximately 3 months)  
@@ -111,7 +111,7 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 - Iterative development (lax / intermittent)  
   Development continued at a more sustainable pace, refining architectural decisions and expanding functionality while preserving full transparency and custom control.
 
-- Second intensive hardening phase (approximately 3–4 months)  
+- Second intensive hardening phase (approximately 3???4 months)  
   Focused on correctness, stability, optimizer behavior, ensemble reliability, and reproducibility.
 
 - Late 2025 to early 2026 hiatus  
@@ -125,41 +125,41 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 ## Repository structure
 
 DDESONN/
-├─ R/
-│ ├─ DDESONN.R
-│ ├─ activation_functions.R
-│ ├─ api.R
-│ ├─ optimizers.R
-│ ├─ performance_relevance_metrics.R
-│ ├─ update_biases_block.R
-│ ├─ update_weights_block.R
-│ ├─ utils.R
-│ └─ reports/
-│ └─ evaluate_predictions_report.R
-│
-├─ inst/
-│ ├─ scripts/
-│ │ ├─ DDESONN_mtcars_example.R
-│ │ ├─ DDESONN_mtcars_A-D_examples*.R
-│ │ ├─ Heart_failure_ScenarioA.R
-│ │ ├─ LoadandPredict.R
-│ │ └─ TestDDESONN.R
-│ └─ dev/
-│ └─ README.md
-│
-├─ data/
-├─ vignettes/
-├─ helpfulFiles/
-├─ ideas/
-├─ junk/
-│
-├─ DESCRIPTION
-├─ NAMESPACE
-├─ DDESONN.Rproj
-├─ CHANGELOG.md
-├─ README.md
-├─ README_v*.md
-└─ LICENSE/
+?????? R/
+??? ?????? DDESONN.R
+??? ?????? activation_functions.R
+??? ?????? api.R
+??? ?????? optimizers.R
+??? ?????? performance_relevance_metrics.R
+??? ?????? update_biases_block.R
+??? ?????? update_weights_block.R
+??? ?????? utils.R
+??? ?????? reports/
+??? ?????? evaluate_predictions_report.R
+???
+?????? inst/
+??? ?????? scripts/
+??? ??? ?????? DDESONN_mtcars_example.R
+??? ??? ?????? DDESONN_mtcars_A-D_examples*.R
+??? ??? ?????? Heart_failure_ScenarioA.R
+??? ??? ?????? LoadandPredict.R
+??? ??? ?????? TestDDESONN.R
+??? ?????? dev/
+??? ?????? README.md
+???
+?????? data/
+?????? vignettes/
+?????? helpfulFiles/
+?????? ideas/
+?????? junk/
+???
+?????? DESCRIPTION
+?????? NAMESPACE
+?????? DDESONN.Rproj
+?????? CHANGELOG.md
+?????? README.md
+?????? README_v*.md
+?????? LICENSE/
 
 ---
 
@@ -246,11 +246,11 @@ paths).** **`predict.ddesonn_model()` / `predict()` = public, canonical user-fac
 that wraps `ddesonn_predict()` and standardizes arguments + output shape + optional
 thresholding.**
 
-Why: internal code uses `ddesonn_predict()` because it’s a forward-pass primitive
-that’s faster and easier to control inside training loops (no user-facing return
+Why: internal code uses `ddesonn_predict()` because it???s a forward-pass primitive
+that???s faster and easier to control inside training loops (no user-facing return
 formatting). User-facing inference should use `predict()` because it provides a
 stable contract (type/aggregate/threshold handling, return structure).
-Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model???s class order), otherwise accuracy comparisons may be incorrect.
 
 When `test = list(x = test_x, y = test_y)` is provided, the final run summary
 always includes test loss and test accuracy computed once after training
@@ -276,7 +276,7 @@ API design notes (optional explicit splits):
 
 ### Model usage note (post-training)
 
-Training and validation run inside `ddesonn_run()` and call the model’s R6
+Training and validation run inside `ddesonn_run()` and call the model???s R6
 methods directly.
 
 **Evaluation contract (test data):**
@@ -286,14 +286,14 @@ methods directly.
   once after training completes, are stored at `res$test_metrics$loss` and
   `res$test_metrics$accuracy`, and are returned/printed as part of the final run summary.
 - If you want to reproduce test accuracy manually, call `predict(res$model, x_test)`
-  and compute accuracy as *(number of correct predictions ÷ total rows)* via an
+  and compute accuracy as *(number of correct predictions ?? total rows)* via an
   element-wise comparison against `y_test` using the same threshold shown in the
   final summary (and the same aggregation and preprocessing).
 - Given the **same threshold and preprocessing**, this manually computed accuracy
   **should match** the `ddesonn_run()` test accuracy. Any mismatch indicates a
   threshold or data-handling difference (not a model inconsistency).
 - `ddesonn_run()` is for **evaluation**, while `predict()` is for **inspection,
-  custom metrics, and downstream logic**—neither replaces the other.
+  custom metrics, and downstream logic**???neither replaces the other.
 - `ddesonn_run()` does **not** return per-row predictions; per-row outputs are
   provided by `predict()` only.
 
@@ -354,14 +354,14 @@ Verify original dataset licensing if repurposed.
 > They are documented to clarify direction and preserve future ideas.  
 > They do **not** imply active development or any committed delivery timeline.
 
-### R-01 · Structured hyperparameter experimentation  
+### R-01 ?? Structured hyperparameter experimentation  
 **Status:** Design intent (future)  
 **Related To-Do:** T-01
 
 Add structured hyperparameter grid and sweep utilities to support controlled,
 reproducible experimentation across model configurations.
 
-### R-02 · Optional preprocessing utilities  
+### R-02 ?? Optional preprocessing utilities  
 **Status:** Design intent (future)  
 **Related To-Do:** T-02
 
@@ -371,7 +371,7 @@ Introduce optional preprocessing helpers, including:
   (e.g., `creatinine_phosphokinase`)
 - Zero-preserving behavior for interpretability and safety
 
-### R-03 · Evaluation contract and thresholding semantics  
+### R-03 ?? Evaluation contract and thresholding semantics  
 **Status:** Current behavior (documented)  
 **Related To-Do:** T-03
 
@@ -386,7 +386,7 @@ The evaluation pipeline follows a strict and intentional thresholding contract:
 - Accuracy, precision, recall, and F1 are derived from confusion-matrix counts so
   all reported metrics consistently reflect `thr_used` (not a fixed 0.5 default).
 
-### R-04 · Single-run per-epoch diagnostics  
+### R-04 ?? Single-run per-epoch diagnostics  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-04
 
@@ -403,7 +403,7 @@ across epochs for a **single model run**.
   `{artifacts_root}/plots/single_run_per_epoch/`
 - Explicitly excluded from `process_performance()` and all ensemble summaries
 
-### R-05 · Single-run vs ensemble contract decoupling  
+### R-05 ?? Single-run vs ensemble contract decoupling  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-05
 
@@ -413,25 +413,20 @@ In single-run mode, ensemble orchestration is disabled, but ensemble slot object
 Decoupling this behavior would require a non-trivial architectural refactor and is
 documented here for clarity and future consideration.
 
-### R-06 · `validation_metrics` scope and stabilization checkpoint  
+### R-06 ?? `validation_metrics` scope and stabilization checkpoint  
 **Status:** Current behavior (documented) + forward-looking consideration  
 **Related To-Do:** T-06, T-07
 
-`validation_metrics` currently gates a broad “evaluation report” pipeline (plots,
-confusion-matrix-derived metrics, artifact exports, and tuned-threshold handling).
-Over time, multiple call sites and helper functions have become dependent on this
-flag, making a full semantic cleanup a non-trivial plumbing change.
+`validation_metrics` gates the validation-only evaluation report pipeline, including
+plots, confusion-matrix-derived metrics, artifact exports, and tuned-threshold handling.
+Despite its name, it does not represent generic metric computation.
 
 **Stabilization decision (v1):**
 
-- `validation_metrics` is retained as a **pragmatic v1 switch** to enable/disable
-  the evaluation report path.
-- A non-essential training-time fallback branch (an else path that pushed training
-  data through the evaluation report pipeline) is treated as non-core and was
-  strategically rolled back to avoid premature expansion of the evaluation pipeline
-  during v1 stabilization.
-- This preserves a safer, more predictable contract for v1 release and reduces risk
-  of introducing fragile bugs late in the cycle.
+- `validation_metrics` is retained as a v1 stabilization switch controlling whether
+  validation-based evaluation and reporting are executed.
+- Training data is explicitly excluded from this pathway to prevent information
+  leakage, optimistic bias, and invalid threshold selection.
 
 **Design intent (future):**
 
@@ -440,7 +435,7 @@ flag, making a full semantic cleanup a non-trivial plumbing change.
 - Revisit `validation_metrics` semantics with explicitness (e.g., tri-state control:
   `off | validation | train`) only after the tuning logic is modularized.
 
-### R-07 · `viewTables` behavior consolidation  
+### R-07 ?? `viewTables` behavior consolidation  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-08
 
@@ -449,7 +444,7 @@ It is not yet guaranteed to be consistently honored across all reporting paths,
 artifacts, `.rds` outputs, or table/tibble/data-frame display points.
 
 The most reliable way to observe table display behavior in v1 is via the scripts in:
-`inst/scripts/` — especially `TestDDESONN.R`.
+`inst/scripts/` ??? especially `TestDDESONN.R`.
 
 Future work may unify table emission so `viewTables` behaves predictably across:
 - console printing
@@ -457,7 +452,7 @@ Future work may unify table emission so `viewTables` behaves predictably across:
 - `.rds` summaries
 - data frames / tibbles
 
-### R-08 · Vignettes expansion and optional interactive diagnostics  
+### R-08 ?? Vignettes expansion and optional interactive diagnostics  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-09
 
@@ -468,7 +463,7 @@ Future releases may expand the vignette suite (more datasets, more experiments,
 more reproducible walkthroughs) and optionally explore interactive diagnostics
 (e.g., Shiny) as a non-core layer.
 
-### R-09 · Techila-scale experimentation patterns  
+### R-09 ?? Techila-scale experimentation patterns  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-10
 
@@ -480,19 +475,19 @@ thousands of seeds without waiting on a single machine.
 
 ## To-Do (Design-Linked)
 
-### T-01 · Hyperparameter sweep utilities  
+### T-01 ?? Hyperparameter sweep utilities  
 Linked from: **R-01**
 
 Implement structured grid and sweep tooling with explicit configuration,
 clear artifacts, and reproducibility guarantees.
 
-### T-02 · Preprocessing utility formalization  
+### T-02 ?? Preprocessing utility formalization  
 Linked from: **R-02**
 
 Define a clean, opt-in preprocessing interface without implicit transformations
 or side effects.
 
-### T-03 · Threshold usage hardening  
+### T-03 ?? Threshold usage hardening  
 Linked from: **R-03**
 
 - Confirm `best_thr` selection remains localized to
@@ -501,27 +496,27 @@ Linked from: **R-03**
 - Ensure all derived metrics are computed from confusion matrices reflecting
   `thr_used`
 
-### T-04 · Per-epoch diagnostic tracking  
+### T-04 ?? Per-epoch diagnostic tracking  
 Linked from: **R-04**
 
 Prototype per-epoch metric capture for single runs only, with no impact on
 ensemble aggregation or performance summaries.
 
-### T-05 · Ensemble contract decoupling analysis  
+### T-05 ?? Ensemble contract decoupling analysis  
 Linked from: **R-05**
 
 Assess architectural implications of separating single-run execution from
 ensemble metadata and orchestration contracts.
 
-### T-06 · `validation_metrics` contract clarification (post-v1)  
+### T-06 ?? `validation_metrics` contract clarification (post-v1)  
 Linked from: **R-06**
 
 - Clearly define what `validation_metrics` enables/returns (evaluation report
   pipeline + artifacts + tuned-threshold support)
 - Identify and document the call sites that currently depend on the flag
-- Reduce “hidden behavior” and ensure the name matches the behavior contract
+- Reduce ???hidden behavior??? and ensure the name matches the behavior contract
 
-### T-07 · Extract threshold tuning into a standalone utility  
+### T-07 ?? Extract threshold tuning into a standalone utility  
 Linked from: **R-06**
 
 - Pull tuned-threshold computation into a dedicated function that can run without
@@ -531,22 +526,22 @@ Linked from: **R-06**
 - After extraction, consider explicit tri-state evaluation routing:
   `off | validation | train` (or separate `evaluation_report` + `evaluation_data`)
 
-### T-08 · `viewTables` standardization and coverage expansion  
+### T-08 ?? `viewTables` standardization and coverage expansion  
 Linked from: **R-07**
 
 - Confirm where `viewTables` is currently honored and where it is ignored
-- Decide what “table viewing” means across:
+- Decide what ???table viewing??? means across:
   console, data frames/tibbles, `.rds` tables, and report artifacts
 - Consolidate table emission so `viewTables` behavior is predictable across the project
 
-### T-09 · Expand vignettes and research demos  
+### T-09 ?? Expand vignettes and research demos  
 Linked from: **R-08**
 
 - Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
-- Treat vignettes as the primary “user education layer” for v1+ releases
+- Treat vignettes as the primary ???user education layer??? for v1+ releases
 
-### T-10 · Techila distributed experimentation hardening  
+### T-10 ?? Techila distributed experimentation hardening  
 Linked from: **R-09**
 
 - Provide a clean, documented Techila workflow for scaling seed sweeps
@@ -560,13 +555,13 @@ Linked from: **R-09**
 2. Run demos to confirm no regressions
 3. Submit pull requests with clear descriptions and tests
 
-Contributions are highly appreciated — especially those focused on:
+Contributions are highly appreciated ??? especially those focused on:
 - polishing and tightening documentation
 - improving vignettes and reproducible demos
 - reporting/diagnostics improvements (tables, plots, artifacts)
 - helping implement or refine items in the Roadmap & Design Intent / To-Do list
 
-If you’re interested in helping push the project toward a cleaner plateau, the
+If you???re interested in helping push the project toward a cleaner plateau, the
 Roadmap & To-Do sections are the best place to pick a meaningful contribution.
 
 ---
