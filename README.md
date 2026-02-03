@@ -521,22 +521,33 @@ Despite its name, it does not represent generic metric computation.
 - Revisit `validation_metrics` semantics with explicitness (e.g., tri-state control:
   `off | validation | train`) only after the tuning logic is modularized.
 
-### R-07 ?? `viewTables` behavior consolidation  
-**Status:** Forward-looking consideration  
+### R-07 ?? `viewTables` table-emission standardization
+**Status:** Partially implemented (v1) + scoped forward-looking refinement
 **Related To-Do:** T-08
 
-`viewTables` is camelCase and currently exists in sparse areas of the codebase.
-It is not yet guaranteed to be consistently honored across all reporting paths,
-artifacts, `.rds` outputs, or table/tibble/data-frame display points.
+`viewTables` is now supported as an explicit, per-run handler and is routed
+through a centralized table-emission helper (ddesonn_viewTables()).
 
-The most reliable way to observe table display behavior in v1 is via the scripts in:
-`inst/scripts/` ??? especially `TestDDESONN.R`.
 
-Future work may unify table emission so `viewTables` behaves predictably across:
-- console printing
-- exported artifacts
-- `.rds` summaries
-- data frames / tibbles
+As of the current implementation:
+- `viewTables` can be passed explicitly to `ddesonn_run()` / `ddesonn_fit()`.
+- Table-like outputs from:
+  - final run summaries
+  - Core Metrics: Final Summary: binary classification reports (classification report + confusion matrix)
+  - evaluation reports (EvaluatePredictionsReport)
+  - model selection helpers (e.g., find_best_model())
+  - aggregation / fusion debug previews
+  - selected prediction-evaluation debug paths are routed through ddesonn_viewTables()
+- A legacy fallback lookup (get0("viewTables", inherits = TRUE)) is preserved for
+backward compatibility when no explicit handler is supplied
+- A run-level warning guard prevents repeated warnings when invalid handlers are passed
+
+This establishes a top-level, consistent table-display contract for the most
+visible and user-facing reporting paths, without breaking existing workflows.
+
+Remaining work (documented, not urgent) involves auditing low-visibility or
+rarely executed debug paths to ensure all table-like emissions route through
+the same helper.
 
 ### R-08 ?? Vignettes expansion and optional interactive diagnostics  
 **Status:** Forward-looking consideration  
@@ -612,13 +623,21 @@ Linked from: **R-06**
 - After extraction, consider explicit tri-state evaluation routing:
   `off | validation | train` (or separate `evaluation_report` + `evaluation_data`)
 
-### T-08 ?? `viewTables` standardization and coverage expansion  
+### T-08 ?? `viewTables` coverage audit and completion pass
 Linked from: **R-07**
 
-- Confirm where `viewTables` is currently honored and where it is ignored
-- Decide what ???table viewing??? means across:
-  console, data frames/tibbles, `.rds` tables, and report artifacts
-- Consolidate table emission so `viewTables` behavior is predictable across the project
+- Perform a repository-wide audit for remaining direct `print()`, `View()`,
+`head()`, or table-rendering calls on data frames/tibbles in reporting,
+evaluation, or debug paths
+- Route any remaining table-like output through `ddesonn_viewTables()` or
+`emit_table()` (which delegates to it)
+
+- Confirm `viewTables` behavior is consistent across:
+  - console output
+  - evaluation summaries
+  - debug preview
+- Keep changes minimal and non-breaking; this task is strictly a coverage and
+consistency sweep, not a redesign
 
 ### T-09 ?? Expand vignettes and research demos  
 Linked from: **R-08**
