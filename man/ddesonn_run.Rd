@@ -29,7 +29,10 @@ ddesonn_run(
   threshold = NULL,
   output_root = NULL,
   plot_controls = NULL,
-  save_models = TRUE
+  save_models = TRUE,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
 )
 }
 \arguments{

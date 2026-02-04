@@ -4,7 +4,16 @@
 \alias{ddesonn_fit}
 \title{Fit a \code{ddesonn_model} with tidy inputs}
 \usage{
-ddesonn_fit(model, x, y, validation = NULL, ...)
+ddesonn_fit(
+  model,
+  x,
+  y,
+  validation = NULL,
+  ...,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
 }
 \arguments{
 \item{model}{A model created by \code{\link[=ddesonn_model]{ddesonn_model()}}.}

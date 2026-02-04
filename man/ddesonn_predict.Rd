@@ -9,7 +9,10 @@ ddesonn_predict(
   new_data,
   aggregate = c("mean", "median", "none"),
   type = c("response", "class"),
-  threshold = NULL
+  threshold = NULL,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
 )
 }
 \arguments{

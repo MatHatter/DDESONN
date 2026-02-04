@@ -4693,7 +4693,7 @@ DDESONN <- R6::R6Class(
       cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
           " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
           " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
-
+      
       if (is.null(high_mean_df) || !nrow(high_mean_df)) {
         cat("[PR HIGH] SKIP | no data\n")                                                        #$$$$$$$$$$$$$
         return(list())
@@ -4826,7 +4826,7 @@ DDESONN <- R6::R6Class(
       cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
           " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
           " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
-
+      
       if (is.null(low_mean_df) || !nrow(low_mean_df)) {
         cat("[PR LOW] SKIP | no data\n")                                                          #$$$$$$$$$$$$$
         return(list())

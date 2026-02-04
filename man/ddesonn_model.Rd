@@ -18,7 +18,10 @@ ddesonn_model(
   custom_scale = 1,
   N = NULL,
   ensembles = NULL,
-  ensemble_number = 0L
+  ensemble_number = 0L,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
 )
 }
 \arguments{
