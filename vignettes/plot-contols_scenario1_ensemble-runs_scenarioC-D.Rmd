@@ -42,7 +42,7 @@ if (!nzchar(.fig_root)) .fig_root <- "figure/"
 # - Default: run both
 # ============================================================
 RUN_SCENARIO_C_S1 <- TRUE   #$$$$$$$$$$$$$
-RUN_SCENARIO_D_S1 <- TRUE   #$$$$$$$$$$$$$
+RUN_SCENARIO_D_S1 <- FALSE   #$$$$$$$$$$$$$
 
 # ============================================================
 # #$$$$$$$$$$$$$ FIX: DO NOT put DDESONN outputs under vignette _files/
@@ -257,7 +257,7 @@ res_scenarioC_s1 <- ddesonn_run(
     # ========================================================
     viewTables = TRUE,
     debug      = FALSE,
-    verboseLow = TRUE,
+    verboseLow = FALSE,
     browse     = FALSE,
 
     # ========================================================

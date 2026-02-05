@@ -15,13 +15,13 @@
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a  #$$$$$$$$$$$$$
 
 
-# ============================================================
+# ============================================================  #$$$$$$$$$$$$$
 # Console / debug / table helpers (verbosity control)           #$$$$$$$$$$$$$
 # ============================================================   #$$$$$$$$$$$$$
 ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL) {  #$$$$$$$$$$$$$
   level <- match.arg(level)  #$$$$$$$$$$$$$
-  if (is.null(verbose)) verbose <- getOption("DDESONN.verbose", FALSE)  #$$$$$$$$$$$$$
-  if (is.null(verboseLow)) verboseLow <- getOption("DDESONN.verboseLow", FALSE)  #$$$$$$$$$$$$$
+  if (is.null(verbose)) verbose <- FALSE  #$$$$$$$$$$$$$
+  if (is.null(verboseLow)) verboseLow <- FALSE  #$$$$$$$$$$$$$
   verbose <- isTRUE(verbose)  #$$$$$$$$$$$$$
   verboseLow <- isTRUE(verboseLow)  #$$$$$$$$$$$$$
   msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
@@ -51,6 +51,28 @@ ddesonn_viewTables <- function(x, title = NULL, ...) {  #$$$$$$$$$$$$$
   if (!is.null(title)) message(title)  #$$$$$$$$$$$$$
   print(x)  #$$$$$$$$$$$$$
   invisible(x)  #$$$$$$$$$$$$$
+}  #$$$$$$$$$$$$$
+
+
+# ============================================================  #$$$$$$$$$$$$$
+# SECTION: Boxplot theme + title size consistency notes         #$$$$$$$$$$$$$
+# ============================================================   #$$$$$$$$$$$$$
+# Why identical code can yield different ggplot2 title sizes:    #$$$$$$$$$$$$$
+# - theme_set()/theme_update() or global theme options earlier   #$$$$$$$$$$$$$
+# - base_size differences in theme_minimal(base_size=...)        #$$$$$$$$$$$$$
+# - plot.title inherits size from current theme text             #$$$$$$$$$$$$$
+# - device scaling/DPI differences (ggsave/png/cairo/ragg)       #$$$$$$$$$$$$$
+# - knitr/RMarkdown scaling (fig.retina/out.width/CSS)           #$$$$$$$$$$$$$
+# - facet/strip text scaling interactions (perceived size)       #$$$$$$$$$$$$$
+# - theme order: last-added theme overrides earlier choices      #$$$$$$$$$$$$$
+# This helper sets explicit base_size + title size to enforce    #$$$$$$$$$$$$$
+# consistent boxplot titles across runs/environments.            #$$$$$$$$$$$$$
+ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {  #$$$$$$$$$$$$$
+  ggplot2::theme_minimal(base_size = base_size) +  #$$$$$$$$$$$$$
+    ggplot2::theme(  #$$$$$$$$$$$$$
+      text = ggplot2::element_text(size = base_size),  #$$$$$$$$$$$$$
+      plot.title = ggplot2::element_text(hjust = 0.5, size = title_size)  #$$$$$$$$$$$$$
+    )  #$$$$$$$$$$$$$
 }  #$$$$$$$$$$$$$
 
 
@@ -2423,6 +2445,7 @@ optimizers_log_update <- function(
     update_applied = NULL,   # the actual update step applied (same shape as P)
     verbose = verbose
 ) {
+  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
   
   # ---- helpers ----
   .as_num <- function(x) {
@@ -2449,9 +2472,11 @@ optimizers_log_update <- function(
   post_msg   <- if (!is.null(P_after))  sprintf(" | %s_post(%s):[%s]", target, .shape(P_after),  .stats(P_after))  else ""
   update_msg <- if (!is.null(update_applied)) sprintf(" | update(%s):[%s]", .shape(update_applied), .stats(update_applied)) else ""
   
-  cat(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s\n",
-              toupper(optimizer), epoch, layer, target,
-              grads_msg, pre_msg, post_msg, update_msg))
+  if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+    cat(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s\n",  #$$$$$$$$$$$$$
+                toupper(optimizer), epoch, layer, target,  #$$$$$$$$$$$$$
+                grads_msg, pre_msg, post_msg, update_msg))  #$$$$$$$$$$$$$
+  }  #$$$$$$$$$$$$$
   
 }
 

@@ -45,6 +45,7 @@ knitr::opts_chunk$set(
   warning = FALSE,                                                                  
   fig.width = 8,                                                                    
   fig.height = 5,                                                                   
+  fig.retina = 2,                                                                    #$$$$$$$$$$$$$
   fig.align = "center",                                                             
   out.width = "900px",                                                              
   fig.path = "plot-controls_scenario1-2_single-run_scenarioA_files/figure-html/",   
@@ -63,6 +64,15 @@ if (!requireNamespace("DDESONN", quietly = TRUE)) {
 }
 
 library(DDESONN)
+
+## ============================================================  #$$$$$$$$$$$$$
+## SECTION: Recommended knitr figure options (consistency)       #$$$$$$$$$$$$$
+## ============================================================  #$$$$$$$$$$$$$
+## For consistent ggplot title sizing across HTML/PDF output,    #$$$$$$$$$$$$$
+## keep these chunk options stable:                              #$$$$$$$$$$$$$
+## - fig.width / fig.height set explicit device size (inches).   #$$$$$$$$$$$$$
+## - fig.retina controls display scaling (avoid implicit CSS).   #$$$$$$$$$$$$$
+## - out.width affects HTML scaling; keep constant across plots. #$$$$$$$$$$$$$
 
 # ============================================================
 # Output root for vignette artifacts

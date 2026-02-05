@@ -266,8 +266,8 @@ SONN <- R6::R6Class(
       on_all <- isTRUE(cfg$viewAllPlots) || isTRUE(cfg$verbose)
       isTRUE(cfg[[name]]) || on_all
     },
-    self_organize = function(Rdata, labels, lr, verbose = FALSE, verboseLow = FALSE) {
-      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+    self_organize = function(Rdata, labels, lr, verbose = FALSE, verboseLow = FALSE) {  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       if(verbose){print("----------------------------------------self-organize-begin----------------------------------------")}
 
 
@@ -763,8 +763,8 @@ SONN <- R6::R6Class(
     },
     #the magical function
     #the magical function
-    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE) {
-      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE) {  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       if (verbose) { print("----------------------------------------learn-begin----------------------------------------") }
       start_time <- Sys.time()
       
@@ -1558,8 +1558,8 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose, verboseLow = FALSE, output_root = NULL, save_per_epoch) {
-      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch) {  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       log_important <- function(...) {
         ddesonn_console_log(
           sprintf(...),
@@ -1880,9 +1880,11 @@ SONN <- R6::R6Class(
             }
           }
           
-          cat(sprintf("Grad norm L1 by layer: %s\n",
-                      paste(vapply(weight_gradients, function(G) sum(abs(G), na.rm=TRUE), numeric(1)),
-                            collapse=" | ")))
+          if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+            cat(sprintf("Grad norm L1 by layer: %s\n",  #$$$$$$$$$$$$$
+                        paste(vapply(weight_gradients, function(G) sum(abs(G), na.rm=TRUE), numeric(1)),  #$$$$$$$$$$$$$
+                              collapse=" | ")))  #$$$$$$$$$$$$$
+          }  #$$$$$$$$$$$$$
           
           # 2) Final head / predictions (already set as probs_train above)
           storage.mode(probs_train) <- "double"
@@ -1905,26 +1907,30 @@ SONN <- R6::R6Class(
           # =========================
           # BLOCK A -- Accuracy & Saturation (aware)
           # =========================
-          cat(sprintf("[dbg] BLOCK A: n=%d, K=%d | probs_train range=[%.6f, %.6f]\n",
-                      n, K, min(probs_train), max(probs_train)))
-          cat("[dbg] BLOCK A: CLASSIFICATION_MODE =", CLASSIFICATION_MODE, "\n")
+          if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+            cat(sprintf("[dbg] BLOCK A: n=%d, K=%d | probs_train range=[%.6f, %.6f]\n",  #$$$$$$$$$$$$$
+                        n, K, min(probs_train), max(probs_train)))  #$$$$$$$$$$$$$
+            cat("[dbg] BLOCK A: CLASSIFICATION_MODE =", CLASSIFICATION_MODE, "\n")  #$$$$$$$$$$$$$
+          }  #$$$$$$$$$$$$$
           
           if (identical(CLASSIFICATION_MODE, "multiclass")) {
             targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE)
             stopifnot(K >= 2)
             pred_idx <- max.col(probs_train, ties.method = "first")
-            cat("[dbg] BLOCK A: pred_idx head =", paste(utils::head(pred_idx, 6), collapse=", "), "\n")
-            cat("[dbg] BLOCK A: lbl_idx head  =", paste(utils::head(targs$y_idx, 6), collapse=", "), "\n")
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: pred_idx head =", paste(utils::head(pred_idx, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: lbl_idx head  =", paste(utils::head(targs$y_idx, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             train_accuracy_blockA <- mean(pred_idx == targs$y_idx, na.rm = TRUE)
             train_accuracy_log    <- c(train_accuracy_log, train_accuracy_blockA)
-            cat(sprintf("[dbg] BLOCK A: train_accuracy=%.6f\n", train_accuracy_blockA))
+            if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: train_accuracy=%.6f\n", train_accuracy_blockA))  #$$$$$$$$$$$$$
             
             if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
               train_loss_blockA <- .ce_loss_multiclass(probs_train, targs$Y)
-              cat(sprintf("[dbg] BLOCK A: CE loss=%.6f\n", train_loss_blockA))
+              if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: CE loss=%.6f\n", train_loss_blockA))  #$$$$$$$$$$$$$
             } else {
               train_loss_blockA <- mean((probs_train - targs$Y)^2, na.rm = TRUE)
-              cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))
+              if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))  #$$$$$$$$$$$$$
             }
             train_loss_log <- c(train_loss_log, train_loss_blockA)
             
@@ -1932,39 +1938,45 @@ SONN <- R6::R6Class(
             targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE)
             stopifnot(K == 1)
             preds_bin_blockA <- as.integer(probs_train >= 0.5)
-            cat("[dbg] BLOCK A: preds_bin head =", paste(utils::head(preds_bin_blockA, 6), collapse=", "), "\n")
-            cat("[dbg] BLOCK A: y head        =", paste(utils::head(targs$y, 6), collapse=", "), "\n")
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: preds_bin head =", paste(utils::head(preds_bin_blockA, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: y head        =", paste(utils::head(targs$y, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             train_accuracy_blockA <- mean(preds_bin_blockA == targs$y, na.rm = TRUE)
             train_accuracy_log    <- c(train_accuracy_log, train_accuracy_blockA)
-            cat(sprintf("[dbg] BLOCK A: train_accuracy=%.6f\n", train_accuracy_blockA))
+            if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: train_accuracy=%.6f\n", train_accuracy_blockA))  #$$$$$$$$$$$$$
             
             if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
               train_loss_blockA <- .bce_loss(probs_train, targs$y)
-              cat(sprintf("[dbg] BLOCK A: BCE loss=%.6f\n", train_loss_blockA))
+              if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: BCE loss=%.6f\n", train_loss_blockA))  #$$$$$$$$$$$$$
             } else {
               train_loss_blockA <- mean((probs_train - matrix(targs$y, ncol=1))^2, na.rm = TRUE)
-              cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))
+              if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))  #$$$$$$$$$$$$$
             }
             train_loss_log <- c(train_loss_log, train_loss_blockA)
             
           } else if (identical(CLASSIFICATION_MODE, "regression")) {
             y_reg     <- if (is.matrix(labels_epoch)) as.numeric(labels_epoch[,1]) else as.numeric(labels_epoch)
             preds_reg <- as.numeric(probs_train[,1])
-            cat("[dbg] BLOCK A: y_reg head     =", paste(utils::head(y_reg, 6), collapse=", "), "\n")
-            cat("[dbg] BLOCK A: preds_reg head =", paste(utils::head(preds_reg, 6), collapse=", "), "\n")
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: y_reg head     =", paste(utils::head(y_reg, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+              cat("[dbg] BLOCK A: preds_reg head =", paste(utils::head(preds_reg, 6), collapse=", "), "\n")  #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             
             train_loss_blockA <- mean((preds_reg - y_reg)^2, na.rm = TRUE)
-            cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))
+            if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: MSE loss=%.6f\n", train_loss_blockA))  #$$$$$$$$$$$$$
             train_loss_log <- c(train_loss_log, train_loss_blockA)
             
             train_accuracy_blockA <- NA_real_
             train_accuracy_log    <- c(train_accuracy_log, NA_real_)
-            cat("[dbg] BLOCK A: train_accuracy=NA (regression)\n")
+            if (isTRUE(verbose)) cat("[dbg] BLOCK A: train_accuracy=NA (regression)\n")  #$$$$$$$$$$$$$
             
             mae  <- mean(abs(preds_reg - y_reg), na.rm = TRUE)
             vary <- stats::var(y_reg, na.rm = TRUE)
             r2   <- if (is.finite(vary) && vary > 0) 1 - train_loss_blockA / vary else NA_real_
-            cat(sprintf("[dbg] BLOCK A: MAE=%.6f | R^2=%s\n", mae, ifelse(is.na(r2), "NA", sprintf("%.6f", r2))))
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat(sprintf("[dbg] BLOCK A: MAE=%.6f | R^2=%s\n", mae, ifelse(is.na(r2), "NA", sprintf("%.6f", r2))))  #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
           } else {
             stop("Unknown CLASSIFICATION_MODE. Use 'multiclass', 'binary', or 'regression'.")
           }
@@ -1973,11 +1985,11 @@ SONN <- R6::R6Class(
           if (is.na(best_train_acc) || (!is.na(train_accuracy) && train_accuracy > best_train_acc)) {
             best_train_acc   <- train_accuracy
             best_epoch_train <- epoch
-            cat(sprintf("[dbg] BLOCK A: new best_train_acc=%.6f at epoch=%d\n", best_train_acc, best_epoch_train))
+            if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: new best_train_acc=%.6f at epoch=%d\n", best_train_acc, best_epoch_train))  #$$$$$$$$$$$$$
           }
           
           # Saturation stats already computed above from predicted_output
-          cat(sprintf("[dbg] BLOCK A: saturation mean=%.6f | sd=%.6f\n", mean_output, sd_output))
+          if (isTRUE(verbose)) cat(sprintf("[dbg] BLOCK A: saturation mean=%.6f | sd=%.6f\n", mean_output, sd_output))  #$$$$$$$$$$$$$
           
           # -----------------------------------------
           # (unchanged) plotting & filename handling
@@ -1991,7 +2003,7 @@ SONN <- R6::R6Class(
             who             = "SONN"
           )
           ens <- as.integer(attr(fname, "ensemble_number") %||% ensemble_number)
-          cat("[fname probe] -> ", fname("probe.png"), "\n")
+          if (isTRUE(verbose)) cat("[fname probe] -> ", fname("probe.png"), "\n")  #$$$$$$$$$$$$$
           
           plots_dir <- ddesonn_plots_dir(output_root)
           
@@ -2049,6 +2061,7 @@ SONN <- R6::R6Class(
                   plot = p,
                   width = 6,
                   height = 4,
+                  units = "in",  #$$$$$$$$$$$$$
                   dpi = 300,
                   device = "png"
                 )
@@ -2083,6 +2096,7 @@ SONN <- R6::R6Class(
                   plot = p,
                   width = 6,
                   height = 4,
+                  units = "in",  #$$$$$$$$$$$$$
                   dpi = 300,
                   device = "png"
                 )
@@ -2302,6 +2316,7 @@ SONN <- R6::R6Class(
                     plot = p,
                     width = 6,
                     height = 4,
+                    units = "in",  #$$$$$$$$$$$$$
                     dpi = 300,
                     device = "png"
                   )
@@ -2383,7 +2398,9 @@ SONN <- R6::R6Class(
             }
             
             # -------- Validation path --------
-            cat(sprintf("[PRED-INVOKE] train_network(): per-epoch VALIDATION predict() | epoch=%d | caller=validation_metrics\n", epoch))  # #$$$$$$$$$$$$$
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat(sprintf("[PRED-INVOKE] train_network(): per-epoch VALIDATION predict() | epoch=%d | caller=validation_metrics\n", epoch))  # #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             predicted_output_val <- tryCatch(
               self$predict(
                 Rdata                = X_validation,
@@ -2410,9 +2427,11 @@ SONN <- R6::R6Class(
               n_val <- nrow(probs_val)
               K_val <- max(1L, ncol(probs_val))
               
-              cat("Debug (val): nrow(X_val)=", nrow(X_validation),
-                  " nrow(probs_val)=", n_val,
-                  " ncol(probs_val)=", K_val, "\n")
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat("Debug (val): nrow(X_val)=", nrow(X_validation),  #$$$$$$$$$$$$$
+                    " nrow(probs_val)=", n_val,  #$$$$$$$$$$$$$
+                    " ncol(probs_val)=", K_val, "\n")  #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
               
               # --- Normalize y_validation to vector or one-hot matrix ---
               if (is.data.frame(y_validation)) {
@@ -2442,7 +2461,7 @@ SONN <- R6::R6Class(
               last_val_probs   <- probs_val
               last_val_labels  <- y_val_epoch
               last_val_predict <- predicted_output_val
-              cat("[DBG] Captured LAST-epoch validation probs/labels and predict() list\n")
+              if (isTRUE(verbose)) cat("[DBG] Captured LAST-epoch validation probs/labels and predict() list\n")  #$$$$$$$$$$$$$
               
               targs_val <- .build_targets(y_val_epoch, n_eff, K_val, CLASSIFICATION_MODE)
               
@@ -2508,8 +2527,13 @@ SONN <- R6::R6Class(
                   best_val_probs  <- as.matrix(P)
                   best_val_labels <- as.matrix(Y)
                   
-                  cat("New best model saved at epoch", epoch,
-                      "| Val Acc (0.5 thr):", round(100 * val_acc, 2), "%\n")
+                  ddesonn_console_log(  #$$$$$$$$$$$$$
+                    paste0("New best model saved at epoch ", epoch,  #$$$$$$$$$$$$$
+                           " | Val Acc (0.5 thr): ", round(100 * val_acc, 2), "%"),  #$$$$$$$$$$$$$
+                    level = "important",  #$$$$$$$$$$$$$
+                    verbose = verbose,  #$$$$$$$$$$$$$
+                    verboseLow = verboseLow  #$$$$$$$$$$$$$
+                  )  #$$$$$$$$$$$$$
                 }
               } else if (identical(CLASSIFICATION_MODE, "binary")) {
                 val_loss <- if (!is.null(loss_type) && identical(loss_type, "cross_entropy")) {
@@ -2551,8 +2575,13 @@ SONN <- R6::R6Class(
                   best_val_probs  <- as.matrix(probs_val)
                   best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
                   
-                  cat("New best model saved at epoch", epoch,
-                      "| Val Acc (0.5 thr):", round(100 * val_acc, 2), "%\n")
+                  ddesonn_console_log(  #$$$$$$$$$$$$$
+                    paste0("New best model saved at epoch ", epoch,  #$$$$$$$$$$$$$
+                           " | Val Acc (0.5 thr): ", round(100 * val_acc, 2), "%"),  #$$$$$$$$$$$$$
+                    level = "important",  #$$$$$$$$$$$$$
+                    verbose = verbose,  #$$$$$$$$$$$$$
+                    verboseLow = verboseLow  #$$$$$$$$$$$$$
+                  )  #$$$$$$$$$$$$$
                 }
                 
               } else if (identical(CLASSIFICATION_MODE, "regression")) {
@@ -2563,8 +2592,10 @@ SONN <- R6::R6Class(
                 mae_val <- mean(abs(preds_reg_val - y_reg_val), na.rm = TRUE)
                 vary    <- stats::var(y_reg_val, na.rm = TRUE)
                 r2_val  <- if (is.finite(vary) && vary > 0) 1 - val_loss / vary else NA_real_
-                cat(sprintf("[dbg] REG VAL: MSE=%.6f | MAE=%.6f | R^2=%s\n",
-                            val_loss, mae_val, ifelse(is.na(r2_val), "NA", sprintf("%.6f", r2_val))))
+                if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                  cat(sprintf("[dbg] REG VAL: MSE=%.6f | MAE=%.6f | R^2=%s\n",  #$$$$$$$$$$$$$
+                              val_loss, mae_val, ifelse(is.na(r2_val), "NA", sprintf("%.6f", r2_val))))  #$$$$$$$$$$$$$
+                }  #$$$$$$$$$$$$$
                 
                 val_accuracy_log <- c(val_accuracy_log, NA_real_)
                 val_loss_log     <- c(val_loss_log,     val_loss)
@@ -2588,8 +2619,13 @@ SONN <- R6::R6Class(
                   best_val_probs  <- as.matrix(probs_val)
                   best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
                   
-                  cat("New best (regression) model saved at epoch", epoch,
-                      "| Val MSE:", round(val_loss, 6), "\n")
+                  ddesonn_console_log(  #$$$$$$$$$$$$$
+                    paste0("New best (regression) model saved at epoch ", epoch,  #$$$$$$$$$$$$$
+                           " | Val MSE: ", round(val_loss, 6)),  #$$$$$$$$$$$$$
+                    level = "important",  #$$$$$$$$$$$$$
+                    verbose = verbose,  #$$$$$$$$$$$$$
+                    verboseLow = verboseLow  #$$$$$$$$$$$$$
+                  )  #$$$$$$$$$$$$$
                 }
               } else {
                 stop("Unknown CLASSIFICATION_MODE.")
@@ -2600,7 +2636,9 @@ SONN <- R6::R6Class(
           } else if (!is.null(X_train) && !is.null(y_train) && isFALSE(validation_metrics)) {
             
             # -------- Training path (when validation metrics are disabled) --------
-            cat(sprintf("[PRED-INVOKE] train_network(): per-epoch TRAIN predict() (validation disabled) | epoch=%d | caller=train_no_validation\n", epoch))  # #$$$$$$$$$$$$$
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat(sprintf("[PRED-INVOKE] train_network(): per-epoch TRAIN predict() (validation disabled) | epoch=%d | caller=train_no_validation\n", epoch))  # #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             predicted_output_train <- tryCatch(
               self$predict(
                 Rdata                = X_train,
@@ -2628,9 +2666,11 @@ SONN <- R6::R6Class(
               n_tr <- nrow(probs_tr)
               K_tr <- max(1L, ncol(probs_tr))
               
-              cat("Debug (train): nrow(X_train)=", nrow(X_train),
-                  " nrow(probs_tr)=", n_tr,
-                  " ncol(probs_tr)=", K_tr, "\n")
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat("Debug (train): nrow(X_train)=", nrow(X_train),  #$$$$$$$$$$$$$
+                    " nrow(probs_tr)=", n_tr,  #$$$$$$$$$$$$$
+                    " ncol(probs_tr)=", K_tr, "\n")  #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
               
               if (is.data.frame(y_train)) {
                 y_tr_vec <- y_train[[1]]; len_y_tr <- length(y_tr_vec)
@@ -2657,7 +2697,7 @@ SONN <- R6::R6Class(
               last_train_probs    <- probs_tr
               last_train_labels   <- y_tr_epoch
               last_train_predict  <- predicted_output_train
-              cat("[DBG] Captured LAST-epoch training probs/labels and predict() list\n")
+              if (isTRUE(verbose)) cat("[DBG] Captured LAST-epoch training probs/labels and predict() list\n")  #$$$$$$$$$$$$$
               
               targs_tr <- .build_targets(y_tr_epoch, n_eff_tr, K_tr, CLASSIFICATION_MODE)
               
@@ -2724,8 +2764,13 @@ SONN <- R6::R6Class(
                   assign("best_train_probs",  probs_tr,   envir = .GlobalEnv)
                   assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
                   
-                  cat("New best (train) model saved at epoch", epoch,
-                      "| Train Acc (0.5 thr):", round(100 * tr_acc, 2), "%\n")
+                  ddesonn_console_log(  #$$$$$$$$$$$$$
+                    paste0("New best (train) model saved at epoch ", epoch,  #$$$$$$$$$$$$$
+                           " | Train Acc (0.5 thr): ", round(100 * tr_acc, 2), "%"),  #$$$$$$$$$$$$$
+                    level = "important",  #$$$$$$$$$$$$$
+                    verbose = verbose,  #$$$$$$$$$$$$$
+                    verboseLow = verboseLow  #$$$$$$$$$$$$$
+                  )  #$$$$$$$$$$$$$
                 }
               } else {
                 # For regression + no validation: track best by training loss (closest to v2 simplicity)
@@ -2744,8 +2789,13 @@ SONN <- R6::R6Class(
                   assign("best_train_probs",  probs_tr,   envir = .GlobalEnv)
                   assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
                   
-                  cat("New best (regression, train) model saved at epoch", epoch,
-                      "| Train MSE:", round(tr_loss, 6), "\n")
+                  ddesonn_console_log(  #$$$$$$$$$$$$$
+                    paste0("New best (regression, train) model saved at epoch ", epoch,  #$$$$$$$$$$$$$
+                           " | Train MSE: ", round(tr_loss, 6)),  #$$$$$$$$$$$$$
+                    level = "important",  #$$$$$$$$$$$$$
+                    verbose = verbose,  #$$$$$$$$$$$$$
+                    verboseLow = verboseLow  #$$$$$$$$$$$$$
+                  )  #$$$$$$$$$$$$$
                 }
               }
             }
@@ -2758,7 +2808,9 @@ SONN <- R6::R6Class(
             
             # recompute TRAIN preds with best snapshot
             if (!is.null(X_train)) {
-              cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=%d | caller=best_snapshot_train\n", epoch))  # #$$$$$$$$$$$$$
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=%d | caller=best_snapshot_train\n", epoch))  # #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
               pred_train_best <- tryCatch(
                 self$predict(
                   Rdata                = X_train,
@@ -2776,7 +2828,9 @@ SONN <- R6::R6Class(
             
             # recompute VAL preds with best snapshot when applicable
             if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
-              cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # #$$$$$$$$$$$$$
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
               pred_val_best <- tryCatch(
                 self$predict(
                   Rdata                = X_validation,
@@ -2842,20 +2896,24 @@ SONN <- R6::R6Class(
             }
             
             if (identical(CLASSIFICATION_MODE, "regression")) {
-              cat(sprintf("[BEST-SNAPSHOT] using %s epoch=%s | best_val_loss=%.7f | n_eff=%s\n",
-                          if (isTRUE(validation_metrics)) "validation-best" else "train-best",
-                          if (isTRUE(validation_metrics)) as.character(best_val_epoch_loss) else as.character(best_epoch_train_loss),
-                          if (isTRUE(validation_metrics)) best_val_loss else best_train_loss,
-                          as.character(best_val_n_eff)))
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat(sprintf("[BEST-SNAPSHOT] using %s epoch=%s | best_val_loss=%.7f | n_eff=%s\n",  #$$$$$$$$$$$$$
+                            if (isTRUE(validation_metrics)) "validation-best" else "train-best",  #$$$$$$$$$$$$$
+                            if (isTRUE(validation_metrics)) as.character(best_val_epoch_loss) else as.character(best_epoch_train_loss),  #$$$$$$$$$$$$$
+                            if (isTRUE(validation_metrics)) best_val_loss else best_train_loss,  #$$$$$$$$$$$$$
+                            as.character(best_val_n_eff)))  #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
             } else {
-              cat(sprintf("[BEST-SNAPSHOT] using %s epoch=%s | best_val_acc=%.7f | thr=0.5 | n_eff=%s\n",
-                          if (isTRUE(validation_metrics)) "validation-best" else "train-best",
-                          if (isTRUE(validation_metrics)) as.character(best_val_epoch) else as.character(best_epoch_train),
-                          if (is.na(best_val_acc)) NA_real_ else best_val_acc,
-                          as.character(best_val_n_eff)))
+              if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+                cat(sprintf("[BEST-SNAPSHOT] using %s epoch=%s | best_val_acc=%.7f | thr=0.5 | n_eff=%s\n",  #$$$$$$$$$$$$$
+                            if (isTRUE(validation_metrics)) "validation-best" else "train-best",  #$$$$$$$$$$$$$
+                            if (isTRUE(validation_metrics)) as.character(best_val_epoch) else as.character(best_epoch_train),  #$$$$$$$$$$$$$
+                            if (is.na(best_val_acc)) NA_real_ else best_val_acc,  #$$$$$$$$$$$$$
+                            as.character(best_val_n_eff)))  #$$$$$$$$$$$$$
+              }  #$$$$$$$$$$$$$
             }
           } else {
-            cat("[BEST-SNAPSHOT] no best snapshot captured; returning last evaluated predictions.\n")
+            if (isTRUE(verbose)) cat("[BEST-SNAPSHOT] no best snapshot captured; returning last evaluated predictions.\n")  #$$$$$$$$$$$$$
           }
           
           # --- STRICT CHECK: only when regression + validation enabled ---
@@ -2869,10 +2927,14 @@ SONN <- R6::R6Class(
           
           # === Keep predict()-style list selection logic as in your original ===
           if (isTRUE(train) && isTRUE(validation_metrics)) {
-            cat(sprintf("[PRED-INVOKE] train_network(): implicit last_val_predict selection (NO new predict) | epoch=%d | caller=implicit_last_val_predict\n", epoch))  # #$$$$$$$$$$$$$
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat(sprintf("[PRED-INVOKE] train_network(): implicit last_val_predict selection (NO new predict) | epoch=%d | caller=implicit_last_val_predict\n", epoch))  # #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             predicted_output_train_reg <- last_val_predict
           } else if (!isTRUE(train) && !isTRUE(validation_metrics)) {
-            cat(sprintf("[PRED-INVOKE] train_network(): implicit last_train_predict selection (NO new predict) | epoch=%d | caller=implicit_last_train_predict\n", epoch))  # #$$$$$$$$$$$$$
+            if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+              cat(sprintf("[PRED-INVOKE] train_network(): implicit last_train_predict selection (NO new predict) | epoch=%d | caller=implicit_last_train_predict\n", epoch))  # #$$$$$$$$$$$$$
+            }  #$$$$$$$$$$$$$
             predicted_output_train_reg <- last_train_predict
           } else {
             predicted_output_train_reg <- predicted_output_train_reg
@@ -2886,13 +2948,38 @@ SONN <- R6::R6Class(
         self$best_weights <- best_weights
         self$best_biases  <- best_biases
         
-        cat(sprintf("\nBest Training Accuracy: %.2f%% at Epoch %d\n", 100 * best_train_acc, best_epoch_train))
-        cat("Best Epoch (validation accuracy):", best_val_epoch, "\n")
-        cat("Best Validation Accuracy:", round(100 * best_val_acc, 2), "%\n")
+        ddesonn_console_log(  #$$$$$$$$$$$$$
+          sprintf("Best Training Accuracy: %.2f%% at Epoch %d", 100 * best_train_acc, best_epoch_train),  #$$$$$$$$$$$$$
+          level = "important",  #$$$$$$$$$$$$$
+          verbose = verbose,  #$$$$$$$$$$$$$
+          verboseLow = verboseLow  #$$$$$$$$$$$$$
+        )  #$$$$$$$$$$$$$
+        ddesonn_console_log(  #$$$$$$$$$$$$$
+          paste("Best Epoch (validation accuracy):", best_val_epoch),  #$$$$$$$$$$$$$
+          level = "important",  #$$$$$$$$$$$$$
+          verbose = verbose,  #$$$$$$$$$$$$$
+          verboseLow = verboseLow  #$$$$$$$$$$$$$
+        )  #$$$$$$$$$$$$$
+        ddesonn_console_log(  #$$$$$$$$$$$$$
+          paste("Best Validation Accuracy:", round(100 * best_val_acc, 2), "%"),  #$$$$$$$$$$$$$
+          level = "important",  #$$$$$$$$$$$$$
+          verbose = verbose,  #$$$$$$$$$$$$$
+          verboseLow = verboseLow  #$$$$$$$$$$$$$
+        )  #$$$$$$$$$$$$$
         if (identical(CLASSIFICATION_MODE, "regression")) {
-          cat(sprintf("Best Training MSE: %.6f at Epoch %s\n", best_train_loss, as.character(best_epoch_train_loss)))
+          ddesonn_console_log(  #$$$$$$$$$$$$$
+            sprintf("Best Training MSE: %.6f at Epoch %s", best_train_loss, as.character(best_epoch_train_loss)),  #$$$$$$$$$$$$$
+            level = "important",  #$$$$$$$$$$$$$
+            verbose = verbose,  #$$$$$$$$$$$$$
+            verboseLow = verboseLow  #$$$$$$$$$$$$$
+          )  #$$$$$$$$$$$$$
           if (isTRUE(validation_metrics)) {
-            cat(sprintf("Best Validation MSE: %.6f at Epoch %s\n", best_val_loss, as.character(best_val_epoch_loss)))
+            ddesonn_console_log(  #$$$$$$$$$$$$$
+              sprintf("Best Validation MSE: %.6f at Epoch %s", best_val_loss, as.character(best_val_epoch_loss)),  #$$$$$$$$$$$$$
+              level = "important",  #$$$$$$$$$$$$$
+              verbose = verbose,  #$$$$$$$$$$$$$
+              verboseLow = verboseLow  #$$$$$$$$$$$$$
+            )  #$$$$$$$$$$$$$
           }
         }
         
@@ -2903,7 +2990,7 @@ SONN <- R6::R6Class(
         dim_hidden_layers <- NULL
       }
       
-      if (train) {
+      if (train && isTRUE(verbose)) {  #$$$$$$$$$$$$$
         if (self$ML_NN) {
           for (layer in 1:self$num_layers) {
             cat(sprintf("Layer %d weights summary:\n", layer))
@@ -3276,8 +3363,8 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, verboseLow = FALSE, output_root, plot_controls, save_per_epoch) {
-      verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, output_root, plot_controls, save_per_epoch) {  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
       
@@ -3295,7 +3382,7 @@ DDESONN <- R6::R6Class(
         # --- Per-epoch plots (only if explicitly provided)            #$$$$$$$$$$$$$
         if (!is.null(plot_controls$per_epoch) && is.list(plot_controls$per_epoch) && length(plot_controls$per_epoch)) {
           per_epoch_cfg <- plot_controls$per_epoch
-          if (is.null(per_epoch_cfg$verbose)) per_epoch_cfg$verbose <- verbose  #$$$$$$$$$$$$$
+          # (no verbosity mutation here)  #$$$$$$$$$$$$$
           if (!is.null(self$ensemble) && length(self$ensemble)) {
             for (i in seq_along(self$ensemble)) {
               if (is.null(self$ensemble[[i]]$PerEpochViewPlotsConfig)) {
@@ -3315,7 +3402,7 @@ DDESONN <- R6::R6Class(
             is.list(plot_controls$performance_relevance) &&
             length(plot_controls$performance_relevance)) {
           pr_cfg <- plot_controls$performance_relevance  #$$$$$$$$$$$$$
-          if (is.null(pr_cfg$verbose)) pr_cfg$verbose <- verbose  #$$$$$$$$$$$$$
+          # (no verbosity mutation here)  #$$$$$$$$$$$$$
           
           if (is.null(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig) ||
               !is.list(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig)) {
@@ -3330,14 +3417,7 @@ DDESONN <- R6::R6Class(
         }
       }
       
-      # ============================================================  #$$$$$$$$$$$$$
-      # SECTION: plot_controls verbose inheritance (performance_relevance)  #$$$$$$$$$$$$$
-      # ============================================================  #$$$$$$$$$$$$$
-      if (!is.null(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig) &&                               #$$$$$$$$$$$$$
-          is.list(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig) &&                                #$$$$$$$$$$$$$
-          is.null(self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$verbose)) {                        #$$$$$$$$$$$$$
-        self$FinalUpdatePerformanceandRelevanceViewPlotsConfig$verbose <- verbose                           #$$$$$$$$$$$$$
-      }                                                                                                     #$$$$$$$$$$$$$
+      # (no verbosity mutation here)                                                                        #$$$$$$$$$$$$$
       
       
       # Normalize the input data
@@ -3669,6 +3749,7 @@ DDESONN <- R6::R6Class(
         grouped_metrics = grouped_metrics,
         viewTables = viewTables,
         verbose = verbose,
+        verboseLow = verboseLow,  #$$$$$$$$$$$$$
         plot_controls = plot_controls
       )
       
@@ -3777,7 +3858,7 @@ DDESONN <- R6::R6Class(
           # Save only if global save is enabled
           if (.save_enabled) {
             try(suppressWarnings(suppressMessages(
-              ggplot2::ggsave(out, p, width = 6, height = 4, dpi = 300)
+              ggplot2::ggsave(out, p, width = 6, height = 4, units = "in", dpi = 300)  #$$$$$$$$$$$$$
             )), silent = TRUE)
           }
           
@@ -3832,9 +3913,9 @@ DDESONN <- R6::R6Class(
     # - Leaves grouped_metrics block UNTOUCHED
     # ============================================================
     
-    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose, plot_controls) {
+    update_performance_and_relevance = function(Rdata, labels, num_networks, update_weights, update_biases, preprocessScaledData, X_validation, y_validation, validation_metrics, lr, CLASSIFICATION_MODE, ensemble_number, model_iter_num, num_epochs, threshold, threshold_function, learn_results, predicted_output_list, all_best_val_probs, all_best_val_labels, all_best_val_prediction_time, learn_time, prediction_time_list, run_id, all_predicted_outputAndTime, all_weights, all_biases, all_activation_functions, all_activation_functions_predict, all_best_train_acc, all_best_epoch_train, all_best_train_loss, all_best_epoch_train_loss, all_best_val_acc, all_best_val_epoch, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, plot_controls) {  #$$$$$$$$$$$$$
       
-      verboseLow <- isTRUE(getOption("DDESONN.verboseLow", FALSE))  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       ddesonn_console_log(                                          #$$$$$$$$$$$$$
         "[PR] Aggregating performance/relevance metrics.",          #$$$$$$$$$$$$$
         level = "important",                                        #$$$$$$$$$$$$$
@@ -4522,7 +4603,9 @@ DDESONN <- R6::R6Class(
         performance_high_mean_plots <- self$update_performance_and_relevance_high(
           performance_high_mean_df,
           saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
+          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
+          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
         )
         if (isTRUE(pr_trace)) .log_plot_obj(performance_high_mean_plots, "performance_high_mean_plots")        #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
@@ -4532,7 +4615,9 @@ DDESONN <- R6::R6Class(
         performance_low_mean_plots <- self$update_performance_and_relevance_low(
           performance_low_mean_df,
           saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
+          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
+          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
         )
         if (isTRUE(pr_trace)) .log_plot_obj(performance_low_mean_plots, "performance_low_mean_plots")          #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
@@ -4542,7 +4627,9 @@ DDESONN <- R6::R6Class(
         relevance_high_mean_plots <- self$update_performance_and_relevance_high(
           relevance_high_mean_df,
           saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
+          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
+          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
         )
         if (isTRUE(pr_trace)) .log_plot_obj(relevance_high_mean_plots, "relevance_high_mean_plots")            #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
@@ -4552,7 +4639,9 @@ DDESONN <- R6::R6Class(
         relevance_low_mean_plots <- self$update_performance_and_relevance_low(
           relevance_low_mean_df,
           saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots)                                                                #$$$$$$$$$$$$$
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
+          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
+          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
         )
         if (isTRUE(pr_trace)) .log_plot_obj(relevance_low_mean_plots, "relevance_low_mean_plots")              #$$$$$$$$$$$$$
       }                                                                                                        #$$$$$$$$$$$$$
@@ -4578,9 +4667,14 @@ DDESONN <- R6::R6Class(
         relev_group_summary <- summarize_grouped(relev_df)
         
         # --- Optional notify user ---
-        if (!verbose && !viewTables) {
-          message("[INFO] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.")
-        }
+        if (!verbose && !viewTables) {  #$$$$$$$$$$$$$
+          ddesonn_console_log(  #$$$$$$$$$$$$$
+            "[INFO] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.",  #$$$$$$$$$$$$$
+            level = "important",  #$$$$$$$$$$$$$
+            verbose = verbose,  #$$$$$$$$$$$$$
+            verboseLow = verboseLow  #$$$$$$$$$$$$$
+          )  #$$$$$$$$$$$$$
+        }  #$$$$$$$$$$$$$
         
         # Grouped metrics (run whenever you have >=1 model)
         if (ensemble_number >= 1 && length(self$ensemble) > 1) {
@@ -4738,19 +4832,19 @@ DDESONN <- R6::R6Class(
                "100%+")  # Add a catch-all label for unexpected values
       }))
     },
-    update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots) {  #$$$$$$$$$$$$$
+    update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {  #$$$$$$$$$$$$$
+      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       
-      cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
-          " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
-          " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+        cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
+            " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
+            " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
+      }  #$$$$$$$$$$$$$
       
       if (is.null(high_mean_df) || !nrow(high_mean_df)) {
-        cat("[PR HIGH] SKIP | no data\n")                                                        #$$$$$$$$$$$$$
+        if (isTRUE(verbose)) cat("[PR HIGH] SKIP | no data\n")                                     #$$$$$$$$$$$$$
         return(list())
-      }
-      
-      .wrap_title <- function(x, width = 60) {
-        paste(strwrap(x, width = width), collapse = "\n")
       }
       
       high_mean_plots <- list()
@@ -4770,7 +4864,7 @@ DDESONN <- R6::R6Class(
           nzchar(env_root)
         if (!has_root) {
           msg <- "[PR HIGH] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
-          cat(msg, "\n")
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4784,7 +4878,7 @@ DDESONN <- R6::R6Class(
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           msg <- "[PR HIGH] Unable to resolve plots dir for saving."
-          cat(msg, "\n")
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4822,13 +4916,7 @@ DDESONN <- R6::R6Class(
           plot_data_high$Model_Name_Outlier[is.na(plot_data_high$Outlier)] <- NA
           
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data_high$Title <- paste0(
-              "Boxplot for ",
-              metric,
-              " (",
-              self$create_bin_labels(plot_data_high$Value),
-              ")"
-            )
+            plot_data_high$Title <- paste0("Boxplot for ", metric, " (", self$create_bin_labels(plot_data_high$Value), ")")
           } else {
             plot_data_high$Title <- paste("Boxplot for", metric)
           }
@@ -4836,12 +4924,11 @@ DDESONN <- R6::R6Class(
           high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = .wrap_title(unique(plot_data_high$Title), width = 60),
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::theme_minimal() +
-            ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+            ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 14)                    #$$$$$$$$$$$$$
           
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
@@ -4859,31 +4946,35 @@ DDESONN <- R6::R6Class(
             fn <- paste0("performance_relevance_high_", .safe_filename(metric), ".png")
             fp <- file.path(pr_plot_dir, fn)
             tryCatch(
-              ggplot2::ggsave(filename = fp, plot = high_mean_plot, width = 10, height = 6, dpi = 300),
+              ggplot2::ggsave(filename = fp, plot = high_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  #$$$$$$$$$$$$$
               error = function(e) NULL
             )
           }
         }
       }
       
-      cat("[PR HIGH] EXIT | plots_len=", length(high_mean_plots),                                 #$$$$$$$$$$$$$
-          " names_head=", paste(utils::head(names(high_mean_plots), 3), collapse = ","), "\n")    #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+        cat("[PR HIGH] EXIT | plots_len=", length(high_mean_plots),                                 #$$$$$$$$$$$$$
+            " names_head=", paste(utils::head(names(high_mean_plots), 3), collapse = ","), "\n")    #$$$$$$$$$$$$$
+      }  #$$$$$$$$$$$$$
       
       return(high_mean_plots)
     },
-    update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots) {     #$$$$$$$$$$$$$
+    
+    
+    update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {     #$$$$$$$$$$$$$
+      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
+      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
       
-      cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
-          " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
-          " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+        cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
+            " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
+            " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
+      }  #$$$$$$$$$$$$$
       
       if (is.null(low_mean_df) || !nrow(low_mean_df)) {
-        cat("[PR LOW] SKIP | no data\n")                                                          #$$$$$$$$$$$$$
+        if (isTRUE(verbose)) cat("[PR LOW] SKIP | no data\n")                                     #$$$$$$$$$$$$$
         return(list())
-      }
-      
-      .wrap_title <- function(x, width = 60) {
-        paste(strwrap(x, width = width), collapse = "\n")
       }
       
       low_mean_plots <- list()
@@ -4903,7 +4994,7 @@ DDESONN <- R6::R6Class(
           nzchar(env_root)
         if (!has_root) {
           msg <- "[PR LOW] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
-          cat(msg, "\n")
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4917,7 +5008,7 @@ DDESONN <- R6::R6Class(
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           msg <- "[PR LOW] Unable to resolve plots dir for saving."
-          cat(msg, "\n")
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4955,13 +5046,7 @@ DDESONN <- R6::R6Class(
           plot_data_low$Model_Name_Outlier[is.na(plot_data_low$Outlier)] <- NA
           
           if (grepl("precision", metric, ignore.case = TRUE)) {
-            plot_data_low$Title <- paste0(
-              "Boxplot for ",
-              metric,
-              " (",
-              self$create_bin_labels(plot_data_low$Value),
-              ")"
-            )
+            plot_data_low$Title <- paste0("Boxplot for ", metric, " (", self$create_bin_labels(plot_data_low$Value), ")")
           } else {
             plot_data_low$Title <- paste("Boxplot for", metric)
           }
@@ -4969,14 +5054,11 @@ DDESONN <- R6::R6Class(
           low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
             ggplot2::labs(
-              title = .wrap_title(unique(plot_data_low$Title), width = 60),
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::theme_minimal() +
-            ggplot2::theme(
-              plot.title = ggplot2::element_text(hjust = 0.5)
-            )
+            ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 14)                    #$$$$$$$$$$$$$
           
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
@@ -4994,18 +5076,21 @@ DDESONN <- R6::R6Class(
             fn <- paste0("performance_relevance_low_", .safe_filename(metric), ".png")
             fp <- file.path(pr_plot_dir, fn)
             tryCatch(
-              ggplot2::ggsave(filename = fp, plot = low_mean_plot, width = 10, height = 6, dpi = 300),
+              ggplot2::ggsave(filename = fp, plot = low_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  #$$$$$$$$$$$$$
               error = function(e) NULL
             )
           }
         }
       }
       
-      cat("[PR LOW] EXIT | plots_len=", length(low_mean_plots),                                   #$$$$$$$$$$$$$
-          " names_head=", paste(utils::head(names(low_mean_plots), 3), collapse = ","), "\n")     #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
+        cat("[PR LOW] EXIT | plots_len=", length(low_mean_plots),                                   #$$$$$$$$$$$$$
+            " names_head=", paste(utils::head(names(low_mean_plots), 3), collapse = ","), "\n")     #$$$$$$$$$$$$$
+      }  #$$$$$$$$$$$$$
       
       return(low_mean_plots)
     },
+    
     store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
 
 

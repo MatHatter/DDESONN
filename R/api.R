@@ -378,8 +378,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   
-  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
-  verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))  #$$$$$$$$$$$$$
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
   
@@ -473,11 +471,11 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: Final summary formatting control (presentation-only)  #$$$$$$$$$$$$$
   # - User override name: final_summary_decimals
   # - Applies ONLY to values we attach for reporting / metadata display
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   cfg$final_summary_decimals <- overrides$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
   
   plot_cfg_override <- overrides$EvaluatePredictionsReportPlotsConfig %||%
@@ -488,11 +486,11 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     model$EvaluatePredictionsReportPlotsConfig <- utils::modifyList(current_cfg %||% list(), plot_cfg_override, keep.null = TRUE)
   }
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: Plot controls wiring (required arg support)  #$$$$$$$$$$$$$
   # - train_network()/model$train may require plot_controls with NO default
   # - accept both plot_controls and PlotControls keys from ...
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   cfg$plot_controls <- overrides$plot_controls %||% overrides$PlotControls %||% cfg$plot_controls %||% NULL  #$$$$$$$$$$$$$
   
   # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
@@ -630,9 +628,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     plot_controls = cfg$plot_controls                              #$$$$$$$$$$$$$ FIX: always pass required arg
   )
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: EVOKE — post-train enrichment (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
     sprintf(                                                                                          #$$$$$$$$$$$$$
       "[EVOKE-ENRICH] where=%s | why=%s | note=%s | epochs_configured=%s\n",                           #$$$$$$$$$$$$$
@@ -650,9 +648,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   model$last_training <- result
   attr(model, "threshold") <- cfg$threshold
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: EVOKE — starting enrichment predicts (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
     sprintf(                                                                                          #$$$$$$$$$$$$$
       "[EVOKE-ENRICH-BEGIN] where=%s | why=%s\n",                                                      #$$$$$$$$$$$$$
@@ -885,9 +883,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     }
   }
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: EVOKE — enrichment finished (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
     sprintf(                                                                                          #$$$$$$$$$$$$$
       "[EVOKE-ENRICH-END] where=%s | why=%s | note=%s\n",                                              #$$$$$$$$$$$$$
@@ -958,11 +956,11 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     if (identical(mode, "regression")) best_epoch_train_loss else best_epoch_train
   }
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: Presentation decimals (FINAL SUMMARY)  #$$$$$$$$$$$$$
   # - User control: cfg$final_summary_decimals
   # - Applies ONLY to printed scalar metrics (epochs remain ints)
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
   
   best_train_acc_disp  <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)   #$$$$$$$$$$$$$
@@ -976,9 +974,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     threshold_disp <- .ddesonn_format_final_summary_decimals(performance_relevance_data$threshold, dec)  #$$$$$$$$$$$$$
   }
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: FINAL SUMMARY line alignment (pad labels to colons)  #$$$$$$$$$$$$$
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   .summary_line <- function(label, value, label_width) {          #$$$$$$$$$$$$$
     sprintf(paste0("%-", label_width, "s: %s"), label, value)      #$$$$$$$$$$$$$
   }                                                               #$$$$$$$$$$$$$
@@ -1238,9 +1236,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   report <- .build_binary_report(y_true, p_pos, threshold)
   if (is.null(report)) return(invisible(NULL))
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: Presentation decimals (Classification Report + AUC)  #$$$$$$$$$$$$$
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   dec <- suppressWarnings(as.integer(final_summary_decimals))                              #$$$$$$$$$$$$$
   if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          #$$$$$$$$$$$$$
   
@@ -1315,8 +1313,6 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
-  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
-  verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))  #$$$$$$$$$$$$$
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
   aggregate <- match.arg(aggregate)
@@ -3220,10 +3216,22 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   seed_aggregate <- match.arg(seed_aggregate)
   prediction_type <- match.arg(prediction_type)
   
-  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
-  verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))  #$$$$$$$$$$$$$
+  verbose <- isTRUE(verbose %||% FALSE)  #$$$$$$$$$$$$$
+  verboseLow <- isTRUE(verboseLow %||% FALSE)  #$$$$$$$$$$$$$
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: Verbosity resolution (run config)  #$$$$$$$$$$$$$
+  # - verbose defaults FALSE unless explicitly TRUE        #$$$$$$$$$$$$$
+  # - verboseLow defaults FALSE unless explicitly TRUE     #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
+  ddesonn_console_log(  #$$$$$$$$$$$$$
+    sprintf("[VERBOSE] resolved: verbose=%s verboseLow=%s", verbose, verboseLow),  #$$$$$$$$$$$$$
+    level = "important",  #$$$$$$$$$$$$$
+    verbose = verbose,  #$$$$$$$$$$$$$
+    verboseLow = verboseLow  #$$$$$$$$$$$$$
+  )  #$$$$$$$$$$$$$
   
   seeds <- as.integer(seeds)
   seeds <- seeds[is.finite(seeds)]
@@ -3325,14 +3333,18 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   
   base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
   
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   # SECTION: Plot controls passthrough (Scenario 2)
   # - Do NOT create local defaults here.
   # - If user provided plot_controls, pass it through to training.
-  # ============================================================
+  # ============================================================  #$$$$$$$$$$$$$
   if (!is.null(plot_controls)) {                                                       #$$$$$$$$$$$$$
     base_train_overrides$plot_controls <- plot_controls                                 #$$$$$$$$$$$$$
   }                                                                                      #$$$$$$$$$$$$$
+
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: Plot controls passthrough only (no mutation)  #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
   
   # ============================================================
   # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
