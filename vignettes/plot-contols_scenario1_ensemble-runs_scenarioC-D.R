@@ -1,16 +1,4 @@
----
-title: "DDESONN — Plot Controls — Scenario 1 — Ensemble Runs: Scenario C & D"
-output:
-  rmarkdown::html_vignette:
-    toc: true
-    toc_depth: 2
-vignette: >
-  %\VignetteIndexEntry{DDESONN — Plot Controls — Scenario 1 — Ensemble Runs: Scenario C & D}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r setup, include=FALSE}
+## ----setup, include=FALSE-----------------------------------------------------
 # ============================================================
 # FILE: vignettes/plot-controls_scenario1_ensemble-runs_scenarioC-D.Rmd
 # FULL FIXED — Scenario 1 — Ensemble Runs: Scenario C & D
@@ -212,11 +200,8 @@ if (isTRUE(DATA_OK)) {                                           #$$$$$$$$$$$$$
 
 
 
-```
 
-## Plot Controls: Scenario 1 — Ensemble Runs — Scenario C
-
-```{r scenarioC_s1, results="asis", echo=FALSE}
+## ----scenarioC_s1, results="asis", echo=FALSE---------------------------------
 options(DDESONN_OUTPUT_ROOT = outC)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outC)
 
@@ -309,11 +294,8 @@ if (exists("include_saved_plots")) {
   include_saved_plots(outC, "Scenario C — Ensemble (2 networks, 360 epochs)")
 }
 
-```
 
-## Plot Controls: Scenario 1 — Ensemble Runs — Scenario D
-
-```{r scenarioD_s1, results="asis", echo=FALSE}
+## ----scenarioD_s1, results="asis", echo=FALSE---------------------------------
 options(DDESONN_OUTPUT_ROOT = outD)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
 
@@ -397,4 +379,4 @@ include_saved_plots(
   outD,
   "Plot Controls: Scenario 1 — Ensemble Runs — Scenario D"    #$$$$$$$$$$$$$
 )
-```
+

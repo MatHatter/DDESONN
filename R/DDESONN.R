@@ -4928,7 +4928,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 14)                    #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 14) +                 #$$$$$$$$$$$$$
+            ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"))  #$$$$$$$$$$$$$
           
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
@@ -5058,7 +5059,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 14)                    #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 14) +                 #$$$$$$$$$$$$$
+            ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"))  #$$$$$$$$$$$$$
           
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
