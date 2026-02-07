@@ -1,32 +1,62 @@
-## ============================================================
-## api.R — Techila MVP safe root + legacy loader
-## ============================================================
+source("R/utils.R")
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "activation_functions.R"),
-                     winslash = "/", mustWork = TRUE))                               
+#' Internal package environment used to lazily load the legacy DDESONN stack.
+.ddesonn_env <- new.env(parent = .GlobalEnv)
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "optimizers.R"),
-                     winslash = "/", mustWork = TRUE))                               
+#' Null-coalescing helper used across the high-level API.
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
+}
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "update_weights_block.R"),
-                     winslash = "/", mustWork = TRUE))                               
+.ddesonn_find_root <- function() {
+  pkg_root <- system.file(package = "DDESONN")
+  if (nzchar(pkg_root)) return(pkg_root)
+  getOption("DDESONN_ROOT", default = getwd())  # should be the *repo root*
+}
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "update_biases_block.R"),
-                     winslash = "/", mustWork = TRUE))                               
+.ddesonn_source_legacy <- function() {
+  if (exists("DDESONN", envir = .ddesonn_env, inherits = FALSE)) {
+    return(invisible(.ddesonn_env))
+  }
+  
+  root <- .ddesonn_find_root()
+  
+  # now expect DDESONN.R inside R/
+  target <- file.path(root, "R", "DDESONN.R")
+  if (!file.exists(target)) {
+    stop("Unable to locate 'R/DDESONN.R'. Set options(DDESONN_ROOT=...) to the repository root before calling the API.")
+  }
+  
+  base_source <- base::source
+  assign(
+    "source",
+    function(file, ...) {
+      # resolve to R/<file> first, then fallback to root/<file>
+      cand1 <- file.path(root, "R", file)
+      cand2 <- file.path(root, file)
+      resolved <- if (file.exists(cand1)) cand1 else cand2
+      if (!file.exists(resolved)) {
+        stop(sprintf("Unable to locate dependency file '%s' under '%s' or '%s'",
+                     file, file.path(root, "R"), root), call. = FALSE)
+      }
+      base_source(resolved, local = .ddesonn_env, ...)
+    },
+    envir = .ddesonn_env
+  )
+  
+  sys.source(target, envir = .ddesonn_env, chdir = FALSE)
+  invisible(.ddesonn_env)
+}
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "performance_relevance_metrics.R"),
-                     winslash = "/", mustWork = TRUE))                               
 
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "DDESONN.R"),
-                     winslash = "/", mustWork = TRUE))                               
-
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "utils.R"),
-                     winslash = "/", mustWork = TRUE))                               
-
-source(normalizePath(file.path(dirname(sys.frames()[[1]]$ofile), "reports", "evaluate_predictions_report.R"),
-                     winslash = "/", mustWork = TRUE))                               
-
-
+.ddesonn_get <- function(name) {
+  .ddesonn_source_legacy()
+  obj <- get0(name, envir = .ddesonn_env, inherits = FALSE)
+  if (is.null(obj)) {
+    stop(sprintf("Object '%s' was not initialised from the legacy stack.", name), call. = FALSE)
+  }
+  obj
+}
 
 # special helper for picking up on the user's input in the model's set-up.
 
@@ -424,7 +454,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
   
-  # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
+  # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream ???tuned??? bundles)
   if (identical(mode, "binary")) {
     cfg$threshold_function <- cfg$threshold_function %||% .ddesonn_get("tune_threshold_accuracy")
   } else {
@@ -434,7 +464,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
   cfg$ML_NN <- isTRUE(cfg$ML_NN %||% attr(model, "ML_NN"))
   cfg$ensemble_number <- overrides$ensemble_number %||% cfg$ensemble_number %||% 0L
   
-  # VALID labels (if present) — coerce by mode
+  # VALID labels (if present) ??? coerce by mode
   if (!is.null(validation)) {
     cfg$X_validation <- .as_numeric_matrix(validation$x)
     yv_in <- validation$y
@@ -669,7 +699,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ...) {
           Pv <- as.matrix(per_model_valid[[k]])
           if (mode == "binary") {
             m_va <- compute_binary_metrics(y_valid_vec, as.numeric(Pv[,1]), thr_used)
-            # Only in BINARY: expose the tuned bundle (prevents utils from “thinking binary” otherwise)
+            # Only in BINARY: expose the tuned bundle (prevents utils from ???thinking binary??? otherwise)
             slot_obj$metadata$accuracy_precision_recall_f1_tuned <- list(
               accuracy = m_va$performance_metric$accuracy,
               precision = m_va$performance_metric$precision,
@@ -880,7 +910,7 @@ ddesonn_predict <- function(model, new_data,
 }
 
 
-# new helper – safe fusion writer
+# new helper ??? safe fusion writer
 .write_fused_consensus <- function(result, run_dir, ts, seeds,
                                    methods = c("avg","wavg","vote_soft","vote_hard"),
                                    weight_column = c("tuned_f1","f1","accuracy")) {
@@ -894,7 +924,7 @@ ddesonn_predict <- function(model, new_data,
   dir.create(fused_dir, recursive = TRUE, showWarnings = FALSE)
   
   if (!file.exists(agg_file)) {
-    # nothing to fuse (shouldn’t happen because we write agg first)
+    # nothing to fuse (shouldn???t happen because we write agg first)
     saveRDS(data.frame(), file.path(fused_dir, sprintf("Fused_EMPTY__%s_seeds_%s.rds", s_chr, ts)))
     return(invisible(NULL))
   }
@@ -1532,7 +1562,7 @@ ddesonn_predict <- function(model, new_data,
   if (!file.exists(predictions_main_file)) {
     stop("[BuildPretty] predictions_main.rds not present; cannot build pretty tables without stored per-observation predictions.")
   }
-
+  
   .log("Found predictions_main.rds at ", predictions_main_file)
   pred_obj <- try(readRDS(predictions_main_file), silent = TRUE)
   if (inherits(pred_obj, "try-error")) {
@@ -1543,12 +1573,12 @@ ddesonn_predict <- function(model, new_data,
   if (!is.list(pred_obj)) {
     stop("[BuildPretty] predictions_main.rds did not contain a list structure.")
   }
-
+  
   per_seed_predictions <- pred_obj$per_seed_tables %||% pred_obj$per_seed %||% pred_obj$tables
   if (!length(per_seed_predictions)) {
     stop("[BuildPretty] predictions_main.rds does not contain per-seed per-split tables.")
   }
-
+  
   per_seed_predictions <- lapply(per_seed_predictions, function(seed_entry) {
     if (!is.list(seed_entry)) return(NULL)
     valid <- vapply(seed_entry, function(df) is.data.frame(df) && NROW(df), logical(1))
@@ -1559,7 +1589,7 @@ ddesonn_predict <- function(model, new_data,
   if (!length(per_seed_predictions)) {
     stop("[BuildPretty] No usable per-observation predictions found in predictions_main.rds.")
   }
-
+  
   .gather_split_df <- function(split_label) {
     if (is.null(per_seed_predictions) || !length(per_seed_predictions)) return(NULL)
     rows <- list()
@@ -1583,7 +1613,7 @@ ddesonn_predict <- function(model, new_data,
     rownames(out) <- NULL
     out
   }
-
+  
   .df_info <- function(d, label) {
     if (!is.data.frame(d)) {
       .log("    [", label, "] not a data.frame")
@@ -1596,11 +1626,11 @@ ddesonn_predict <- function(model, new_data,
   # Normalizer shared by all splits
   .normalize_and_rewrite <- function(path, split_label, df) {
     up <- toupper(split_label)
-
+    
     if (!is.data.frame(df)) {
       stop("[BuildPretty] ", up, " supplied object is not a data.frame.")
     }
-
+    
     if (!NROW(df)) {
       .log("  !! ", up, " df has zero rows; writing back as-is.")
       saveRDS(df, path)
@@ -1689,10 +1719,10 @@ ddesonn_predict <- function(model, new_data,
     saveRDS(df, path)
     invisible(TRUE)
   }
-
+  
   # make sure base dir exists
   if (!dir.exists(run_dir)) dir.create(run_dir, recursive = TRUE, showWarnings = FALSE)
-
+  
   write_split <- function(split_label, target_path) {
     up <- toupper(split_label)
     df <- .gather_split_df(split_label)
@@ -1702,14 +1732,14 @@ ddesonn_predict <- function(model, new_data,
     .log("  .. Using stored per-observation predictions for ", up, ".")
     .normalize_and_rewrite(target_path, split_label, df)
   }
-
+  
   write_split("test", agg_pred_file_test)
   write_split("train", agg_pred_file_train)
   write_split("validation", agg_pred_file_val)
-
+  
   .log("EXIT .build_single_pretty_tables")
   .log("------------------------------------------------------------")
-
+  
   invisible(list(
     run_dir = run_dir,
     ts      = ts,
@@ -2198,7 +2228,7 @@ ddesonn_predict <- function(model, new_data,
     run_tag  <- ts_stamp
   }
   
-  # choose a stable base: user-writable artifacts → (SingleRuns|EnsembleRuns)
+  # choose a stable base: user-writable artifacts ??? (SingleRuns|EnsembleRuns)
   art_root <- ddesonn_artifacts_root(output_root)
   run_dir <- file.path(art_root, root_dir, run_tag)
   
@@ -2347,12 +2377,12 @@ ddesonn_predict <- function(model, new_data,
 #' This helper re-creates the four orchestration modes that previously lived in
 #' `TestDDESONN.R`:
 #'
-#' * Scenario A – single model (`do_ensemble = FALSE`, `num_networks = 1`).
-#' * Scenario B – single run with multiple members inside a single model
+#' * Scenario A ??? single model (`do_ensemble = FALSE`, `num_networks = 1`).
+#' * Scenario B ??? single run with multiple members inside a single model
 #'   (`do_ensemble = FALSE`, `num_networks > 1`).
-#' * Scenario C – main ensemble container (`do_ensemble = TRUE`,
+#' * Scenario C ??? main ensemble container (`do_ensemble = TRUE`,
 #'   `num_temp_iterations = 0`).
-#' * Scenario D – main ensemble plus TEMP iterations (`do_ensemble = TRUE`,
+#' * Scenario D ??? main ensemble plus TEMP iterations (`do_ensemble = TRUE`,
 #'   `num_temp_iterations > 0`).
 #'
 #' The function accepts a training set, optional validation data, and optional
@@ -2530,7 +2560,7 @@ ddesonn_run <- function(x,
       if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
     }, character(1))
   }
-
+  
   extract_y_true <- function(y_source) {
     if (is.null(y_source)) return(NULL)
     y_mat <- try(.as_numeric_matrix(y_source), silent = TRUE)
@@ -2548,7 +2578,7 @@ ddesonn_run <- function(x,
     }
     as.numeric(y_mat[, 1])
   }
-
+  
   build_split_predictions <- function(model,
                                       new_data,
                                       y_source,
@@ -2556,7 +2586,7 @@ ddesonn_run <- function(x,
                                       run_idx,
                                       seed_val) {
     if (is.null(new_data)) return(NULL)
-
+    
     pr <- try(
       ddesonn_predict(model, new_data, aggregate = "none", type = "response"),
       silent = TRUE
@@ -2564,18 +2594,18 @@ ddesonn_run <- function(x,
     if (inherits(pr, "try-error") || is.null(pr$per_model) || !length(pr$per_model)) {
       return(NULL)
     }
-
+    
     y_true_vec <- extract_y_true(y_source)
     rows <- list()
     ptr <- 0L
-
+    
     for (k in seq_along(pr$per_model)) {
       mat <- try(.as_numeric_matrix(pr$per_model[[k]]), silent = TRUE)
       if (inherits(mat, "try-error") || !is.matrix(mat)) next
-
+      
       n <- nrow(mat)
       if (!n) next
-
+      
       if (!is.null(y_true_vec) && length(y_true_vec) != n) {
         y_slot <- rep(NA_real_, n)
       } else if (!is.null(y_true_vec)) {
@@ -2583,7 +2613,7 @@ ddesonn_run <- function(x,
       } else {
         y_slot <- rep(NA_real_, n)
       }
-
+      
       if (classification_mode == "binary") {
         y_prob <- as.numeric(mat[, 1])
         thr <- threshold %||% attr(model, "chosen_threshold") %||% model$chosen_threshold %||%
@@ -2596,9 +2626,9 @@ ddesonn_run <- function(x,
         y_prob <- as.numeric(mat[, 1])
         y_pred <- y_prob
       }
-
+      
       obs_idx <- seq_len(n)
-
+      
       df <- data.frame(
         run_index = rep.int(as.integer(run_idx), n),
         RUN_INDEX = rep.int(as.integer(run_idx), n),
@@ -2618,21 +2648,21 @@ ddesonn_run <- function(x,
         y_pred = y_pred,
         stringsAsFactors = FALSE
       )
-
+      
       if (classification_mode == "multiclass") {
         df$y_prob_full <- lapply(seq_len(n), function(i) as.numeric(mat[i, , drop = TRUE]))
       }
-
+      
       rows[[ptr <- ptr + 1L]] <- df
     }
-
+    
     if (!length(rows)) return(NULL)
     out <- try(do.call(rbind, rows), silent = TRUE)
     if (inherits(out, "try-error")) return(NULL)
     rownames(out) <- NULL
     out
   }
-
+  
   empty_log_tables <- function() {
     list(
       main_log = data.frame(
@@ -2865,7 +2895,7 @@ ddesonn_run <- function(x,
         }
         log_tables <- append_movement_entries(log_tables, iter, removed, added$slot, added$serial)
         log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_after")      
-        }
+      }
       temp_summary <- temp_list
     }
     
@@ -2879,7 +2909,7 @@ ddesonn_run <- function(x,
         main_pred <- preds
       }
     }
-
+    
     run_predictions <- list(
       train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
       validation = if (!is.null(validation) && !is.null(validation$x)) {
@@ -2893,7 +2923,7 @@ ddesonn_run <- function(x,
         NULL
       }
     )
-
+    
     list(
       seed = seed_i,
       main = list(model = mdl, predictions = main_pred),
@@ -2924,7 +2954,7 @@ ddesonn_run <- function(x,
     # aggregate across seeds if requested
     if (!identical(seed_aggregate, "none") && length(per_seed_preds)) {
       # Convert to common array and aggregate
-      # If "aggregate=none", per_seed elements are lists of per-model matrices → stack inside seed then aggregate
+      # If "aggregate=none", per_seed elements are lists of per-model matrices ??? stack inside seed then aggregate
       # If "aggregate!=none", each per_seed element is a length-1 list with the already-aggregated matrix
       mats <- lapply(per_seed_preds, function(pe) {
         if (is.list(pe) && length(pe) > 1L) {
@@ -2945,7 +2975,7 @@ ddesonn_run <- function(x,
     }
   }
   
-  # TEMP summaries (if present) — keep structure per iteration across seeds
+  # TEMP summaries (if present) ??? keep structure per iteration across seeds
   if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
     temp_summary <- lapply(seq_len(num_temp_iterations), function(iter) {
       preds <- lapply(runs, function(run) {
@@ -2986,7 +3016,7 @@ ddesonn_run <- function(x,
     ),
     runs = runs
   )
-
+  
   per_seed_tables <- lapply(runs, function(run) {
     preds <- run$predictions
     if (!is.list(preds) || !length(preds)) {
@@ -3000,7 +3030,7 @@ ddesonn_run <- function(x,
     preds[keep]
   })
   per_seed_tables <- Filter(Negate(is.null), per_seed_tables)
-
+  
   predictions_payload <- list()
   if (!is.null(prediction_matrix)) {
     predictions_payload$per_seed_raw <- main_seed_predictions
@@ -3013,7 +3043,7 @@ ddesonn_run <- function(x,
   if (length(predictions_payload)) {
     result$predictions <- predictions_payload
   }
-
+  
   if (length(temp_summary)) {
     result$temp_predictions <- temp_summary
   }

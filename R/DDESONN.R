@@ -5456,8 +5456,8 @@ calculate_performance <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, 
   cluster_assignments <- kmeans(Rdata, centers = optimal_k, iter.max = 50)$cluster
 
 
-  cat("Length of SONN$weights: ", length(SONN$weights), "\n")
-  cat("Length of SONN$map: ", if (is.null(SONN$map)) "NULL" else length(SONN$map), "\n")
+  if (isTRUE(verbose)) cat("Length of SONN$weights: ", length(SONN$weights), "\n")  #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) cat("Length of SONN$map: ", if (is.null(SONN$map)) "NULL" else length(SONN$map), "\n")  #$$$$$$$$$$$$$
 
 
   # --- Metrics (all take SONN) ---

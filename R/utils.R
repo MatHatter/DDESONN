@@ -26,7 +26,7 @@ ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = N
   verboseLow <- isTRUE(verboseLow)  #$$$$$$$$$$$$$
   msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
   if (identical(level, "important")) {  #$$$$$$$$$$$$$
-    if (verbose || verboseLow) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
+    if (verboseLow) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
   } else {  #$$$$$$$$$$$$$
     if (verbose) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
   }  #$$$$$$$$$$$$$
@@ -34,8 +34,10 @@ ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = N
 }  #$$$$$$$$$$$$$
 
 ddesonn_debug <- function(msg, debug = FALSE) {  #$$$$$$$$$$$$$
-  debug <- debug %||% getOption("DDESONN.debug", FALSE)  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+  if (is.null(debug)) {  #$$$$$$$$$$$$$
+    debug <- getOption("DDESONN.debug", FALSE)  #$$$$$$$$$$$$$
+  }  #$$$$$$$$$$$$$
+  debug <- isTRUE(debug)  #$$$$$$$$$$$$$
   if (isTRUE(debug)) {  #$$$$$$$$$$$$$
     msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
     cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$

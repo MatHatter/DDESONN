@@ -3780,6 +3780,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       seed_i <- i
     }
     set.seed(seed_i)
+    
     if (isTRUE(do_ensemble)) {
       vars <- grep(
         "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
@@ -3794,108 +3795,123 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     
     log_tables <- empty_log_tables(log_enabled)                                        # #$$$$$$$$$$$$$
     
-    
     main_model_args <- base_model_args
     if (isTRUE(do_ensemble)) {
       main_model_args$ensemble_number <- 1L
     }
     
     mdl <- do.call(ddesonn_model, main_model_args)
+    
     val <- NULL
     if (!is.null(validation_data)) {
       val <- list(x = validation_data$x, y = validation_data$y)
     }
     
-    ddesonn_console_log(                                                                             #$$$$$$$$$$$$$
-      sprintf(                                                                                         #$$$$$$$$$$$$$
-        "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",                               #$$$$$$$$$$$$$
-        "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                                 #$$$$$$$$$$$$$
-        "Training main model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots",  #$$$$$$$$$$$$$
-        as.character(seed_i),                                                                          #$$$$$$$$$$$$$
-        as.character(i)                                                                                #$$$$$$$$$$$$$
-      ),                                                                                                #$$$$$$$$$$$$$
-      level = "important",                                                                              #$$$$$$$$$$$$$
-      verbose = verbose,                                                                                #$$$$$$$$$$$$$
-      verboseLow = verboseLow                                                                           #$$$$$$$$$$$$$
-    )                                                                                                   #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                                # #$$$$$$$$$$$$$
+      ddesonn_console_log(                                                              # #$$$$$$$$$$$$$
+        sprintf(                                                                        # #$$$$$$$$$$$$$
+          "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",              # #$$$$$$$$$$$$$
+          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # #$$$$$$$$$$$$$
+          "Training main model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # #$$$$$$$$$$$$$
+          as.character(seed_i),                                                         # #$$$$$$$$$$$$$
+          as.character(i)                                                               # #$$$$$$$$$$$$$
+        ),                                                                              # #$$$$$$$$$$$$$
+        level = "important",                                                            # #$$$$$$$$$$$$$
+        verbose = verbose,                                                              # #$$$$$$$$$$$$$
+        verboseLow = verboseLow,                                                        # #$$$$$$$$$$$$$
+        debug = debug                                                                   # #$$$$$$$$$$$$$
+      )                                                                                # #$$$$$$$$$$$$$
+    }                                                                                   # #$$$$$$$$$$$$$
     
-    if (isTRUE(debug)) {                                                                               #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                                   #$$$$$$$$$$$$$
-        "[DBG] per-epoch plot controls (base_train_overrides$plot_controls$per_epoch)",               #$$$$$$$$$$$$$
-        debug = debug                                                                                  #$$$$$$$$$$$$$
-      )                                                                                                #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                                   #$$$$$$$$$$$$$
-        paste(utils::capture.output(utils::str(base_train_overrides$plot_controls$per_epoch)), collapse = "\n"),  #$$$$$$$$$$$$$
-        debug = debug                                                                                  #$$$$$$$$$$$$$
-      )                                                                                                #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                                   #$$$$$$$$$$$$$
-        paste("save_per_epoch:", base_train_overrides$save_per_epoch),                                 #$$$$$$$$$$$$$
-        debug = debug                                                                                  #$$$$$$$$$$$$$
-      )                                                                                                #$$$$$$$$$$$$$
-      pe_cfg <- base_train_overrides$plot_controls$per_epoch                                           #$$$$$$$$$$$$$
-      saveEnabled <- if (is.list(pe_cfg)) pe_cfg$saveEnabled else NULL                                 #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                                   #$$$$$$$$$$$$$
-        paste("saveEnabled:", if (is.null(saveEnabled)) "NULL" else saveEnabled),                      #$$$$$$$$$$$$$
-        debug = debug                                                                                  #$$$$$$$$$$$$$
-      )                                                                                                #$$$$$$$$$$$$$
-      plots_root <- base_train_overrides$output_root %||% output_root                                  #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                                   #$$$$$$$$$$$$$
-        paste("plots_dir:", ddesonn_plots_dir(plots_root)),                                            #$$$$$$$$$$$$$
-        debug = debug                                                                                  #$$$$$$$$$$$$$
-      )                                                                                                #$$$$$$$$$$$$$
-    }                                                                                                  #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                               #$$$$$$$$$$$$$
+      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
+        "[DBG] per-epoch plot controls (base_train_overrides$plot_controls$per_epoch)",#$$$$$$$$$$$$$
+        debug = debug                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
+        paste(utils::capture.output(utils::str(base_train_overrides$plot_controls$per_epoch)), collapse = "\n"), #$$$$$$$$$$$$$
+        debug = debug                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
+        paste("save_per_epoch:", base_train_overrides$save_per_epoch),                 #$$$$$$$$$$$$$
+        debug = debug                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+      pe_cfg <- base_train_overrides$plot_controls$per_epoch                           #$$$$$$$$$$$$$
+      saveEnabled <- if (is.list(pe_cfg)) pe_cfg$saveEnabled else NULL                 #$$$$$$$$$$$$$
+      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
+        paste("saveEnabled:", if (is.null(saveEnabled)) "NULL" else saveEnabled),      #$$$$$$$$$$$$$
+        debug = debug                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+      plots_root <- base_train_overrides$output_root %||% output_root                  #$$$$$$$$$$$$$
+      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
+        paste("plots_dir:", ddesonn_plots_dir(plots_root)),                            #$$$$$$$$$$$$$
+        debug = debug                                                                  #$$$$$$$$$$$$$
+      )                                                                                #$$$$$$$$$$$$$
+    }                                                                                  #$$$$$$$$$$$$$
     
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
     
-    ddesonn_console_log(                                                                             #$$$$$$$$$$$$$
-      sprintf(                                                                                         #$$$$$$$$$$$$$
-        "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                                 #$$$$$$$$$$$$$
-        "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                                 #$$$$$$$$$$$$$
-        "ddesonn_fit() returned to ddesonn_run; any predict() emitted above could have originated inside training/metrics/validation",  #$$$$$$$$$$$$$
-        as.character(seed_i),                                                                          #$$$$$$$$$$$$$
-        as.character(i)                                                                                #$$$$$$$$$$$$$
-      ),                                                                                                #$$$$$$$$$$$$$
-      level = "important",                                                                              #$$$$$$$$$$$$$
-      verbose = verbose,                                                                                #$$$$$$$$$$$$$
-      verboseLow = verboseLow                                                                           #$$$$$$$$$$$$$
-    )                                                                                                   #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                                # #$$$$$$$$$$$$$
+      ddesonn_console_log(                                                              # #$$$$$$$$$$$$$
+        sprintf(                                                                        # #$$$$$$$$$$$$$
+          "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                # #$$$$$$$$$$$$$
+          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # #$$$$$$$$$$$$$
+          "ddesonn_fit() returned to ddesonn_run; any predict() emitted above could have originated inside training/metrics/validation", # #$$$$$$$$$$$$$
+          as.character(seed_i),                                                         # #$$$$$$$$$$$$$
+          as.character(i)                                                               # #$$$$$$$$$$$$$
+        ),                                                                              # #$$$$$$$$$$$$$
+        level = "important",                                                            # #$$$$$$$$$$$$$
+        verbose = verbose,                                                              # #$$$$$$$$$$$$$
+        verboseLow = verboseLow,                                                        # #$$$$$$$$$$$$$
+        debug = debug                                                                   # #$$$$$$$$$$$$$
+      )                                                                                # #$$$$$$$$$$$$$
+    }                                                                                   # #$$$$$$$$$$$$$
     
     main_pred <- NULL
     aggregate_pred <- NULL
+    
     if (!is.null(prediction_matrix)) {
-      .evoke_predict_begin(
-        where = "ddesonn_run::per_seed(main_fit)->main_pred",
-        why   = "User prediction_data provided; ddesonn_predict() will call net$predict() across ensemble",
-        seed  = seed_i,
-        run_index = i
-      )
       
-      preds <- ddesonn_predict(                                                                         #$$$$$$$$$$$$$
-        mdl,                                                                                             #$$$$$$$$$$$$$
-        prediction_matrix,                                                                              #$$$$$$$$$$$$$
-        aggregate = aggregate,                                                                           #$$$$$$$$$$$$$
-        type = prediction_type,                                                                          #$$$$$$$$$$$$$
-        threshold = threshold,                                                                           #$$$$$$$$$$$$$
-        verbose = verbose,                                                                               #$$$$$$$$$$$$$
-        verboseLow = verboseLow,                                                                         #$$$$$$$$$$$$$
-        debug = debug                                                                                    #$$$$$$$$$$$$$
-      )                                                                                                  #$$$$$$$$$$$$$
+      if (isTRUE(debug)) {                                                              # #$$$$$$$$$$$$$
+        .evoke_predict_begin(                                                           # #$$$$$$$$$$$$$
+          where = "ddesonn_run::per_seed(main_fit)->main_pred",
+          why   = "User prediction_data provided; ddesonn_predict() will call net$predict() across ensemble",
+          seed  = seed_i,
+          run_index = i
+        )
+      }                                                                                 # #$$$$$$$$$$$$$
+      
+      preds <- ddesonn_predict(                                                         #$$$$$$$$$$$$$
+        mdl,                                                                            #$$$$$$$$$$$$$
+        prediction_matrix,                                                              #$$$$$$$$$$$$$
+        aggregate = aggregate,                                                          #$$$$$$$$$$$$$
+        type = prediction_type,                                                         #$$$$$$$$$$$$$
+        threshold = threshold,                                                          #$$$$$$$$$$$$$
+        verbose = verbose,                                                              #$$$$$$$$$$$$$
+        verboseLow = verboseLow,                                                        #$$$$$$$$$$$$$
+        debug = debug                                                                   #$$$$$$$$$$$$$
+      )                                                                                 #$$$$$$$$$$$$$
       main_pred <- preds
       
-      .evoke_predict_end(
-        where = "ddesonn_run::per_seed(main_fit)->main_pred",
-        why   = "Main prediction finished",
-        seed  = seed_i,
-        run_index = i
-      )
+      if (isTRUE(debug)) {                                                              # #$$$$$$$$$$$$$
+        .evoke_predict_end(                                                             # #$$$$$$$$$$$$$
+          where = "ddesonn_run::per_seed(main_fit)->main_pred",
+          why   = "Main prediction finished",
+          seed  = seed_i,
+          run_index = i
+        )
+      }                                                                                 # #$$$$$$$$$$$$$
     }
     
     temp_summary <- list()
     temp_models <- vector("list", length = if (isTRUE(do_ensemble)) num_temp_iterations else 0L)
+    
     if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
       tmp_overrides <- temp_overrides %||% base_train_overrides
       tmp_overrides$output_root <- tmp_overrides$output_root %||% output_root
+      
       temp_list <- vector("list", length = num_temp_iterations)
+      
       for (iter in seq_len(num_temp_iterations)) {
         log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_before")
         
@@ -3903,62 +3919,74 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
         temp_model_args$ensemble_number <- iter + 1L
         tmp_model <- do.call(ddesonn_model, temp_model_args)
         
-        ddesonn_console_log(                                                                         #$$$$$$$$$$$$$
-          sprintf(                                                                                     #$$$$$$$$$$$$$
-            "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",                           #$$$$$$$$$$$$$
-            sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),                       #$$$$$$$$$$$$$
-            "Training TEMP candidate model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots",  #$$$$$$$$$$$$$
-            as.character(seed_i),                                                                      #$$$$$$$$$$$$$
-            as.character(i)                                                                            #$$$$$$$$$$$$$
-          ),                                                                                            #$$$$$$$$$$$$$
-          level = "important",                                                                          #$$$$$$$$$$$$$
-          verbose = verbose,                                                                            #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                       #$$$$$$$$$$$$$
-        )                                                                                               #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
+          ddesonn_console_log(                                                          # #$$$$$$$$$$$$$
+            sprintf(                                                                    # #$$$$$$$$$$$$$
+              "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",          # #$$$$$$$$$$$$$
+              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # #$$$$$$$$$$$$$
+              "Training TEMP candidate model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # #$$$$$$$$$$$$$
+              as.character(seed_i),                                                     # #$$$$$$$$$$$$$
+              as.character(i)                                                           # #$$$$$$$$$$$$$
+            ),                                                                          # #$$$$$$$$$$$$$
+            level = "important",                                                        # #$$$$$$$$$$$$$
+            verbose = verbose,                                                          # #$$$$$$$$$$$$$
+            verboseLow = verboseLow,                                                    # #$$$$$$$$$$$$$
+            debug = debug                                                               # #$$$$$$$$$$$$$
+          )                                                                             # #$$$$$$$$$$$$$
+        }                                                                               # #$$$$$$$$$$$$$
         
         do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val), tmp_overrides))
         
-        ddesonn_console_log(                                                                         #$$$$$$$$$$$$$
-          sprintf(                                                                                     #$$$$$$$$$$$$$
-            "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                             #$$$$$$$$$$$$$
-            sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),                       #$$$$$$$$$$$$$
-            "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any predict() emitted above could have originated inside training/metrics/validation",  #$$$$$$$$$$$$$
-            as.character(seed_i),                                                                      #$$$$$$$$$$$$$
-            as.character(i)                                                                            #$$$$$$$$$$$$$
-          ),                                                                                            #$$$$$$$$$$$$$
-          level = "important",                                                                          #$$$$$$$$$$$$$
-          verbose = verbose,                                                                            #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                       #$$$$$$$$$$$$$
-        )                                                                                               #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
+          ddesonn_console_log(                                                          # #$$$$$$$$$$$$$
+            sprintf(                                                                    # #$$$$$$$$$$$$$
+              "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",            # #$$$$$$$$$$$$$
+              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # #$$$$$$$$$$$$$
+              "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any predict() emitted above could have originated inside training/metrics/validation", # #$$$$$$$$$$$$$
+              as.character(seed_i),                                                     # #$$$$$$$$$$$$$
+              as.character(i)                                                           # #$$$$$$$$$$$$$
+            ),                                                                          # #$$$$$$$$$$$$$
+            level = "important",                                                        # #$$$$$$$$$$$$$
+            verbose = verbose,                                                          # #$$$$$$$$$$$$$
+            verboseLow = verboseLow,                                                    # #$$$$$$$$$$$$$
+            debug = debug                                                               # #$$$$$$$$$$$$$
+          )                                                                             # #$$$$$$$$$$$$$
+        }                                                                               # #$$$$$$$$$$$$$
         
         per_seed <- NULL
         aggregate_tmp <- NULL
+        
         if (!is.null(prediction_matrix)) {
-          .evoke_predict_begin(
-            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
-            why   = "TEMP evaluation on prediction_data: ddesonn_predict(aggregate='none', type='response')",
-            seed  = seed_i,
-            run_index = i
-          )
           
-          tpred <- ddesonn_predict(                                                                   #$$$$$$$$$$$$$
-            tmp_model,                                                                                #$$$$$$$$$$$$$
-            prediction_matrix,                                                                        #$$$$$$$$$$$$$
-            aggregate = "none",                                                                       #$$$$$$$$$$$$$
-            type = "response",                                                                        #$$$$$$$$$$$$$
-            verbose = verbose,                                                                        #$$$$$$$$$$$$$
-            verboseLow = verboseLow,                                                                  #$$$$$$$$$$$$$
-            debug = debug                                                                             #$$$$$$$$$$$$$
-          )                                                                                            #$$$$$$$$$$$$$
+          if (isTRUE(debug)) {                                                          # #$$$$$$$$$$$$$
+            .evoke_predict_begin(                                                       # #$$$$$$$$$$$$$
+              where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
+              why   = "TEMP evaluation on prediction_data: ddesonn_predict(aggregate='none', type='response')",
+              seed  = seed_i,
+              run_index = i
+            )
+          }                                                                             # #$$$$$$$$$$$$$
+          
+          tpred <- ddesonn_predict(                                                     #$$$$$$$$$$$$$
+            tmp_model,                                                                  #$$$$$$$$$$$$$
+            prediction_matrix,                                                          #$$$$$$$$$$$$$
+            aggregate = "none",                                                         #$$$$$$$$$$$$$
+            type = "response",                                                          #$$$$$$$$$$$$$
+            verbose = verbose,                                                          #$$$$$$$$$$$$$
+            verboseLow = verboseLow,                                                    #$$$$$$$$$$$$$
+            debug = debug                                                               #$$$$$$$$$$$$$
+          )                                                                             #$$$$$$$$$$$$$
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
           
-          .evoke_predict_end(
-            where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
-            why   = "TEMP evaluation finished",
-            seed  = seed_i,
-            run_index = i
-          )
+          if (isTRUE(debug)) {                                                          # #$$$$$$$$$$$$$
+            .evoke_predict_end(                                                         # #$$$$$$$$$$$$$
+              where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
+              why   = "TEMP evaluation finished",
+              seed  = seed_i,
+              run_index = i
+            )
+          }                                                                             # #$$$$$$$$$$$$$
         }
         
         temp_list[[iter]] <- list(iteration = iter, model = tmp_model, per_seed = per_seed, aggregate = aggregate_tmp)
@@ -3966,13 +3994,21 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
         
         removed <- prune_network_from_main(mdl, target_metric)
         added <- list(model = mdl, slot = NULL, serial = NULL)
+        
         if (!is.null(removed)) {
-          added <- add_network_to_main(mdl, tmp_model, iteration_index = iter, target_metric_name = target_metric, worst_slot = removed$worst_slot)
+          added <- add_network_to_main(
+            mdl, tmp_model,
+            iteration_index = iter,
+            target_metric_name = target_metric,
+            worst_slot = removed$worst_slot
+          )
           mdl <- added$model
         }
+        
         log_tables <- append_movement_entries(log_tables, iter, removed, added$slot, added$serial)
         log_tables <- record_main_snapshot(log_tables, iteration = iter, phase = "main_after")
       }
+      
       temp_summary <- temp_list
     }
     
@@ -3982,31 +4018,36 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     
     if (!is.null(prediction_matrix)) {
       if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
-        .evoke_predict_begin(
-          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
-          why   = "Recompute main predictions after TEMP-based mutation: ddesonn_predict() calls net$predict()",
-          seed  = seed_i,
-          run_index = i
-        )
         
-        preds <- ddesonn_predict(                                                                     #$$$$$$$$$$$$$
-          mdl,                                                                                         #$$$$$$$$$$$$$
-          prediction_matrix,                                                                          #$$$$$$$$$$$$$
-          aggregate = aggregate,                                                                       #$$$$$$$$$$$$$
-          type = prediction_type,                                                                      #$$$$$$$$$$$$$
-          threshold = threshold,                                                                       #$$$$$$$$$$$$$
-          verbose = verbose,                                                                           #$$$$$$$$$$$$$
-          verboseLow = verboseLow,                                                                     #$$$$$$$$$$$$$
-          debug = debug                                                                                #$$$$$$$$$$$$$
-        )                                                                                              #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
+          .evoke_predict_begin(                                                         # #$$$$$$$$$$$$$
+            where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
+            why   = "Recompute main predictions after TEMP-based mutation: ddesonn_predict() calls net$predict()",
+            seed  = seed_i,
+            run_index = i
+          )
+        }                                                                               # #$$$$$$$$$$$$$
+        
+        preds <- ddesonn_predict(                                                       #$$$$$$$$$$$$$
+          mdl,                                                                          #$$$$$$$$$$$$$
+          prediction_matrix,                                                            #$$$$$$$$$$$$$
+          aggregate = aggregate,                                                        #$$$$$$$$$$$$$
+          type = prediction_type,                                                       #$$$$$$$$$$$$$
+          threshold = threshold,                                                        #$$$$$$$$$$$$$
+          verbose = verbose,                                                            #$$$$$$$$$$$$$
+          verboseLow = verboseLow,                                                      #$$$$$$$$$$$$$
+          debug = debug                                                                 #$$$$$$$$$$$$$
+        )                                                                               #$$$$$$$$$$$$$
         main_pred <- preds
         
-        .evoke_predict_end(
-          where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
-          why   = "Post-TEMP main prediction finished",
-          seed  = seed_i,
-          run_index = i
-        )
+        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
+          .evoke_predict_end(                                                           # #$$$$$$$$$$$$$
+            where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
+            why   = "Post-TEMP main prediction finished",
+            seed  = seed_i,
+            run_index = i
+          )
+        }                                                                               # #$$$$$$$$$$$$$
       }
     }
     
@@ -4034,6 +4075,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       predictions = run_predictions
     )
   })
+  
   
   # ============================================================
   # SECTION: Aggregate across seeds (if prediction_matrix provided)
