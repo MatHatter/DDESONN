@@ -1056,7 +1056,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     return(list(ok = FALSE, reason = "no test predictions returned"))
   }
   mode <- tolower(classification_mode)
-  targs <- .build_targets(y_test, n, ncol(preds), mode)
+  targs <- .build_targets(y_test, n, ncol(preds), mode, debug = FALSE)
   labels_for_loss <- if (identical(mode, "binary")) {
     matrix(as.numeric(targs$y), ncol = 1L)
   } else {

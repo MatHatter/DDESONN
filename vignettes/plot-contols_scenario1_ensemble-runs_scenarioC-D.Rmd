@@ -250,13 +250,13 @@ res_scenarioC_s1 <- ddesonn_run(
     loss_type            = "CrossEntropy",
 
     validation_metrics     = TRUE,
-    num_epochs             = 360,
+    num_epochs             = 3,
     final_summary_decimals = 6L,
 
     # ========================================================
     # SECTION: output_controls
     # ========================================================
-    viewTables = TRUE,
+    viewTables = FALSE,
     debug      = FALSE,
     verboseLow = FALSE,
     browse     = FALSE,

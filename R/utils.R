@@ -73,8 +73,14 @@ ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {  #$$$$$$$$$
   ggplot2::theme_minimal(base_size = base_size) +  #$$$$$$$$$$$$$
     ggplot2::theme(  #$$$$$$$$$$$$$
       text = ggplot2::element_text(size = base_size),  #$$$$$$$$$$$$$
-      plot.title = ggplot2::element_text(hjust = 0.5, size = title_size)  #$$$$$$$$$$$$$
+      plot.title = ggplot2::element_text(hjust = 0.5, size = title_size, lineheight = 1.05, margin = ggplot2::margin(b = 8)),  #$$$$$$$$$$$$$
+      plot.margin = ggplot2::margin(t = 12, r = 8, b = 8, l = 8)  #$$$$$$$$$$$$$
     )  #$$$$$$$$$$$$$
+}  #$$$$$$$$$$$$$
+
+ddesonn_wrap_plot_title <- function(title, width = 55L) {  #$$$$$$$$$$$$$
+  if (is.null(title) || !length(title) || !nzchar(title[1])) return(title)  #$$$$$$$$$$$$$
+  paste(strwrap(as.character(title[1]), width = as.integer(width)), collapse = "\n")  #$$$$$$$$$$$$$
 }  #$$$$$$$$$$$$$
 
 
@@ -504,10 +510,11 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
   else v
 }
 
-.build_targets <- function(labels, n, K, CLASSIFICATION_MODE) {
+.build_targets <- function(labels, n, K, CLASSIFICATION_MODE, debug = FALSE) {
   lv <- .align_len(.extract_vec(labels), n)
-  cat("[dbg] targets: CLASSIFICATION_MODE =", CLASSIFICATION_MODE, "\n")
-  cat("[dbg] targets: labels class =", paste(class(labels), collapse=","), " | lv length =", length(lv), "\n")
+  dbg <- isTRUE(debug)
+  if (dbg) cat("[dbg] targets: CLASSIFICATION_MODE =", CLASSIFICATION_MODE, "\n")
+  if (dbg) cat("[dbg] targets: labels class =", paste(class(labels), collapse=","), " | lv length =", length(lv), "\n")
   
   if (identical(CLASSIFICATION_MODE, "multiclass")) {
     stopifnot(K >= 2)
@@ -515,17 +522,17 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
         all(labels[seq_len(n), , drop=FALSE] %in% c(0,1))) {
       Y <- matrix(as.numeric(labels[seq_len(n), , drop=FALSE]), n, K)
       y_idx <- max.col(Y, ties.method = "first")
-      cat("[dbg] targets: using provided one-hot (nxK)\n")
+      if (dbg) cat("[dbg] targets: using provided one-hot (nxK)\n")
       return(list(Y=Y, y_idx=y_idx))
     } else {
       f <- if (is.factor(lv)) lv else factor(lv)
       idx <- as.integer(f)
       L <- nlevels(f)
       if (L > K) {
-        cat(sprintf("[dbg] targets: L=%d > K=%d, truncating indices > K to K\n", L, K))
+        if (dbg) cat(sprintf("[dbg] targets: L=%d > K=%d, truncating indices > K to K\n", L, K))
         idx[idx > K] <- K
       }
-      cat("[dbg] targets: factor levels L =", L, " | head idx =", paste(utils::head(idx,6), collapse=", "), "\n")
+      if (dbg) cat("[dbg] targets: factor levels L =", L, " | head idx =", paste(utils::head(idx,6), collapse=", "), "\n")
       # use your global one_hot_from_ids
       return(list(Y=one_hot_from_ids(idx, K, N=n), y_idx=idx))
     }
@@ -540,11 +547,11 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
     }
     y[is.na(y)] <- 0L
     y <- pmin(pmax(as.numeric(y), 0), 1)
-    cat("[dbg] targets: binary y summary -> mean=", mean(y), " | sum=", sum(y), "\n")
+    if (dbg) cat("[dbg] targets: binary y summary -> mean=", mean(y), " | sum=", sum(y), "\n")
     return(list(y=y))
     
   } else if (identical(CLASSIFICATION_MODE, "regression")) {
-    cat("[dbg] targets: regression path | n=", n, " K=", K, "\n")
+    if (dbg) cat("[dbg] targets: regression path | n=", n, " K=", K, "\n")
     
     if (is.matrix(labels) || is.data.frame(labels)) {
       Ytmp <- suppressWarnings(matrix(as.numeric(as.matrix(labels)),
@@ -555,7 +562,7 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
     }
     
     if (all(is.na(Ytmp))) {
-      cat("[dbg] targets: all NA after coercion; filling zeros\n")
+      if (dbg) cat("[dbg] targets: all NA after coercion; filling zeros\n")
       Ytmp <- matrix(0, nrow = max(1L, nrow(Ytmp)), ncol = max(1L, ncol(Ytmp)))
     }
     
@@ -577,8 +584,8 @@ lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, look
     }
     
     storage.mode(Ytmp) <- "double"
-    cat("[dbg] targets: regression Y dim ->", paste(dim(Ytmp), collapse="x"),
-        " | summary mean=", mean(Ytmp), "\n")
+    if (dbg) cat("[dbg] targets: regression Y dim ->", paste(dim(Ytmp), collapse="x"),
+                 " | summary mean=", mean(Ytmp), "\n")
     
     # provide both Y and y for downstream compatibility
     return(list(Y = Ytmp, y = as.numeric(Ytmp[,1])))

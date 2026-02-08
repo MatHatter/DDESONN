@@ -1568,9 +1568,10 @@ SONN <- R6::R6Class(
           verboseLow = verboseLow
         )
       }
-      
+      if (isTRUE(debug) || isTRUE(verbose)) {
       print("----------------------------------------train_network-begin----------------------------------------")
-      start_time <- Sys.time()
+      }
+        start_time <- Sys.time()
       
       # ------------------------------------------------------------------
       # Local copies of the training split
@@ -1687,7 +1688,7 @@ SONN <- R6::R6Class(
           }
           
           # Build targets like in validation
-          targs_tr <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE)
+          targs_tr <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE, debug = isTRUE(debug))
           
           # Compute metrics by mode
           if (identical(CLASSIFICATION_MODE, "multiclass")) {
@@ -1914,7 +1915,7 @@ SONN <- R6::R6Class(
           }  #$$$$$$$$$$$$$
           
           if (identical(CLASSIFICATION_MODE, "multiclass")) {
-            targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE)
+            targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE, debug = isTRUE(debug))
             stopifnot(K >= 2)
             pred_idx <- max.col(probs_train, ties.method = "first")
             if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
@@ -1935,7 +1936,7 @@ SONN <- R6::R6Class(
             train_loss_log <- c(train_loss_log, train_loss_blockA)
             
           } else if (identical(CLASSIFICATION_MODE, "binary")) {
-            targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE)
+            targs <- .build_targets(labels_epoch, n, K, CLASSIFICATION_MODE, debug = isTRUE(debug))
             stopifnot(K == 1)
             preds_bin_blockA <- as.integer(probs_train >= 0.5)
             if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
@@ -2041,9 +2042,9 @@ SONN <- R6::R6Class(
               
               p <- ggplot2::ggplot(df_acc, ggplot2::aes(x = Epoch)) +                          #$$$$$$$$$$$$$
                 ggplot2::geom_line(ggplot2::aes(y = Accuracy),
-                                   color = "#3A7CA5", linewidth = 1) +
+                                   color = "#3A7CA5", linewidth = .78) +
                 ggplot2::geom_line(ggplot2::aes(y = Loss),
-                                   color = "#E63946", linewidth = 1) +
+                                   color = "#E63946", linewidth = .78) +
                 ggplot2::labs(
                   title = paste(plot_title_prefix, "-- Training Accuracy & Loss"),
                   y = "Value"
@@ -2076,9 +2077,9 @@ SONN <- R6::R6Class(
               
               p <- ggplot2::ggplot(df_sat, ggplot2::aes(x = Epoch)) +                          #$$$$$$$$$$$$$
                 ggplot2::geom_line(ggplot2::aes(y = MeanOutput),
-                                   color = "#9A348E", linewidth = 1) +
+                                   color = "#9A348E", linewidth = .78) +
                 ggplot2::geom_line(ggplot2::aes(y = StdOutput),
-                                   color = "#C77DFF", linewidth = 1) +
+                                   color = "#C77DFF", linewidth = .78) +
                 ggplot2::labs(
                   title = paste(plot_title_prefix, "-- Output Mean & Std Dev"),
                   y = "Output Value"
@@ -2298,7 +2299,7 @@ SONN <- R6::R6Class(
                 message("WARN: max_weight_plot: no finite MaxWeight values yet; skip")  #$$$$$$$$$$$$$
               } else {                                                          #$$$$$$$$$$$$$
                 p <- ggplot2::ggplot(df_maxw_plot, ggplot2::aes(x = Epoch, y = MaxWeight)) +  #$$$$$$$$$$$$$
-                  ggplot2::geom_line(color = "#E4572E", linewidth = 1, na.rm = TRUE) +       #$$$$$$$$$$$$$
+                  ggplot2::geom_line(color = "#E4572E", linewidth = .78, na.rm = TRUE) +       #$$$$$$$$$$$$$
                   ggplot2::labs(
                     title = paste(plot_title_prefix, "-- Max Weight Magnitude Over Time"),
                     y = "Max |Weight|"
@@ -2463,7 +2464,7 @@ SONN <- R6::R6Class(
               last_val_predict <- predicted_output_val
               if (isTRUE(verbose)) cat("[DBG] Captured LAST-epoch validation probs/labels and predict() list\n")  #$$$$$$$$$$$$$
               
-              targs_val <- .build_targets(y_val_epoch, n_eff, K_val, CLASSIFICATION_MODE)
+              targs_val <- .build_targets(y_val_epoch, n_eff, K_val, CLASSIFICATION_MODE, debug = isTRUE(debug))
               
               if (identical(CLASSIFICATION_MODE, "multiclass")) {
                 stopifnot(K_val >= 2)
@@ -2699,7 +2700,7 @@ SONN <- R6::R6Class(
               last_train_predict  <- predicted_output_train
               if (isTRUE(verbose)) cat("[DBG] Captured LAST-epoch training probs/labels and predict() list\n")  #$$$$$$$$$$$$$
               
-              targs_tr <- .build_targets(y_tr_epoch, n_eff_tr, K_tr, CLASSIFICATION_MODE)
+              targs_tr <- .build_targets(y_tr_epoch, n_eff_tr, K_tr, CLASSIFICATION_MODE, debug = isTRUE(debug))
               
               if (identical(CLASSIFICATION_MODE, "multiclass")) {
                 stopifnot(K_tr >= 2)
@@ -3053,12 +3054,17 @@ SONN <- R6::R6Class(
         )
         
         output_file <- file.path(plots_dir, paste0(fname_prefixer("loss_plot"), ".png"))
-        cat("Saving to:", normalizePath(output_file, mustWork = FALSE), "\n")
+        
+        if (isTRUE(debug)) {
+          cat("Saving to:", normalizePath(output_file, mustWork = FALSE), "\n")
+        }
         
         if (capabilities("cairo")) png(output_file, 900, 650, res = 96, type = "cairo-png")
         else png(output_file, 900, 650, res = 96)
         
+        if (isTRUE(debug)) {
         cat("Device before:", dev.cur(), "\n")
+        }
         
         plot(
           losses, type = "l",
@@ -3075,16 +3081,19 @@ SONN <- R6::R6Class(
         label_y <- usr[4] - 0.05 * diff(usr[3:4])
         
         eq <- paste("Optimal Epoch:", optimal_epoch,
-                    "\nLoss:", round(losses[optimal_epoch], 4))
+                    "| Loss:", round(losses[optimal_epoch], 4))  # #$$$$$$$$$$$$$
         
-        points(label_x - 0.015 * diff(usr[1:2]), label_y,
+        points(label_x - 0.06 * diff(usr[1:2]), label_y,                 # #$$$$$$$$$$$$$
                pch = 16, col = "limegreen", cex = 1.2, xpd = TRUE)
         
         text(label_x, label_y, eq,
-             pos = 2, col = "limegreen", adj = c(0, 1), xpd = TRUE)
+             pos = 2, col = "limegreen", adj = c(0, 0.5), xpd = TRUE)     # #$$$$$$$$$$$$$
         
         dev.off()
+        
+        if (isTRUE(debug)) {
         cat("Device after:", dev.cur(), "\n")
+        }
         
         fi <- file.info(output_file)
         cat("Saved OK. Size:", fi$size, "bytes\n")
@@ -4036,7 +4045,7 @@ DDESONN <- R6::R6Class(
             # ============================================================
             # EvaluatePredictionsReport config normalization (Scenario 2)   #$$$$$$$$$$$$$
             # - Canonical config object with defaults + legacy aliases      #$$$$$$$$$$$$$
-            # - No conflicting fallbacks or overwrites later                #$$$$$$$$$$$$$
+            # - IMPORTANT: verbose comes ONLY from ddesonn_run(verbose=...) #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
             .coalesce_eval <- function(x, y) if (is.null(x) || !length(x)) y else x  #$$$$$$$$$$$$$
             
@@ -4061,7 +4070,7 @@ DDESONN <- R6::R6Class(
               plot_pr            = FALSE,
               show_auprc         = TRUE,
               viewAllPlots       = FALSE,
-              verbose            = NULL,  #$$$$$$$$$$$$$
+              # verbose            = NULL,  # #$$$$$$$$$$$$$ REMOVE: verbose is not controlled here
               saveEnabled        = TRUE,
               export_excel       = FALSE,
               save_rds           = FALSE,
@@ -4069,31 +4078,34 @@ DDESONN <- R6::R6Class(
               output_root        = NULL
             )
             
-            eval_cfg <- utils::modifyList(eval_cfg_defaults, eval_cfg_base, keep.null = TRUE)            #$$$$$$$$$$$$$
-            if (is.list(eval_cfg_raw)) {                                                                 #$$$$$$$$$$$$$
-              raw_accuracy_plot <- .coalesce_eval(eval_cfg_raw$accuracy_plot, eval_cfg_raw$accuracy_plots)  #$$$$$$$$$$$$$
-              raw_plot_roc <- .coalesce_eval(eval_cfg_raw$plot_roc, eval_cfg_raw$roc_curve)                  #$$$$$$$$$$$$$
-              raw_plot_pr  <- .coalesce_eval(eval_cfg_raw$plot_pr,  eval_cfg_raw$pr_curve)                   #$$$$$$$$$$$$$
-              eval_cfg_mapped <- list(                                                                   #$$$$$$$$$$$$$
+            # #$$$$$$$$$$$$$ FIX: strip any verbose keys from configs so they can't override user verbose
+            if (is.list(eval_cfg_base) && "verbose" %in% names(eval_cfg_base)) eval_cfg_base$verbose <- NULL  # #$$$$$$$$$$$$$
+            if (is.list(eval_cfg_raw)  && "verbose" %in% names(eval_cfg_raw))  eval_cfg_raw$verbose  <- NULL  # #$$$$$$$$$$$$$
+            
+            eval_cfg <- utils::modifyList(eval_cfg_defaults, eval_cfg_base, keep.null = TRUE)                 #$$$$$$$$$$$$$
+            if (is.list(eval_cfg_raw)) {                                                                      #$$$$$$$$$$$$$
+              raw_accuracy_plot <- .coalesce_eval(eval_cfg_raw$accuracy_plot, eval_cfg_raw$accuracy_plots)    #$$$$$$$$$$$$$
+              raw_plot_roc <- .coalesce_eval(eval_cfg_raw$plot_roc, eval_cfg_raw$roc_curve)                   #$$$$$$$$$$$$$
+              raw_plot_pr  <- .coalesce_eval(eval_cfg_raw$plot_pr,  eval_cfg_raw$pr_curve)                    #$$$$$$$$$$$$$
+              
+              eval_cfg_mapped <- list(                                                                        #$$$$$$$$$$$$$
                 accuracy_plot      = .coalesce_eval(raw_accuracy_plot, eval_cfg$accuracy_plot),
                 accuracy_plot_mode = .coalesce_eval(eval_cfg_raw$accuracy_plot_mode, eval_cfg$accuracy_plot_mode),
                 plot_roc           = .coalesce_eval(raw_plot_roc, eval_cfg$plot_roc),
                 plot_pr            = .coalesce_eval(raw_plot_pr, eval_cfg$plot_pr),
                 show_auprc         = .coalesce_eval(eval_cfg_raw$show_auprc, eval_cfg$show_auprc),
                 viewAllPlots       = .coalesce_eval(eval_cfg_raw$viewAllPlots, eval_cfg$viewAllPlots),
-                verbose            = .coalesce_eval(eval_cfg_raw$verbose, eval_cfg$verbose),
+                # verbose            = .coalesce_eval(eval_cfg_raw$verbose, eval_cfg$verbose),  # #$$$$$$$$$$$$$ REMOVE
                 saveEnabled        = .coalesce_eval(eval_cfg_raw$saveEnabled, eval_cfg$saveEnabled),
                 export_excel       = .coalesce_eval(eval_cfg_raw$export_excel, eval_cfg$export_excel),
                 save_rds           = .coalesce_eval(eval_cfg_raw$save_rds, eval_cfg$save_rds),
                 rds_name           = .coalesce_eval(eval_cfg_raw$rds_name, eval_cfg$rds_name),
                 output_root        = .coalesce_eval(eval_cfg_raw$output_root, eval_cfg$output_root)
               )
-              eval_cfg <- utils::modifyList(eval_cfg, eval_cfg_mapped, keep.null = TRUE)                 #$$$$$$$$$$$$$
+              eval_cfg <- utils::modifyList(eval_cfg, eval_cfg_mapped, keep.null = TRUE)                      #$$$$$$$$$$$$$
             }
-            if (is.null(eval_cfg$verbose)) eval_cfg$verbose <- verbose                                    #$$$$$$$$$$$$$
             
-            viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                                                #$$$$$$$$$$$$$
-            verbose_eval <- isTRUE(eval_cfg$verbose)                                                     #$$$$$$$$$$$$$
+            viewAllPlots <- isTRUE(eval_cfg$viewAllPlots)                                                     #$$$$$$$$$$$$$
             
             # ============================================================
             # Build args list -- EVERYTHING inside list (your preference)    #$$$$$$$$$$$$$
@@ -4104,34 +4116,35 @@ DDESONN <- R6::R6Class(
               CLASSIFICATION_MODE       = CLASSIFICATION_MODE,
               probs                     = single_predicted_output,
               predicted_outputAndTime   = single_predicted_outputAndTime,
-              threshold_function        = threshold_function,   # kept for signature compatibility
+              threshold_function        = threshold_function,
               all_best_val_probs        = best_val_probs,
               all_best_val_labels       = best_val_labels,
               
-              verbose                   = verbose_eval,                                                 #$$$$$$$$$$$$$
+              # #$$$$$$$$$$$$$ FIX: verbose received ONCE from user ddesonn_run(verbose=...)
+              verbose                   = isTRUE(verbose),                                                     #$$$$$$$$$$$$$
+              
               tuned_threshold_override  = best_threshold,
               SONN                      = self$ensemble[[i]],
               
-              viewAllPlots              = viewAllPlots,                                                  #$$$$$$$$$$$$$
-              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot),                                #$$$$$$$$$$$$$
-              accuracy_plot_mode        = eval_cfg$accuracy_plot_mode,                                    #$$$$$$$$$$$$$
-              plot_roc                  = isTRUE(eval_cfg$plot_roc),                                      #$$$$$$$$$$$$$
-              plot_pr                   = isTRUE(eval_cfg$plot_pr),                                       #$$$$$$$$$$$$$
-              show_auprc                = isTRUE(eval_cfg$show_auprc),                                    #$$$$$$$$$$$$$
+              viewAllPlots              = viewAllPlots,
+              accuracy_plot             = isTRUE(eval_cfg$accuracy_plot),
+              accuracy_plot_mode        = eval_cfg$accuracy_plot_mode,
+              plot_roc                  = isTRUE(eval_cfg$plot_roc),
+              plot_pr                   = isTRUE(eval_cfg$plot_pr),
+              show_auprc                = isTRUE(eval_cfg$show_auprc),
               
-              saveEnabled               = isTRUE(eval_cfg$saveEnabled),                                   #$$$$$$$$$$$$$
+              saveEnabled               = isTRUE(eval_cfg$saveEnabled),
               export_excel              = isTRUE(eval_cfg$export_excel),
               save_rds                  = isTRUE(eval_cfg$save_rds),
-              rds_name                  = eval_cfg$rds_name                                               #$$$$$$$$$$$$$
+              rds_name                  = eval_cfg$rds_name
             )
             
-            if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root             #$$$$$$$$$$$$$
+            if (!is.null(eval_cfg$output_root)) eval_args$output_root <- eval_cfg$output_root                  #$$$$$$$$$$$$$
             
             # ============================================================
-            # DEBUG -- MUST key off eval_args$verbose (not outer verbose)    #$$$$$$$$$$$$$
+            # DEBUG print: should be debug/verboseLow, NOT verbose           #$$$$$$$$$$$$$
             # ============================================================  #$$$$$$$$$$$$$
-            if (isTRUE(eval_args$verbose)) {
-              
+            if (isTRUE(debug)) {                                                                               #$$$$$$$$$$$$$
               cat("\n[EvalReport] cfg_source=",
                   if (!is.null(plot_controls) && is.list(plot_controls) && length(plot_controls) &&
                       !is.null(plot_controls$evaluate_report) && is.list(plot_controls$evaluate_report)) {
@@ -4159,7 +4172,7 @@ DDESONN <- R6::R6Class(
                   "\n", sep = "")
             }
             
-            eval_result <- do.call(EvaluatePredictionsReport, eval_args)                                  #$$$$$$$$$$$$$
+            eval_result <- do.call(EvaluatePredictionsReport, eval_args)                                        #$$$$$$$$$$$$$
             
             if (is.finite(best_threshold)) {
               eval_result$best_threshold <- best_threshold
@@ -4175,6 +4188,7 @@ DDESONN <- R6::R6Class(
               misclassified = NULL
             )
           }
+          
           
           
           safe_ncol <- function(x) {
@@ -4213,15 +4227,24 @@ DDESONN <- R6::R6Class(
           }
           
           if (best_weights_on_latest_weights_off && !is.null(best_val_probs) && !is.null(best_val_labels)) {
+            
             probs <- best_val_probs
             targets <- best_val_labels
             prediction_time <- best_val_prediction_time
-            cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
+            
+            if (isTRUE(debug) || isTRUE(verbose) || isTRUE(verboseLow)) {             #$$$$$$$$$$$$$
+              cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
+            }                                                                         #$$$$$$$$$$$$$
+            
           } else {
+            
             probs <- single_predicted_output
             targets <- labels
             prediction_time <- single_prediction_time
-            cat("[calculate_performance] Using last-epoch predictions\n")
+            
+            if (isTRUE(debug) || isTRUE(verbose) || isTRUE(verboseLow)) {             #$$$$$$$$$$$$$
+              cat("[calculate_performance] Using last-epoch predictions\n")
+            }                                                                         #$$$$$$$$$$$$$
           }
           
           performance_list[[i]] <- calculate_performance(
@@ -4271,13 +4294,16 @@ DDESONN <- R6::R6Class(
           
           relevance_metric <- relevance_list[[i]]$metrics
           
-          if (ensemble_number < 1 && length(self$ensemble) >= 1 || (verbose && (ensemble_number < 1 && length(self$ensemble) >= 1))) {
-            if (verbose || viewTables) {
-              message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
-              emit_table(performance_metric, title = "[PERFORMANCE metrics]", verbose = verbose, viewTables = viewTables)
-              emit_table(relevance_metric,   title = "[RELEVANCE metrics]",   verbose = verbose, viewTables = viewTables)
-            }
-          }
+          # ============================================================
+          # SECTION: Metrics print gate (ensemble_number < 1)            #$$$$$$$$$$$$$
+          # ============================================================ #$$$$$$$$$$$$$
+          
+          if ((ensemble_number < 1) && (length(self$ensemble) >= 1) && (isTRUE(verbose) || isTRUE(verboseLow) || isTRUE(viewTables))) {  #$$$$$$$$$$$$$
+            message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
+            emit_table(performance_metric, title = "[PERFORMANCE metrics]", verbose = verbose, viewTables = viewTables)
+            emit_table(relevance_metric,   title = "[RELEVANCE metrics]",   verbose = verbose, viewTables = viewTables)
+          }  #$$$$$$$$$$$$$
+          
         }
         
         self$store_metadata(
@@ -4291,7 +4317,8 @@ DDESONN <- R6::R6Class(
           X = NULL, y = NULL, X_test_scaled = NULL, y_test = NULL, all_weights, all_biases, artifact_names, artifact_paths,
           validation_metrics = validation_metrics, single_activation_functions, single_activation_functions_predict,
           self$dropout_rates, self$hidden_sizes, self$ML_NN, best_val_prediction_time, best_train_acc,
-          best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, NULL
+          best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs = NULL,
+          verbose = isTRUE(verbose), verboseLow = isTRUE(verboseLow), debug = isTRUE(debug)
         )
       }
       
@@ -4920,6 +4947,7 @@ DDESONN <- R6::R6Class(
           } else {
             plot_data_high$Title <- paste("Boxplot for", metric)
           }
+          plot_data_high$Title <- ddesonn_wrap_plot_title(plot_data_high$Title[1], width = 52L)
           
           high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
@@ -4928,8 +4956,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 14) +                 #$$$$$$$$$$$$$
-            ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"))  #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 #$$$$$$$$$$$$$
+            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  #$$$$$$$$$$$$$
           
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
@@ -5051,6 +5079,7 @@ DDESONN <- R6::R6Class(
           } else {
             plot_data_low$Title <- paste("Boxplot for", metric)
           }
+          plot_data_low$Title <- ddesonn_wrap_plot_title(plot_data_low$Title[1], width = 52L)
           
           low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
             ggplot2::geom_boxplot() +
@@ -5059,8 +5088,8 @@ DDESONN <- R6::R6Class(
               y = "Value"
             ) +
             ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 14) +                 #$$$$$$$$$$$$$
-            ggplot2::theme(plot.title = ggplot2::element_text(size = 14, face = "bold"))  #$$$$$$$$$$$$$
+            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 #$$$$$$$$$$$$$
+            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  #$$$$$$$$$$$$$
           
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
@@ -5093,7 +5122,7 @@ DDESONN <- R6::R6Class(
       return(low_mean_plots)
     },
     
-    store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs) {
+    store_metadata = function(predicted_outputAndTime, actual_values, do_ensemble, input_size, output_size, N, total_num_samples, num_test_samples, num_training_samples, num_validation_samples, num_networks, update_weights, update_biases, lr, lambda, num_epochs, run_id, ensemble_number, model_iter_num, model_serial_num, threshold, CLASSIFICATION_MODE, predicted_output, preprocessScaledData, X, y, X_test_scaled, y_test, all_weights, all_biases, artifact_names, artifact_paths, validation_metrics, activation_functions, activation_functions_predict, dropout_rates, hidden_sizes, ML_NN, best_val_prediction_time, best_train_acc, best_epoch_train, best_train_loss, best_epoch_train_loss, best_val_acc, best_val_epoch, performance_metric, relevance_metric, plot_epochs, verbose = FALSE, verboseLow = FALSE, debug = FALSE) {
 
 
       # ---------------- helpers (lightweight; keep most original structure) ----------------
@@ -5403,17 +5432,23 @@ DDESONN <- R6::R6Class(
       metadata_temp_ensemble <- list()
 
       # --- Store metadata by ensemble type (preserved) ---
+      
       if (ensemble_number <= 1) {
-        print(paste("Storing metadata for main ensemble model", model_iter_num, "as", model_serial_num))
-        assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, "_metadata"),
-               metadata, envir = .GlobalEnv)
+        
+        if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
+          print(paste("Storing metadata for main ensemble model", model_iter_num, "as", model_serial_num))
+        }                                                                         #$$$$$$$$$$$$$
+        assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .GlobalEnv)
+        
       } else {
-        print(paste("Storing metadata for temp ensemble model", model_iter_num, "as", model_serial_num))
-        assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, "_metadata"),
-               metadata, envir = .GlobalEnv)
+        
+        if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
+          print(paste("Storing metadata for temp ensemble model", model_iter_num, "as", model_serial_num))
+        }                                                                         #$$$$$$$$$$$$$
+        assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .GlobalEnv)
       }
+      
     }
-
 
 
   )
