@@ -46,14 +46,36 @@ ddesonn_debug <- function(msg, debug = FALSE) {  #$$$$$$$$$$$$$
 }  #$$$$$$$$$$$$$
 
 ddesonn_viewTables <- function(x, title = NULL, ...) {  #$$$$$$$$$$$$$
-  vt <- get0("viewTables", inherits = TRUE, ifnotfound = NULL)  #$$$$$$$$$$$$$
-  if (is.function(vt)) {  #$$$$$$$$$$$$$
-    return(vt(x, title = title, ...))  #$$$$$$$$$$$$$
-  }  #$$$$$$$$$$$$$
   if (!is.null(title)) message(title)  #$$$$$$$$$$$$$
-  print(x)  #$$$$$$$$$$$$$
+
+  # Single authoritative renderer for table-like output.
+  # viewTables=TRUE should always produce polished tabular formatting.
+  if (is.data.frame(x) || is.matrix(x)) {
+    if (!requireNamespace("knitr", quietly = TRUE)) {
+      stop(
+        "`viewTables = TRUE` requires the 'knitr' package for polished table rendering.",
+        call. = FALSE
+      )
+    }
+
+    fmt <- if (isTRUE(getOption("knitr.in.progress")) && isTRUE(knitr::is_html_output())) {
+      "html"
+    } else if (isTRUE(getOption("knitr.in.progress")) && isTRUE(knitr::is_latex_output())) {
+      "latex"
+    } else {
+      "pipe"
+    }
+
+    tbl <- knitr::kable(x, format = fmt, ...)
+    print(tbl)
+    return(invisible(x))
+  }
+
+  # Non-tabular objects are printed as-is.
+  print(x, ...)
   invisible(x)  #$$$$$$$$$$$$$
 }  #$$$$$$$$$$$$$
+
 
 
 # ============================================================  #$$$$$$$$$$$$$
@@ -3728,10 +3750,8 @@ emit_table <- function(x,
   truncated <- n_rows > max_rows
   to_show <- if (truncated) utils::head(x, max_rows) else x
   
-  message(title)
-  captured <- utils::capture.output(print(to_show))
-  for (line in captured) message(line)
-  
+  ddesonn_viewTables(to_show, title = title)
+
   if (truncated) {
     message(sprintf("... (%d of %d rows shown)", max_rows, n_rows))
   }

@@ -1028,10 +1028,24 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     }
   }
   
-  cat("# ================================================================================\n")
-  cat("# ================================= CORE METRICS =================================\n")
-  cat("# ================================================================================\n\n")
-  cat(paste(summary_lines, collapse = "\n"), "\n")
+  if (isTRUE(cfg$viewTables)) {
+    summary_tbl <- do.call(
+      rbind,
+      lapply(summary_lines[-1], function(line) {
+        key <- sub(":.*$", "", line)
+        val <- sub("^[^:]*:\\s*", "", line)
+        data.frame(Metric = key, Value = val, stringsAsFactors = FALSE)
+      })
+    )
+    cat("\n## **CORE METRICS**\n\n")
+    cat("### **Final Summary**\n")
+    ddesonn_viewTables(summary_tbl)
+  } else {
+    cat("# ================================================================================\n")
+    cat("# ================================= CORE METRICS =================================\n")
+    cat("# ================================================================================\n\n")
+    cat(paste(summary_lines, collapse = "\n"), "\n")
+  }
   options(DDESONN_LAST_SUMMARY_TS = Sys.time())
   invisible(NULL)
 }
@@ -1224,7 +1238,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
                                                y_true,
                                                prob_mat,
                                                threshold,
-                                               final_summary_decimals = NULL) {
+                                               final_summary_decimals = NULL,
+                                               viewTables = FALSE) {
   if (is.null(y_true) || is.null(prob_mat)) return(invisible(NULL))
   
   probs <- try(.as_numeric_matrix(prob_mat), silent = TRUE)
@@ -1242,15 +1257,24 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   dec <- suppressWarnings(as.integer(final_summary_decimals))                              #$$$$$$$$$$$$$
   if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          #$$$$$$$$$$$$$
   
-  cat(sprintf("\n=== %s ===\n", split_label))
-  cat("Classification Report:\n")
-  
+  if (isTRUE(viewTables)) {
+    cat(sprintf("\n### **%s**\n\n", split_label))
+    cat("**Classification Report**\n")
+  } else {
+    cat(sprintf("\n=== %s ===\n", split_label))
+    cat("Classification Report:\n")
+  }
+
   ddesonn_viewTables(                                                                 #$$$$$$$$$$$$$
     .format_report_table(report$report, digits = dec),                                #$$$$$$$$$$$$$
     na.print = ""                                                                     #$$$$$$$$$$$$$
   )                                                                                   #$$$$$$$$$$$$$
-  
-  cat("\nConfusion Matrix:\n")
+
+  if (isTRUE(viewTables)) {
+    cat("\n**Confusion Matrix**\n")
+  } else {
+    cat("\nConfusion Matrix:\n")
+  }
   
   # ============================================================
   # SECTION: Confusion Matrix (INTEGER-ONLY)  #$$$$$$$$$$$$$
@@ -1264,8 +1288,13 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   dimnames(confusion_int) <- dimnames(report$confusion)                                   #$$$$$$$$$$$$$
   ddesonn_viewTables(confusion_int, quote = FALSE)                                       #$$$$$$$$$$$$$
   
-  cat(sprintf("\n%-10s : %s\n", "AUC (ROC)", .format_report_value(report$auc, digits = dec)))
-  cat(sprintf("%-10s : %s\n", "AUPRC",     .format_report_value(report$auprc, digits = dec)))
+  if (isTRUE(viewTables)) {
+    cat(sprintf("\n**AUC (ROC):** %s\n", .format_report_value(report$auc, digits = dec)))
+    cat(sprintf("**AUPRC:** %s\n", .format_report_value(report$auprc, digits = dec)))
+  } else {
+    cat(sprintf("\n%-10s : %s\n", "AUC (ROC)", .format_report_value(report$auc, digits = dec)))
+    cat(sprintf("%-10s : %s\n", "AUPRC",     .format_report_value(report$auprc, digits = dec)))
+  }
   
   invisible(report)
 }
@@ -4275,7 +4304,8 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       y_train_vec <- .coerce_binary_labels(y_matrix)
       .emit_binary_classification_report(
         "Train", y_train_vec, train_probs$prediction, thr_used,
-        final_summary_decimals = dec_out
+        final_summary_decimals = dec_out,
+        viewTables = isTRUE(base_train_overrides$viewTables)
       )
     }
     if (!is.null(validation_data) && !is.null(validation_data$x)) {
@@ -4284,7 +4314,8 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
         y_val_vec <- .coerce_binary_labels(validation_data$y)
         .emit_binary_classification_report(
           "Validation", y_val_vec, val_probs$prediction, thr_used,
-          final_summary_decimals = dec_out
+          final_summary_decimals = dec_out,
+          viewTables = isTRUE(base_train_overrides$viewTables)
         )
       }
     }
@@ -4294,7 +4325,8 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
         y_test_vec <- .coerce_binary_labels(test_labels)
         .emit_binary_classification_report(
           "Test", y_test_vec, test_probs$prediction, thr_used,
-          final_summary_decimals = dec_out
+          final_summary_decimals = dec_out,
+          viewTables = isTRUE(base_train_overrides$viewTables)
         )
       }
     }

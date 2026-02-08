@@ -3068,10 +3068,8 @@ SONN <- R6::R6Class(
         
         plot(
           losses, type = "l",
-          main = paste("Loss Over Epochs for DDESONN", ensemble_number,
-                       "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
-          xlab = "Epoch", ylab = "Loss",
-          col = "turquoise", lwd = 2.0, adj = 0.5
+          main = paste("Loss Over Epochs for DDESONN", ensemble_number, "SONN", model_iter_num, "lr:", lr, "lambda:", self$lambda),
+          xlab = "Epoch", ylab = "Loss", col = "turquoise", lwd = 2.0, adj = 0.5
         )
         
         points(optimal_epoch, losses[optimal_epoch], col = "limegreen", pch = 16, cex = 1.3)
@@ -3096,7 +3094,10 @@ SONN <- R6::R6Class(
         }
         
         fi <- file.info(output_file)
+        
+        if (isTRUE(debug)) {
         cat("Saved OK. Size:", fi$size, "bytes\n")
+        }
         
       } else {
         cat("Skipping plot: non-finite losses.\n")
@@ -4759,7 +4760,7 @@ DDESONN <- R6::R6Class(
             }
           }
           
-          if (verbose) {
+          if (verbose || viewTables) {
             if (!is.null(perf_group_summary)) {
               emit_table(
                 perf_group_summary,

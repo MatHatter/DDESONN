@@ -10,8 +10,11 @@ knitr::opts_chunk$set(
 suppressPackageStartupMessages({
   library(dplyr)
   library(tibble)
-  library(knitr)
 })
+
+.vtbl <- function(x, title = NULL, ...) {
+  get("ddesonn_viewTables", envir = asNamespace("DDESONN"))(x, title = title, ...)
+}
 
 # Locate package data root
 hf_root <- system.file(
@@ -101,8 +104,8 @@ summary_all <- data.frame(
 round4 <- function(x) if (is.numeric(x)) round(x, 4) else x
 pretty_summary <- as.data.frame(lapply(summary_all, round4))
 
-knitr::kable(pretty_summary, caption = "DDESONN — 1000-seed summary (train/val/test)")
+.vtbl(pretty_summary, title = "DDESONN — 1000-seed summary (train/val/test)")
 
 ## ----ddesonn-merged-preview---------------------------------------------------
-knitr::kable(head(merged, 10), caption = "First 10 seeds — per-seed train/val/test accuracies")
+.vtbl(head(merged, 10), title = "First 10 seeds — per-seed train/val/test accuracies")
 
