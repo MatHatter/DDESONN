@@ -216,7 +216,7 @@ if (isTRUE(DATA_OK)) {                                           #$$$$$$$$$$$$$
 
 ## Plot Controls: Scenario 1 — Ensemble Runs — Scenario C
 
-```{r scenarioC_s1, results="asis", echo=FALSE}
+```{r scenarioC_s1, results="asis", echo=FALSE, eval=RUN_SCENARIO_C_S1}
 options(DDESONN_OUTPUT_ROOT = outC)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outC)
 
@@ -313,7 +313,7 @@ if (exists("include_saved_plots")) {
 
 ## Plot Controls: Scenario 1 — Ensemble Runs — Scenario D
 
-```{r scenarioD_s1, results="asis", echo=FALSE}
+```{r scenarioD_s1, results="asis", echo=FALSE, eval=RUN_SCENARIO_D_S1}
 options(DDESONN_OUTPUT_ROOT = outD)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
 
@@ -327,9 +327,9 @@ res_scenarioD_s1 <- ddesonn_run(
   # ENSEMBLE CONFIG
   # ----------------------------------------------------------
   do_ensemble   = TRUE,
-  num_networks = 2L,
+  num_networks  = 2L,
   num_temp_iterations = 1L,
-  seeds        = 1:1,
+  seeds         = 1:1,
 
   validation = list(x = x_valid, y = y_valid),
   test       = list(x = x_test,  y = y_test),
@@ -347,8 +347,8 @@ res_scenarioD_s1 <- ddesonn_run(
     dropout_rates        = list(0.10),
     loss_type            = "CrossEntropy",
 
-    validation_metrics = TRUE,
-    num_epochs          = 3,
+    validation_metrics     = TRUE,
+    num_epochs             = 3,
     final_summary_decimals = 6L,
 
     # ========================================================
@@ -366,7 +366,7 @@ res_scenarioD_s1 <- ddesonn_run(
     # - bridged internally to plot_controls$performance_relevance
     # ========================================================
     performance_relevance = list(
-      saveEnabled = TRUE,
+      saveEnabled  = TRUE,
       viewAllPlots = FALSE,
 
       performance_high_mean_plots = TRUE,
@@ -392,9 +392,9 @@ res_scenarioD_s1 <- ddesonn_run(
   )
 )
 
-
 include_saved_plots(
   outD,
   "Plot Controls: Scenario 1 — Ensemble Runs — Scenario D"    #$$$$$$$$$$$$$
 )
+
 ```

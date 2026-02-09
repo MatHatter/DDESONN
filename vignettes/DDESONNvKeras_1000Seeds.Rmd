@@ -202,27 +202,18 @@ if (file.exists(keras_path)) {
 
 ---
 
-## Techila notes (distributed runs)
+## Distributed execution (scaling note)
 
-These initial tables were computed locally. **Techila Distributed Computing Engine** is available again and suitable for scaling this to larger experiments; I’ll revisit running the distributed jobs after a brief environment cleanup.
+The results presented in this vignette were computed using **local execution**.
 
-**Key takeaways from the recent Techila debugging (Oct 2025):**
+For experiments involving:
 
-- Don’t mix `%dopar%` with `techila::peach()`; use **either**:
-  - register Techila as the foreach backend (`registerDoTechila(); %dopar%`), **or**
-  - call `techila::peach()` directly with `peachvector = seeds`.  
-- The foreach backend already uses `peach` internally; mixing both led to failures.  
-- Dependencies/files are sent via `.options.files` and packages via `.options.packages`; no on-worker installs.  
-- Some systems require bundling `libR.so` (e.g., for `ggplot2`) via `.options.databundles`.  
-- X11-based plotting (e.g., `png()`) was disabled for workers.  
-- `techila::init()` is unnecessary when using the foreach backend; it auto-inits/cleans up.  
-- Execution reached the workers and then hit a model-side error:
-  ```
-  Error in preprocessScaledData$target_transform :
-    $ operator is invalid for atomic vectors
-  ```
-  which is unrelated to the Techila runtime itself.
+- hundreds to thousands of randomized seeds  
+- deep models or long training horizons (many epochs)  
+- repeated sweeps across hyperparameters or architectures  
 
-You can try the refreshed workflow in **`Techila_DDESONN_MVP_Test`**. I believe a quick quota/instance cleanup is all that’s needed before scaling again.
+DDESONN can be run in distributed environments to reduce wall-clock time substantially.
+
+Techila Distributed Computing Engine is one supported option for parallelizing over seeds/experiment indices without changing model logic. The distributed tooling and development-stage scripts are intentionally documented under `inst/dev` so that this vignette remains focused on validated results and methodology.
 
 ---

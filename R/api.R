@@ -1028,24 +1028,59 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     }
   }
   
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: knitr HTML detection (for newline preservation)      #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
+  .is_knitr_html <- function() {                                                       #$$$$$$$$$$$$$
+    if (!requireNamespace("knitr", quietly = TRUE)) return(FALSE)                      #$$$$$$$$$$$$$
+    if (!isTRUE(getOption("knitr.in.progress"))) return(FALSE)                         #$$$$$$$$$$$$$
+    out <- try(knitr::is_html_output(), silent = TRUE)                                 #$$$$$$$$$$$$$
+    isTRUE(out)                                                                        #$$$$$$$$$$$$$
+  }                                                                                    #$$$$$$$$$$$$$
+  
   if (isTRUE(cfg$viewTables)) {
-    summary_tbl <- do.call(
-      rbind,
-      lapply(summary_lines[-1], function(line) {
-        key <- sub(":.*$", "", line)
-        val <- sub("^[^:]*:\\s*", "", line)
-        data.frame(Metric = key, Value = val, stringsAsFactors = FALSE)
-      })
-    )
-    cat("\n## **CORE METRICS**\n\n")
-    cat("### **Final Summary**\n")
-    ddesonn_viewTables(summary_tbl)
+    
+    summary_tbl <- do.call(  #$$$$$$$$$$$$$
+      rbind,                 #$$$$$$$$$$$$$
+      lapply(summary_lines[-1], function(line) {                                   #$$$$$$$$$$$$$
+        key <- sub(":.*$", "", line)                                               #$$$$$$$$$$$$$
+        val <- sub("^[^:]*:\\s*", "", line)                                        #$$$$$$$$$$$$$
+        data.frame(Metric = key, Value = val, stringsAsFactors = FALSE)            #$$$$$$$$$$$$$
+      })                                                                           #$$$$$$$$$$$$$
+    )                                                                              #$$$$$$$$$$$$$
+    
+    cat("\n**CORE METRICS**\n\n")                                                   #$$$$$$$$$$$$$
+    cat("**Final Summary**\n\n")                                                   #$$$$$$$$$$$$$
+    
+    md_lines <- paste0("**", summary_tbl$Metric, ":** ", summary_tbl$Value)         #$$$$$$$$$$$$$
+    cat(paste0(md_lines, "  \n"), "\n")                                             #$$$$$$$$$$$$$
+    
+    # Optional: keep the metric table renderer too (leave commented unless desired)
+    # ddesonn_viewTables(summary_tbl)                                               #$$$$$$$$$$$$$
+    
   } else {
-    cat("# ================================================================================\n")
+    
+    # ============================================================  #$$$$$$$$$$$$$
+    # SECTION: CORE METRICS (viewTables = FALSE)                    #$$$$$$$$$$$$$
+    # FIX: In HTML vignettes, wrap in ```text so newlines DON'T     #$$$$$$$$$$$$$
+    # collapse and ASCII doesn't become giant markdown headings.    #$$$$$$$$$$$$$
+    # ============================================================  #$$$$$$$$$$$$$
+    if (isTRUE(.is_knitr_html())) {                                                  #$$$$$$$$$$$$$
+      cat("\n```text\n")                                                             #$$$$$$$$$$$$$
+    }                                                                                #$$$$$$$$$$$$$
+    
+    cat("\n# ===========================================================\n")
     cat("# ================================= CORE METRICS =================================\n")
-    cat("# ================================================================================\n\n")
-    cat(paste(summary_lines, collapse = "\n"), "\n")
+    cat("# ===========================================================\n")
+    
+    # FIX: print stacked lines (do NOT rely on HTML respecting \n unless fenced)     #$$$$$$$$$$$$$
+    cat(paste(summary_lines, collapse = "\n"), "\n")                                 #$$$$$$$$$$$$$
+    
+    if (isTRUE(.is_knitr_html())) {                                                  #$$$$$$$$$$$$$
+      cat("```\n")                                                                   #$$$$$$$$$$$$$
+    }                                                                                #$$$$$$$$$$$$$
   }
+  
   options(DDESONN_LAST_SUMMARY_TS = Sys.time())
   invisible(NULL)
 }
@@ -1224,7 +1259,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
 .format_report_table <- function(df, digits = 3L) {
   formatted <- df
   for (col in names(formatted)) {
-    # format if numeric OR character that can be numeric
     if (is.numeric(formatted[[col]]) ||
         (is.character(formatted[[col]]) && suppressWarnings(all(is.na(as.numeric(formatted[[col]])) == is.na(formatted[[col]]))))) {
       formatted[[col]] <- .format_report_value(formatted[[col]], digits = digits)
@@ -1256,48 +1290,75 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   # ============================================================  #$$$$$$$$$$$$$
   dec <- suppressWarnings(as.integer(final_summary_decimals))                              #$$$$$$$$$$$$$
   if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          #$$$$$$$$$$$$$
+  split_up <- toupper(as.character(split_label))                                            #$$$$$$$$$$$$$
   
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: Console headers (viewTables = FALSE)                 #$$$$$$$$$$$$$
+  # - FIX: REMOVE "CLR" noise entirely                            #$$$$$$$$$$$$$
+  # - FIX: "===== TRAIN =====" on its own line                    #$$$$$$$$$$$$$
+  # - FIX: "Classification Report" on its own line                #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
+  .cat_console_split_header <- function() {                                                 #$$$$$$$$$$$$$
+    cat("\n")                                                                               #$$$$$$$$$$$$$
+    cat(sprintf("===== %s =====\n\n", split_up))                                              #$$$$$$$$$$$$$
+  }                                                                                         #$$$$$$$$$$$$$
+  .cat_console_section <- function(section_label) {                                         #$$$$$$$$$$$$$
+    cat(sprintf("%s\n", section_label))                                                     #$$$$$$$$$$$$$
+  }                                                                                         #$$$$$$$$$$$$$
+  
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: Classification Report header                         #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
   if (isTRUE(viewTables)) {
-    cat(sprintf("\n### **%s**\n\n", split_label))
-    cat("**Classification Report**\n")
+    cat(sprintf("\n**%s**\n\n", split_label))                                                #$$$$$$$$$$$$$
+    cat("**Classification Report**\n")                                                       #$$$$$$$$$$$$$
   } else {
-    cat(sprintf("\n=== %s ===\n", split_label))
-    cat("Classification Report:\n")
+    .cat_console_split_header()                                                              #$$$$$$$$$$$$$
+    .cat_console_section("Classification Report")                                            #$$$$$$$$$$$$$
   }
-
-  ddesonn_viewTables(                                                                 #$$$$$$$$$$$$$
-    .format_report_table(report$report, digits = dec),                                #$$$$$$$$$$$$$
-    na.print = ""                                                                     #$$$$$$$$$$$$$
-  )                                                                                   #$$$$$$$$$$$$$
-
+  
+  ddesonn_viewTables(
+    .format_report_table(report$report, digits = dec),
+    na.print = ""
+  )
+  
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: Confusion Matrix header                              #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
   if (isTRUE(viewTables)) {
-    cat("\n**Confusion Matrix**\n")
+    cat("\n**Confusion Matrix**\n")                                                          #$$$$$$$$$$$$$
   } else {
-    cat("\nConfusion Matrix:\n")
+    cat("\n")                                                                               #$$$$$$$$$$$$$
+    .cat_console_section("Confusion Matrix")                                                #$$$$$$$$$$$$$
   }
   
   # ============================================================
   # SECTION: Confusion Matrix (INTEGER-ONLY)  #$$$$$$$$$$$$$
-  # - Do NOT format with decimals.
-  # - Force storage to integer and print raw.  #$$$$$$$$$$$$$
   # ============================================================
-  confusion_int <- report$confusion                                                      #$$$$$$$$$$$$$
-  confusion_int <- unclass(confusion_int)                                                 #$$$$$$$$$$$$$
-  storage.mode(confusion_int) <- "integer"                                                #$$$$$$$$$$$$$
-  dim(confusion_int) <- dim(report$confusion)                                             #$$$$$$$$$$$$$
-  dimnames(confusion_int) <- dimnames(report$confusion)                                   #$$$$$$$$$$$$$
-  ddesonn_viewTables(confusion_int, quote = FALSE)                                       #$$$$$$$$$$$$$
+  confusion_int <- report$confusion                                                         #$$$$$$$$$$$$$
+  confusion_int <- unclass(confusion_int)                                                    #$$$$$$$$$$$$$
+  storage.mode(confusion_int) <- "integer"                                                   #$$$$$$$$$$$$$
+  dim(confusion_int) <- dim(report$confusion)                                                #$$$$$$$$$$$$$
+  dimnames(confusion_int) <- dimnames(report$confusion)                                      #$$$$$$$$$$$$$
+  ddesonn_viewTables(confusion_int, quote = FALSE)                                           #$$$$$$$$$$$$$
   
+  # ============================================================  #$$$$$$$$$$$$$
+  # SECTION: AUC/AUPRC header                                     #$$$$$$$$$$$$$
+  # ============================================================  #$$$$$$$$$$$$$
   if (isTRUE(viewTables)) {
     cat(sprintf("\n**AUC (ROC):** %s\n", .format_report_value(report$auc, digits = dec)))
     cat(sprintf("**AUPRC:** %s\n", .format_report_value(report$auprc, digits = dec)))
   } else {
-    cat(sprintf("\n%-10s : %s\n", "AUC (ROC)", .format_report_value(report$auc, digits = dec)))
-    cat(sprintf("%-10s : %s\n", "AUPRC",     .format_report_value(report$auprc, digits = dec)))
+    cat("\n")                                                                               #$$$$$$$$$$$$$
+    .cat_console_section("AUC/AUPRC")                                                       #$$$$$$$$$$$$$
+    cat(sprintf("AUC (ROC): %s\n", .format_report_value(report$auc, digits = dec)))         #$$$$$$$$$$$$$
+    cat(sprintf("AUPRC: %s\n", .format_report_value(report$auprc, digits = dec)))           #$$$$$$$$$$$$$
   }
   
   invisible(report)
 }
+
+
 
 
 

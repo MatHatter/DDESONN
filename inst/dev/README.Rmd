@@ -12,9 +12,9 @@ output:
 This directory contains **development-stage, historical, and exploratory materials** created during the evolution of **DDESONN**.
 
 Nothing in this folder is required to use the package, and nothing here is executed automatically.  
-It exists as a **read-only archive of background work** that may be useful, interesting, or informative to advanced users, researchers, or those curious about how the current architecture came to be.
+It exists as a **read-only archive of background work** that may be useful to advanced users, researchers, or those curious about how the current architecture came to be.
 
-Think of this folder as **bonus material**: optional, non-authoritative, and intentionally separated from the supported API.
+Think of this folder as **optional context** — not supported API surface.
 
 ---
 
@@ -24,15 +24,12 @@ Think of this folder as **bonus material**: optional, non-authoritative, and int
 
 Authoritative materials are provided through:
 
-- 📘 **Package vignettes** located under  
-  `vignettes/`
+- 📘 **Package vignettes** under `vignettes/`
+- 📄 Reproducible analyses, benchmarks, and methodology write-ups
 
-- 📄 Reproducible analyses, benchmarks, and methodology  
-  (for example: large-scale DDESONN vs Keras comparisons)
+If you are looking for **canonical explanations, validated results, or supported workflows**, the vignettes are the correct place to start.
 
-If you are looking for **canonical explanations, methodology, or validated results**, the vignettes are the correct place to start.
-
-Everything in `inst/dev` should be viewed as **context and background**, not the final word.
+Everything in `inst/dev` should be viewed as **background and context**, not the final word.
 
 ---
 
@@ -41,21 +38,21 @@ Everything in `inst/dev` should be viewed as **context and background**, not the
 This folder intentionally aggregates a variety of **pre-packaging and exploratory artifacts**, including:
 
 - Early MVP scripts and experiment runners  
-- Local project-style R files that source one another  
+- Script-style local workflows that source files directly  
 - Experimental optimizers, metrics, and update logic  
-- Techila-based parallel experiments and diagnostics  
+- Techila-based distributed experiment runners and diagnostics  
 - Keras comparison scripts (R and Python)  
-- CSV/XLSX result dumps from large randomized seed sweeps  
+- CSV/XLSX dumps from large randomized seed sweeps  
 - One-off checks, proofs, and sanity tests  
 
 These materials reflect how the work was originally developed **before** being refactored into a formal R package.
 
 Some users may find these files helpful as:
 
-- Reference implementations  
-- Inspiration for custom workflows  
-- Examples of large-scale experimentation  
-- Historical context for architectural decisions  
+- reference implementations  
+- inspiration for custom workflows  
+- examples of large-scale experimentation  
+- historical context for architectural decisions  
 
 Others may safely ignore them.
 
@@ -63,75 +60,101 @@ Both are valid.
 
 ---
 
-## Note on Techila usage and scripting style
+## Techila usage and why it appears here
 
-You will find Techila-related runs and scripts in this folder that are **not package-ready by design**.
+You will find **Techila-related runs and scripts** in this folder that are **not package-ready by design**.
 
 Specifically:
 
 - Scripts may source one another directly  
-- Code may assume a local R project layout  
-- Files may reflect iterative or exploratory development patterns  
+- Code may assume a local project directory structure  
+- Files reflect iterative, exploratory development patterns  
 
 This is intentional.
 
 These artifacts preserve the **original experimental environment** used during development and benchmarking, rather than forcing everything into package conventions after the fact.
 
-They are included for transparency and potential reuse — not as supported tooling.
+### Why Techila matters
+
+Techila allows DDESONN experiments to scale efficiently when:
+
+- running hundreds or thousands of randomized seeds  
+- training deep models or long-epoch architectures  
+- executing large validation or ablation sweeps  
+
+Even **single-run experiments** can benefit when training is computationally expensive.
+
+However:
+
+- Techila is **optional**
+- Techila is **not required** to use DDESONN
+- Techila does **not** change model behavior or results
+
+It only reduces wall-clock execution time.
 
 ---
 
-## MVP runners, `TestDDESONN.R`, and `api.R`
+## MVP runners and execution styles
 
-**`single_runner_local_mvp.R` is essentially a lean version of `TestDDESONN.R` that does *not* use `api.R`.**  
-It mirrors the `TestDDESONN.R` script-style workflow directly, just trimmed down for a faster, cleaner “single-run” execution path.
+You will encounter multiple runner patterns in this folder.
 
-By contrast, **files that use `api.R` are inherently meant to be lean versions of `TestDDESONN.R` too — but they are decomparmentalized**, which is why the word **“api”** fits: the logic is separated into callable entry points rather than one monolithic script.  
-That said, **the `api.R`-based runners do *not* mirror the `TestDDESONN.R` script file line-for-line** the way the MVP runners do.
+### Script-style MVP runners
 
-In the same spirit, **`single_runner_techila_mvp.R` is the same concept as `single_runner_local_mvp.R`, but built for Techila — i.e., the “cloud” version where the foreach loop is integrated to connect to the Techila workers.**
+- `single_runner_local_mvp.R`  
+  → Local machine, script-style execution that closely mirrors early research workflows
 
-So the “MVP runner pair” is:
+- `single_runner_techila_mvp.R`  
+  → Same concept, but distributed across Techila workers
 
-- `single_runner_local_mvp.R` → local machine, single-run parity with the classic script workflow  
-- `single_runner_techila_mvp.R` → same idea, but Techila-distributed (foreach → workers)
+These MVP runners intentionally mirror the **classic monolithic script style** rather than the package API.  
+They exist to preserve parity with early experimentation and benchmarking runs.
 
-All of this is **bonus extra circular** material — optional background tooling that sits *outside* the official package API, but is kept because it captures the real development and experimentation workflow.
+### API-style runners
 
----
+Files that rely on `api.R` represent a **decomposed, callable entry-point approach** rather than a single monolithic script.
 
-## Why Techila test folders behave differently than CRAN package behavior
-
-Many files in:
-
-`C:/Users/wfky1/Desktop/DDESONN/inst/dev/helpfulFiles/techilaRuns/Techila_DDESONN_MVP_Test`
-
-(and related subfolders) rely on **direct `source()`-based wiring**. That is a deliberate, development-style layout: scripts load other scripts explicitly, assume a project directory structure, and behave like a classic local research repo.
-
-This is exactly why these files **sit outside real package behavior for CRAN**:
-
-- CRAN-facing packages should rely on exported functions + namespaces (not `source()` chains).
-- The Techila run folders preserve a workflow that behaves most like how the project was run **pre-package**, when everything was executed locally as a script-driven research environment.
-
-These Techila folders are included for transparency and reuse, but they are not intended to represent the supported, packaged runtime path.
+They are still development-stage artifacts and are **not meant to mirror package usage line-for-line**, but they illustrate how core logic was modularized over time.
 
 ---
 
-## Notes on “original” files
+## Why this differs from CRAN package behavior
 
-Files like:
+Many files under:
 
-- `TestDDESONN_original.R`
-- `evaluate_predictions_report_original.R`
+```
+inst/dev/helpfulFiles/techilaRuns/
+```
 
-are included to preserve the **oldest versions** of those scripts from earlier development phases.
+behave like a **research repository**, not a CRAN-facing package.
 
-In particular, these “original” versions reflect a period where:
+In particular:
 
-- the evaluation report did **not** include the newer plot toggling controls, and/or  
-- plot output paths had **not** yet been updated to the newer directory-based artifact workflow
+- Scripts explicitly `source()` other scripts  
+- Assumptions are made about working directories  
+- Execution is imperative rather than namespace-driven  
 
-They are preserved as historical reference points, not as the current recommended implementation.
+This is exactly why these materials live **outside** the supported package runtime.
+
+They are preserved for transparency and potential reuse — not as supported tooling.
+
+---
+
+## Notes on historical files
+
+Files such as:
+
+- `TestDDESONN_original.R`  
+- `evaluate_predictions_report_original.R`  
+
+are included to preserve **earlier development phases**.
+
+These versions reflect a time when:
+
+- reporting logic was less structured  
+- plot output paths were not yet standardized  
+- newer plot toggling and artifact workflows did not exist  
+
+They are retained as historical reference points only.
 
 ---
 
@@ -139,11 +162,11 @@ They are preserved as historical reference points, not as the current recommende
 
 To be explicit, this directory is **not**:
 
-- Part of the public DDESONN API  
-- Used internally by the package at runtime  
-- Guaranteed to be stable  
-- Actively maintained or refactored  
-- Required for installation or usage  
+- part of the public DDESONN API  
+- required to install or use the package  
+- guaranteed to be stable  
+- actively maintained or refactored  
+- executed during normal package usage  
 
 All supported functionality is exposed through the package itself and documented in the main README and vignettes.
 
@@ -151,8 +174,8 @@ All supported functionality is exposed through the package itself and documented
 
 ## Summary
 
-- **Use the package and vignettes** for official functionality and documentation  
-- **Browse this folder** if you are curious about background work, experiments, or legacy workflows  
-- **Ignore it entirely** if you just want to use DDESONN — nothing here is required  
+- Use **package vignettes** for official documentation and results  
+- Browse **inst/dev** for background, history, and experimentation context  
+- Ignore this folder entirely if you simply want to use DDESONN  
 
-This folder exists to provide **context, transparency, and optional insight** — nothing more.
+This directory exists to provide **context, transparency, and optional insight** — nothing more.
