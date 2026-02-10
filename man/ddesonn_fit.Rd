@@ -48,6 +48,28 @@ y <- data$am
 model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
 ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
 
+# Regression example (mtcars) with explicit scheduler controls.
+# If you do NOT want LR decay, set lr_decay_rate = 1.0.
+reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+reg_y <- mtcars$mpg
+reg_model <- ddesonn_model(
+  input_size = ncol(reg_x), # number of input features
+  output_size = 1, # one numeric target
+  hidden_sizes = c(16, 8), # hidden-layer widths
+  classification_mode = "regression" # problem type
+)
+ddesonn_fit(
+  model = reg_model, # model object from ddesonn_model()
+  x = reg_x, # training predictors
+  y = reg_y, # training target
+  num_epochs = 10, # training epochs
+  lr = 0.05, # initial learning rate
+  lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
+  lr_decay_epoch = 20L, # decay step interval in epochs
+  lr_min = 1e-5, # lower bound for learning rate
+  validation_metrics = FALSE # disable validation metric pass in this example
+)
+
 }
 \seealso{
 \link{DDESONN}

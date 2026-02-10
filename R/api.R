@@ -190,16 +190,32 @@ ddesonn_optimizer_options <- function() {
 #' @examples
 #' ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
 #'
+#' # Inspect regression defaults (includes LR decay by default).
+#' cfg_reg <- ddesonn_training_defaults("regression", hidden_sizes = c(16, 8))
+#' cfg_reg$lr
+#' cfg_reg$lr_decay_rate
+#' cfg_reg$lr_decay_epoch
+#' cfg_reg$lr_min
+#'
+#' # If you prefer a fixed LR in regression, disable decay explicitly.
+#' cfg_reg$lr_decay_rate <- 1.0
+#'
 #' @export
 ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regression"),
                                       hidden_sizes = NULL) {
   mode <- match.arg(mode)
   .ddesonn_source_legacy()
+
+  # Empirically conservative defaults:
+  # - classification modes keep a fixed learning rate unless user overrides,
+  # - regression keeps decay enabled.
+  lr_decay_rate_default <- if (mode == "regression") 0.5 else 1.0
+  lr_decay_epoch_default <- if (mode == "regression") 20L else 1L
   
   list(
     lr = 0.125,
-    lr_decay_rate = 0.5,
-    lr_decay_epoch = 20L,
+    lr_decay_rate = lr_decay_rate_default,
+    lr_decay_epoch = lr_decay_epoch_default,
     lr_min = 1e-5,
     num_epochs = 3L,
     self_org = FALSE,
@@ -376,6 +392,28 @@ ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
 #' y <- data$am
 #' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
 #' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+#'
+#' # Regression example (mtcars) with explicit scheduler controls.
+#' # If you do NOT want LR decay, set lr_decay_rate = 1.0.
+#' reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+#' reg_y <- mtcars$mpg
+#' reg_model <- ddesonn_model(
+#'   input_size = ncol(reg_x),          # number of input features
+#'   output_size = 1,                   # one numeric target
+#'   hidden_sizes = c(16, 8),           # hidden-layer widths
+#'   classification_mode = "regression" # problem type
+#' )
+#' ddesonn_fit(
+#'   model = reg_model,                 # model object from ddesonn_model()
+#'   x = reg_x,                         # training predictors
+#'   y = reg_y,                         # training target
+#'   num_epochs = 10,                   # training epochs
+#'   lr = 0.05,                         # initial learning rate
+#'   lr_decay_rate = 0.5,               # decay multiplier (use 1.0 to disable)
+#'   lr_decay_epoch = 20L,              # decay step interval in epochs
+#'   lr_min = 1e-5,                     # lower bound for learning rate
+#'   validation_metrics = FALSE         # disable validation metric pass in this example
+#' )
 #'
 #' @seealso [DDESONN]
 #' @export

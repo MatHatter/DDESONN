@@ -1551,7 +1551,7 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch) {  
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, lr_decay_rate = 0.5, lr_decay_epoch = 20, lr_min = 1e-6, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch) {  
       # (no local verbosity defaults here)  
       log_important <- function(...) {
         ddesonn_console_log(
@@ -1631,15 +1631,21 @@ SONN <- R6::R6Class(
         
         for (epoch in 1:num_epochs) {
           
-          # lr <- lr_scheduler(epoch)
-          log_important("Epoch: %d | Learning Rate: %s", epoch, lr)
+          lr_epoch <- lr_scheduler(
+            epoch = epoch,
+            initial_lr = lr,
+            decay_rate = lr_decay_rate,
+            decay_epoch = lr_decay_epoch,
+            min_lr = lr_min
+          )
+          log_important("Epoch: %d | Learning Rate: %s", epoch, lr_epoch)
           num_epochs_check <<- num_epochs
           
           # 1) Train step
           learn_result <- self$learn(
             Rdata = Rdata,
             labels = labels,
-            lr = lr,
+            lr = lr_epoch,
             CLASSIFICATION_MODE = CLASSIFICATION_MODE,
             activation_functions = activation_functions,
             dropout_rates = dropout_rates,
@@ -3538,7 +3544,7 @@ DDESONN <- R6::R6Class(
           
           predicted_outputAndTime <- suppressMessages(
             self$ensemble[[i]]$train_network(
-              Rdata, labels, X_train, y_train, lr, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, output_root = output_root
+              Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, output_root = output_root
             ))
           
           # Store core model info
@@ -5459,9 +5465,26 @@ is_binary <- function(column) {
 
 
 
-lr_scheduler <- function(epoch, initial_lr = lr, decay_rate = 0.5, decay_epoch = 20, min_lr = 1e-6) {
+lr_scheduler <- function(epoch,
+                         initial_lr,
+                         decay_rate = 0.5,
+                         decay_epoch = 20,
+                         min_lr = 1e-6) {
+  if (!is.numeric(initial_lr) || length(initial_lr) != 1L || !is.finite(initial_lr) || initial_lr <= 0) {
+    stop("initial_lr must be a single positive finite numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(decay_rate) || length(decay_rate) != 1L || !is.finite(decay_rate) || decay_rate <= 0) {
+    stop("decay_rate must be a single positive finite numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(decay_epoch) || length(decay_epoch) != 1L || !is.finite(decay_epoch) || decay_epoch <= 0) {
+    stop("decay_epoch must be a single positive finite numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(min_lr) || length(min_lr) != 1L || !is.finite(min_lr) || min_lr < 0) {
+    stop("min_lr must be a single non-negative finite numeric value.", call. = FALSE)
+  }
+
   decayed_lr <- initial_lr * decay_rate ^ floor(epoch / decay_epoch)
-  return(max(min_lr, decayed_lr))
+  max(min_lr, decayed_lr)
 }
 
 calculate_performance <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, model_iter_num, num_epochs, threshold, learn_time, predicted_output, prediction_time, ensemble_number, run_id, weights, biases, activation_functions, ML_NN, verbose) {

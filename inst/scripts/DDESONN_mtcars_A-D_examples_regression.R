@@ -962,3 +962,55 @@ val_comp$actual_pct100    <- (exp(val_comp$actual) - 1) * 100
 val_comp$predicted_pct100 <- (exp(val_comp$predicted) - 1) * 100
 val_comp$error_pct100     <- val_comp$predicted_pct100 - val_comp$actual_pct100
 head(val_comp)
+
+
+# ------------------------------------------------------------------------------
+# Additional example (appended): scheduler knobs + opt-out pattern
+# ------------------------------------------------------------------------------
+# Your existing example flow above stays the same.
+# If you want explicit scheduler control in THIS script, use the same ddesonn_fit()
+# call pattern and add these parameters.
+#
+# - lr: initial learning rate.
+# - lr_decay_rate: multiplicative decay factor (set 1.0 to disable decay).
+# - lr_decay_epoch: apply decay every N epochs.
+# - lr_min: floor for the learning rate.
+#
+# NOTE: This block is intentionally non-executing so it does not interfere with
+# the script's current behavior. Copy/paste and run when needed.
+if (FALSE) {
+  ddesonn_fit(
+    model = model,                           # model created above
+    x = train_x,                             # training features
+    y = train_y,                             # training targets
+    validation = list(x = valid_x, y = valid_y),
+    classification_mode = "regression",      # regression mode
+    num_epochs = 50,                         # total training epochs
+    lr = 0.01,                               # initial LR
+    lr_decay_rate = 0.5,                     # scheduler decay factor
+    lr_decay_epoch = 20L,                    # decay interval in epochs
+    lr_min = 1e-5,                           # minimum LR floor
+    validation_metrics = TRUE,               # run validation metrics
+    best_weights_on_latest_weights_off = TRUE,
+    batch_normalize_data = FALSE,
+    verbose = TRUE
+  )
+
+  # If user does NOT want LR decay, use a fixed LR:
+  ddesonn_fit(
+    model = model,
+    x = train_x,
+    y = train_y,
+    validation = list(x = valid_x, y = valid_y),
+    classification_mode = "regression",
+    num_epochs = 50,
+    lr = 0.01,
+    lr_decay_rate = 1.0,                     # <- disables decay
+    lr_decay_epoch = 20L,
+    lr_min = 1e-5,
+    validation_metrics = TRUE,
+    best_weights_on_latest_weights_off = TRUE,
+    batch_normalize_data = FALSE,
+    verbose = TRUE
+  )
+}
