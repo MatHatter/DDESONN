@@ -6,10 +6,10 @@
 # - Your entire existing ignore set + structure
 #
 # FIX:
-# - Ignore knitr fig/cache roots that you set in vignette opts (figure-html/, cache/)   #$$$$$$$$$$$$$
-# - Ignore DDESONN vignette-run artifact roots (DDESONN_plots_*)                        #$$$$$$$$$$$$$
-# - Slightly safer tarball pattern                                                     #$$$$$$$$$$$$$
-# - Ignore stdout / stderr runtime capture dirs                                        #$$$$$$$$$$$$$
+# - Ignore knitr fig/cache roots that you set in vignette opts (figure-html/, cache/)   
+# - Ignore DDESONN vignette-run artifact roots (DDESONN_plots_*)                        
+# - Slightly safer tarball pattern                                                     
+# - Ignore stdout / stderr runtime capture dirs                                        
 # ============================================================
 
 # ============================================================
@@ -41,7 +41,7 @@
 ^dist$
 ^build$
 ^tarballs$
-^.*\.tar\.gz$                                                             #$$$$$$$$$$$$$ FIX: safer tarball ignore
+^.*\.tar\.gz$                                                              FIX: safer tarball ignore
 
 # OS junk
 ^Thumbs\.db$
@@ -54,13 +54,13 @@
 ^scratch/.*$
 
 # ============================================================
-# Runtime output capture (MUST NEVER SHIP)                     #$$$$$$$$$$$$$
+# Runtime output capture (MUST NEVER SHIP)                     
 # ============================================================
 
-^stdout$                                                                   #$$$$$$$$$$$$$
-^stderr$                                                                   #$$$$$$$$$$$$$
-^DDESONN/stdout$                                                           #$$$$$$$$$$$$$
-^DDESONN/stderr$                                                           #$$$$$$$$$$$$$
+^stdout$                                                                   
+^stderr$                                                                   
+^DDESONN/stdout$                                                           
+^DDESONN/stderr$                                                           
 
 # ============================================================
 # Quarto / vignette intermediates (safe to ignore)
@@ -71,13 +71,13 @@
 ^vignettes/.*_files$
 ^vignettes/.*_cache$
 
-^vignettes/figure-html$                                                    #$$$$$$$$$$$$$ FIX: knitr fig.path root
-^vignettes/figure-html/.*$                                                 #$$$$$$$$$$$$$ FIX
-^vignettes/cache$                                                          #$$$$$$$$$$$$$ FIX: knitr cache.path root
-^vignettes/cache/.*$                                                       #$$$$$$$$$$$$$ FIX
+^vignettes/figure-html$                                                     FIX: knitr fig.path root
+^vignettes/figure-html/.*$                                                  FIX
+^vignettes/cache$                                                           FIX: knitr cache.path root
+^vignettes/cache/.*$                                                        FIX
 
-^vignettes/DDESONN_plots_.*$                                               #$$$$$$$$$$$$$ FIX: your scenario outputs under vignettes
-^vignettes/DDESONN_plots_.*/.*$                                            #$$$$$$$$$$$$$ FIX
+^vignettes/DDESONN_plots_.*$                                                FIX: your scenario outputs under vignettes
+^vignettes/DDESONN_plots_.*/.*$                                             FIX
 
 # ============================================================
 # R CMD build metadata

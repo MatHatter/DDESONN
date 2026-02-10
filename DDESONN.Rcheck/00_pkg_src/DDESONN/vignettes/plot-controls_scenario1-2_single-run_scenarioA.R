@@ -1,7 +1,7 @@
 ## ----setup, include=FALSE-----------------------------------------------------
 # ============================================================
 # FILE: vignettes/plot-controls_scenario1-2_single-run_scenarioA.Rmd
-# FULL WORKING — DDESONN Plot Controls — Scenario 1 & 2 — Single Run: Scenario A   #$$$$$$$$$$$$$
+# FULL WORKING — DDESONN Plot Controls — Scenario 1 & 2 — Single Run: Scenario A   
 #
 # GOAL:
 # - Demonstrate TWO supported user-facing interfaces for plot control:
@@ -14,15 +14,15 @@
 #     accuracy_plot = TRUE
 #     accuracy_plot_mode = "both"
 #
-# #$$$$$$$$$$$$$ IMPORTANT (performance/relevance):
+#  IMPORTANT (performance/relevance):
 # - This vignette uses the *current* naming shown in your branch:
 #     plot_controls$performance_relevance
 #   and Scenario 1 uses the same key so the bridge can map it.
-# - No "boxplot" naming anywhere in config.                   #$$$$$$$$$$$$$
+# - No "boxplot" naming anywhere in config.                   
 # ============================================================
 
 # ============================================================
-# #$$$$$$$$$$$$$ FIX: VIGNETTE PARSE-SAFE opts_chunk$set
+#  FIX: VIGNETTE PARSE-SAFE opts_chunk$set
 # ============================================================
 # knitr options (SINGLE consolidated set)
 # ============================================================
@@ -32,7 +32,7 @@ knitr::opts_chunk$set(
   warning = FALSE,                                                                  
   fig.width = 8,                                                                    
   fig.height = 5,                                                                   
-  fig.retina = 2,                                                                    #$$$$$$$$$$$$$
+  fig.retina = 2,                                                                    
   fig.align = "center",                                                             
   out.width = "900px",                                                              
   fig.path = "plot-controls_scenario1-2_single-run_scenarioA_files/figure-html/",   
@@ -40,7 +40,7 @@ knitr::opts_chunk$set(
 )                                                                                   
 
 # ============================================================
-# #$$$$$$$$$$$$$ FIX: VIGNETTE-SAFE LOAD (no devtools::load_all)
+#  FIX: VIGNETTE-SAFE LOAD (no devtools::load_all)
 # ============================================================
 if (!requireNamespace("DDESONN", quietly = TRUE)) {
   stop(
@@ -52,14 +52,14 @@ if (!requireNamespace("DDESONN", quietly = TRUE)) {
 
 library(DDESONN)
 
-## ============================================================  #$$$$$$$$$$$$$
-## SECTION: Recommended knitr figure options (consistency)       #$$$$$$$$$$$$$
-## ============================================================  #$$$$$$$$$$$$$
-## For consistent ggplot title sizing across HTML/PDF output,    #$$$$$$$$$$$$$
-## keep these chunk options stable:                              #$$$$$$$$$$$$$
-## - fig.width / fig.height set explicit device size (inches).   #$$$$$$$$$$$$$
-## - fig.retina controls display scaling (avoid implicit CSS).   #$$$$$$$$$$$$$
-## - out.width affects HTML scaling; keep constant across plots. #$$$$$$$$$$$$$
+## ============================================================  
+## SECTION: Recommended knitr figure options (consistency)       
+## ============================================================  
+## For consistent ggplot title sizing across HTML/PDF output,    
+## keep these chunk options stable:                              
+## - fig.width / fig.height set explicit device size (inches).   
+## - fig.retina controls display scaling (avoid implicit CSS).   
+## - out.width affects HTML scaling; keep constant across plots. 
 
 # ============================================================
 # Output root for vignette artifacts
@@ -67,8 +67,8 @@ library(DDESONN)
 # ============================================================
 .fig_root <- knitr::opts_chunk$get("fig.path")
 if (!nzchar(.fig_root)) .fig_root <- "figure/"
-out1 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s1")                               #$$$$$$$$$$$$$
-out2 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s2")                               #$$$$$$$$$$$$$
+out1 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s1")                               
+out2 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s2")                               
 
 dir.create(out1, recursive = TRUE, showWarnings = FALSE)
 dir.create(out2, recursive = TRUE, showWarnings = FALSE)
@@ -87,7 +87,7 @@ include_saved_plots <- function(output_root, header) {
 
   if (!dir.exists(plot_dir)) {
     return(knitr::asis_output(
-      paste0("\n\n[plot-controls:scenarioA] plots dir does not exist: ", plot_dir, "\n\n")  #$$$$$$$$$$$$$
+      paste0("\n\n[plot-controls:scenarioA] plots dir does not exist: ", plot_dir, "\n\n")  
     ))
   }
 
@@ -97,7 +97,7 @@ include_saved_plots <- function(output_root, header) {
 
   if (!length(pngs)) {
     return(knitr::asis_output(
-      paste0("\n\n[plot-controls:scenarioA] no PNGs found under: ", plot_dir, "\n\n")       #$$$$$$$$$$$$$
+      paste0("\n\n[plot-controls:scenarioA] no PNGs found under: ", plot_dir, "\n\n")       
     ))
   }
 
@@ -106,8 +106,8 @@ include_saved_plots <- function(output_root, header) {
 
   for (p in pngs) {
     uri <- knitr::image_uri(p)
-    out <- c(out, paste0('<img src="', uri, '" style="width:900px; max-width:100%; height:auto;" />\n\n'))  #$$$$$$$$$$$$$
-    out <- c(out, "<br><br>\n\n")                                                                            #$$$$$$$$$$$$$
+    out <- c(out, paste0('<img src="', uri, '" style="width:900px; max-width:100%; height:auto;" />\n\n'))  
+    out <- c(out, "<br><br>\n\n")                                                                            
   }
 
   knitr::asis_output(paste(out, collapse = ""))
@@ -245,14 +245,14 @@ res_scenarioA_s1 <- tryCatch(
     )
   ),
   error = function(e) {
-    cat("\n================ DDESONN ERROR — Scenario 1 | Scenario A =================\n")  #$$$$$$$$$$$$$
+    cat("\n================ DDESONN ERROR — Scenario 1 | Scenario A =================\n")  
     cat(conditionMessage(e), "\n\n")
     cat("-------------- TRACEBACK -----------------------\n")
     traceback(2)
     cat("================================================\n\n")
     stop(e)
   }
-)                                                                                       #$$$$$$$$$$$$$
+)                                                                                       
 
 include_saved_plots(out1, "Scenario 1 — Saved plots")
 
@@ -290,17 +290,17 @@ res_scenarioA_s2 <- ddesonn_run(
     ),
 
     # ============================================================
-    # #$$$$$$$$$$$$$ SECTION: performance_relevance (Scenario 2)
+    #  SECTION: performance_relevance (Scenario 2)
     # ============================================================
-    performance_relevance = list(                                                       #$$$$$$$$$$$$$
-      saveEnabled = TRUE,                                                               #$$$$$$$$$$$$$
-      viewAllPlots = FALSE,                                                             #$$$$$$$$$$$$$
-      performance_high_mean_plots = TRUE,                                                #$$$$$$$$$$$$$
-      performance_low_mean_plots  = TRUE,                                                #$$$$$$$$$$$$$
-      relevance_high_mean_plots   = TRUE,                                                #$$$$$$$$$$$$$
-      relevance_low_mean_plots    = TRUE,                                                #$$$$$$$$$$$$$
-      verbose = TRUE                                                                    #$$$$$$$$$$$$$
-    ),                                                                                  #$$$$$$$$$$$$$
+    performance_relevance = list(                                                       
+      saveEnabled = TRUE,                                                               
+      viewAllPlots = FALSE,                                                             
+      performance_high_mean_plots = TRUE,                                                
+      performance_low_mean_plots  = TRUE,                                                
+      relevance_high_mean_plots   = TRUE,                                                
+      relevance_low_mean_plots    = TRUE,                                                
+      verbose = TRUE                                                                    
+    ),                                                                                  
 
     evaluate_report = list(
       accuracy_plot = TRUE,

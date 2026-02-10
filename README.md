@@ -21,11 +21,12 @@ The root `README.md` (this file) is the canonical public-facing README for users
 6. Getting started
 7. Running the examples
 8. Datasets
-9. Roadmap
-10. To-Do (Active Work)
-11. Contributing
-12. License
-13. Contact
+9. Reproducibility Artifacts for Vignette
+10. Roadmap
+11. To-Do (Active Work)
+12. Contributing
+13. License
+14. Contact
 
 ---
 
@@ -43,8 +44,6 @@ DDESONN blends self-organizing principles with modern deep-learning practices to
 - Reproducible evaluation and artifact reporting
 
 The primary design objective of DDESONN is to provide a fully customizable, entirely R-native neural network codebase and framework, intentionally avoiding external deep-learning backend library dependencies to preserve full architectural control and transparency.
-
-It is being prepared for public release on CRAN.
 
 ---
 
@@ -64,9 +63,9 @@ There were long stretches where I thought it was correct, but still didn't fully
 
 I nearly gave up twice.
 
-What kept me going was the belief that I was on the right track ??? even when the results didn't always look right. In a weird way, life events kept pulling me back onto this path. Every time I stepped away, I came back with more clarity. And every time I came back, I pushed the implementation closer to what it should be.
+What kept me going was the belief that I was on the right track - even when the results didn't always look right. In a weird way, life events kept pulling me back onto this path. Every time I stepped away, I came back with more clarity. And every time I came back, I pushed the implementation closer to what it should be.
 
-As I went deeper, it honestly got scarier ??? because there were moments where DDESONN looked better than the benchmark models, and other moments where it didn't. That inconsistency can mess with your head when you've invested everything into building it correctly.
+As I went deeper, it honestly got scarier - because there were moments where DDESONN looked better than the benchmark models, and other moments where it didn't. That inconsistency can mess with your head when you've invested everything into building it correctly.
 
 But the turning point wasn't "one magic upgrade." It was the final phase of **clearing out the bugs** and **aligning the implementation to the mathematically correct behavior**. Once those last issues were resolved, the model became dramatically more stable.
 
@@ -188,8 +187,12 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 
 ## Project timeline
 
-- 2024-05-07 ??? Project origin  
-  The project formally began in May 2024 as a research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
+DDESONN began as an exploratory research project and progressed through several architectural checkpoints as core ideas were validated and refined.
+
+Subsequent iterations focused on formalizing the architecture, improving reproducibility, and restructuring the codebase to meet CRAN packaging standards.
+
+- 2024-05-07 - Project origin  
+  The project formally began in May 2024 as a personal research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
 
 - Initial intensive sprint (approximately 3 months)  
   Sustained day-in/day-out development. Learning machine learning from first principles was unavoidable in order to design the architecture manually, reason through layer interactions and dimensional flow, identify bottlenecks, and resolve bugs by tracing logic across layers.
@@ -197,14 +200,16 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 - Iterative development (lax / intermittent)  
   Development continued at a more sustainable pace, refining architectural decisions and expanding functionality while preserving full transparency and custom control.
 
-- Second intensive hardening phase (approximately 3???4 months)  
+- May 2025 had to relearn and pick back up. Second intensive hardening phase (approximately 3-4 months)  
   Focused on correctness, stability, optimizer behavior, ensemble reliability, and reproducibility.
 
-- Late 2025 to early 2026 hiatus  
+- End of Sept. 2025 
   Development paused in late 2025 while focusing on two other high-intensity projects.
 
-- 2026 to present  
+- Jan. 2026 - Feb. 2026
   Work resumed with emphasis on maintainability, documentation, and long-term research viability.
+
+Earlier checkpoint versions and legacy research code may be published separately in a dedicated archival repository to document the project???s evolution, including early snapshots where some components were not fully retained.
 
 ---
 
@@ -212,40 +217,42 @@ This becomes relevant quickly when you start running large seed sweeps (e.g., hu
 
 DDESONN/
 ?????? R/
-??? ?????? DDESONN.R
-??? ?????? activation_functions.R
-??? ?????? api.R
-??? ?????? optimizers.R
-??? ?????? performance_relevance_metrics.R
-??? ?????? update_biases_block.R
-??? ?????? update_weights_block.R
-??? ?????? utils.R
-??? ?????? reports/
-??? ?????? evaluate_predictions_report.R
-???
+???  ?????? DDESONN-package.R
+???  ?????? DDESONN.R
+???  ?????? activation_functions.R
+???  ?????? aliases.R
+???  ?????? api.R
+???  ?????? evaluate_predictions_report.R
+???  ?????? optimizers.R
+???  ?????? paths.R
+???  ?????? performance_relevance_metrics.R
+???  ?????? predict.R
+???  ?????? state.R
+???  ?????? update_biases_block.R
+???  ?????? update_weights_block.R
+???  ?????? utils.R
 ?????? inst/
-??? ?????? scripts/
-??? ??? ?????? DDESONN_mtcars_example.R
-??? ??? ?????? DDESONN_mtcars_A-D_examples*.R
-??? ??? ?????? Heart_failure_ScenarioA.R
-??? ??? ?????? LoadandPredict.R
-??? ??? ?????? TestDDESONN.R
-??? ?????? dev/
-??? ?????? README.md
-???
-?????? data/
+???  ?????? dev/
+???  ???  ?????? README.Rmd
+???  ?????? extdata/
+???  ???  ?????? WMT_1970-10-01_2025-03-15.csv
+???  ???  ?????? heart_failure_clinical_records.csv
+???  ???  ?????? test_multiclass_customer_segmentation.csv
+???  ???  ?????? train_multiclass_customer_segmentation.csv
+???  ?????? scripts/
+???     ?????? DDESONN_mtcars_A-D_examples.R
+???     ?????? DDESONN_mtcars_A-D_examples_regression.R
+???     ?????? Heart_failure_ScenarioA.R
+???     ?????? LoadandPredict.R
+???     ?????? TestDDESONN.R
+?????? man/
 ?????? vignettes/
-?????? helpfulFiles/
-?????? ideas/
-?????? junk/
-???
 ?????? DESCRIPTION
 ?????? NAMESPACE
 ?????? DDESONN.Rproj
-?????? CHANGELOG.md
 ?????? README.md
-?????? README_v*.md
-?????? LICENSE/
+?????? LICENSE
+?????? LICENSE.md
 
 ---
 
@@ -430,6 +437,24 @@ Bundled sample data in data:
 - test_multiclass_customer_segmentation.csv
 
 Verify original dataset licensing if repurposed.
+
+---
+
+## Reproducibility Artifacts for Vignette
+
+DDESONN includes precomputed `.rds` files under:
+
+inst/extdata/
+
+These files contain **saved model outputs, metrics, and summaries** used exclusively by package vignettes to:
+
+- Demonstrate large multi-seed experiments (e.g., 500???1000 seeds)
+- Avoid long runtimes during vignette builds
+- Ensure deterministic, reproducible results
+
+These artifacts are **not loaded automatically**, **not part of the public API**, and **not intended for direct use** outside the accompanying vignettes.
+
+They are provided solely to support reproducibility and documentation.
 
 ---
 

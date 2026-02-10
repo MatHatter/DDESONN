@@ -6,9 +6,9 @@
 # - Your existing ignore rules + layout
 #
 # ADD:
-# - vignettes/*_files and vignettes/*_cache (knitr intermediates)                 #$$$$$$$$$$$$$
-# - vignettes/figure-html and vignettes/cache (your knitr::opts_chunk$set roots)  #$$$$$$$$$$$$$
-# - vignettes/DDESONN_plots_* (scenario outputs written under vignette trees)     #$$$$$$$$$$$$$
+# - vignettes/*_files and vignettes/*_cache (knitr intermediates)                 
+# - vignettes/figure-html and vignettes/cache (your knitr::opts_chunk$set roots)  
+# - vignettes/DDESONN_plots_* (scenario outputs written under vignette trees)     
 # ============================================================
 
 # ============================================================
@@ -45,13 +45,13 @@ misclassified_cases.xlsx
 # ============================================================
 # Vignettes — knitr/quarto intermediates (NEVER commit)
 # ============================================================
-vignettes/*_files/                                                         #$$$$$$$$$$$$$
-vignettes/*_cache/                                                         #$$$$$$$$$$$$$
+vignettes/*_files/                                                         
+vignettes/*_cache/                                                         
 
-vignettes/figure-html/                                                     #$$$$$$$$$$$$$
-vignettes/cache/                                                           #$$$$$$$$$$$$$
+vignettes/figure-html/                                                     
+vignettes/cache/                                                           
 
-vignettes/DDESONN_plots_*/                                                 #$$$$$$$$$$$$$
+vignettes/DDESONN_plots_*/                                                 
 
 # ============================================================
 # Optional: if you REALLY want to ignore generated binaries,
