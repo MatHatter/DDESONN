@@ -378,6 +378,12 @@ ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
 #' @param x Training features.
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
+#' @param self_org Optional logical override for the legacy self-organization
+#'   phase. `TRUE` enables `self_organize()` during training and `FALSE`
+#'   disables it. `NULL` keeps the configured default (`self_org = FALSE` in
+#'   [ddesonn_training_defaults()]). Self-organization acts on input-space
+#'   topology error (how well neighborhood structure is organized), not on the
+#'   supervised prediction-loss term.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
@@ -417,7 +423,7 @@ ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
 #'
 #' @seealso [DDESONN]
 #' @export
-ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  #$$$$$$$$$$$$$
+ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  #$$$$$$$$$$$$$
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
@@ -428,6 +434,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   data_prep <- .prepare_training_data(x)
   
   overrides <- list(...)  # <-- move earlier so we can use it for mode  #$$$$$$$$$$$$$
+  if (is.null(overrides$self_org) && !is.null(self_org)) overrides$self_org <- self_org
   if (is.null(overrides$verbose)) overrides$verbose <- verbose  #$$$$$$$$$$$$$
   if (is.null(overrides$verboseLow)) overrides$verboseLow <- verboseLow  #$$$$$$$$$$$$$
   if (is.null(overrides$debug)) overrides$debug <- debug  #$$$$$$$$$$$$$

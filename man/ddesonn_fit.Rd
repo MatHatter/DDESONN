@@ -9,6 +9,7 @@ ddesonn_fit(
   x,
   y,
   validation = NULL,
+  self_org = NULL,
   ...,
   verbose = FALSE,
   verboseLow = FALSE,
@@ -23,6 +24,13 @@ ddesonn_fit(
 \item{y}{Training targets/labels.}
 
 \item{validation}{Optional list containing \code{x} and \code{y} elements for validation.}
+
+\item{self_org}{Optional logical override for the legacy self-organization
+phase. \code{TRUE} enables \code{self_organize()} during training and \code{FALSE}
+disables it. \code{NULL} keeps the configured default (\code{self_org = FALSE} in
+\code{\link[=ddesonn_training_defaults]{ddesonn_training_defaults()}}). Self-organization acts on input-space
+topology error (how well neighborhood structure is organized), not on the
+supervised prediction-loss term.}
 
 \item{...}{Named overrides for entries in \code{\link[=ddesonn_training_defaults]{ddesonn_training_defaults()}}.}
 
