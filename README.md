@@ -32,7 +32,7 @@ The root `README.md` (this file) is the canonical public-facing README for users
 
 ## Project overview
 
-DDESONN (Deep Dynamic Experimental Self-Organizing Neural Network) is an R-based research framework for adaptive neural network experimentation.
+DDESONN - Deep Dynamic Experimental Self-Organizing Neural Network - is an R-based research framework for adaptive neural network experimentation.
 
 The project was initiated to build a fully custom neural network system that did not already exist, and to develop a deep, first-principles understanding of machine learning by necessity rather than by copying existing frameworks.
 
@@ -47,19 +47,19 @@ The primary design objective of DDESONN is to provide a fully customizable, enti
 
 ---
 
-## Why DDESONN exists (and why I built it this way)
+## Why DDESONN exists and why I built it this way
 
 DDESONN exists because I wanted to understand machine learning at a deeper level than "use a library and hope it works."
 
-I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into ??? layer by layer, error by error, update by update ??? and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
+I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into -? layer by layer, error by error, update by update -? and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
 
-So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** ??? and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
+So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** -? and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
 
 ### The honest story (trials, tribulations, and why it matters)
 
 This package took an extreme amount of time and emotional energy to build.
 
-There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard ??? because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
+There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard -? because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
 
 I nearly gave up twice.
 
@@ -88,13 +88,13 @@ DDESONN is built to show you what it's doing.
 
 Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks). High-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
 
-This is not just a model ??? it's an implementation you can learn from.
+This is not just a model -? it's an implementation you can learn from.
 
 ### Connect with me / questions welcome
 
 If you found this package useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
 
-If you send a connection request, please include a short message saying you found DDESONN ??? I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
+If you send a connection request, please include a short message saying you found DDESONN -? I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
 
 ---
 
@@ -206,7 +206,7 @@ Subsequent iterations focused on formalizing the architecture, improving reprodu
 - End of Sept. 2025 
   Development paused in late 2025 while focusing on two other high-intensity projects.
 
-- Jan. 2026 - Feb. 2026
+- Jan. 2026 - Feb. 2026 (approximately 1.5 months) 
   Work resumed with emphasis on maintainability, documentation, and long-term research viability.
 
 Earlier checkpoint versions and legacy research code may be published separately in a dedicated archival repository to document the project???s evolution, including early snapshots where some components were not fully retained.
@@ -306,6 +306,41 @@ High-level API usage (training split is always `x`/`y`):
       test = list(x = test_x, y = test_y),
       training_overrides = list(num_epochs = 1, validation_metrics = TRUE)
     )
+    
+
+#### Which function should I use?
+
+If `ddesonn_run()` already works for you, you're not doing anything wrong. It is the
+"all-in-one" orchestrator and is the best default for most users.
+
+Use this quick guide:
+
+- **`ddesonn_run()`**: one-call workflow for train/validation/test orchestration,
+  seed loops, optional ensemble scenarios, and summary outputs. Best for
+  experiments and benchmark runs.
+- **`ddesonn_model()`**: construct a model object only (architecture/setup stage).
+  Use when you want explicit control before training.
+- **`ddesonn_fit()`**: train an already-created model. Use when you want a
+  custom loop, staged training, or fine-grained control over train calls.
+- **`predict()` / `predict.ddesonn_model()`**: user-facing inference on new data
+  after training.
+- **`ddesonn_predict()`**: internal low-level prediction engine. Useful for
+  package internals and advanced users, but most users should prefer `predict()`.
+- **`ddesonn_training_defaults()`**: inspect the baseline training parameters used
+  by wrappers.
+- **`ddesonn_activation_defaults()` / `ddesonn_dropout_defaults()` /
+  `ddesonn_optimizer_options()`**: helper utilities to inspect or build settings.
+
+In short: think of `ddesonn_run()` as the convenient "driver", while the other
+functions are modular building blocks that make the driver customizable,
+testable, and reusable in advanced workflows.
+
+Typical progression:
+
+1. Start with `ddesonn_run()`.
+2. Move to `ddesonn_model()` + `ddesonn_fit()` when you need custom training flow.
+3. Use `predict()` for downstream inference and reporting.
+
 
 Evaluation plot toggles (ROC/PR/accuracy) can be enabled via `training_overrides`.
 The PR curve includes AUPRC by default; set `show_auprc = FALSE` to suppress:
@@ -339,12 +374,12 @@ paths).** **`predict.ddesonn_model()` / `predict()` = public, canonical user-fac
 that wraps `ddesonn_predict()` and standardizes arguments + output shape + optional
 thresholding.**
 
-Why: internal code uses `ddesonn_predict()` because it???s a forward-pass primitive
-that???s faster and easier to control inside training loops (no user-facing return
+Why: internal code uses `ddesonn_predict()` because it-?s a forward-pass primitive
+that-?s faster and easier to control inside training loops (no user-facing return
 formatting). User-facing inference should use `predict()` because it provides a
 stable contract (type/aggregate/threshold handling, return structure).
 
-Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model???s class order), otherwise accuracy comparisons may be incorrect.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model-?s class order), otherwise accuracy comparisons may be incorrect.
 
 When `test = list(x = test_x, y = test_y)` is provided, the final run summary
 always includes test loss and test accuracy computed once after training
@@ -370,7 +405,7 @@ API design notes (optional explicit splits):
 
 ### Model usage note (post-training)
 
-Training and validation run inside `ddesonn_run()` and call the model???s R6
+Training and validation run inside `ddesonn_run()` and call the model-?s R6
 methods directly.
 
 **Evaluation contract (test data):**
@@ -380,14 +415,14 @@ methods directly.
   once after training completes, are stored at `res$test_metrics$loss` and
   `res$test_metrics$accuracy`, and are returned/printed as part of the final run summary.
 - If you want to reproduce test accuracy manually, call `predict(res$model, x_test)`
-  and compute accuracy as *(number of correct predictions ?? total rows)* via an
+  and compute accuracy as *(number of correct predictions - total rows)* via an
   element-wise comparison against `y_test` using the same threshold shown in the
   final summary (and the same aggregation and preprocessing).
 - Given the **same threshold and preprocessing**, this manually computed accuracy
   **should match** the `ddesonn_run()` test accuracy. Any mismatch indicates a
   threshold or data-handling difference (not a model inconsistency).
 - `ddesonn_run()` is for **evaluation**, while `predict()` is for **inspection,
-  custom metrics, and downstream logic**???neither replaces the other.
+  custom metrics, and downstream logic**-?neither replaces the other.
 - `ddesonn_run()` does **not** return per-row predictions; per-row outputs are
   provided by `predict()` only.
 
@@ -466,14 +501,14 @@ They are provided solely to support reproducibility and documentation.
 > They are documented to clarify direction and preserve future ideas.  
 > They do **not** imply active development or any committed delivery timeline.
 
-### R-01 ?? Structured hyperparameter experimentation  
+#### R-01 - Structured hyperparameter experimentation  
 **Status:** Design intent (future)  
 **Related To-Do:** T-01
 
 Add structured hyperparameter grid and sweep utilities to support controlled,
 reproducible experimentation across model configurations.
 
-### R-02 ?? Optional preprocessing utilities  
+#### R-02 - Optional preprocessing utilities  
 **Status:** Design intent (future)  
 **Related To-Do:** T-02
 
@@ -483,7 +518,7 @@ Introduce optional preprocessing helpers, including:
   (e.g., `creatinine_phosphokinase`)
 - Zero-preserving behavior for interpretability and safety
 
-### R-03 ?? Evaluation contract and thresholding semantics  
+#### R-03 - Evaluation contract and thresholding semantics  
 **Status:** Current behavior (documented)  
 **Related To-Do:** T-03
 
@@ -498,7 +533,7 @@ The evaluation pipeline follows a strict and intentional thresholding contract:
 - Accuracy, precision, recall, and F1 are derived from confusion-matrix counts so
   all reported metrics consistently reflect `thr_used` (not a fixed 0.5 default).
 
-### R-04 ?? Single-run per-epoch diagnostics  
+#### R-04 - Single-run per-epoch diagnostics  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-04
 
@@ -515,7 +550,7 @@ across epochs for a **single model run**.
   `{artifacts_root}/plots/single_run_per_epoch/`
 - Explicitly excluded from `process_performance()` and all ensemble summaries
 
-### R-05 ?? Single-run vs ensemble contract decoupling  
+#### R-05 - Single-run vs ensemble contract decoupling  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-05
 
@@ -525,7 +560,7 @@ In single-run mode, ensemble orchestration is disabled, but ensemble slot object
 Decoupling this behavior would require a non-trivial architectural refactor and is
 documented here for clarity and future consideration.
 
-### R-06 ?? `validation_metrics` scope and stabilization checkpoint  
+#### R-06 - `validation_metrics` scope and stabilization checkpoint  
 **Status:** Current behavior (documented) + forward-looking consideration  
 **Related To-Do:** T-06, T-07
 
@@ -547,7 +582,7 @@ Despite its name, it does not represent generic metric computation.
 - Revisit `validation_metrics` semantics with explicitness (e.g., tri-state control:
   `off | validation | train`) only after the tuning logic is modularized.
 
-### R-07 ?? `viewTables` table-emission standardization
+#### R-07 - `viewTables` table-emission standardization
 **Status:** Partially implemented (v1) + scoped forward-looking refinement
 **Related To-Do:** T-08
 
@@ -575,7 +610,7 @@ Remaining work (documented, not urgent) involves auditing low-visibility or
 rarely executed debug paths to ensure all table-like emissions route through
 the same helper.
 
-### R-08 ?? Vignettes expansion and optional interactive diagnostics  
+#### R-08 - Vignettes expansion and optional interactive diagnostics  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-09
 
@@ -586,7 +621,7 @@ Future releases may expand the vignette suite (more datasets, more experiments,
 more reproducible walkthroughs) and optionally explore interactive diagnostics
 (e.g., Shiny) as a non-core layer.
 
-### R-09 ?? Techila-scale experimentation patterns  
+#### R-09 - Techila-scale experimentation patterns  
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-10
 
@@ -598,19 +633,19 @@ thousands of seeds without waiting on a single machine.
 
 ## To-Do (Design-Linked)
 
-### T-01 ?? Hyperparameter sweep utilities  
+#### T-01 - Hyperparameter sweep utilities  
 Linked from: **R-01**
 
 Implement structured grid and sweep tooling with explicit configuration,
 clear artifacts, and reproducibility guarantees.
 
-### T-02 ?? Preprocessing utility formalization  
+#### T-02 - Preprocessing utility formalization  
 Linked from: **R-02**
 
 Define a clean, opt-in preprocessing interface without implicit transformations
 or side effects.
 
-### T-03 ?? Threshold usage hardening  
+#### T-03 - Threshold usage hardening  
 Linked from: **R-03**
 
 - Confirm `best_thr` selection remains localized to
@@ -619,27 +654,27 @@ Linked from: **R-03**
 - Ensure all derived metrics are computed from confusion matrices reflecting
   `thr_used`
 
-### T-04 ?? Per-epoch diagnostic tracking  
+#### T-04 - Per-epoch diagnostic tracking  
 Linked from: **R-04**
 
 Prototype per-epoch metric capture for single runs only, with no impact on
 ensemble aggregation or performance summaries.
 
-### T-05 ?? Ensemble contract decoupling analysis  
+#### T-05 - Ensemble contract decoupling analysis  
 Linked from: **R-05**
 
 Assess architectural implications of separating single-run execution from
 ensemble metadata and orchestration contracts.
 
-### T-06 ?? `validation_metrics` contract clarification (post-v1)  
+### T-06 - `validation_metrics` contract clarification (post-v1)  
 Linked from: **R-06**
 
 - Clearly define what `validation_metrics` enables/returns (evaluation report
   pipeline + artifacts + tuned-threshold support)
 - Identify and document the call sites that currently depend on the flag
-- Reduce ???hidden behavior??? and ensure the name matches the behavior contract
+- Reduce -?hidden behavior-? and ensure the name matches the behavior contract
 
-### T-07 ?? Extract threshold tuning into a standalone utility  
+#### T-07 - Extract threshold tuning into a standalone utility  
 Linked from: **R-06**
 
 - Pull tuned-threshold computation into a dedicated function that can run without
@@ -649,7 +684,7 @@ Linked from: **R-06**
 - After extraction, consider explicit tri-state evaluation routing:
   `off | validation | train` (or separate `evaluation_report` + `evaluation_data`)
 
-### T-08 ?? `viewTables` coverage audit and completion pass
+#### T-08 - `viewTables` coverage audit and completion pass
 Linked from: **R-07**
 
 - Perform a repository-wide audit for remaining direct `print()`, `View()`,
@@ -665,14 +700,14 @@ evaluation, or debug paths
 - Keep changes minimal and non-breaking; this task is strictly a coverage and
 consistency sweep, not a redesign
 
-### T-09 ?? Expand vignettes and research demos  
+#### T-09 - Expand vignettes and research demos  
 Linked from: **R-08**
 
 - Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
-- Treat vignettes as the primary ???user education layer??? for v1+ releases
+- Treat vignettes as the primary -?user education layer-? for v1+ releases
 
-### T-10 ?? Techila distributed experimentation hardening  
+#### T-10 - Techila distributed experimentation hardening  
 Linked from: **R-09**
 
 - Provide a clean, documented Techila workflow for scaling seed sweeps
@@ -686,13 +721,13 @@ Linked from: **R-09**
 2. Run demos to confirm no regressions
 3. Submit pull requests with clear descriptions and tests
 
-Contributions are highly appreciated ??? especially those focused on:
+Contributions are highly appreciated -? especially those focused on:
 - polishing and tightening documentation
 - improving vignettes and reproducible demos
 - reporting/diagnostics improvements (tables, plots, artifacts)
 - helping implement or refine items in the Roadmap & Design Intent / To-Do list
 
-If you???re interested in helping push the project toward a cleaner plateau, the
+If you-?re interested in helping push the project toward a cleaner plateau, the
 Roadmap & To-Do sections are the best place to pick a meaningful contribution.
 
 ---
