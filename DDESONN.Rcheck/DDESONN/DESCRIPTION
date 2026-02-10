@@ -1,35 +1,22 @@
 Package: DDESONN
 Type: Package
-Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
+Title: A Deep Dynamic Experimental Self-Organizing Neural Network
+        Framework
 Version: 0.1.0
 Authors@R: c(person("Mathew William", "Armitage Fok", email = "quiksilver67213@yahoo.com", role = c("aut", "cre")))
 Description: High-level helpers for constructing, training, and evaluating Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The package wraps the legacy R6 implementations and exposes a modern API for modelling workflows. Evaluation utilities include ROC and Precision–Recall curves with default AUC/AUPRC annotation, configurable via ddesonn_run() and ddesonn_fit().
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: R (>= 4.1.0)
-Imports:
-    R6,
-    stats,
-    utils,
-    dplyr,
-    openxlsx,
-    tidyr,
-    pROC,
-    PRROC,
-    reshape2,
-    digest,
-    ggplot2
-Suggests:
-    testthat,
-    knitr,
-    rmarkdown,
-    foreach,
-    quantmod,
-    randomForest,
-    reticulate,
-    techila,
-    zoo
+Imports: R6, stats, utils, dplyr, openxlsx, tidyr, pROC, PRROC,
+        reshape2, digest, ggplot2
+Suggests: testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
+        reticulate, techila, zoo
 VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2026-02-10 06:16:30 UTC; wfky1
+Author: Mathew William Armitage Fok [aut, cre]
+Maintainer: Mathew William Armitage Fok <quiksilver67213@yahoo.com>
+Built: R 4.5.1; ; 2026-02-10 13:24:16 UTC; windows

@@ -85,3 +85,4 @@
 
 ^doc$
 ^Meta$
+^\.RDataTmp$

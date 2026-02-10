@@ -1,0 +1,18 @@
+* installing *source* package 'DDESONN' ...
+** this is package 'DDESONN' version '0.1.0'
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
+Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
+Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
+Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (DDESONN)
