@@ -25,6 +25,12 @@ ddesonn_fit(
 \item{validation}{Optional list containing \code{x} and \code{y} elements for validation.}
 
 \item{...}{Named overrides for entries in \code{\link[=ddesonn_training_defaults]{ddesonn_training_defaults()}}.}
+
+\item{verbose}{Logical; emit detailed progress output when TRUE.}
+
+\item{verboseLow}{Logical; emit important progress output when TRUE.}
+
+\item{debug}{Logical; emit debug diagnostics when TRUE.}
 }
 \value{
 The trained model (invisibly). The underlying R6 object is modified

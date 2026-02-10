@@ -181,6 +181,7 @@ Core implementation is modular and intentionally explicit:
 Formal R vignettes for guided exploration and reproducible demonstrations are available in the vignettes directory.
 
 Techila (distributed/parallel compute) support exists to scale heavier experiments across multiple servers/workers.  
+Use it optionally by guarding calls, for example: `if (requireNamespace("techila", quietly = TRUE)) { ... } else { ... }`.
 This becomes relevant quickly when you start running large seed sweeps (e.g., hundreds to thousands of seeds across hundreds of epochs).
 
 ---

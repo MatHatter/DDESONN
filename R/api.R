@@ -269,6 +269,9 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param N Optional total node count. If omitted it is inferred from the architecture.
 #' @param ensembles Optional pre-existing ensemble container.
 #' @param ensemble_number Identifier used when combining multiple ensembles.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #'
@@ -360,6 +363,9 @@ ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return The trained model (invisibly). The underlying R6 object is modified
 #'   in-place and the last training result is stored under `model$last_training`.
@@ -1378,6 +1384,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
 #' @param type Prediction type. `"response"` returns numeric predictions,
 #'   while `"class"` applies thresholding for classification problems.
 #' @param threshold Optional threshold override when `type = "class"`.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.
@@ -3075,6 +3084,9 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 #'   defaults.
 #' @param save_models Logical; if `TRUE` (default) individual models are
 #'   persisted when `output_root` is supplied.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @details
 #' **Discovering available training overrides**
@@ -3518,12 +3530,12 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   temp_meta_var <- function(e, i) sprintf("Ensemble_Temp_%d_model_%d_metadata", as.integer(e), as.integer(i))
   
   snapshot_main_serials_meta <- function() {
-    vars <- grep("^Ensemble_Main_(0|1)_model_\\d+_metadata$", ls(.GlobalEnv), value = TRUE)
+    vars <- grep("^Ensemble_Main_(0|1)_model_\\d+_metadata$", ls(.ddesonn_state), value = TRUE)
     if (!length(vars)) return(character())
     ord <- suppressWarnings(as.integer(sub("^Ensemble_Main_(?:0|1)_model_(\\d+)_metadata$", "\\1", vars)))
     vars <- vars[order(ord)]
     vapply(vars, function(v) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       as.character(md$model_serial_num %||% NA_character_)
     }, character(1))
   }
@@ -3531,11 +3543,11 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   get_metric_by_serial <- function(serial, metric_name) {
     vars <- grep(
       "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
-      ls(.GlobalEnv), value = TRUE
+      ls(.ddesonn_state), value = TRUE
     )
     if (!length(vars)) return(NA_real_)
     for (v in vars) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       if (identical(as.character(md$model_serial_num %||% NA_character_), as.character(serial))) {
         val <- tryCatch(md$performance_metric[[metric_name]], error = function(e) NULL)
         if (is.null(val)) {
@@ -3551,12 +3563,12 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   
   get_temp_serials_meta <- function(iter_j) {
     e <- as.integer(iter_j) + 1L
-    vars <- grep(sprintf("^Ensemble_Temp_%d_model_\\d+_metadata$", e), ls(.GlobalEnv), value = TRUE)
+    vars <- grep(sprintf("^Ensemble_Temp_%d_model_\\d+_metadata$", e), ls(.ddesonn_state), value = TRUE)
     if (!length(vars)) return(character())
     ord <- suppressWarnings(as.integer(sub(sprintf("^Ensemble_Temp_%d_model_(\\d+)_metadata$", e), "\\1", vars)))
     vars <- vars[order(ord)]
     vapply(vars, function(v) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       s <- md$model_serial_num
       if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
     }, character(1))
@@ -3853,10 +3865,10 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     main_model$ensemble[[worst_slot]] <- candidate
     temp_env <- temp_meta_var(iteration_index + 1L, temp_model_index)
     main_env <- main_meta_var(worst_slot)
-    if (exists(temp_env, envir = .GlobalEnv)) {
-      md <- get(temp_env, envir = .GlobalEnv)
+    if (exists(temp_env, envir = .ddesonn_state)) {
+      md <- get(temp_env, envir = .ddesonn_state)
       md$model_serial_num <- best_serial
-      assign(main_env, md, envir = .GlobalEnv)
+      assign(main_env, md, envir = .ddesonn_state)
     }
     list(model = main_model, slot = as.integer(worst_slot), serial = best_serial)
   }
@@ -3874,9 +3886,9 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     if (isTRUE(do_ensemble)) {
       vars <- grep(
         "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
-        ls(.GlobalEnv), value = TRUE
+        ls(.ddesonn_state), value = TRUE
       )
-      if (length(vars)) rm(list = vars, envir = .GlobalEnv)
+      if (length(vars)) rm(list = vars, envir = .ddesonn_state)
     }
     
     log_enabled <- isTRUE(do_ensemble) &&                                              # #$$$$$$$$$$$$$

@@ -13,7 +13,7 @@
 # ============================================================  #$$$$$$$$$$$$$
 # Console / debug / table helpers (verbosity control)           #$$$$$$$$$$$$$
 # ============================================================   #$$$$$$$$$$$$$
-ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL) {  #$$$$$$$$$$$$$
+ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL, ...) {  #$$$$$$$$$$$$$
   level <- match.arg(level)  #$$$$$$$$$$$$$
   if (is.null(verbose)) verbose <- FALSE  #$$$$$$$$$$$$$
   if (is.null(verboseLow)) verboseLow <- FALSE  #$$$$$$$$$$$$$
@@ -270,11 +270,11 @@ probe_preds_vs_labels <- function(preds, labs, tag = "GENERIC", save_global = FA
     
     # Separate globals for train vs predict
     if (grepl("^TRAIN", tag)) {
-      assign("probe_last_train", dbg, envir = .GlobalEnv)
+      assign("probe_last_train", dbg, envir = .ddesonn_state)
     } else if (grepl("^PREDICT", tag)) {
-      assign("probe_last_predict", dbg, envir = .GlobalEnv)
+      assign("probe_last_predict", dbg, envir = .ddesonn_state)
     } else {
-      assign("probe_last_dbg", dbg, envir = .GlobalEnv)
+      assign("probe_last_dbg", dbg, envir = .ddesonn_state)
     }
   }
 }
@@ -333,7 +333,7 @@ probe_last_layer <- function(weights, biases, y, tag = "GENERIC", save_global = 
   
   if (save_global) {
     # store in global env
-    assign(paste0("probe_last_layer_", tag), stats, envir = .GlobalEnv)
+    assign(paste0("probe_last_layer_", tag), stats, envir = .ddesonn_state)
     
     # ===== Artifacts snapshot saver ===== 
     artifacts_dir <- ddesonn_artifacts_root(get0("output_root", inherits = TRUE, ifnotfound = NULL)) 
@@ -870,7 +870,7 @@ safe_one_hot_matrix <- function(idx, K) {
   pp <- meta$preprocessScaledData %||% meta$preprocess %||% meta$scaler
   X <- as.matrix(X); storage.mode(X) <- "double"
   if (is.null(pp)) {
-    assign("LAST_APPLIED_X", X, .GlobalEnv)
+    assign("LAST_APPLIED_X", X, .ddesonn_state)
     return(X)
   }
   # Column order + add missing with 0
@@ -901,7 +901,7 @@ safe_one_hot_matrix <- function(idx, K) {
     if (is.finite(mv) && mv > 1) X <- X / mv
   }
   
-  assign("LAST_APPLIED_X", X, .GlobalEnv)  # lets you inspect later
+  assign("LAST_APPLIED_X", X, .ddesonn_state)  # lets you inspect later
   X
 }
 
@@ -1251,7 +1251,7 @@ if (!exists("LAST_DEBUG", inherits = TRUE)) {
   stamp <- format(Sys.time(), "%H:%M:%S")
   
   # Resolve meta if a name was passed
-  if (is.character(meta)) meta <- get(meta, envir = .GlobalEnv, inherits = TRUE)
+  if (is.character(meta)) meta <- get(meta, envir = .ddesonn_state, inherits = TRUE)
   
   # Pull predictor variants from metadata
   predictor    <- tryCatch(meta$predictor,    error = function(e) NULL)
@@ -1564,8 +1564,8 @@ serial_to_meta_name <- function(serial) {
 
 get_metric_by_serial <- function(serial, metric_name) {
   var <- serial_to_meta_name(serial)
-  if (nzchar(var) && exists(var, envir = .GlobalEnv)) {
-    md <- get(var, envir = .GlobalEnv)
+  if (nzchar(var) && exists(var, envir = .ddesonn_state)) {
+    md <- get(var, envir = .ddesonn_state)
     return(.resolve_metric_from_pm(md$performance_metric, metric_name))
   }
   NA_real_

@@ -2755,8 +2755,8 @@ SONN <- R6::R6Class(
                     best_biases  <- as.matrix(self$biases)
                   }
                   
-                  assign("best_train_probs",  probs_tr,   envir = .GlobalEnv)
-                  assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
+                  assign("best_train_probs",  probs_tr,   envir = .ddesonn_state)
+                  assign("best_train_labels", y_tr_epoch, envir = .ddesonn_state)
                   
                   ddesonn_console_log(  #$$$$$$$$$$$$$
                     paste0("New best (train) model saved at epoch ", epoch,  #$$$$$$$$$$$$$
@@ -2780,8 +2780,8 @@ SONN <- R6::R6Class(
                     best_biases  <- as.matrix(self$biases)
                   }
                   
-                  assign("best_train_probs",  probs_tr,   envir = .GlobalEnv)
-                  assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
+                  assign("best_train_probs",  probs_tr,   envir = .ddesonn_state)
+                  assign("best_train_labels", y_tr_epoch, envir = .ddesonn_state)
                   
                   ddesonn_console_log(  #$$$$$$$$$$$$$
                     paste0("New best (regression, train) model saved at epoch ", epoch,  #$$$$$$$$$$$$$
@@ -5432,14 +5432,14 @@ DDESONN <- R6::R6Class(
         if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
           print(paste("Storing metadata for main ensemble model", model_iter_num, "as", model_serial_num))
         }                                                                         #$$$$$$$$$$$$$
-        assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .GlobalEnv)
+        assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .ddesonn_state)
         
       } else {
         
         if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
           print(paste("Storing metadata for temp ensemble model", model_iter_num, "as", model_serial_num))
         }                                                                         #$$$$$$$$$$$$$
-        assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .GlobalEnv)
+        assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .ddesonn_state)
       }
       
     }
