@@ -16,7 +16,13 @@
 # ============================================================
 .Rhistory
 .RData
+.RDataTmp
 .Rproj.user/
+
+# Local package build outputs and editor backup files
+*.tar.gz
+*.bak_nonascii_*
+*.bak_nonascii2_*
 
 # Excel temp files
 ~$*.xlsx

@@ -1,21 +1,11 @@
 # ===============================================================
-# DeepDynamic — DDESONN
+# DeepDynamic -- DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
 # ---------------------------------------------------------------
-# Copyright (c) 2024-2025 Mathew William Fok
-# 
-# Licensed for academic and personal research use only.
-# Commercial use, redistribution, or incorporation into any
-# profit-seeking product or service is strictly prohibited.
+# Copyright (c) 2024-2026 Mathew William Armitage Fok
 #
-# This license applies to all versions of DeepDynamic/DDESONN,
-# past, present, and future, including legacy releases.
-#
-# Intended future distribution: CRAN package.
+# Released under the MIT License. See the file LICENSE.
 # ===============================================================
- FIX: utils.R must NOT infer from caller
- FIX: robust R/ resolution (run from repo root OR /R)
- FIX: define ddesonn_artifacts_root (EvaluatePredictionsReport dependency)
 
 # utils.R — helpers only, NEVER self-source
 
