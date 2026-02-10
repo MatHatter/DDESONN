@@ -29,6 +29,12 @@
 while \code{"class"} returns class labels for classification problems.}
 
 \item{threshold}{Optional threshold override when \code{type = "class"}.}
+
+\item{verbose}{Logical; emit detailed progress output when TRUE.}
+
+\item{verboseLow}{Logical; emit important progress output when TRUE.}
+
+\item{debug}{Logical; emit debug diagnostics when TRUE.}
 }
 \description{
 This is the canonical user-facing wrapper around \code{\link[=ddesonn_predict]{ddesonn_predict()}}. It

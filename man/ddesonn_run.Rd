@@ -110,6 +110,12 @@ defaults.}
 
 \item{save_models}{Logical; if \code{TRUE} (default) individual models are
 persisted when \code{output_root} is supplied.}
+
+\item{verbose}{Logical; emit detailed progress output when TRUE.}
+
+\item{verboseLow}{Logical; emit important progress output when TRUE.}
+
+\item{debug}{Logical; emit debug diagnostics when TRUE.}
 }
 \value{
 A list (classed as \code{"ddesonn_run_result"}) containing the
