@@ -18,26 +18,26 @@ suppressPackageStartupMessages({
 
 # Locate package data root
 hf_root <- system.file(
-  "extdata", "sample_runs", "heart_failure_single_runs",
+  "extdata", "hf_runs",
   package = "DDESONN"
 )
 
 # ---- Define RDS paths ----
 train_run1_path <- file.path(
-  hf_root, "20251025_175155__m1__wSeed",
-  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025_175155.rds"
+  hf_root, "run1",
+  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds"
 )
 test_run1_path <- file.path(
-  hf_root, "20251025_175155__m1__wSeed",
-  "SingleRun_Test_Metrics_500_seeds_20251025_175155.rds"
+  hf_root, "run1",
+  "SingleRun_Test_Metrics_500_seeds_20251025.rds"
 )
 train_run2_path <- file.path(
-  hf_root, "20251026_111537__m1__wSeed",
-  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026_111537.rds"
+  hf_root, "run2",
+  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds"
 )
 test_run2_path <- file.path(
-  hf_root, "20251026_111537__m1__wSeed",
-  "SingleRun_Test_Metrics_500_seeds_20251026_111537.rds"
+  hf_root, "run2",
+  "SingleRun_Test_Metrics_500_seeds_20251026.rds"
 )
 
 # Read the four files
@@ -108,4 +108,30 @@ pretty_summary <- as.data.frame(lapply(summary_all, round4))
 
 ## ----ddesonn-merged-preview---------------------------------------------------
 .vtbl(head(merged, 10), title = "First 10 seeds — per-seed train/val/test accuracies")
+
+## ----keras-summary, message=FALSE---------------------------------------------
+if (!requireNamespace("readxl", quietly = TRUE)) {
+  message("Skipping keras-summary chunk: 'readxl' not installed.")
+} else {
+  suppressPackageStartupMessages(library(readxl))
+  # ... rest of your chunk code ...
+}
+
+keras_pkg_path <- system.file(
+  "extdata", "vKeras", "1000SEEDSRESULTSvkeras", "1000seedsKeras.xlsx",
+  package = "DDESONN"
+)
+
+keras_local_fallback <- file.path(
+  "helpfulFiles", "vKeras", "1000SEEDSRESULTSvkeras", "1000seedsKeras.xlsx"
+)
+
+keras_path <- if (nzchar(keras_pkg_path)) keras_pkg_path else keras_local_fallback
+
+if (file.exists(keras_path)) {
+  keras_stats <- readxl::read_excel(keras_path, sheet = 2)
+  .vtbl(keras_stats, title = "Keras — 1000-seed summary imported from Excel (Sheet 2)")
+} else {
+  cat("Keras Excel not found; expected either the packaged path or local fallback.\n")
+}
 

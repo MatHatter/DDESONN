@@ -18,8 +18,8 @@
 #$$$_\///\\\\\\\\\\\/_______\///\\\\\/______\/\\\___\//\\\\\__\/\\\___\//\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #$$$___\///////////___________\/////________\///_____\/////___\///_____\/////__$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-# Step 1: Define the Self-Organizing Neural Network (SONN) class
 
+# Step 1: Define the Self-Organizing Neural Network (SONN) class
 
 SONN <- R6::R6Class( 
   "SONN",
@@ -2241,8 +2241,8 @@ SONN <- R6::R6Class(
           # BLOCK B -- Weights (Max Weight + Plot)
           # =========================
           
-           FIX: REMOVE per-epoch reset (max_weight_log already initialized before loop)
-           This caused silent history loss across runs
+          # FIX: REMOVE per-epoch reset (max_weight_log already initialized before loop)
+          # This caused silent history loss across runs
           # if (exists("epoch", inherits = TRUE) && isTRUE(epoch == 1L)) {
           #   if (exists("max_weight_log", inherits = TRUE)) {
           #     max_weight_log <- numeric(0)
@@ -2741,8 +2741,8 @@ SONN <- R6::R6Class(
                 stop("Unknown CLASSIFICATION_MODE.")
               }
               
-               FIX: REMOVE duplicate training log appends
-               Canonical train logging happens in BLOCK A only
+              # FIX: REMOVE duplicate training log appends
+              # Canonical train logging happens in BLOCK A only
               # train_accuracy_log <- c(train_accuracy_log, tr_acc)   
               # train_loss_log     <- c(train_loss_log,     tr_loss)  
               
@@ -3232,7 +3232,7 @@ DDESONN <- R6::R6Class(
           relevance_low_mean_plots    = FALSE,  # low mean relevance plots
           viewAllPlots = FALSE,
           verbose      = NULL,  
-          saveEnabled  = TRUE    ADD: allow scenario-1 users to disable file writes
+          saveEnabled  = TRUE    # ADD: allow scenario-1 users to disable file writes
         )
       
       

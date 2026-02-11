@@ -27,6 +27,12 @@ ddesonn_predict(
 while \code{"class"} applies thresholding for classification problems.}
 
 \item{threshold}{Optional threshold override when \code{type = "class"}.}
+
+\item{verbose}{Logical; emit detailed progress output when TRUE.}
+
+\item{verboseLow}{Logical; emit important progress output when TRUE.}
+
+\item{debug}{Logical; emit debug diagnostics when TRUE.}
 }
 \value{
 A list containing the aggregated prediction matrix and the

@@ -7,41 +7,41 @@
 # Released under the MIT License. See the file LICENSE.
 # ===============================================================
 
-`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a  #$$$$$$$$$$$$$
+`%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a  
 
 
-# ============================================================  #$$$$$$$$$$$$$
-# Console / debug / table helpers (verbosity control)           #$$$$$$$$$$$$$
-# ============================================================   #$$$$$$$$$$$$$
-ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL, ...) {  #$$$$$$$$$$$$$
-  level <- match.arg(level)  #$$$$$$$$$$$$$
-  if (is.null(verbose)) verbose <- FALSE  #$$$$$$$$$$$$$
-  if (is.null(verboseLow)) verboseLow <- FALSE  #$$$$$$$$$$$$$
-  verbose <- isTRUE(verbose)  #$$$$$$$$$$$$$
-  verboseLow <- isTRUE(verboseLow)  #$$$$$$$$$$$$$
-  msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
-  if (identical(level, "important")) {  #$$$$$$$$$$$$$
-    if (verboseLow) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
-  } else {  #$$$$$$$$$$$$$
-    if (verbose) cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
-  }  #$$$$$$$$$$$$$
-  invisible(NULL)  #$$$$$$$$$$$$$
-}  #$$$$$$$$$$$$$
+# ============================================================  
+# Console / debug / table helpers (verbosity control)           
+# ============================================================   
+ddesonn_console_log <- function(msg, level = c("important", "info"), verbose = NULL, verboseLow = NULL, ...) {  
+  level <- match.arg(level)  
+  if (is.null(verbose)) verbose <- FALSE  
+  if (is.null(verboseLow)) verboseLow <- FALSE  
+  verbose <- isTRUE(verbose)  
+  verboseLow <- isTRUE(verboseLow)  
+  msg <- paste0(msg, collapse = "")  
+  if (identical(level, "important")) {  
+    if (verboseLow) cat(msg, "\n", sep = "")  
+  } else {  
+    if (verbose) cat(msg, "\n", sep = "")  
+  }  
+  invisible(NULL)  
+}  
 
-ddesonn_debug <- function(msg, debug = FALSE) {  #$$$$$$$$$$$$$
-  if (is.null(debug)) {  #$$$$$$$$$$$$$
-    debug <- getOption("DDESONN.debug", FALSE)  #$$$$$$$$$$$$$
-  }  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug)  #$$$$$$$$$$$$$
-  if (isTRUE(debug)) {  #$$$$$$$$$$$$$
-    msg <- paste0(msg, collapse = "")  #$$$$$$$$$$$$$
-    cat(msg, "\n", sep = "")  #$$$$$$$$$$$$$
-  }  #$$$$$$$$$$$$$
-  invisible(NULL)  #$$$$$$$$$$$$$
-}  #$$$$$$$$$$$$$
+ddesonn_debug <- function(msg, debug = FALSE) {  
+  if (is.null(debug)) {  
+    debug <- getOption("DDESONN.debug", FALSE)  
+  }  
+  debug <- isTRUE(debug)  
+  if (isTRUE(debug)) {  
+    msg <- paste0(msg, collapse = "")  
+    cat(msg, "\n", sep = "")  
+  }  
+  invisible(NULL)  
+}  
 
-ddesonn_viewTables <- function(x, title = NULL, ...) {  #$$$$$$$$$$$$$
-  if (!is.null(title)) message(title)  #$$$$$$$$$$$$$
+ddesonn_viewTables <- function(x, title = NULL, ...) {  
+  if (!is.null(title)) message(title)  
 
   # Single authoritative renderer for table-like output.
   # viewTables=TRUE should always produce polished tabular formatting.
@@ -68,35 +68,35 @@ ddesonn_viewTables <- function(x, title = NULL, ...) {  #$$$$$$$$$$$$$
 
   # Non-tabular objects are printed as-is.
   print(x, ...)
-  invisible(x)  #$$$$$$$$$$$$$
-}  #$$$$$$$$$$$$$
+  invisible(x)  
+}  
 
 
 
-# ============================================================  #$$$$$$$$$$$$$
-# SECTION: Boxplot theme + title size consistency notes         #$$$$$$$$$$$$$
-# ============================================================   #$$$$$$$$$$$$$
-# Why identical code can yield different ggplot2 title sizes:    #$$$$$$$$$$$$$
-# - theme_set()/theme_update() or global theme options earlier   #$$$$$$$$$$$$$
-# - base_size differences in theme_minimal(base_size=...)        #$$$$$$$$$$$$$
-# - plot.title inherits size from current theme text             #$$$$$$$$$$$$$
-# - device scaling/DPI differences (ggsave/png/cairo/ragg)       #$$$$$$$$$$$$$
-# - knitr/RMarkdown scaling (fig.retina/out.width/CSS)           #$$$$$$$$$$$$$
-# - facet/strip text scaling interactions (perceived size)       #$$$$$$$$$$$$$
-# - theme order: last-added theme overrides earlier choices      #$$$$$$$$$$$$$
-# This helper sets explicit base_size + title size to enforce    #$$$$$$$$$$$$$
-# consistent boxplot titles across runs/environments.            #$$$$$$$$$$$$$
-ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {  #$$$$$$$$$$$$$
-  ggplot2::theme_minimal(base_size = base_size) +  #$$$$$$$$$$$$$
-    ggplot2::theme(  #$$$$$$$$$$$$$
-      text = ggplot2::element_text(size = base_size),  #$$$$$$$$$$$$$
-      plot.title = ggplot2::element_text(hjust = 0.5, size = title_size, lineheight = 1.05, margin = ggplot2::margin(b = 8)),  #$$$$$$$$$$$$$
-      plot.margin = ggplot2::margin(t = 12, r = 8, b = 8, l = 8)  #$$$$$$$$$$$$$
-    )  #$$$$$$$$$$$$$
-}  #$$$$$$$$$$$$$
+# ============================================================  
+# SECTION: Boxplot theme + title size consistency notes         
+# ============================================================   
+# Why identical code can yield different ggplot2 title sizes:    
+# - theme_set()/theme_update() or global theme options earlier   
+# - base_size differences in theme_minimal(base_size=...)        
+# - plot.title inherits size from current theme text             
+# - device scaling/DPI differences (ggsave/png/cairo/ragg)       
+# - knitr/RMarkdown scaling (fig.retina/out.width/CSS)           
+# - facet/strip text scaling interactions (perceived size)       
+# - theme order: last-added theme overrides earlier choices      
+# This helper sets explicit base_size + title size to enforce    
+# consistent boxplot titles across runs/environments.            
+ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {  
+  ggplot2::theme_minimal(base_size = base_size) +  
+    ggplot2::theme(  
+      text = ggplot2::element_text(size = base_size),  
+      plot.title = ggplot2::element_text(hjust = 0.5, size = title_size, lineheight = 1.05, margin = ggplot2::margin(b = 8)),  
+      plot.margin = ggplot2::margin(t = 12, r = 8, b = 8, l = 8)  
+    )  
+}  
 
-ddesonn_wrap_plot_title <- function(title, width = 55L) {  #$$$$$$$$$$$$$
-  if (is.null(title) || !length(title) || !nzchar(title[1])) return(title)  #$$$$$$$$$$$$$
+ddesonn_wrap_plot_title <- function(title, width = 55L) {  
+  if (is.null(title) || !length(title) || !nzchar(title[1])) return(title)  
   paste(strwrap(as.character(title[1]), width = as.integer(width)), collapse = "\n")  #$$$$$$$$$$$$$
 }  #$$$$$$$$$$$$$
 

@@ -26,7 +26,8 @@ The root `README.md` (this file) is the canonical public-facing README for users
 11. To-Do (Active Work)
 12. Contributing
 13. License
-14. Contact
+14. Other work by the author
+15. Contact
 
 ---
 
@@ -51,15 +52,15 @@ The primary design objective of DDESONN is to provide a fully customizable, enti
 
 DDESONN exists because I wanted to understand machine learning at a deeper level than "use a library and hope it works."
 
-I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into -? layer by layer, error by error, update by update -? and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
+I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into layer by layer, error by error, update by update and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
 
-So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** -? and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
+So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
 
 ### The honest story (trials, tribulations, and why it matters)
 
 This package took an extreme amount of time and emotional energy to build.
 
-There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard -? because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
+There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
 
 I nearly gave up twice.
 
@@ -88,13 +89,13 @@ DDESONN is built to show you what it's doing.
 
 Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks). High-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
 
-This is not just a model -? it's an implementation you can learn from.
+This is not just a model it's an implementation you can learn from.
 
 ### Connect with me / questions welcome
 
 If you found this package useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
 
-If you send a connection request, please include a short message saying you found DDESONN -? I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
+If you send a connection request, please include a short message saying you found DDESONN I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
 
 ---
 
@@ -143,6 +144,7 @@ Example template (R-style pseudo you can adapt):
 - Dynamic ensemble orchestration with metadata and relevance tracking
 - Excel and plot reporting using writexl, openxlsx, ggplot2, and plotly
 - High-level API helpers in R/api.R for external integration
+- User-controllable self-organization toggle (`self_org`) via `ddesonn_fit()` or `ddesonn_run(training_overrides = ...)`
 
 ---
 
@@ -216,43 +218,45 @@ Earlier checkpoint versions and legacy research code may be published separately
 ## Repository structure
 
 DDESONN/
-?????? R/
-???  ?????? DDESONN-package.R
-???  ?????? DDESONN.R
-???  ?????? activation_functions.R
-???  ?????? aliases.R
-???  ?????? api.R
-???  ?????? evaluate_predictions_report.R
-???  ?????? optimizers.R
-???  ?????? paths.R
-???  ?????? performance_relevance_metrics.R
-???  ?????? predict.R
-???  ?????? state.R
-???  ?????? update_biases_block.R
-???  ?????? update_weights_block.R
-???  ?????? utils.R
-?????? inst/
-???  ?????? dev/
-???  ???  ?????? README.Rmd
-???  ?????? extdata/
-???  ???  ?????? WMT_1970-10-01_2025-03-15.csv
-???  ???  ?????? heart_failure_clinical_records.csv
-???  ???  ?????? test_multiclass_customer_segmentation.csv
-???  ???  ?????? train_multiclass_customer_segmentation.csv
-???  ?????? scripts/
-???     ?????? DDESONN_mtcars_A-D_examples.R
-???     ?????? DDESONN_mtcars_A-D_examples_regression.R
-???     ?????? Heart_failure_ScenarioA.R
-???     ?????? LoadandPredict.R
-???     ?????? TestDDESONN.R
-?????? man/
-?????? vignettes/
-?????? DESCRIPTION
-?????? NAMESPACE
-?????? DDESONN.Rproj
-?????? README.md
-?????? LICENSE
-?????? LICENSE.md
+├── R/
+│   ├── DDESONN-package.R
+│   ├── DDESONN.R
+│   ├── activation_functions.R
+│   ├── aliases.R
+│   ├── api.R
+│   ├── evaluate_predictions_report.R
+│   ├── optimizers.R
+│   ├── paths.R
+│   ├── performance_relevance_metrics.R
+│   ├── predict.R
+│   ├── state.R
+│   ├── update_biases_block.R
+│   ├── update_weights_block.R
+│   └── utils.R
+│
+├── inst/
+│   ├── dev/
+│   │   └── README.Rmd
+│   ├── extdata/
+│   │   ├── WMT_1970-10-01_2025-03-15.csv
+│   │   ├── heart_failure_clinical_records.csv
+│   │   ├── test_multiclass_customer_segmentation.csv
+│   │   └── train_multiclass_customer_segmentation.csv
+│   └── scripts/
+│       ├── DDESONN_mtcars_A-D_examples.R
+│       ├── DDESONN_mtcars_A-D_examples_regression.R
+│       ├── Heart_failure_ScenarioA.R
+│       ├── LoadandPredict.R
+│       └── TestDDESONN.R
+│
+├── man/
+├── vignettes/
+├── DESCRIPTION
+├── NAMESPACE
+├── DDESONN.Rproj
+├── README.md
+├── LICENSE
+└── LICENSE.md
 
 ---
 
@@ -304,9 +308,12 @@ High-level API usage (training split is always `x`/`y`):
       y = train_y,
       validation = list(x = valid_x, y = valid_y),
       test = list(x = test_x, y = test_y),
-      training_overrides = list(num_epochs = 1, validation_metrics = TRUE)
+      training_overrides = list(
+        num_epochs = 1,
+        validation_metrics = TRUE,
+        self_org = FALSE  # set TRUE to enable self-organization
+      )
     )
-    
 
 #### Which function should I use?
 
@@ -340,6 +347,22 @@ Typical progression:
 1. Start with `ddesonn_run()`.
 2. Move to `ddesonn_model()` + `ddesonn_fit()` when you need custom training flow.
 3. Use `predict()` for downstream inference and reporting.
+
+Self-organization toggle (public API):
+
+- In `ddesonn_fit()`, pass `self_org = TRUE` (or `FALSE`) directly.
+- In `ddesonn_run()`, pass `training_overrides = list(self_org = TRUE)` (or `FALSE`).
+- Default is OFF (`self_org = FALSE`) unless you explicitly enable it.
+
+`self_organize()` is an unsupervised topology-adjustment phase that updates the
+network using input-space neighborhood/organization error rather than
+prediction-target residual error. In other words, it optimizes topographical
+structure of the representation (input manifold organization), not the direct
+supervised prediction-loss objective.
+
+In exploratory experiments, enabling it may have positive implications for
+topographical-analysis accuracy on some datasets/workflows, so it is useful to
+benchmark both settings.
 
 
 Evaluation plot toggles (ROC/PR/accuracy) can be enabled via `training_overrides`.
@@ -629,6 +652,13 @@ Techila exists to scale heavy experiments across multiple servers/workers for se
 sweeps and larger runs. This is particularly valuable when you want hundreds to
 thousands of seeds without waiting on a single machine.
 
+#### R-10 - Cross-language reference implementations  
+**Status:** Forward-looking consideration  
+
+Future releases may explore reference implementations of the DDESONN architecture in other programming languages (e.g., Python, MATLAB, C#, C++).  
+
+The goal would not be to wrap existing deep-learning libraries, but to preserve the same architectural transparency and explicit training logic across languages.
+
 ---
 
 ## To-Do (Design-Linked)
@@ -666,13 +696,13 @@ Linked from: **R-05**
 Assess architectural implications of separating single-run execution from
 ensemble metadata and orchestration contracts.
 
-### T-06 - `validation_metrics` contract clarification (post-v1)  
+#### T-06 - `validation_metrics` contract clarification (post-v1)  
 Linked from: **R-06**
 
 - Clearly define what `validation_metrics` enables/returns (evaluation report
   pipeline + artifacts + tuned-threshold support)
 - Identify and document the call sites that currently depend on the flag
-- Reduce -?hidden behavior-? and ensure the name matches the behavior contract
+- Reduce -?hidden behaviorand ensure the name matches the behavior contract
 
 #### T-07 - Extract threshold tuning into a standalone utility  
 Linked from: **R-06**
@@ -705,13 +735,18 @@ Linked from: **R-08**
 
 - Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
-- Treat vignettes as the primary -?user education layer-? for v1+ releases
+- Treat vignettes as the primary -?user education layerfor v1+ releases
 
 #### T-10 - Techila distributed experimentation hardening  
 Linked from: **R-09**
 
 - Provide a clean, documented Techila workflow for scaling seed sweeps
 - Make it easier to run heavy experiments across multiple servers with minimal setup friction
+
+#### T-11 - Cross-language feasibility assessment  
+Linked from: **R-10**
+
+Evaluate architectural portability and determine minimal core components required for a language-agnostic implementation.
 
 ---
 
@@ -721,7 +756,7 @@ Linked from: **R-09**
 2. Run demos to confirm no regressions
 3. Submit pull requests with clear descriptions and tests
 
-Contributions are highly appreciated -? especially those focused on:
+Contributions are highly appreciated especially those focused on:
 - polishing and tightening documentation
 - improving vignettes and reproducible demos
 - reporting/diagnostics improvements (tables, plots, artifacts)
@@ -736,6 +771,15 @@ Roadmap & To-Do sections are the best place to pick a meaningful contribution.
 
 DDESONN is released for personal, educational, and research use only.  
 Commercial use requires written authorization.
+
+---
+
+## Other work by the author
+
+The author also maintains additional modeling projects in R and Python, including:
+
+- **OLR - Optimal Linear Regression**  
+  CRAN: [olr on CRAN](https://cran.r-project.org/web/packages/olr/index.html)
 
 ---
 

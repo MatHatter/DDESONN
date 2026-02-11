@@ -24,4 +24,14 @@ expectations of the legacy DDESONN training loop.
 \examples{
 ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
 
+# Inspect regression defaults (includes LR decay by default).
+cfg_reg <- ddesonn_training_defaults("regression", hidden_sizes = c(16, 8))
+cfg_reg$lr
+cfg_reg$lr_decay_rate
+cfg_reg$lr_decay_epoch
+cfg_reg$lr_min
+
+# If you prefer a fixed LR in regression, disable decay explicitly.
+cfg_reg$lr_decay_rate <- 1.0
+
 }

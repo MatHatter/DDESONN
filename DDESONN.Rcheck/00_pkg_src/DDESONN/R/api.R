@@ -190,16 +190,32 @@ ddesonn_optimizer_options <- function() {
 #' @examples
 #' ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
 #'
+#' # Inspect regression defaults (includes LR decay by default).
+#' cfg_reg <- ddesonn_training_defaults("regression", hidden_sizes = c(16, 8))
+#' cfg_reg$lr
+#' cfg_reg$lr_decay_rate
+#' cfg_reg$lr_decay_epoch
+#' cfg_reg$lr_min
+#'
+#' # If you prefer a fixed LR in regression, disable decay explicitly.
+#' cfg_reg$lr_decay_rate <- 1.0
+#'
 #' @export
 ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regression"),
                                       hidden_sizes = NULL) {
   mode <- match.arg(mode)
   .ddesonn_source_legacy()
+
+  # Empirically conservative defaults:
+  # - classification modes keep a fixed learning rate unless user overrides,
+  # - regression keeps decay enabled.
+  lr_decay_rate_default <- if (mode == "regression") 0.5 else 1.0
+  lr_decay_epoch_default <- if (mode == "regression") 20L else 1L
   
   list(
     lr = 0.125,
-    lr_decay_rate = 0.5,
-    lr_decay_epoch = 20L,
+    lr_decay_rate = lr_decay_rate_default,
+    lr_decay_epoch = lr_decay_epoch_default,
     lr_min = 1e-5,
     num_epochs = 3L,
     self_org = FALSE,
@@ -269,6 +285,9 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param N Optional total node count. If omitted it is inferred from the architecture.
 #' @param ensembles Optional pre-existing ensemble container.
 #' @param ensemble_number Identifier used when combining multiple ensembles.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #'
@@ -359,7 +378,16 @@ ddesonn_model <- function(input_size,
 #' @param x Training features.
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
+#' @param self_org Optional logical override for the legacy self-organization
+#'   phase. `TRUE` enables `self_organize()` during training and `FALSE`
+#'   disables it. `NULL` keeps the configured default (`self_org = FALSE` in
+#'   [ddesonn_training_defaults()]). Self-organization acts on input-space
+#'   topology error (how well neighborhood structure is organized), not on the
+#'   supervised prediction-loss term.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return The trained model (invisibly). The underlying R6 object is modified
 #'   in-place and the last training result is stored under `model$last_training`.
@@ -371,9 +399,31 @@ ddesonn_model <- function(input_size,
 #' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
 #' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
 #'
+#' # Regression example (mtcars) with explicit scheduler controls.
+#' # If you do NOT want LR decay, set lr_decay_rate = 1.0.
+#' reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+#' reg_y <- mtcars$mpg
+#' reg_model <- ddesonn_model(
+#'   input_size = ncol(reg_x),          # number of input features
+#'   output_size = 1,                   # one numeric target
+#'   hidden_sizes = c(16, 8),           # hidden-layer widths
+#'   classification_mode = "regression" # problem type
+#' )
+#' ddesonn_fit(
+#'   model = reg_model,                 # model object from ddesonn_model()
+#'   x = reg_x,                         # training predictors
+#'   y = reg_y,                         # training target
+#'   num_epochs = 10,                   # training epochs
+#'   lr = 0.05,                         # initial learning rate
+#'   lr_decay_rate = 0.5,               # decay multiplier (use 1.0 to disable)
+#'   lr_decay_epoch = 20L,              # decay step interval in epochs
+#'   lr_min = 1e-5,                     # lower bound for learning rate
+#'   validation_metrics = FALSE         # disable validation metric pass in this example
+#' )
+#'
 #' @seealso [DDESONN]
 #' @export
-ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  
+ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
@@ -384,6 +434,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
   data_prep <- .prepare_training_data(x)
   
   overrides <- list(...)  # <-- move earlier so we can use it for mode  
+  if (is.null(overrides$self_org) && !is.null(self_org)) overrides$self_org <- self_org
   if (is.null(overrides$verbose)) overrides$verbose <- verbose  
   if (is.null(overrides$verboseLow)) overrides$verboseLow <- verboseLow  
   if (is.null(overrides$debug)) overrides$debug <- debug  
@@ -625,7 +676,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
     verbose = cfg$verbose,
     verboseLow = cfg$verboseLow,
     output_root = cfg$output_root,
-    plot_controls = cfg$plot_controls                               FIX: always pass required arg
+    plot_controls = cfg$plot_controls                               # FIX: always pass required arg
   )
   
   # ============================================================  
@@ -1378,6 +1429,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, ..., verbose = FALSE, ve
 #' @param type Prediction type. `"response"` returns numeric predictions,
 #'   while `"class"` applies thresholding for classification problems.
 #' @param threshold Optional threshold override when `type = "class"`.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.
@@ -3075,6 +3129,9 @@ ddesonn_predict <- function(model, new_data,
 #'   defaults.
 #' @param save_models Logical; if `TRUE` (default) individual models are
 #'   persisted when `output_root` is supplied.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #'
 #' @details
 #' **Discovering available training overrides**
@@ -3518,12 +3575,12 @@ ddesonn_run <- function(x,
   temp_meta_var <- function(e, i) sprintf("Ensemble_Temp_%d_model_%d_metadata", as.integer(e), as.integer(i))
   
   snapshot_main_serials_meta <- function() {
-    vars <- grep("^Ensemble_Main_(0|1)_model_\\d+_metadata$", ls(.GlobalEnv), value = TRUE)
+    vars <- grep("^Ensemble_Main_(0|1)_model_\\d+_metadata$", ls(.ddesonn_state), value = TRUE)
     if (!length(vars)) return(character())
     ord <- suppressWarnings(as.integer(sub("^Ensemble_Main_(?:0|1)_model_(\\d+)_metadata$", "\\1", vars)))
     vars <- vars[order(ord)]
     vapply(vars, function(v) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       as.character(md$model_serial_num %||% NA_character_)
     }, character(1))
   }
@@ -3531,11 +3588,11 @@ ddesonn_run <- function(x,
   get_metric_by_serial <- function(serial, metric_name) {
     vars <- grep(
       "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
-      ls(.GlobalEnv), value = TRUE
+      ls(.ddesonn_state), value = TRUE
     )
     if (!length(vars)) return(NA_real_)
     for (v in vars) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       if (identical(as.character(md$model_serial_num %||% NA_character_), as.character(serial))) {
         val <- tryCatch(md$performance_metric[[metric_name]], error = function(e) NULL)
         if (is.null(val)) {
@@ -3551,12 +3608,12 @@ ddesonn_run <- function(x,
   
   get_temp_serials_meta <- function(iter_j) {
     e <- as.integer(iter_j) + 1L
-    vars <- grep(sprintf("^Ensemble_Temp_%d_model_\\d+_metadata$", e), ls(.GlobalEnv), value = TRUE)
+    vars <- grep(sprintf("^Ensemble_Temp_%d_model_\\d+_metadata$", e), ls(.ddesonn_state), value = TRUE)
     if (!length(vars)) return(character())
     ord <- suppressWarnings(as.integer(sub(sprintf("^Ensemble_Temp_%d_model_(\\d+)_metadata$", e), "\\1", vars)))
     vars <- vars[order(ord)]
     vapply(vars, function(v) {
-      md <- get(v, envir = .GlobalEnv)
+      md <- get(v, envir = .ddesonn_state)
       s <- md$model_serial_num
       if (!is.null(s) && nzchar(as.character(s))) as.character(s) else NA_character_
     }, character(1))
@@ -3853,10 +3910,10 @@ ddesonn_run <- function(x,
     main_model$ensemble[[worst_slot]] <- candidate
     temp_env <- temp_meta_var(iteration_index + 1L, temp_model_index)
     main_env <- main_meta_var(worst_slot)
-    if (exists(temp_env, envir = .GlobalEnv)) {
-      md <- get(temp_env, envir = .GlobalEnv)
+    if (exists(temp_env, envir = .ddesonn_state)) {
+      md <- get(temp_env, envir = .ddesonn_state)
       md$model_serial_num <- best_serial
-      assign(main_env, md, envir = .GlobalEnv)
+      assign(main_env, md, envir = .ddesonn_state)
     }
     list(model = main_model, slot = as.integer(worst_slot), serial = best_serial)
   }
@@ -3874,9 +3931,9 @@ ddesonn_run <- function(x,
     if (isTRUE(do_ensemble)) {
       vars <- grep(
         "^(Ensemble_Main_(0|1)_model_\\d+_metadata|Ensemble_Temp_\\d+_model_\\d+_metadata)$",
-        ls(.GlobalEnv), value = TRUE
+        ls(.ddesonn_state), value = TRUE
       )
-      if (length(vars)) rm(list = vars, envir = .GlobalEnv)
+      if (length(vars)) rm(list = vars, envir = .ddesonn_state)
     }
     
     log_enabled <- isTRUE(do_ensemble) &&                                              # 

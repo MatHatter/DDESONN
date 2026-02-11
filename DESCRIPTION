@@ -30,5 +30,6 @@ Suggests:
     quantmod,
     randomForest,
     reticulate,
-    zoo
+    zoo,
+    readxl
 VignetteBuilder: knitr

@@ -1,0 +1,221 @@
+---
+title: "DDESONN Logs - Scenario D (Ensemble TEMP Runs Only)"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 2
+vignette: >
+  %\VignetteIndexEntry{DDESONN Logs - Scenario D (Ensemble TEMP Runs Only)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  results = "asis",
+  cache.path = "cache/"
+)
+
+if (!requireNamespace("DDESONN", quietly = TRUE)) {
+  stop(
+    "DDESONN must be installed to build this vignette. ",
+    "Run: install.packages('DDESONN') (or your install flow) then rebuild vignettes.",
+    call. = FALSE
+  )
+}
+
+library(DDESONN)
+
+# ============================================================
+# VIGNETTE SAFETY SWITCH (DEFAULT OFF)
+# ============================================================
+build_artifacts <- FALSE
+
+.dd_out_root <- file.path(tempdir(), "DDESONN_vignette_logs")
+outD <- file.path(.dd_out_root, "scenarioD_ensemble_temp")
+
+if (isTRUE(build_artifacts)) {
+  dir.create(outD, recursive = TRUE, showWarnings = FALSE)
+}
+
+# ============================================================
+# HTML-only styling
+# Wrapped strictly in HTML output guard to avoid pandoc ??? artifacts
+# ============================================================
+if (knitr::is_html_output()) {
+  cat(knitr::asis_output("
+<style>
+.dd-scroll {
+  overflow-x:auto;
+  width:100%;
+  border:1px solid #e5e7eb;
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:28px;
+  background:#ffffff;
+}
+
+.dd-scroll table {
+  width:100% !important;
+  border-collapse: collapse;
+}
+
+.dd-scroll th {
+  background:#f1f5f9;
+  font-weight:700;
+  font-size:14px;
+  border-bottom:2px solid #cbd5e1;
+}
+
+.dd-scroll td, .dd-scroll th {
+  padding:8px 10px;
+  text-align:left;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.dd-table-title {
+  font-size:22px;
+  font-weight:800;
+  margin:28px 0 12px 0;
+  color:#0f172a;
+}
+
+.dd-note {
+  margin: 20px 0 28px 0;
+  padding: 14px;
+  border-left: 5px solid #3b82f6;
+  background: #eff6ff;
+  border-radius: 10px;
+  font-size:14px;
+}
+</style>
+"))
+}
+
+# ============================================================
+# Helpers
+# ============================================================
+find_run_dir <- function(output_root, do_ensemble) {
+  runs_root <- file.path(
+    ddesonn_artifacts_root(output_root),
+    if (isTRUE(do_ensemble)) "EnsembleRuns" else "SingleRuns"
+  )
+  if (!dir.exists(runs_root)) return(NULL)
+  dirs <- list.dirs(runs_root, recursive = FALSE, full.names = TRUE)
+  if (!length(dirs)) return(NULL)
+  dirs[order(file.info(dirs)$mtime, decreasing = TRUE)][1]
+}
+
+show_log_table <- function(log_df, title, n_show = 10L, key_cols = character()) {
+  if (!knitr::is_html_output()) return(invisible(NULL))
+
+  cat(knitr::asis_output(sprintf(
+    "<div class='dd-table-title'>%s</div>", title
+  )))
+
+  if (!is.data.frame(log_df) || !NROW(log_df)) {
+    cat(knitr::asis_output("<div class='dd-scroll'>(no rows)</div>"))
+    return(invisible(NULL))
+  }
+
+  df <- utils::head(log_df, n_show)
+
+  if (length(key_cols)) {
+    keep <- intersect(key_cols, names(df))
+    if (length(keep)) df <- df[, keep, drop = FALSE]
+  }
+
+  if ("message" %in% names(df)) {
+    df$message <- gsub("[\r\n\t]+", " ", df$message)
+  }
+
+  tab <- knitr::kable(df, format = "html", escape = TRUE)
+  cat(knitr::asis_output(paste0("<div class='dd-scroll'>", tab, "</div>")))
+}
+```
+
+## Data prep
+
+```{r data-prep}
+set.seed(111)
+
+ext_dir <- system.file("extdata", package = "DDESONN")
+hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+df <- read.csv(hf_path)
+
+y_all <- matrix(as.integer(df$DEATH_EVENT), ncol = 1)
+x_all <- as.matrix(df[, setdiff(names(df), "DEATH_EVENT")])
+storage.mode(x_all) <- "double"
+
+n <- nrow(x_all)
+idx <- sample.int(n)
+
+n_train <- floor(0.70 * n)
+n_valid <- floor(0.15 * n)
+
+i_tr <- idx[1:n_train]
+i_va <- idx[(n_train + 1):(n_train + n_valid)]
+i_te <- idx[(n_train + n_valid + 1):n]
+
+x_train <- scale(x_all[i_tr, ])
+y_train <- y_all[i_tr, ]
+
+x_valid <- scale(x_all[i_va, ])
+y_valid <- y_all[i_va, ]
+
+x_test  <- scale(x_all[i_te, ])
+y_test  <- y_all[i_te, ]
+```
+
+## Scenario D - Ensemble run (TEMP iterations only)
+
+```{r scenario-d-run}
+res_D <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = TRUE,
+  num_networks = 2L,
+  num_temp_iterations = 2L,
+  validation = list(x = x_valid, y = y_valid),
+  test = list(x = x_test, y = y_test),
+  training_overrides = list(
+    init_method = "he",
+    optimizer = "adagrad",
+    lr = 0.125,
+    lambda = 0.00028,
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates = list(0.10),
+    loss_type = "CrossEntropy",
+    validation_metrics = TRUE,
+    num_epochs = 3,
+    final_summary_decimals = 6L
+  ),
+  output_root = if (isTRUE(build_artifacts)) outD else NULL
+)
+
+logs_D <- res_D$runs[[1]]$tables
+
+main_cols     <- c("serial","iteration","epoch","phase","metric_name","metric_value","message","timestamp")
+movement_cols <- c("serial","iteration","epoch","param_name","from","to","delta","message","timestamp")
+change_cols   <- c("serial","iteration","epoch","layer","target","param_name","grad_norm","update_norm","message","timestamp")
+
+show_log_table(logs_D$main_log,     "Scenario D - Main Log",     key_cols = main_cols)
+show_log_table(logs_D$movement_log, "Scenario D - Movement Log", key_cols = movement_cols)
+show_log_table(logs_D$change_log,   "Scenario D - Change Log",   key_cols = change_cols)
+
+if (knitr::is_html_output()) {
+  cat(knitr::asis_output("
+<div class='dd-note'>
+<b>Note:</b> Tables are preview-capped for vignette readability.
+Full tables remain available in <code>res_D$runs[[1]]$tables</code>.
+Artifact writing is <b>OFF</b> by default for CRAN-safety.
+</div>
+"))
+}
+```

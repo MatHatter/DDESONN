@@ -301,23 +301,23 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #'
 #' @seealso [DDESONN]
 #' @export
-ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
-                          output_size,  #$$$$$$$$$$$$$
-                          hidden_sizes = c(64, 32),  #$$$$$$$$$$$$$
-                          num_networks = 1L,  #$$$$$$$$$$$$$
-                          lambda = 2.8e-4,  #$$$$$$$$$$$$$
-                          classification_mode = c("binary", "multiclass", "regression"),  #$$$$$$$$$$$$$
-                          ML_NN = TRUE,  #$$$$$$$$$$$$$
-                          activation_functions = NULL,  #$$$$$$$$$$$$$
-                          activation_functions_predict = NULL,  #$$$$$$$$$$$$$
-                          init_method = "he",  #$$$$$$$$$$$$$
-                          custom_scale = 1,  #$$$$$$$$$$$$$
-                          N = NULL,  #$$$$$$$$$$$$$
-                          ensembles = NULL,  #$$$$$$$$$$$$$
-                          ensemble_number = 0L,  #$$$$$$$$$$$$$
-                          verbose = FALSE,  #$$$$$$$$$$$$$
-                          verboseLow = FALSE,  #$$$$$$$$$$$$$
-                          debug = FALSE) {  #$$$$$$$$$$$$$
+ddesonn_model <- function(input_size,  
+                          output_size,  
+                          hidden_sizes = c(64, 32),  
+                          num_networks = 1L,  
+                          lambda = 2.8e-4,  
+                          classification_mode = c("binary", "multiclass", "regression"),  
+                          ML_NN = TRUE,  
+                          activation_functions = NULL,  
+                          activation_functions_predict = NULL,  
+                          init_method = "he",  
+                          custom_scale = 1,  
+                          N = NULL,  
+                          ensembles = NULL,  
+                          ensemble_number = 0L,  
+                          verbose = FALSE,  
+                          verboseLow = FALSE,  
+                          debug = FALSE) {  
   classification_mode <- match.arg(classification_mode)
   
   activation_functions <- activation_functions %||%
@@ -423,21 +423,21 @@ ddesonn_model <- function(input_size,  #$$$$$$$$$$$$$
 #'
 #' @seealso [DDESONN]
 #' @export
-ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  #$$$$$$$$$$$$$
+ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   
-  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
+  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   
   data_prep <- .prepare_training_data(x)
   
-  overrides <- list(...)  # <-- move earlier so we can use it for mode  #$$$$$$$$$$$$$
+  overrides <- list(...)  # <-- move earlier so we can use it for mode  
   if (is.null(overrides$self_org) && !is.null(self_org)) overrides$self_org <- self_org
-  if (is.null(overrides$verbose)) overrides$verbose <- verbose  #$$$$$$$$$$$$$
-  if (is.null(overrides$verboseLow)) overrides$verboseLow <- verboseLow  #$$$$$$$$$$$$$
-  if (is.null(overrides$debug)) overrides$debug <- debug  #$$$$$$$$$$$$$
+  if (is.null(overrides$verbose)) overrides$verbose <- verbose  
+  if (is.null(overrides$verboseLow)) overrides$verboseLow <- verboseLow  
+  if (is.null(overrides$debug)) overrides$debug <- debug  
   # 1) Resolve mode with explicit override first, then model attr, then default
   mode <- tolower(overrides$classification_mode %||% attr(model, "classification_mode") %||% "binary")
   hidden_sizes <- attr(model, "hidden_sizes") %||% NULL
@@ -522,12 +522,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Final summary formatting control (presentation-only)  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Final summary formatting control (presentation-only)  
   # - User override name: final_summary_decimals
   # - Applies ONLY to values we attach for reporting / metadata display
-  # ============================================================  #$$$$$$$$$$$$$
-  cfg$final_summary_decimals <- overrides$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+  # ============================================================  
+  cfg$final_summary_decimals <- overrides$final_summary_decimals %||% NULL  
   
   plot_cfg_override <- overrides$EvaluatePredictionsReportPlotsConfig %||%
     overrides$evaluate_predictions_report_plots %||%
@@ -537,12 +537,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     model$EvaluatePredictionsReportPlotsConfig <- utils::modifyList(current_cfg %||% list(), plot_cfg_override, keep.null = TRUE)
   }
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Plot controls wiring (required arg support)  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Plot controls wiring (required arg support)  
   # - train_network()/model$train may require plot_controls with NO default
   # - accept both plot_controls and PlotControls keys from ...
-  # ============================================================  #$$$$$$$$$$$$$
-  cfg$plot_controls <- overrides$plot_controls %||% overrides$PlotControls %||% cfg$plot_controls %||% NULL  #$$$$$$$$$$$$$
+  # ============================================================  
+  cfg$plot_controls <- overrides$plot_controls %||% overrides$PlotControls %||% cfg$plot_controls %||% NULL  
   
   # 2) Threshold tuner only for binary; NULL otherwise (prevents downstream “tuned” bundles)
   if (identical(mode, "binary")) {
@@ -676,42 +676,42 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     verbose = cfg$verbose,
     verboseLow = cfg$verboseLow,
     output_root = cfg$output_root,
-    plot_controls = cfg$plot_controls                              #$$$$$$$$$$$$$ FIX: always pass required arg
+    plot_controls = cfg$plot_controls                               # FIX: always pass required arg
   )
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: EVOKE — post-train enrichment (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
-    sprintf(                                                                                          #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH] where=%s | why=%s | note=%s | epochs_configured=%s\n",                           #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                             #$$$$$$$$$$$$$
-      "About to attach per-slot metadata; this may call ddesonn_predict() again (aggregate='none')",  #$$$$$$$$$$$$$
-      "This EVOKE is NOT per-epoch; epochs run inside model$train() (not exposed here)",              #$$$$$$$$$$$$$
-      as.character(cfg$num_epochs %||% NA_integer_)                                                   #$$$$$$$$$$$$$
-    ),                                                                                                #$$$$$$$$$$$$$
-    level = "info",                                                                                   #$$$$$$$$$$$$$
-    verbose = verbose,                                                                                #$$$$$$$$$$$$$
-    verboseLow = verboseLow                                                                           #$$$$$$$$$$$$$
-  )                                                                                                   #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: EVOKE — post-train enrichment (NOT per-epoch)  
+  # ============================================================  
+  ddesonn_console_log(                                                                               
+    sprintf(                                                                                          
+      "[EVOKE-ENRICH] where=%s | why=%s | note=%s | epochs_configured=%s\n",                           
+      "ddesonn_fit::post_train_metadata",                                                             
+      "About to attach per-slot metadata; this may call ddesonn_predict() again (aggregate='none')",  
+      "This EVOKE is NOT per-epoch; epochs run inside model$train() (not exposed here)",              
+      as.character(cfg$num_epochs %||% NA_integer_)                                                   
+    ),                                                                                                
+    level = "info",                                                                                   
+    verbose = verbose,                                                                                
+    verboseLow = verboseLow                                                                           
+  )                                                                                                   
   
   result <- do.call(model$train, train_args)
   model$last_training <- result
   attr(model, "threshold") <- cfg$threshold
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: EVOKE — starting enrichment predicts (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
-    sprintf(                                                                                          #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH-BEGIN] where=%s | why=%s\n",                                                      #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                             #$$$$$$$$$$$$$
-      "Computing per-member TRAIN/VALID predictions for metadata (calls ddesonn_predict -> net$predict)"  #$$$$$$$$$$$$$
-    ),                                                                                                #$$$$$$$$$$$$$
-    level = "info",                                                                                   #$$$$$$$$$$$$$
-    verbose = verbose,                                                                                #$$$$$$$$$$$$$
-    verboseLow = verboseLow                                                                           #$$$$$$$$$$$$$
-  )                                                                                                   #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: EVOKE — starting enrichment predicts (NOT per-epoch)  
+  # ============================================================  
+  ddesonn_console_log(                                                                               
+    sprintf(                                                                                          
+      "[EVOKE-ENRICH-BEGIN] where=%s | why=%s\n",                                                      
+      "ddesonn_fit::post_train_metadata",                                                             
+      "Computing per-member TRAIN/VALID predictions for metadata (calls ddesonn_predict -> net$predict)"  
+    ),                                                                                                
+    level = "info",                                                                                   
+    verbose = verbose,                                                                                
+    verboseLow = verboseLow                                                                           
+  )                                                                                                   
   
   # =========================
   # Attach per-slot metrics
@@ -720,13 +720,13 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     thr_used <- cfg$threshold %||% .ddesonn_threshold_default(mode)
     
     # TRAIN predictions (per-member)
-    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
     per_model_train <- if (!inherits(pr_train, "try-error")) pr_train$per_model else NULL
     
     # VALID predictions (per-member) if present
     per_model_valid <- NULL
     if (!is.null(validation)) {
-      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
       per_model_valid <- if (!inherits(pr_valid, "try-error")) pr_valid$per_model else NULL
     }
     
@@ -794,13 +794,13 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     best_val_prediction_time   <- tryCatch(result$predicted_outputAndTime$best_val_prediction_time, error = function(e) NA_real_)
     
     # ============================================================
-    # SECTION: Presentation rounding (metadata only)  #$$$$$$$$$$$$$
+    # SECTION: Presentation rounding (metadata only)  
     # ============================================================
-    dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
-    best_train_acc           <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)           #$$$$$$$$$$$$$
-    best_train_loss          <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)          #$$$$$$$$$$$$$
-    best_val_acc             <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)             #$$$$$$$$$$$$$
-    best_val_prediction_time <- .ddesonn_format_final_summary_decimals(best_val_prediction_time, dec) #$$$$$$$$$$$$$
+    dec <- cfg$final_summary_decimals %||% NULL  
+    best_train_acc           <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)           
+    best_train_loss          <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)          
+    best_val_acc             <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)             
+    best_val_prediction_time <- .ddesonn_format_final_summary_decimals(best_val_prediction_time, dec) 
     
     Kslots <- try(length(model$ensemble), silent = TRUE)
     if (!inherits(Kslots, "try-error") && is.finite(Kslots) && Kslots >= 1L) {
@@ -820,8 +820,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
           } else {
             m_tr <- compute_multiclass_metrics(y_train_vec, Pt)
           }
-          # format only for display (metadata)                              #$$$$$$$$$$$$$
-          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)         #$$$$$$$$$$$$$
+          # format only for display (metadata)                              
+          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)         
           slot_obj$metadata$performance_metric <- m_tr$performance_metric
           if (mode == "binary" && !is.null(m_tr$confusion_matrix)) {
             slot_obj$metadata$confusion_matrix <- m_tr$confusion_matrix
@@ -833,7 +833,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
           Pv <- as.matrix(per_model_valid[[k]])
           if (mode == "binary") {
             m_va <- compute_binary_metrics(y_valid_vec, as.numeric(Pv[,1]), thr_used)
-            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       #$$$$$$$$$$$$$
+            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       
             # Only in BINARY: expose the tuned bundle (prevents utils from “thinking binary” otherwise)
             slot_obj$metadata$accuracy_precision_recall_f1_tuned <- list(
               accuracy = m_va$performance_metric$accuracy,
@@ -846,7 +846,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
           } else {
             # Multiclass: NO tuned bundle, NO confusion_matrix (keeps downstream from mapping binary fields)
             m_va <- compute_multiclass_metrics(y_valid_vec, Pv)
-            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       #$$$$$$$$$$$$$
+            m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)       
             # (optional) slot_obj$metadata$valid_performance_metric <- m_va$performance_metric
           }
         }
@@ -863,13 +863,13 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     }
   } else if (mode == "regression") {
     # TRAIN predictions (per-member)
-    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
     per_model_train <- if (!inherits(pr_train, "try-error")) pr_train$per_model else NULL
     
     # VALID predictions (per-member) if present
     per_model_valid <- NULL
     if (!is.null(validation)) {
-      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
       per_model_valid <- if (!inherits(pr_valid, "try-error")) pr_valid$per_model else NULL
     }
     
@@ -894,7 +894,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
       list(MSE=mse, RMSE=rmse, MAE=mae, R2=r2)
     }
     
-    dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+    dec <- cfg$final_summary_decimals %||% NULL  
     
     Kslots <- try(length(model$ensemble), silent = TRUE)
     if (!inherits(Kslots, "try-error") && is.finite(Kslots) && Kslots >= 1L) {
@@ -909,16 +909,16 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
         # TRAIN metrics per-slot
         if (!is.null(per_model_train) && length(per_model_train) >= k) {
           pt <- as.numeric(per_model_train[[k]][, 1])
-          m_tr <- compute_regression_metrics(y_train_vec, pt)                                  #$$$$$$$$$$$$$
-          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)                            #$$$$$$$$$$$$$
+          m_tr <- compute_regression_metrics(y_train_vec, pt)                                  
+          m_tr <- .ddesonn_format_final_summary_decimals(m_tr, dec)                            
           slot_obj$metadata$performance_metric <- m_tr
         }
         
         # VALID metrics per-slot (optional)
         if (!is.null(per_model_valid) && length(per_model_valid) >= k && !is.null(y_valid_vec)) {
           pv <- as.numeric(per_model_valid[[k]][, 1])
-          m_va <- compute_regression_metrics(y_valid_vec, pv)                                  #$$$$$$$$$$$$$
-          m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)                            #$$$$$$$$$$$$$
+          m_va <- compute_regression_metrics(y_valid_vec, pv)                                  
+          m_va <- .ddesonn_format_final_summary_decimals(m_va, dec)                            
           slot_obj$metadata$validation_metrics <- m_va
         }
         
@@ -934,20 +934,20 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     }
   }
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: EVOKE — enrichment finished (NOT per-epoch)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  ddesonn_console_log(                                                                               #$$$$$$$$$$$$$
-    sprintf(                                                                                          #$$$$$$$$$$$$$
-      "[EVOKE-ENRICH-END] where=%s | why=%s | note=%s\n",                                              #$$$$$$$$$$$$$
-      "ddesonn_fit::post_train_metadata",                                                             #$$$$$$$$$$$$$
-      "Finished attaching per-slot metadata; predict() prints after FINAL SUMMARY usually come from this block",  #$$$$$$$$$$$$$
-      "Not per-epoch: epoch-level prints must live inside model$train()/train_network() predict call sites"  #$$$$$$$$$$$$$
-    ),                                                                                                 #$$$$$$$$$$$$$
-    level = "info",                                                                                    #$$$$$$$$$$$$$
-    verbose = verbose,                                                                                 #$$$$$$$$$$$$$
-    verboseLow = verboseLow                                                                            #$$$$$$$$$$$$$
-  )                                                                                                    #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: EVOKE — enrichment finished (NOT per-epoch)  
+  # ============================================================  
+  ddesonn_console_log(                                                                               
+    sprintf(                                                                                          
+      "[EVOKE-ENRICH-END] where=%s | why=%s | note=%s\n",                                              
+      "ddesonn_fit::post_train_metadata",                                                             
+      "Finished attaching per-slot metadata; predict() prints after FINAL SUMMARY usually come from this block",  
+      "Not per-epoch: epoch-level prints must live inside model$train()/train_network() predict call sites"  
+    ),                                                                                                 
+    level = "info",                                                                                    
+    verbose = verbose,                                                                                 
+    verboseLow = verboseLow                                                                            
+  )                                                                                                    
   
   invisible(model)
 }
@@ -1007,60 +1007,60 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     if (identical(mode, "regression")) best_epoch_train_loss else best_epoch_train
   }
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Presentation decimals (FINAL SUMMARY)  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Presentation decimals (FINAL SUMMARY)  
   # - User control: cfg$final_summary_decimals
   # - Applies ONLY to printed scalar metrics (epochs remain ints)
-  # ============================================================  #$$$$$$$$$$$$$
-  dec <- cfg$final_summary_decimals %||% NULL  #$$$$$$$$$$$$$
+  # ============================================================  
+  dec <- cfg$final_summary_decimals %||% NULL  
   
-  best_train_acc_disp  <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)   #$$$$$$$$$$$$$
-  best_val_acc_disp    <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)     #$$$$$$$$$$$$$
-  best_train_loss_disp <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)  #$$$$$$$$$$$$$
-  best_val_loss_disp   <- .ddesonn_format_final_summary_decimals(best_val_loss, dec)    #$$$$$$$$$$$$$
+  best_train_acc_disp  <- .ddesonn_format_final_summary_decimals(best_train_acc, dec)   
+  best_val_acc_disp    <- .ddesonn_format_final_summary_decimals(best_val_acc, dec)     
+  best_train_loss_disp <- .ddesonn_format_final_summary_decimals(best_train_loss, dec)  
+  best_val_loss_disp   <- .ddesonn_format_final_summary_decimals(best_val_loss, dec)    
   
-  threshold_disp <- NULL  #$$$$$$$$$$$$$
+  threshold_disp <- NULL  
   if (!is.null(performance_relevance_data$threshold) &&
       is.finite(performance_relevance_data$threshold)) {
-    threshold_disp <- .ddesonn_format_final_summary_decimals(performance_relevance_data$threshold, dec)  #$$$$$$$$$$$$$
+    threshold_disp <- .ddesonn_format_final_summary_decimals(performance_relevance_data$threshold, dec)  
   }
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: FINAL SUMMARY line alignment (pad labels to colons)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  .summary_line <- function(label, value, label_width) {          #$$$$$$$$$$$$$
-    sprintf(paste0("%-", label_width, "s: %s"), label, value)      #$$$$$$$$$$$$$
-  }                                                               #$$$$$$$$$$$$$
-  label_width <- 20L                                              #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: FINAL SUMMARY line alignment (pad labels to colons)  
+  # ============================================================  
+  .summary_line <- function(label, value, label_width) {          
+    sprintf(paste0("%-", label_width, "s: %s"), label, value)      
+  }                                                               
+  label_width <- 20L                                              
   
   summary_lines <- c("===== FINAL SUMMARY =====")
-  summary_lines <- c(summary_lines, .summary_line("Best epoch", as.character(summary_best_epoch), label_width))                  #$$$$$$$$$$$$$
-  summary_lines <- c(summary_lines, .summary_line("Train accuracy", as.character(best_train_acc_disp), label_width))            #$$$$$$$$$$$$$
+  summary_lines <- c(summary_lines, .summary_line("Best epoch", as.character(summary_best_epoch), label_width))                  
+  summary_lines <- c(summary_lines, .summary_line("Train accuracy", as.character(best_train_acc_disp), label_width))            
   if (isTRUE(cfg$validation_metrics)) {
-    summary_lines <- c(summary_lines, .summary_line("Val accuracy", as.character(best_val_acc_disp), label_width))              #$$$$$$$$$$$$$
+    summary_lines <- c(summary_lines, .summary_line("Val accuracy", as.character(best_val_acc_disp), label_width))              
   }
   if (!is.null(best_train_loss) && is.finite(best_train_loss)) {
-    summary_lines <- c(summary_lines, .summary_line("Train loss", as.character(best_train_loss_disp), label_width))             #$$$$$$$$$$$$$
+    summary_lines <- c(summary_lines, .summary_line("Train loss", as.character(best_train_loss_disp), label_width))             
   }
   if (!is.null(best_val_loss) && is.finite(best_val_loss)) {
-    summary_lines <- c(summary_lines, .summary_line("Val loss", as.character(best_val_loss_disp), label_width))                 #$$$$$$$$$$$$$
+    summary_lines <- c(summary_lines, .summary_line("Val loss", as.character(best_val_loss_disp), label_width))                 
   }
-  if (!is.null(threshold_disp)) {  #$$$$$$$$$$$$$
-    summary_lines <- c(summary_lines, .summary_line("Threshold", as.character(threshold_disp), label_width))                    #$$$$$$$$$$$$$
+  if (!is.null(threshold_disp)) {  
+    summary_lines <- c(summary_lines, .summary_line("Threshold", as.character(threshold_disp), label_width))                    
   }
   
   roc_plot <- performance_relevance_data$eval_report_plots$roc_png %||% NULL
   if (!is.null(roc_plot) && is.character(roc_plot)) {
     roc_plot <- roc_plot[1]
     if (isTRUE(nzchar(roc_plot)) && !is.na(roc_plot)) {
-      summary_lines <- c(summary_lines, .summary_line("ROC plot", roc_plot, label_width))                                      #$$$$$$$$$$$$$
+      summary_lines <- c(summary_lines, .summary_line("ROC plot", roc_plot, label_width))                                      
     }
   }
   pr_plot <- performance_relevance_data$eval_report_plots$pr_png %||% NULL
   if (!is.null(pr_plot) && is.character(pr_plot)) {
     pr_plot <- pr_plot[1]
     if (isTRUE(nzchar(pr_plot)) && !is.na(pr_plot)) {
-      summary_lines <- c(summary_lines, .summary_line("PR plot", pr_plot, label_width))                                        #$$$$$$$$$$$$$
+      summary_lines <- c(summary_lines, .summary_line("PR plot", pr_plot, label_width))                                        
     }
   }
   
@@ -1068,68 +1068,68 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     test_acc <- suppressWarnings(as.numeric(test_metrics$accuracy))
     test_loss <- suppressWarnings(as.numeric(test_metrics$loss))
     
-    test_acc_disp  <- .ddesonn_format_final_summary_decimals(test_acc, dec)   #$$$$$$$$$$$$$
-    test_loss_disp <- .ddesonn_format_final_summary_decimals(test_loss, dec)  #$$$$$$$$$$$$$
+    test_acc_disp  <- .ddesonn_format_final_summary_decimals(test_acc, dec)   
+    test_loss_disp <- .ddesonn_format_final_summary_decimals(test_loss, dec)  
     
     if (is.finite(test_acc)) {
-      summary_lines <- c(summary_lines, .summary_line("Test accuracy", as.character(test_acc_disp), label_width))               #$$$$$$$$$$$$$
+      summary_lines <- c(summary_lines, .summary_line("Test accuracy", as.character(test_acc_disp), label_width))               
     }
     if (is.finite(test_loss)) {
-      summary_lines <- c(summary_lines, .summary_line("Test loss", as.character(test_loss_disp), label_width))                 #$$$$$$$$$$$$$
+      summary_lines <- c(summary_lines, .summary_line("Test loss", as.character(test_loss_disp), label_width))                 
     }
   }
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: knitr HTML detection (for newline preservation)      #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  .is_knitr_html <- function() {                                                       #$$$$$$$$$$$$$
-    if (!requireNamespace("knitr", quietly = TRUE)) return(FALSE)                      #$$$$$$$$$$$$$
-    if (!isTRUE(getOption("knitr.in.progress"))) return(FALSE)                         #$$$$$$$$$$$$$
-    out <- try(knitr::is_html_output(), silent = TRUE)                                 #$$$$$$$$$$$$$
-    isTRUE(out)                                                                        #$$$$$$$$$$$$$
-  }                                                                                    #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: knitr HTML detection (for newline preservation)      
+  # ============================================================  
+  .is_knitr_html <- function() {                                                       
+    if (!requireNamespace("knitr", quietly = TRUE)) return(FALSE)                      
+    if (!isTRUE(getOption("knitr.in.progress"))) return(FALSE)                         
+    out <- try(knitr::is_html_output(), silent = TRUE)                                 
+    isTRUE(out)                                                                        
+  }                                                                                    
   
   if (isTRUE(cfg$viewTables)) {
     
-    summary_tbl <- do.call(  #$$$$$$$$$$$$$
-      rbind,                 #$$$$$$$$$$$$$
-      lapply(summary_lines[-1], function(line) {                                   #$$$$$$$$$$$$$
-        key <- sub(":.*$", "", line)                                               #$$$$$$$$$$$$$
-        val <- sub("^[^:]*:\\s*", "", line)                                        #$$$$$$$$$$$$$
-        data.frame(Metric = key, Value = val, stringsAsFactors = FALSE)            #$$$$$$$$$$$$$
-      })                                                                           #$$$$$$$$$$$$$
-    )                                                                              #$$$$$$$$$$$$$
+    summary_tbl <- do.call(  
+      rbind,                 
+      lapply(summary_lines[-1], function(line) {                                   
+        key <- sub(":.*$", "", line)                                               
+        val <- sub("^[^:]*:\\s*", "", line)                                        
+        data.frame(Metric = key, Value = val, stringsAsFactors = FALSE)            
+      })                                                                           
+    )                                                                              
     
-    cat("\n**CORE METRICS**\n\n")                                                   #$$$$$$$$$$$$$
-    cat("**Final Summary**\n\n")                                                   #$$$$$$$$$$$$$
+    cat("\n**CORE METRICS**\n\n")                                                   
+    cat("**Final Summary**\n\n")                                                   
     
-    md_lines <- paste0("**", summary_tbl$Metric, ":** ", summary_tbl$Value)         #$$$$$$$$$$$$$
-    cat(paste0(md_lines, "  \n"), "\n")                                             #$$$$$$$$$$$$$
+    md_lines <- paste0("**", summary_tbl$Metric, ":** ", summary_tbl$Value)         
+    cat(paste0(md_lines, "  \n"), "\n")                                             
     
     # Optional: keep the metric table renderer too (leave commented unless desired)
-    # ddesonn_viewTables(summary_tbl)                                               #$$$$$$$$$$$$$
+    # ddesonn_viewTables(summary_tbl)                                               
     
   } else {
     
-    # ============================================================  #$$$$$$$$$$$$$
-    # SECTION: CORE METRICS (viewTables = FALSE)                    #$$$$$$$$$$$$$
-    # FIX: In HTML vignettes, wrap in ```text so newlines DON'T     #$$$$$$$$$$$$$
-    # collapse and ASCII doesn't become giant markdown headings.    #$$$$$$$$$$$$$
-    # ============================================================  #$$$$$$$$$$$$$
-    if (isTRUE(.is_knitr_html())) {                                                  #$$$$$$$$$$$$$
-      cat("\n```text\n")                                                             #$$$$$$$$$$$$$
-    }                                                                                #$$$$$$$$$$$$$
+    # ============================================================  
+    # SECTION: CORE METRICS (viewTables = FALSE)                    
+    # FIX: In HTML vignettes, wrap in ```text so newlines DON'T     
+    # collapse and ASCII doesn't become giant markdown headings.    
+    # ============================================================  
+    if (isTRUE(.is_knitr_html())) {                                                  
+      cat("\n```text\n")                                                             
+    }                                                                                
     
     cat("\n# ===========================================================\n")
     cat("# ================================= CORE METRICS =================================\n")
     cat("# ===========================================================\n")
     
-    # FIX: print stacked lines (do NOT rely on HTML respecting \n unless fenced)     #$$$$$$$$$$$$$
-    cat(paste(summary_lines, collapse = "\n"), "\n")                                 #$$$$$$$$$$$$$
+    # FIX: print stacked lines (do NOT rely on HTML respecting \n unless fenced)     
+    cat(paste(summary_lines, collapse = "\n"), "\n")                                 
     
-    if (isTRUE(.is_knitr_html())) {                                                  #$$$$$$$$$$$$$
-      cat("```\n")                                                                   #$$$$$$$$$$$$$
-    }                                                                                #$$$$$$$$$$$$$
+    if (isTRUE(.is_knitr_html())) {                                                  
+      cat("```\n")                                                                   
+    }                                                                                
   }
   
   options(DDESONN_LAST_SUMMARY_TS = Sys.time())
@@ -1336,36 +1336,36 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   report <- .build_binary_report(y_true, p_pos, threshold)
   if (is.null(report)) return(invisible(NULL))
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Presentation decimals (Classification Report + AUC)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  dec <- suppressWarnings(as.integer(final_summary_decimals))                              #$$$$$$$$$$$$$
-  if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          #$$$$$$$$$$$$$
-  split_up <- toupper(as.character(split_label))                                            #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Presentation decimals (Classification Report + AUC)  
+  # ============================================================  
+  dec <- suppressWarnings(as.integer(final_summary_decimals))                              
+  if (length(dec) != 1L || !is.finite(dec) || dec < 0L) dec <- 3L                          
+  split_up <- toupper(as.character(split_label))                                            
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Console headers (viewTables = FALSE)                 #$$$$$$$$$$$$$
-  # - FIX: REMOVE "CLR" noise entirely                            #$$$$$$$$$$$$$
-  # - FIX: "===== TRAIN =====" on its own line                    #$$$$$$$$$$$$$
-  # - FIX: "Classification Report" on its own line                #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  .cat_console_split_header <- function() {                                                 #$$$$$$$$$$$$$
-    cat("\n")                                                                               #$$$$$$$$$$$$$
-    cat(sprintf("===== %s =====\n\n", split_up))                                              #$$$$$$$$$$$$$
-  }                                                                                         #$$$$$$$$$$$$$
-  .cat_console_section <- function(section_label) {                                         #$$$$$$$$$$$$$
-    cat(sprintf("%s\n", section_label))                                                     #$$$$$$$$$$$$$
-  }                                                                                         #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Console headers (viewTables = FALSE)                 
+  # - FIX: REMOVE "CLR" noise entirely                            
+  # - FIX: "===== TRAIN =====" on its own line                    
+  # - FIX: "Classification Report" on its own line                
+  # ============================================================  
+  .cat_console_split_header <- function() {                                                 
+    cat("\n")                                                                               
+    cat(sprintf("===== %s =====\n\n", split_up))                                              
+  }                                                                                         
+  .cat_console_section <- function(section_label) {                                         
+    cat(sprintf("%s\n", section_label))                                                     
+  }                                                                                         
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Classification Report header                         #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Classification Report header                         
+  # ============================================================  
   if (isTRUE(viewTables)) {
-    cat(sprintf("\n**%s**\n\n", split_label))                                                #$$$$$$$$$$$$$
-    cat("**Classification Report**\n")                                                       #$$$$$$$$$$$$$
+    cat(sprintf("\n**%s**\n\n", split_label))                                                
+    cat("**Classification Report**\n")                                                       
   } else {
-    .cat_console_split_header()                                                              #$$$$$$$$$$$$$
-    .cat_console_section("Classification Report")                                            #$$$$$$$$$$$$$
+    .cat_console_split_header()                                                              
+    .cat_console_section("Classification Report")                                            
   }
   
   ddesonn_viewTables(
@@ -1373,37 +1373,37 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     na.print = ""
   )
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Confusion Matrix header                              #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Confusion Matrix header                              
+  # ============================================================  
   if (isTRUE(viewTables)) {
-    cat("\n**Confusion Matrix**\n")                                                          #$$$$$$$$$$$$$
+    cat("\n**Confusion Matrix**\n")                                                          
   } else {
-    cat("\n")                                                                               #$$$$$$$$$$$$$
-    .cat_console_section("Confusion Matrix")                                                #$$$$$$$$$$$$$
+    cat("\n")                                                                               
+    .cat_console_section("Confusion Matrix")                                                
   }
   
   # ============================================================
-  # SECTION: Confusion Matrix (INTEGER-ONLY)  #$$$$$$$$$$$$$
+  # SECTION: Confusion Matrix (INTEGER-ONLY)  
   # ============================================================
-  confusion_int <- report$confusion                                                         #$$$$$$$$$$$$$
-  confusion_int <- unclass(confusion_int)                                                    #$$$$$$$$$$$$$
-  storage.mode(confusion_int) <- "integer"                                                   #$$$$$$$$$$$$$
-  dim(confusion_int) <- dim(report$confusion)                                                #$$$$$$$$$$$$$
-  dimnames(confusion_int) <- dimnames(report$confusion)                                      #$$$$$$$$$$$$$
-  ddesonn_viewTables(confusion_int, quote = FALSE)                                           #$$$$$$$$$$$$$
+  confusion_int <- report$confusion                                                         
+  confusion_int <- unclass(confusion_int)                                                    
+  storage.mode(confusion_int) <- "integer"                                                   
+  dim(confusion_int) <- dim(report$confusion)                                                
+  dimnames(confusion_int) <- dimnames(report$confusion)                                      
+  ddesonn_viewTables(confusion_int, quote = FALSE)                                           
   
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: AUC/AUPRC header                                     #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: AUC/AUPRC header                                     
+  # ============================================================  
   if (isTRUE(viewTables)) {
     cat(sprintf("\n**AUC (ROC):** %s\n", .format_report_value(report$auc, digits = dec)))
     cat(sprintf("**AUPRC:** %s\n", .format_report_value(report$auprc, digits = dec)))
   } else {
-    cat("\n")                                                                               #$$$$$$$$$$$$$
-    .cat_console_section("AUC/AUPRC")                                                       #$$$$$$$$$$$$$
-    cat(sprintf("AUC (ROC): %s\n", .format_report_value(report$auc, digits = dec)))         #$$$$$$$$$$$$$
-    cat(sprintf("AUPRC: %s\n", .format_report_value(report$auprc, digits = dec)))           #$$$$$$$$$$$$$
+    cat("\n")                                                                               
+    .cat_console_section("AUC/AUPRC")                                                       
+    cat(sprintf("AUC (ROC): %s\n", .format_report_value(report$auc, digits = dec)))         
+    cat(sprintf("AUPRC: %s\n", .format_report_value(report$auprc, digits = dec)))           
   }
   
   invisible(report)
@@ -1447,18 +1447,18 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
 #'
 #' @seealso [DDESONN]
 #' @export
-ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
-                            aggregate = c("mean", "median", "none"),  #$$$$$$$$$$$$$
-                            type = c("response", "class"),  #$$$$$$$$$$$$$
-                            threshold = NULL,  #$$$$$$$$$$$$$
-                            verbose = FALSE,  #$$$$$$$$$$$$$
-                            verboseLow = FALSE,  #$$$$$$$$$$$$$
-                            debug = FALSE) {  #$$$$$$$$$$$$$
+ddesonn_predict <- function(model, new_data,  
+                            aggregate = c("mean", "median", "none"),  
+                            type = c("response", "class"),  
+                            threshold = NULL,  
+                            verbose = FALSE,  
+                            verboseLow = FALSE,  
+                            debug = FALSE) {  
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
-  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
+  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   aggregate <- match.arg(aggregate)
   type <- match.arg(type)
   
@@ -1481,13 +1481,13 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
     # normalize to a length-L list of callables (or explicit NULLs)
     acts_norm <- .ddesonn_normalize_activations(acts_raw, L)
     
-    res <- net$predict(  #$$$$$$$$$$$$$
+    res <- net$predict(  
       Rdata = X,
       weights = net$weights,
       biases  = net$biases,
       activation_functions_predict = acts_norm,
-      verbose = verbose,  #$$$$$$$$$$$$$
-      debug   = debug  #$$$$$$$$$$$$$
+      verbose = verbose,  
+      debug   = debug  
     )
     
     out <- res$predicted_output %||% res$prediction %||% res
@@ -2818,8 +2818,8 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 
 # ============================================================
 # .persist_ddesonn_run (FULL FIXED — preserved)
-# - #$$$$$$$$$$$$$ FIX: guard optional ensemble post-writes when upstream data is empty
-# - #$$$$$$$$$$$$$ FIX: prevent .write_fused_consensus() from crashing when it would read empty df (no cols)
+# -  FIX: guard optional ensemble post-writes when upstream data is empty
+# -  FIX: prevent .write_fused_consensus() from crashing when it would read empty df (no cols)
 # - PRESERVED: all stamping, directories, model saving, metadata, metrics, logs
 # ============================================================
 
@@ -2947,33 +2947,33 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
     .write_ensemble_runs_metrics(result, run_dir, ts, seeds)
     
     # ============================================================
-    # Optional pretty tables — do not fail builds                 #$$$$$$$$$$$$$
+    # Optional pretty tables — do not fail builds                 
     # ============================================================
-    .build_ensemble_pretty_tables_fn <- get0(".build_ensemble_pretty_tables", mode = "function") #$$$$$$$$$$$$$
-    if (!is.null(.build_ensemble_pretty_tables_fn)) {                                           #$$$$$$$$$$$$$
-      .build_ensemble_pretty_tables_fn(                                                         #$$$$$$$$$$$$$
+    .build_ensemble_pretty_tables_fn <- get0(".build_ensemble_pretty_tables", mode = "function") 
+    if (!is.null(.build_ensemble_pretty_tables_fn)) {                                           
+      .build_ensemble_pretty_tables_fn(                                                         
         run_dir             = run_dir,
         ts                  = ts,
         seeds               = seeds,
         CLASSIFICATION_MODE = classification_mode
       )
-    }                                                                                           #$$$$$$$$$$$$$
+    }                                                                                           
     
   } else {
     .write_single_runs_metrics(result, run_dir, ts, seeds)
     
     # ============================================================
-    # Optional pretty tables — do not fail builds                 #$$$$$$$$$$$$$
+    # Optional pretty tables — do not fail builds                 
     # ============================================================
-    .build_single_pretty_tables_fn <- get0(".build_single_pretty_tables", mode = "function")    #$$$$$$$$$$$$$
-    if (!is.null(.build_single_pretty_tables_fn)) {                                             #$$$$$$$$$$$$$
-      .build_single_pretty_tables_fn(                                                           #$$$$$$$$$$$$$
+    .build_single_pretty_tables_fn <- get0(".build_single_pretty_tables", mode = "function")    
+    if (!is.null(.build_single_pretty_tables_fn)) {                                             
+      .build_single_pretty_tables_fn(                                                           
         run_dir             = run_dir,
         ts                  = ts,
         seeds               = seeds,
         CLASSIFICATION_MODE = classification_mode
       )
-    }                                                                                           #$$$$$$$$$$$$$
+    }                                                                                           
   }
   
   if (isTRUE(cfg$do_ensemble)) {
@@ -2981,57 +2981,57 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
     .write_temp_agg_predictions(result, run_dir, ts, seeds)
     
     # ============================================================
-    # #$$$$$$$$$$$$$ FIX: Only write fused consensus when inputs exist
+    #  FIX: Only write fused consensus when inputs exist
     # - Prevents crash when upstream prediction frames are empty (0 cols)
     # - This can happen in vignette/build runs or when no per-seed tables were produced
     # ============================================================
     
-    has_any_pred_cols <- FALSE                                                             #$$$$$$$$$$$$$
+    has_any_pred_cols <- FALSE                                                             
     
     # Prefer in-memory tables when available
-    if (is.list(result$predictions) && is.list(result$predictions$per_seed_tables)) {       #$$$$$$$$$$$$$
-      tbls <- result$predictions$per_seed_tables                                            #$$$$$$$$$$$$$
-      for (t in tbls) {                                                                     #$$$$$$$$$$$$$
-        if (is.data.frame(t) && ncol(t) > 0L) {                                             #$$$$$$$$$$$$$
-          has_any_pred_cols <- TRUE                                                         #$$$$$$$$$$$$$
-          break                                                                             #$$$$$$$$$$$$$
-        }                                                                                   #$$$$$$$$$$$$$
-      }                                                                                     #$$$$$$$$$$$$$
-    }                                                                                       #$$$$$$$$$$$$$
+    if (is.list(result$predictions) && is.list(result$predictions$per_seed_tables)) {       
+      tbls <- result$predictions$per_seed_tables                                            
+      for (t in tbls) {                                                                     
+        if (is.data.frame(t) && ncol(t) > 0L) {                                             
+          has_any_pred_cols <- TRUE                                                         
+          break                                                                             
+        }                                                                                   
+      }                                                                                     
+    }                                                                                       
     
     # Fallback: check the on-disk agg predictions file if your writer uses one
-    if (!isTRUE(has_any_pred_cols)) {                                                       #$$$$$$$$$$$$$
+    if (!isTRUE(has_any_pred_cols)) {                                                       
       # try a couple of common filenames (safe no-op if none exist)
-      candidates <- c(                                                                      #$$$$$$$$$$$$$
-        file.path(run_dir, "predictions_main.rds"),                                         #$$$$$$$$$$$$$
-        file.path(run_dir, "predictions_temp.rds")                                          #$$$$$$$$$$$$$
-      )                                                                                     #$$$$$$$$$$$$$
-      for (fp in candidates) {                                                              #$$$$$$$$$$$$$
-        if (file.exists(fp)) {                                                              #$$$$$$$$$$$$$
-          obj <- try(readRDS(fp), silent = TRUE)                                             #$$$$$$$$$$$$$
-          if (!inherits(obj, "try-error") && is.data.frame(obj) && ncol(obj) > 0L) {        #$$$$$$$$$$$$$
-            has_any_pred_cols <- TRUE                                                       #$$$$$$$$$$$$$
-            break                                                                           #$$$$$$$$$$$$$
-          }                                                                                 #$$$$$$$$$$$$$
-        }                                                                                   #$$$$$$$$$$$$$
-      }                                                                                     #$$$$$$$$$$$$$
-    }                                                                                       #$$$$$$$$$$$$$
+      candidates <- c(                                                                      
+        file.path(run_dir, "predictions_main.rds"),                                         
+        file.path(run_dir, "predictions_temp.rds")                                          
+      )                                                                                     
+      for (fp in candidates) {                                                              
+        if (file.exists(fp)) {                                                              
+          obj <- try(readRDS(fp), silent = TRUE)                                             
+          if (!inherits(obj, "try-error") && is.data.frame(obj) && ncol(obj) > 0L) {        
+            has_any_pred_cols <- TRUE                                                       
+            break                                                                           
+          }                                                                                 
+        }                                                                                   
+      }                                                                                     
+    }                                                                                       
     
-    if (isTRUE(has_any_pred_cols)) {                                                        #$$$$$$$$$$$$$
-      .write_fused_consensus(result, run_dir, ts, seeds)                                     #$$$$$$$$$$$$$
-    } else {                                                                                #$$$$$$$$$$$$$
+    if (isTRUE(has_any_pred_cols)) {                                                        
+      .write_fused_consensus(result, run_dir, ts, seeds)                                     
+    } else {                                                                                
       # optional breadcrumb (kept quiet for CRAN/vignette stability)
-      invisible(NULL)                                                                       #$$$$$$$$$$$$$
-    }                                                                                       #$$$$$$$$$$$$$
+      invisible(NULL)                                                                       
+    }                                                                                       
   }
   
   
   logs_dir <- file.path(run_dir, "logs")
   dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
   
-  log_enabled <- isTRUE(cfg$do_ensemble) &&                                          # #$$$$$$$$$$$$$
-    as.integer(cfg$num_networks %||% 0L) >= 1L &&                                    # #$$$$$$$$$$$$$
-    as.integer(cfg$num_temp_iterations %||% 0L) >= 1L                                # #$$$$$$$$$$$$$
+  log_enabled <- isTRUE(cfg$do_ensemble) &&                                          # 
+    as.integer(cfg$num_networks %||% 0L) >= 1L &&                                    # 
+    as.integer(cfg$num_temp_iterations %||% 0L) >= 1L                                # 
   
   for (i in seq_along(seeds)) {
     seed_i <- seeds[[i]]
@@ -3039,12 +3039,12 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
     main_p <- file.path(logs_dir, sprintf("main_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
     if (!file.exists(main_p)) saveRDS(data.frame(), main_p)
     
-    if (isTRUE(log_enabled)) {                                                       # #$$$$$$$$$$$$$
+    if (isTRUE(log_enabled)) {                                                       # 
       mv_p <- file.path(logs_dir, sprintf("movement_log_run%03d_seed%s_%s.rds", i, seed_i, ts))
       ch_p <- file.path(logs_dir, sprintf("change_log_run%03d_seed%s_%s.rds",   i, seed_i, ts))
       if (!file.exists(mv_p)) saveRDS(data.frame(), mv_p)
       if (!file.exists(ch_p)) saveRDS(data.frame(), ch_p)
-    }                                                                                # #$$$$$$$$$$$$$
+    }                                                                                # 
   }
   
   
@@ -3159,7 +3159,7 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 #' set.seed(111)
 #'
 #' # ------------------------------------------------------------
-#' # 1) Locate package extdata folder (robust across check/install)  #$$$$$$$$$$$$$
+#' # 1) Locate package extdata folder (robust across check/install)  
 #' # ------------------------------------------------------------
 #' ext_dir <- system.file("extdata", package = "DDESONN")
 #' if (!nzchar(ext_dir)) {
@@ -3168,7 +3168,7 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 #' }
 #'
 #' # ------------------------------------------------------------
-#' # 1b) Find CSVs (recursive + check-dir edge cases)               #$$$$$$$$$$$$$
+#' # 1b) Find CSVs (recursive + check-dir edge cases)               
 #' # ------------------------------------------------------------
 #' csvs <- list.files(
 #'   ext_dir,
@@ -3178,9 +3178,9 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 #' )
 #'
 #' # Defensive fallback for rare nested layouts
-#' if (!length(csvs)) {                                             #$$$$$$$$$$$$$
-#'   ext_dir2 <- file.path(ext_dir, "inst", "extdata")               #$$$$$$$$$$$$$
-#'   if (dir.exists(ext_dir2)) {                                    #$$$$$$$$$$$$$
+#' if (!length(csvs)) {                                             
+#'   ext_dir2 <- file.path(ext_dir, "inst", "extdata")               
+#'   if (dir.exists(ext_dir2)) {                                    
 #'     csvs <- list.files(
 #'       ext_dir2,
 #'       pattern = "\\\\.csv$",
@@ -3330,55 +3330,55 @@ ddesonn_predict <- function(model, new_data,  #$$$$$$$$$$$$$
 
 
 
-ddesonn_run <- function(x,  #$$$$$$$$$$$$$
-                        y,  #$$$$$$$$$$$$$
-                        classification_mode = c("binary", "multiclass", "regression"),  #$$$$$$$$$$$$$
-                        hidden_sizes = c(64, 32),  #$$$$$$$$$$$$$
-                        seeds = 1L,  #$$$$$$$$$$$$$
-                        do_ensemble = FALSE,  #$$$$$$$$$$$$$
-                        num_networks = if (isTRUE(do_ensemble)) 3L else 1L,  #$$$$$$$$$$$$$
-                        num_temp_iterations = 0L,  #$$$$$$$$$$$$$
-                        validation = NULL,  #$$$$$$$$$$$$$
-                        x_valid = NULL,  #$$$$$$$$$$$$$
-                        y_valid = NULL,  #$$$$$$$$$$$$$
-                        model_overrides = list(),  #$$$$$$$$$$$$$
-                        training_overrides = list(),  #$$$$$$$$$$$$$
-                        temp_overrides = NULL,  #$$$$$$$$$$$$$
-                        prediction_data = NULL,  #$$$$$$$$$$$$$
-                        test = NULL,  #$$$$$$$$$$$$$
-                        x_test = NULL,  #$$$$$$$$$$$$$
-                        y_test = NULL,  #$$$$$$$$$$$$$
-                        prediction_type = c("response", "class"),  #$$$$$$$$$$$$$
-                        aggregate = c("mean", "median", "none"),  #$$$$$$$$$$$$$
-                        seed_aggregate = c("mean", "median", "none"),  #$$$$$$$$$$$$$
-                        threshold = NULL,  #$$$$$$$$$$$$$
-                        output_root = NULL,  #$$$$$$$$$$$$$
-                        plot_controls = NULL,  #$$$$$$$$$$$$$
-                        save_models = TRUE,  #$$$$$$$$$$$$$
-                        verbose = FALSE,  #$$$$$$$$$$$$$
-                        verboseLow = FALSE,  #$$$$$$$$$$$$$
-                        debug = FALSE) {  #$$$$$$$$$$$$$
+ddesonn_run <- function(x,  
+                        y,  
+                        classification_mode = c("binary", "multiclass", "regression"),  
+                        hidden_sizes = c(64, 32),  
+                        seeds = 1L,  
+                        do_ensemble = FALSE,  
+                        num_networks = if (isTRUE(do_ensemble)) 3L else 1L,  
+                        num_temp_iterations = 0L,  
+                        validation = NULL,  
+                        x_valid = NULL,  
+                        y_valid = NULL,  
+                        model_overrides = list(),  
+                        training_overrides = list(),  
+                        temp_overrides = NULL,  
+                        prediction_data = NULL,  
+                        test = NULL,  
+                        x_test = NULL,  
+                        y_test = NULL,  
+                        prediction_type = c("response", "class"),  
+                        aggregate = c("mean", "median", "none"),  
+                        seed_aggregate = c("mean", "median", "none"),  
+                        threshold = NULL,  
+                        output_root = NULL,  
+                        plot_controls = NULL,  
+                        save_models = TRUE,  
+                        verbose = FALSE,  
+                        verboseLow = FALSE,  
+                        debug = FALSE) {  
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
   seed_aggregate <- match.arg(seed_aggregate)
   prediction_type <- match.arg(prediction_type)
   
-  verbose <- isTRUE(verbose %||% FALSE)  #$$$$$$$$$$$$$
-  verboseLow <- isTRUE(verboseLow %||% FALSE)  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  #$$$$$$$$$$$$$
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  #$$$$$$$$$$$$$
+  verbose <- isTRUE(verbose %||% FALSE)  
+  verboseLow <- isTRUE(verboseLow %||% FALSE)  
+  debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
+  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
 
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Verbosity resolution (run config)  #$$$$$$$$$$$$$
-  # - verbose defaults FALSE unless explicitly TRUE        #$$$$$$$$$$$$$
-  # - verboseLow defaults FALSE unless explicitly TRUE     #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
-  ddesonn_console_log(  #$$$$$$$$$$$$$
-    sprintf("[VERBOSE] resolved: verbose=%s verboseLow=%s", verbose, verboseLow),  #$$$$$$$$$$$$$
-    level = "important",  #$$$$$$$$$$$$$
-    verbose = verbose,  #$$$$$$$$$$$$$
-    verboseLow = verboseLow  #$$$$$$$$$$$$$
-  )  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Verbosity resolution (run config)  
+  # - verbose defaults FALSE unless explicitly TRUE        
+  # - verboseLow defaults FALSE unless explicitly TRUE     
+  # ============================================================  
+  ddesonn_console_log(  
+    sprintf("[VERBOSE] resolved: verbose=%s verboseLow=%s", verbose, verboseLow),  
+    level = "important",  
+    verbose = verbose,  
+    verboseLow = verboseLow  
+  )  
   
   seeds <- as.integer(seeds)
   seeds <- seeds[is.finite(seeds)]
@@ -3406,123 +3406,123 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   # ============================================================
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
-  if (is.null(base_train_overrides$verbose)) base_train_overrides$verbose <- verbose  #$$$$$$$$$$$$$
-  if (is.null(base_train_overrides$verboseLow)) base_train_overrides$verboseLow <- verboseLow  #$$$$$$$$$$$$$
-  if (is.null(base_train_overrides$debug)) base_train_overrides$debug <- debug  #$$$$$$$$$$$$$
+  if (is.null(base_train_overrides$verbose)) base_train_overrides$verbose <- verbose  
+  if (is.null(base_train_overrides$verboseLow)) base_train_overrides$verboseLow <- verboseLow  
+  if (is.null(base_train_overrides$debug)) base_train_overrides$debug <- debug  
   
   # ============================================================
-  # SECTION: NORMALIZATION BRIDGE (Scenario 1 -> canonical)  #$$$$$$$$$$$$$
+  # SECTION: NORMALIZATION BRIDGE (Scenario 1 -> canonical)  
   # - Map Scenario-1 training_overrides keys into canonical plot_controls keys
   # - Auto-enable save_per_epoch if any per-epoch plot flag is TRUE and save_per_epoch not set
   # - Do NOT change Scenario-2 behavior
   # ============================================================
   per_epoch_cfg <- NULL
-  if (!is.null(training_overrides$per_epoch_view_plots)) {                                           #$$$$$$$$$$$$$
-    per_epoch_cfg <- training_overrides$per_epoch_view_plots                                          #$$$$$$$$$$$$$
-  } else if (!is.null(training_overrides$per_epoch_plots)) {                                         #$$$$$$$$$$$$$
-    per_epoch_cfg <- training_overrides$per_epoch_plots                                               #$$$$$$$$$$$$$
-  }                                                                                                  #$$$$$$$$$$$$$
-  if (!is.null(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
-    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
-      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
-    if (isTRUE(per_epoch_cfg)) {                                                                     #$$$$$$$$$$$$$
-      per_epoch_cfg <- list(viewAllPlots = TRUE)                                                      #$$$$$$$$$$$$$
-    } else if (isFALSE(per_epoch_cfg)) {                                                             #$$$$$$$$$$$$$
-      per_epoch_cfg <- list(viewAllPlots = FALSE)                                                     #$$$$$$$$$$$$$
-    } else if (is.list(per_epoch_cfg)) {                                                             #$$$$$$$$$$$$$
-      legacy_cfg <- per_epoch_cfg                                                                     #$$$$$$$$$$$$$
-      per_epoch_cfg <- list(                                                                          #$$$$$$$$$$$$$
-        viewAllPlots     = legacy_cfg$viewAllPlots,                                                   #$$$$$$$$$$$$$
-        verbose          = legacy_cfg$verbose,                                                        #$$$$$$$$$$$$$
-        saveEnabled      = legacy_cfg$saveEnabled,                                                    #$$$$$$$$$$$$$
-        accuracy_plot    = legacy_cfg$accuracy_plot %||% legacy_cfg$loss_curve,                       #$$$$$$$$$$$$$
-        saturation_plot  = legacy_cfg$saturation_plot %||% legacy_cfg$probe_plots,                    #$$$$$$$$$$$$$
-        max_weight_plot  = legacy_cfg$max_weight_plot %||% legacy_cfg$probe_plots                      #$$$$$$$$$$$$$
-      )                                                                                               #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
+  if (!is.null(training_overrides$per_epoch_view_plots)) {                                           
+    per_epoch_cfg <- training_overrides$per_epoch_view_plots                                          
+  } else if (!is.null(training_overrides$per_epoch_plots)) {                                         
+    per_epoch_cfg <- training_overrides$per_epoch_plots                                               
+  }                                                                                                  
+  if (!is.null(per_epoch_cfg)) {                                                                     
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  
+      base_train_overrides$plot_controls <- list()                                                    
+    }                                                                                                 
+    if (isTRUE(per_epoch_cfg)) {                                                                     
+      per_epoch_cfg <- list(viewAllPlots = TRUE)                                                      
+    } else if (isFALSE(per_epoch_cfg)) {                                                             
+      per_epoch_cfg <- list(viewAllPlots = FALSE)                                                     
+    } else if (is.list(per_epoch_cfg)) {                                                             
+      legacy_cfg <- per_epoch_cfg                                                                     
+      per_epoch_cfg <- list(                                                                          
+        viewAllPlots     = legacy_cfg$viewAllPlots,                                                   
+        verbose          = legacy_cfg$verbose,                                                        
+        saveEnabled      = legacy_cfg$saveEnabled,                                                    
+        accuracy_plot    = legacy_cfg$accuracy_plot %||% legacy_cfg$loss_curve,                       
+        saturation_plot  = legacy_cfg$saturation_plot %||% legacy_cfg$probe_plots,                    
+        max_weight_plot  = legacy_cfg$max_weight_plot %||% legacy_cfg$probe_plots                      
+      )                                                                                               
+    }                                                                                                 
     base_train_overrides$plot_controls$per_epoch <- per_epoch_cfg      
-  }                                                                                                  #$$$$$$$$$$$$$
+  }                                                                                                  
   
   # ============================================================
-  # #$$$$$$$$$$$$$ FIX: Scenario-1 FINAL performance/relevance plots rename
+  #  FIX: Scenario-1 FINAL performance/relevance plots rename
   # - New Scenario-1 key: final_update_performance_relevance_plots
   # - Canonical key used by engine: plot_controls$performance_relevance
   # - Backward compat: if old ..._boxplots exists, accept it too
   # ============================================================
-  if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       #$$$$$$$$$$$$$
-    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
-      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
-      training_overrides$final_update_performance_relevance_plots                                    #$$$$$$$$$$$$$
-  } else if (!is.null(training_overrides$final_update_performance_relevance_boxplots)) {             #$$$$$$$$$$$$$
-    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
-      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
-      training_overrides$final_update_performance_relevance_boxplots                                  #$$$$$$$$$$$$$
-  } else if (!is.null(training_overrides$performance_relevance)) {                                   #$$$$$$$$$$$$$
-    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  #$$$$$$$$$$$$$
-      base_train_overrides$plot_controls <- list()                                                    #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls$performance_relevance <-                                      #$$$$$$$$$$$$$
-      training_overrides$performance_relevance                                                       #$$$$$$$$$$$$$
-  }                                                                                                  #$$$$$$$$$$$$$
+  if (!is.null(training_overrides$final_update_performance_relevance_plots)) {                       
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  
+      base_train_overrides$plot_controls <- list()                                                    
+    }                                                                                                 
+    base_train_overrides$plot_controls$performance_relevance <-                                      
+      training_overrides$final_update_performance_relevance_plots                                    
+  } else if (!is.null(training_overrides$final_update_performance_relevance_boxplots)) {             
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  
+      base_train_overrides$plot_controls <- list()                                                    
+    }                                                                                                 
+    base_train_overrides$plot_controls$performance_relevance <-                                      
+      training_overrides$final_update_performance_relevance_boxplots                                  
+  } else if (!is.null(training_overrides$performance_relevance)) {                                   
+    if (is.null(base_train_overrides$plot_controls) || !is.list(base_train_overrides$plot_controls)) {  
+      base_train_overrides$plot_controls <- list()                                                    
+    }                                                                                                 
+    base_train_overrides$plot_controls$performance_relevance <-                                      
+      training_overrides$performance_relevance                                                       
+  }                                                                                                  
   
-  if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  #$$$$$$$$$$$$$
-    pe <- base_train_overrides$plot_controls$per_epoch                                                #$$$$$$$$$$$$$
-    pe_any_true <- isTRUE(any(vapply(pe, function(v) isTRUE(v), logical(1)), na.rm = TRUE))           #$$$$$$$$$$$$$
-    if (isTRUE(pe_any_true)) {                                                                        #$$$$$$$$$$$$$
-      base_train_overrides$save_per_epoch <- TRUE                                                     #$$$$$$$$$$$$$
-    }                                                                                                 #$$$$$$$$$$$$$
-  }                                                                                                   #$$$$$$$$$$$$$
+  if (is.null(base_train_overrides$save_per_epoch) && !is.null(base_train_overrides$plot_controls$per_epoch)) {  
+    pe <- base_train_overrides$plot_controls$per_epoch                                                
+    pe_any_true <- isTRUE(any(vapply(pe, function(v) isTRUE(v), logical(1)), na.rm = TRUE))           
+    if (isTRUE(pe_any_true)) {                                                                        
+      base_train_overrides$save_per_epoch <- TRUE                                                     
+    }                                                                                                 
+  }                                                                                                   
   
   base_train_overrides$output_root <- base_train_overrides$output_root %||% output_root
   
-  # ============================================================  #$$$$$$$$$$$$$
+  # ============================================================  
   # SECTION: Plot controls passthrough (Scenario 2)
   # - Do NOT create local defaults here.
   # - If user provided plot_controls, pass it through to training.
-  # ============================================================  #$$$$$$$$$$$$$
-  if (!is.null(plot_controls)) {                                                       #$$$$$$$$$$$$$
-    base_train_overrides$plot_controls <- plot_controls                                 #$$$$$$$$$$$$$
-  }                                                                                      #$$$$$$$$$$$$$
+  # ============================================================  
+  if (!is.null(plot_controls)) {                                                       
+    base_train_overrides$plot_controls <- plot_controls                                 
+  }                                                                                      
 
-  # ============================================================  #$$$$$$$$$$$$$
-  # SECTION: Plot controls passthrough only (no mutation)  #$$$$$$$$$$$$$
-  # ============================================================  #$$$$$$$$$$$$$
+  # ============================================================  
+  # SECTION: Plot controls passthrough only (no mutation)  
+  # ============================================================  
   
   # ============================================================
-  # SECTION: Verbose / EVOKE logger  #$$$$$$$$$$$$$
+  # SECTION: Verbose / EVOKE logger  
   # ============================================================
   verbose_run <- isTRUE(base_train_overrides$verbose %||% FALSE)  # kept (informational)
   
-  .evoke_predict_begin <- function(where, why, seed = NA_integer_, run_index = NA_integer_) {  #$$$$$$$$$$$$$
-    ddesonn_console_log(                                                                       #$$$$$$$$$$$$$
-      sprintf(                                                                                  #$$$$$$$$$$$$$
-        "[EVOKE-PREDICT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",                    #$$$$$$$$$$$$$
-        as.character(where), as.character(why), as.character(seed), as.character(run_index)     #$$$$$$$$$$$$$
-      ),                                                                                        #$$$$$$$$$$$$$
-      level = "info",                                                                           #$$$$$$$$$$$$$
-      verbose = verbose,                                                                        #$$$$$$$$$$$$$
-      verboseLow = verboseLow                                                                   #$$$$$$$$$$$$$
-    )                                                                                           #$$$$$$$$$$$$$
-    invisible(NULL)                                                                             #$$$$$$$$$$$$$
-  }                                                                                             #$$$$$$$$$$$$$
+  .evoke_predict_begin <- function(where, why, seed = NA_integer_, run_index = NA_integer_) {  
+    ddesonn_console_log(                                                                       
+      sprintf(                                                                                  
+        "[EVOKE-PREDICT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",                    
+        as.character(where), as.character(why), as.character(seed), as.character(run_index)     
+      ),                                                                                        
+      level = "info",                                                                           
+      verbose = verbose,                                                                        
+      verboseLow = verboseLow                                                                   
+    )                                                                                           
+    invisible(NULL)                                                                             
+  }                                                                                             
   
-  .evoke_predict_end <- function(where, why, seed = NA_integer_, run_index = NA_integer_) {     #$$$$$$$$$$$$$
-    ddesonn_console_log(                                                                       #$$$$$$$$$$$$$
-      sprintf(                                                                                  #$$$$$$$$$$$$$
-        "[EVOKE-PREDICT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                      #$$$$$$$$$$$$$
-        as.character(where), as.character(why), as.character(seed), as.character(run_index)     #$$$$$$$$$$$$$
-      ),                                                                                        #$$$$$$$$$$$$$
-      level = "info",                                                                           #$$$$$$$$$$$$$
-      verbose = verbose,                                                                        #$$$$$$$$$$$$$
-      verboseLow = verboseLow                                                                   #$$$$$$$$$$$$$
-    )                                                                                           #$$$$$$$$$$$$$
-    invisible(NULL)                                                                             #$$$$$$$$$$$$$
-  }                                                                                             #$$$$$$$$$$$$$
+  .evoke_predict_end <- function(where, why, seed = NA_integer_, run_index = NA_integer_) {     
+    ddesonn_console_log(                                                                       
+      sprintf(                                                                                  
+        "[EVOKE-PREDICT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                      
+        as.character(where), as.character(why), as.character(seed), as.character(run_index)     
+      ),                                                                                        
+      level = "info",                                                                           
+      verbose = verbose,                                                                        
+      verboseLow = verboseLow                                                                   
+    )                                                                                           
+    invisible(NULL)                                                                             
+  }                                                                                             
   
   validation_data <- validation
   if (!is.null(x_valid) || !is.null(y_valid)) {
@@ -3638,7 +3638,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   }
   
   # ============================================================
-  # SECTION: build_split_predictions() — EVOKE prints for split-driven predict calls  #$$$$$$$$$$$$$
+  # SECTION: build_split_predictions() — EVOKE prints for split-driven predict calls  
   # ============================================================
   build_split_predictions <- function(model,
                                       new_data,
@@ -3648,33 +3648,33 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
                                       seed_val) {
     if (is.null(new_data)) return(NULL)
     
-    # #$$$$$$$$$$$$$ FIX: Explicit BEGIN/END around the exact ddesonn_predict() call that triggers net$predict()
-    .evoke_predict_begin(                                                                                 #$$$$$$$$$$$$$
-      where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)),            #$$$$$$$$$$$$$
-      why   = "Split diagnostics: ddesonn_predict(aggregate='none', type='response') -> per-model tables",#$$$$$$$$$$$$$
-      seed  = seed_val,                                                                                   #$$$$$$$$$$$$$
-      run_index = run_idx                                                                                 #$$$$$$$$$$$$$
-    )                                                                                                     #$$$$$$$$$$$$$
+    #  FIX: Explicit BEGIN/END around the exact ddesonn_predict() call that triggers net$predict()
+    .evoke_predict_begin(                                                                                 
+      where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)),            
+      why   = "Split diagnostics: ddesonn_predict(aggregate='none', type='response') -> per-model tables",
+      seed  = seed_val,                                                                                   
+      run_index = run_idx                                                                                 
+    )                                                                                                     
     
-    pr <- try(                                                                                               #$$$$$$$$$$$$$
-      ddesonn_predict(                                                                                       #$$$$$$$$$$$$$
-        model,                                                                                                #$$$$$$$$$$$$$
-        new_data,                                                                                             #$$$$$$$$$$$$$
-        aggregate = "none",                                                                                   #$$$$$$$$$$$$$
-        type = "response",                                                                                    #$$$$$$$$$$$$$
-        verbose = verbose,                                                                                    #$$$$$$$$$$$$$
-        verboseLow = verboseLow,                                                                              #$$$$$$$$$$$$$
-        debug = debug                                                                                          #$$$$$$$$$$$$$
-      ),                                                                                                      #$$$$$$$$$$$$$
-      silent = TRUE                                                                                           #$$$$$$$$$$$$$
-    )                                                                                                         #$$$$$$$$$$$$$
+    pr <- try(                                                                                               
+      ddesonn_predict(                                                                                       
+        model,                                                                                                
+        new_data,                                                                                             
+        aggregate = "none",                                                                                   
+        type = "response",                                                                                    
+        verbose = verbose,                                                                                    
+        verboseLow = verboseLow,                                                                              
+        debug = debug                                                                                          
+      ),                                                                                                      
+      silent = TRUE                                                                                           
+    )                                                                                                         
     
-    .evoke_predict_end(                                                                                   #$$$$$$$$$$$$$
-      where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)),            #$$$$$$$$$$$$$
-      why   = "Split diagnostics predict finished (if you saw predict() above, it came from this block)", #$$$$$$$$$$$$$
-      seed  = seed_val,                                                                                   #$$$$$$$$$$$$$
-      run_index = run_idx                                                                                 #$$$$$$$$$$$$$
-    )                                                                                                     #$$$$$$$$$$$$$
+    .evoke_predict_end(                                                                                   
+      where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)),            
+      why   = "Split diagnostics predict finished (if you saw predict() above, it came from this block)", 
+      seed  = seed_val,                                                                                   
+      run_index = run_idx                                                                                 
+    )                                                                                                     
     
     if (inherits(pr, "try-error") || is.null(pr$per_model) || !length(pr$per_model)) {
       return(NULL)
@@ -3748,7 +3748,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     out
   }
   
-  empty_log_tables <- function(log_enabled) {  # #$$$$$$$$$$$$$
+  empty_log_tables <- function(log_enabled) {  # 
     out <- list(
       main_log = data.frame(
         iteration = integer(), phase = character(), slot = integer(),
@@ -3758,7 +3758,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       )
     )
     
-    if (isTRUE(log_enabled)) {                # #$$$$$$$$$$$$$
+    if (isTRUE(log_enabled)) {                # 
       out$movement_log <- data.frame(
         iteration = integer(), phase = character(), slot = integer(),
         role = character(), serial = character(), metric_name = character(),
@@ -3936,11 +3936,11 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       if (length(vars)) rm(list = vars, envir = .ddesonn_state)
     }
     
-    log_enabled <- isTRUE(do_ensemble) &&                                              # #$$$$$$$$$$$$$
-      as.integer(num_networks %||% 0L) >= 1L &&                                        # #$$$$$$$$$$$$$
-      as.integer(num_temp_iterations %||% 0L) >= 1L                                    # #$$$$$$$$$$$$$
+    log_enabled <- isTRUE(do_ensemble) &&                                              # 
+      as.integer(num_networks %||% 0L) >= 1L &&                                        # 
+      as.integer(num_temp_iterations %||% 0L) >= 1L                                    # 
     
-    log_tables <- empty_log_tables(log_enabled)                                        # #$$$$$$$$$$$$$
+    log_tables <- empty_log_tables(log_enabled)                                        # 
     
     main_model_args <- base_model_args
     if (isTRUE(do_ensemble)) {
@@ -3954,100 +3954,100 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       val <- list(x = validation_data$x, y = validation_data$y)
     }
     
-    if (isTRUE(debug)) {                                                                # #$$$$$$$$$$$$$
-      ddesonn_console_log(                                                              # #$$$$$$$$$$$$$
-        sprintf(                                                                        # #$$$$$$$$$$$$$
-          "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",              # #$$$$$$$$$$$$$
-          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # #$$$$$$$$$$$$$
-          "Training main model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # #$$$$$$$$$$$$$
-          as.character(seed_i),                                                         # #$$$$$$$$$$$$$
-          as.character(i)                                                               # #$$$$$$$$$$$$$
-        ),                                                                              # #$$$$$$$$$$$$$
-        level = "important",                                                            # #$$$$$$$$$$$$$
-        verbose = verbose,                                                              # #$$$$$$$$$$$$$
-        verboseLow = verboseLow,                                                        # #$$$$$$$$$$$$$
-        debug = debug                                                                   # #$$$$$$$$$$$$$
-      )                                                                                # #$$$$$$$$$$$$$
-    }                                                                                   # #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                                # 
+      ddesonn_console_log(                                                              # 
+        sprintf(                                                                        # 
+          "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",              # 
+          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # 
+          "Training main model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # 
+          as.character(seed_i),                                                         # 
+          as.character(i)                                                               # 
+        ),                                                                              # 
+        level = "important",                                                            # 
+        verbose = verbose,                                                              # 
+        verboseLow = verboseLow,                                                        # 
+        debug = debug                                                                   # 
+      )                                                                                # 
+    }                                                                                   # 
     
-    if (isTRUE(debug)) {                                                               #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
-        "[DBG] per-epoch plot controls (base_train_overrides$plot_controls$per_epoch)",#$$$$$$$$$$$$$
-        debug = debug                                                                  #$$$$$$$$$$$$$
-      )                                                                                #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
-        paste(utils::capture.output(utils::str(base_train_overrides$plot_controls$per_epoch)), collapse = "\n"), #$$$$$$$$$$$$$
-        debug = debug                                                                  #$$$$$$$$$$$$$
-      )                                                                                #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
-        paste("save_per_epoch:", base_train_overrides$save_per_epoch),                 #$$$$$$$$$$$$$
-        debug = debug                                                                  #$$$$$$$$$$$$$
-      )                                                                                #$$$$$$$$$$$$$
-      pe_cfg <- base_train_overrides$plot_controls$per_epoch                           #$$$$$$$$$$$$$
-      saveEnabled <- if (is.list(pe_cfg)) pe_cfg$saveEnabled else NULL                 #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
-        paste("saveEnabled:", if (is.null(saveEnabled)) "NULL" else saveEnabled),      #$$$$$$$$$$$$$
-        debug = debug                                                                  #$$$$$$$$$$$$$
-      )                                                                                #$$$$$$$$$$$$$
-      plots_root <- base_train_overrides$output_root %||% output_root                  #$$$$$$$$$$$$$
-      ddesonn_debug(                                                                   #$$$$$$$$$$$$$
-        paste("plots_dir:", ddesonn_plots_dir(plots_root)),                            #$$$$$$$$$$$$$
-        debug = debug                                                                  #$$$$$$$$$$$$$
-      )                                                                                #$$$$$$$$$$$$$
-    }                                                                                  #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                               
+      ddesonn_debug(                                                                   
+        "[DBG] per-epoch plot controls (base_train_overrides$plot_controls$per_epoch)",
+        debug = debug                                                                  
+      )                                                                                
+      ddesonn_debug(                                                                   
+        paste(utils::capture.output(utils::str(base_train_overrides$plot_controls$per_epoch)), collapse = "\n"), 
+        debug = debug                                                                  
+      )                                                                                
+      ddesonn_debug(                                                                   
+        paste("save_per_epoch:", base_train_overrides$save_per_epoch),                 
+        debug = debug                                                                  
+      )                                                                                
+      pe_cfg <- base_train_overrides$plot_controls$per_epoch                           
+      saveEnabled <- if (is.list(pe_cfg)) pe_cfg$saveEnabled else NULL                 
+      ddesonn_debug(                                                                   
+        paste("saveEnabled:", if (is.null(saveEnabled)) "NULL" else saveEnabled),      
+        debug = debug                                                                  
+      )                                                                                
+      plots_root <- base_train_overrides$output_root %||% output_root                  
+      ddesonn_debug(                                                                   
+        paste("plots_dir:", ddesonn_plots_dir(plots_root)),                            
+        debug = debug                                                                  
+      )                                                                                
+    }                                                                                  
     
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
     
-    if (isTRUE(debug)) {                                                                # #$$$$$$$$$$$$$
-      ddesonn_console_log(                                                              # #$$$$$$$$$$$$$
-        sprintf(                                                                        # #$$$$$$$$$$$$$
-          "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                # #$$$$$$$$$$$$$
-          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # #$$$$$$$$$$$$$
-          "ddesonn_fit() returned to ddesonn_run; any predict() emitted above could have originated inside training/metrics/validation", # #$$$$$$$$$$$$$
-          as.character(seed_i),                                                         # #$$$$$$$$$$$$$
-          as.character(i)                                                               # #$$$$$$$$$$$$$
-        ),                                                                              # #$$$$$$$$$$$$$
-        level = "important",                                                            # #$$$$$$$$$$$$$
-        verbose = verbose,                                                              # #$$$$$$$$$$$$$
-        verboseLow = verboseLow,                                                        # #$$$$$$$$$$$$$
-        debug = debug                                                                   # #$$$$$$$$$$$$$
-      )                                                                                # #$$$$$$$$$$$$$
-    }                                                                                   # #$$$$$$$$$$$$$
+    if (isTRUE(debug)) {                                                                # 
+      ddesonn_console_log(                                                              # 
+        sprintf(                                                                        # 
+          "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",                # 
+          "ddesonn_run::per_seed(main_fit)->ddesonn_fit",                                # 
+          "ddesonn_fit() returned to ddesonn_run; any predict() emitted above could have originated inside training/metrics/validation", # 
+          as.character(seed_i),                                                         # 
+          as.character(i)                                                               # 
+        ),                                                                              # 
+        level = "important",                                                            # 
+        verbose = verbose,                                                              # 
+        verboseLow = verboseLow,                                                        # 
+        debug = debug                                                                   # 
+      )                                                                                # 
+    }                                                                                   # 
     
     main_pred <- NULL
     aggregate_pred <- NULL
     
     if (!is.null(prediction_matrix)) {
       
-      if (isTRUE(debug)) {                                                              # #$$$$$$$$$$$$$
-        .evoke_predict_begin(                                                           # #$$$$$$$$$$$$$
+      if (isTRUE(debug)) {                                                              # 
+        .evoke_predict_begin(                                                           # 
           where = "ddesonn_run::per_seed(main_fit)->main_pred",
           why   = "User prediction_data provided; ddesonn_predict() will call net$predict() across ensemble",
           seed  = seed_i,
           run_index = i
         )
-      }                                                                                 # #$$$$$$$$$$$$$
+      }                                                                                 # 
       
-      preds <- ddesonn_predict(                                                         #$$$$$$$$$$$$$
-        mdl,                                                                            #$$$$$$$$$$$$$
-        prediction_matrix,                                                              #$$$$$$$$$$$$$
-        aggregate = aggregate,                                                          #$$$$$$$$$$$$$
-        type = prediction_type,                                                         #$$$$$$$$$$$$$
-        threshold = threshold,                                                          #$$$$$$$$$$$$$
-        verbose = verbose,                                                              #$$$$$$$$$$$$$
-        verboseLow = verboseLow,                                                        #$$$$$$$$$$$$$
-        debug = debug                                                                   #$$$$$$$$$$$$$
-      )                                                                                 #$$$$$$$$$$$$$
+      preds <- ddesonn_predict(                                                         
+        mdl,                                                                            
+        prediction_matrix,                                                              
+        aggregate = aggregate,                                                          
+        type = prediction_type,                                                         
+        threshold = threshold,                                                          
+        verbose = verbose,                                                              
+        verboseLow = verboseLow,                                                        
+        debug = debug                                                                   
+      )                                                                                 
       main_pred <- preds
       
-      if (isTRUE(debug)) {                                                              # #$$$$$$$$$$$$$
-        .evoke_predict_end(                                                             # #$$$$$$$$$$$$$
+      if (isTRUE(debug)) {                                                              # 
+        .evoke_predict_end(                                                             # 
           where = "ddesonn_run::per_seed(main_fit)->main_pred",
           why   = "Main prediction finished",
           seed  = seed_i,
           run_index = i
         )
-      }                                                                                 # #$$$$$$$$$$$$$
+      }                                                                                 # 
     }
     
     temp_summary <- list()
@@ -4066,74 +4066,74 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
         temp_model_args$ensemble_number <- iter + 1L
         tmp_model <- do.call(ddesonn_model, temp_model_args)
         
-        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
-          ddesonn_console_log(                                                          # #$$$$$$$$$$$$$
-            sprintf(                                                                    # #$$$$$$$$$$$$$
-              "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",          # #$$$$$$$$$$$$$
-              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # #$$$$$$$$$$$$$
-              "Training TEMP candidate model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # #$$$$$$$$$$$$$
-              as.character(seed_i),                                                     # #$$$$$$$$$$$$$
-              as.character(i)                                                           # #$$$$$$$$$$$$$
-            ),                                                                          # #$$$$$$$$$$$$$
-            level = "important",                                                        # #$$$$$$$$$$$$$
-            verbose = verbose,                                                          # #$$$$$$$$$$$$$
-            verboseLow = verboseLow,                                                    # #$$$$$$$$$$$$$
-            debug = debug                                                               # #$$$$$$$$$$$$$
-          )                                                                             # #$$$$$$$$$$$$$
-        }                                                                               # #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # 
+          ddesonn_console_log(                                                          # 
+            sprintf(                                                                    # 
+              "[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n",          # 
+              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # 
+              "Training TEMP candidate model; ddesonn_fit() may invoke predict() internally via validation/metrics/snapshots", # 
+              as.character(seed_i),                                                     # 
+              as.character(i)                                                           # 
+            ),                                                                          # 
+            level = "important",                                                        # 
+            verbose = verbose,                                                          # 
+            verboseLow = verboseLow,                                                    # 
+            debug = debug                                                               # 
+          )                                                                             # 
+        }                                                                               # 
         
         do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val), tmp_overrides))
         
-        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
-          ddesonn_console_log(                                                          # #$$$$$$$$$$$$$
-            sprintf(                                                                    # #$$$$$$$$$$$$$
-              "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",            # #$$$$$$$$$$$$$
-              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # #$$$$$$$$$$$$$
-              "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any predict() emitted above could have originated inside training/metrics/validation", # #$$$$$$$$$$$$$
-              as.character(seed_i),                                                     # #$$$$$$$$$$$$$
-              as.character(i)                                                           # #$$$$$$$$$$$$$
-            ),                                                                          # #$$$$$$$$$$$$$
-            level = "important",                                                        # #$$$$$$$$$$$$$
-            verbose = verbose,                                                          # #$$$$$$$$$$$$$
-            verboseLow = verboseLow,                                                    # #$$$$$$$$$$$$$
-            debug = debug                                                               # #$$$$$$$$$$$$$
-          )                                                                             # #$$$$$$$$$$$$$
-        }                                                                               # #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # 
+          ddesonn_console_log(                                                          # 
+            sprintf(                                                                    # 
+              "[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n",            # 
+              sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),      # 
+              "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any predict() emitted above could have originated inside training/metrics/validation", # 
+              as.character(seed_i),                                                     # 
+              as.character(i)                                                           # 
+            ),                                                                          # 
+            level = "important",                                                        # 
+            verbose = verbose,                                                          # 
+            verboseLow = verboseLow,                                                    # 
+            debug = debug                                                               # 
+          )                                                                             # 
+        }                                                                               # 
         
         per_seed <- NULL
         aggregate_tmp <- NULL
         
         if (!is.null(prediction_matrix)) {
           
-          if (isTRUE(debug)) {                                                          # #$$$$$$$$$$$$$
-            .evoke_predict_begin(                                                       # #$$$$$$$$$$$$$
+          if (isTRUE(debug)) {                                                          # 
+            .evoke_predict_begin(                                                       # 
               where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
               why   = "TEMP evaluation on prediction_data: ddesonn_predict(aggregate='none', type='response')",
               seed  = seed_i,
               run_index = i
             )
-          }                                                                             # #$$$$$$$$$$$$$
+          }                                                                             # 
           
-          tpred <- ddesonn_predict(                                                     #$$$$$$$$$$$$$
-            tmp_model,                                                                  #$$$$$$$$$$$$$
-            prediction_matrix,                                                          #$$$$$$$$$$$$$
-            aggregate = "none",                                                         #$$$$$$$$$$$$$
-            type = "response",                                                          #$$$$$$$$$$$$$
-            verbose = verbose,                                                          #$$$$$$$$$$$$$
-            verboseLow = verboseLow,                                                    #$$$$$$$$$$$$$
-            debug = debug                                                               #$$$$$$$$$$$$$
-          )                                                                             #$$$$$$$$$$$$$
+          tpred <- ddesonn_predict(                                                     
+            tmp_model,                                                                  
+            prediction_matrix,                                                          
+            aggregate = "none",                                                         
+            type = "response",                                                          
+            verbose = verbose,                                                          
+            verboseLow = verboseLow,                                                    
+            debug = debug                                                               
+          )                                                                             
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
           
-          if (isTRUE(debug)) {                                                          # #$$$$$$$$$$$$$
-            .evoke_predict_end(                                                         # #$$$$$$$$$$$$$
+          if (isTRUE(debug)) {                                                          # 
+            .evoke_predict_end(                                                         # 
               where = sprintf("ddesonn_run::TEMP(iter=%d)->candidate_eval", iter),
               why   = "TEMP evaluation finished",
               seed  = seed_i,
               run_index = i
             )
-          }                                                                             # #$$$$$$$$$$$$$
+          }                                                                             # 
         }
         
         temp_list[[iter]] <- list(iteration = iter, model = tmp_model, per_seed = per_seed, aggregate = aggregate_tmp)
@@ -4166,35 +4166,35 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     if (!is.null(prediction_matrix)) {
       if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
         
-        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
-          .evoke_predict_begin(                                                         # #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # 
+          .evoke_predict_begin(                                                         # 
             where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
             why   = "Recompute main predictions after TEMP-based mutation: ddesonn_predict() calls net$predict()",
             seed  = seed_i,
             run_index = i
           )
-        }                                                                               # #$$$$$$$$$$$$$
+        }                                                                               # 
         
-        preds <- ddesonn_predict(                                                       #$$$$$$$$$$$$$
-          mdl,                                                                          #$$$$$$$$$$$$$
-          prediction_matrix,                                                            #$$$$$$$$$$$$$
-          aggregate = aggregate,                                                        #$$$$$$$$$$$$$
-          type = prediction_type,                                                       #$$$$$$$$$$$$$
-          threshold = threshold,                                                        #$$$$$$$$$$$$$
-          verbose = verbose,                                                            #$$$$$$$$$$$$$
-          verboseLow = verboseLow,                                                      #$$$$$$$$$$$$$
-          debug = debug                                                                 #$$$$$$$$$$$$$
-        )                                                                               #$$$$$$$$$$$$$
+        preds <- ddesonn_predict(                                                       
+          mdl,                                                                          
+          prediction_matrix,                                                            
+          aggregate = aggregate,                                                        
+          type = prediction_type,                                                       
+          threshold = threshold,                                                        
+          verbose = verbose,                                                            
+          verboseLow = verboseLow,                                                      
+          debug = debug                                                                 
+        )                                                                               
         main_pred <- preds
         
-        if (isTRUE(debug)) {                                                            # #$$$$$$$$$$$$$
-          .evoke_predict_end(                                                           # #$$$$$$$$$$$$$
+        if (isTRUE(debug)) {                                                            # 
+          .evoke_predict_end(                                                           # 
             where = "ddesonn_run::post_TEMP(main_mutated)->main_pred",
             why   = "Post-TEMP main prediction finished",
             seed  = seed_i,
             run_index = i
           )
-        }                                                                               # #$$$$$$$$$$$$$
+        }                                                                               # 
       }
     }
     
@@ -4365,8 +4365,8 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
     if (!is.null(final_training) && is.list(final_training$performance_relevance_data)) {
       summary_threshold <- final_training$performance_relevance_data$threshold %||% NULL
       
-      thr_num <- suppressWarnings(as.numeric(summary_threshold))                             #$$$$$$$$$$$$$
-      summary_threshold <- if (length(thr_num) == 1L && is.finite(thr_num)) thr_num else NULL#$$$$$$$$$$$$$
+      thr_num <- suppressWarnings(as.numeric(summary_threshold))                             
+      summary_threshold <- if (length(thr_num) == 1L && is.finite(thr_num)) thr_num else NULL
     }
     test_threshold <- summary_threshold %||% threshold
     test_metrics_result <- .compute_test_metrics(
@@ -4391,12 +4391,12 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       }
     } else {
       test_metrics <- NULL
-      ddesonn_console_log(                                                                   #$$$$$$$$$$$$$
-        sprintf("Test metrics unavailable: %s", test_metrics_result$reason %||% "unknown error"),  #$$$$$$$$$$$$$
-        level = "important",                                                                  #$$$$$$$$$$$$$
-        verbose = verbose,                                                                    #$$$$$$$$$$$$$
-        verboseLow = verboseLow                                                               #$$$$$$$$$$$$$
-      )                                                                                       #$$$$$$$$$$$$$
+      ddesonn_console_log(                                                                   
+        sprintf("Test metrics unavailable: %s", test_metrics_result$reason %||% "unknown error"),  
+        level = "important",                                                                  
+        verbose = verbose,                                                                    
+        verboseLow = verboseLow                                                               
+      )                                                                                       
     }
   }
   if (!is.null(final_training)) {
@@ -4410,14 +4410,14 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
   }
   if (!is.null(final_model) && identical(tolower(classification_mode), "binary")) {
     
-    dec_out <- base_train_overrides$final_summary_decimals %||% NULL                        #$$$$$$$$$$$$$
+    dec_out <- base_train_overrides$final_summary_decimals %||% NULL                        
     
     thr_used <- threshold %||%
       attr(final_model, "chosen_threshold") %||% final_model$chosen_threshold %||%
       attr(final_model, "threshold") %||%
       .ddesonn_threshold_default("binary")
     
-    train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+    train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
     if (!inherits(train_probs, "try-error") && !is.null(train_probs$prediction)) {
       y_train_vec <- .coerce_binary_labels(y_matrix)
       .emit_binary_classification_report(
@@ -4427,7 +4427,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       )
     }
     if (!is.null(validation_data) && !is.null(validation_data$x)) {
-      val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+      val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
       if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
         y_val_vec <- .coerce_binary_labels(validation_data$y)
         .emit_binary_classification_report(
@@ -4438,7 +4438,7 @@ ddesonn_run <- function(x,  #$$$$$$$$$$$$$
       }
     }
     if (!is.null(test_matrix) && !is.null(test_labels)) {
-      test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  #$$$$$$$$$$$$$
+      test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
       if (!inherits(test_probs, "try-error") && !is.null(test_probs$prediction)) {
         y_test_vec <- .coerce_binary_labels(test_labels)
         .emit_binary_classification_report(

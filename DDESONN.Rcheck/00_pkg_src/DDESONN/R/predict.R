@@ -12,6 +12,9 @@
 #' @param type Prediction type. `"response"` returns numeric predictions,
 #'   while `"class"` returns class labels for classification problems.
 #' @param threshold Optional threshold override when `type = "class"`.
+#' @param verbose Logical; emit detailed progress output when TRUE.
+#' @param verboseLow Logical; emit important progress output when TRUE.
+#' @param debug Logical; emit debug diagnostics when TRUE.
 #' @export
 predict.ddesonn_model <- function(object,
                                   newdata,

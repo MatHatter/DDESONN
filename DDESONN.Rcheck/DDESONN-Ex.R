@@ -78,6 +78,28 @@ y <- data$am
 model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
 ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
 
+# Regression example (mtcars) with explicit scheduler controls.
+# If you do NOT want LR decay, set lr_decay_rate = 1.0.
+reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+reg_y <- mtcars$mpg
+reg_model <- ddesonn_model(
+  input_size = ncol(reg_x), # number of input features
+  output_size = 1, # one numeric target
+  hidden_sizes = c(16, 8), # hidden-layer widths
+  classification_mode = "regression" # problem type
+)
+ddesonn_fit(
+  model = reg_model, # model object from ddesonn_model()
+  x = reg_x, # training predictors
+  y = reg_y, # training target
+  num_epochs = 10, # training epochs
+  lr = 0.05, # initial learning rate
+  lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
+  lr_decay_epoch = 20L, # decay step interval in epochs
+  lr_min = 1e-5, # lower bound for learning rate
+  validation_metrics = FALSE # disable validation metric pass in this example
+)
+
 
 
 
@@ -178,7 +200,7 @@ library(DDESONN)
 set.seed(111)
 
 # ------------------------------------------------------------
-# 1) Locate package extdata folder (robust across check/install)  
+# 1) Locate package extdata folder (robust across check/install)  #$$$$$$$$$$$$$
 # ------------------------------------------------------------
 ext_dir <- system.file("extdata", package = "DDESONN")
 if (!nzchar(ext_dir)) {
@@ -187,7 +209,7 @@ if (!nzchar(ext_dir)) {
 }
 
 # ------------------------------------------------------------
-# 1b) Find CSVs (recursive + check-dir edge cases)               
+# 1b) Find CSVs (recursive + check-dir edge cases)               #$$$$$$$$$$$$$
 # ------------------------------------------------------------
 csvs <- list.files(
   ext_dir,
@@ -197,9 +219,9 @@ csvs <- list.files(
 )
 
 # Defensive fallback for rare nested layouts
-if (!length(csvs)) {                                             
-  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               
-  if (dir.exists(ext_dir2)) {                                    
+if (!length(csvs)) {                                             #$$$$$$$$$$$$$
+  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               #$$$$$$$$$$$$$
+  if (dir.exists(ext_dir2)) {                                    #$$$$$$$$$$$$$
     csvs <- list.files(
       ext_dir2,
       pattern = "\\\\.csv$",
@@ -365,6 +387,16 @@ base::assign(".ptime", proc.time(), pos = "CheckExEnv")
 ### ** Examples
 
 ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
+
+# Inspect regression defaults (includes LR decay by default).
+cfg_reg <- ddesonn_training_defaults("regression", hidden_sizes = c(16, 8))
+cfg_reg$lr
+cfg_reg$lr_decay_rate
+cfg_reg$lr_decay_epoch
+cfg_reg$lr_min
+
+# If you prefer a fixed LR in regression, disable decay explicitly.
+cfg_reg$lr_decay_rate <- 1.0
 
 
 

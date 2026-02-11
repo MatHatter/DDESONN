@@ -13,9 +13,9 @@ Depends: R (>= 4.1.0)
 Imports: R6, stats, utils, dplyr, openxlsx, tidyr, pROC, PRROC,
         reshape2, digest, ggplot2
 Suggests: testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
-        reticulate, techila, zoo
+        reticulate, zoo, readxl
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2026-02-10 06:16:30 UTC; wfky1
+Packaged: 2026-02-11 20:45:40 UTC; wfky1
 Author: Mathew William Armitage Fok [aut, cre]
 Maintainer: Mathew William Armitage Fok <quiksilver67213@yahoo.com>

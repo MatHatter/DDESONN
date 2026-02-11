@@ -1,0 +1,1351 @@
+\nonstopmode{}
+\documentclass[a4paper]{book}
+\usepackage[times,inconsolata,hyper]{Rd}
+\usepackage{makeidx}
+\makeatletter\@ifl@t@r\fmtversion{2018/04/01}{}{\usepackage[utf8]{inputenc}}\makeatother
+% \usepackage{graphicx} % @USE GRAPHICX@
+\makeindex{}
+\begin{document}
+\chapter*{}
+\begin{center}
+{\textbf{\huge Package `DDESONN'}}
+\par\bigskip{\large \today}
+\end{center}
+\ifthenelse{\boolean{Rd@use@hyper}}{\hypersetup{pdftitle = {DDESONN: A Deep Dynamic Experimental Self-Organizing Neural Network Framework}}}{}
+\ifthenelse{\boolean{Rd@use@hyper}}{\hypersetup{pdfauthor = {Mathew William Armitage Fok}}}{}
+\begin{description}
+\raggedright{}
+\item[Type]\AsIs{Package}
+\item[Title]\AsIs{A Deep Dynamic Experimental Self-Organizing Neural Network
+Framework}
+\item[Version]\AsIs{0.1.0}
+\item[Description]\AsIs{High-level helpers for constructing, training, and evaluating Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The package wraps the legacy R6 implementations and exposes a modern API for modelling workflows. Evaluation utilities include ROC and Precision–Recall curves with default AUC/AUPRC annotation, configurable via ddesonn_run() and ddesonn_fit().}
+\item[License]\AsIs{MIT + file LICENSE}
+\item[Encoding]\AsIs{UTF-8}
+\item[Roxygen]\AsIs{list(markdown = TRUE)}
+\item[RoxygenNote]\AsIs{7.3.3}
+\item[Depends]\AsIs{R (>= 4.1.0)}
+\item[Imports]\AsIs{R6, stats, utils, dplyr, openxlsx, tidyr, pROC, PRROC,
+reshape2, digest, ggplot2}
+\item[Suggests]\AsIs{testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
+reticulate, zoo, readxl}
+\item[VignetteBuilder]\AsIs{knitr}
+\item[NeedsCompilation]\AsIs{no}
+\item[Author]\AsIs{Mathew William Armitage Fok [aut, cre]}
+\item[Maintainer]\AsIs{Mathew William Armitage Fok }\email{quiksilver67213@yahoo.com}\AsIs{}
+\end{description}
+\Rdcontents{Contents}
+\HeaderA{DDESONN}{DDESONN: Deep Dynamic Experimental Self-Organizing Neural Network Framework}{DDESONN}
+\keyword{internal}{DDESONN}
+%
+\begin{Description}
+High-level helpers for constructing, training, and evaluating Deep Dynamic Experimental Self-Organizing Neural Networks.
+\end{Description}
+\HeaderA{DDESONN}{DDESONN: Deep Dynamic Experimental Self-Organizing Neural Network Framework}{DDESONN}
+\aliasA{DDESONN-package}{DDESONN}{DDESONN.Rdash.package}
+\keyword{internal}{DDESONN}
+%
+\begin{Description}
+High-level helpers for constructing, training, and evaluating
+Deep Dynamic Experimental Self-Organizing Neural Networks.
+\end{Description}
+%
+\begin{Author}
+\strong{Maintainer}: Mathew William Armitage Fok \email{quiksilver67213@yahoo.com}
+
+\end{Author}
+\HeaderA{ddesonn\_activations}{Activation functions (DDESONN)}{ddesonn.Rul.activations}
+\aliasA{arctangent}{ddesonn\_activations}{arctangent}
+\aliasA{bent\_identity}{ddesonn\_activations}{bent.Rul.identity}
+\aliasA{bent\_relu}{ddesonn\_activations}{bent.Rul.relu}
+\aliasA{bent\_sigmoid}{ddesonn\_activations}{bent.Rul.sigmoid}
+\aliasA{bent\_swish}{ddesonn\_activations}{bent.Rul.swish}
+\aliasA{binary\_activation}{ddesonn\_activations}{binary.Rul.activation}
+\aliasA{custom\_activation}{ddesonn\_activations}{custom.Rul.activation}
+\aliasA{custom\_bent\_piecewise}{ddesonn\_activations}{custom.Rul.bent.Rul.piecewise}
+\aliasA{custom\_binary\_activation}{ddesonn\_activations}{custom.Rul.binary.Rul.activation}
+\aliasA{elu}{ddesonn\_activations}{elu}
+\aliasA{gaussian}{ddesonn\_activations}{gaussian}
+\aliasA{gelu}{ddesonn\_activations}{gelu}
+\aliasA{hard\_sigmoid}{ddesonn\_activations}{hard.Rul.sigmoid}
+\aliasA{identity}{ddesonn\_activations}{identity}
+\aliasA{inverse\_linear\_unit}{ddesonn\_activations}{inverse.Rul.linear.Rul.unit}
+\aliasA{isrlu}{ddesonn\_activations}{isrlu}
+\aliasA{leaky\_bent}{ddesonn\_activations}{leaky.Rul.bent}
+\aliasA{leaky\_relu}{ddesonn\_activations}{leaky.Rul.relu}
+\aliasA{leaky\_selu}{ddesonn\_activations}{leaky.Rul.selu}
+\aliasA{maxout}{ddesonn\_activations}{maxout}
+\aliasA{mish}{ddesonn\_activations}{mish}
+\aliasA{parametric\_bent\_relu}{ddesonn\_activations}{parametric.Rul.bent.Rul.relu}
+\aliasA{prelu}{ddesonn\_activations}{prelu}
+\aliasA{relu}{ddesonn\_activations}{relu}
+\aliasA{selu}{ddesonn\_activations}{selu}
+\aliasA{sigmoid}{ddesonn\_activations}{sigmoid}
+\aliasA{sigmoid\_binary}{ddesonn\_activations}{sigmoid.Rul.binary}
+\aliasA{sigmoid\_sharp}{ddesonn\_activations}{sigmoid.Rul.sharp}
+\aliasA{sinusoid}{ddesonn\_activations}{sinusoid}
+\aliasA{softmax}{ddesonn\_activations}{softmax}
+\aliasA{softplus}{ddesonn\_activations}{softplus}
+\aliasA{swish}{ddesonn\_activations}{swish}
+\aliasA{tanh}{ddesonn\_activations}{tanh}
+\aliasA{tanh\_relu\_hybrid}{ddesonn\_activations}{tanh.Rul.relu.Rul.hybrid}
+%
+\begin{Description}
+A collection of activation functions used by DDESONN.
+These functions operate on numeric vectors/matrices and preserve shape.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+binary_activation(x)
+
+custom_binary_activation(x, threshold = -1.08)
+
+custom_activation(z)
+
+bent_identity(x)
+
+relu(x)
+
+softplus(x)
+
+leaky_relu(x, alpha = 0.01)
+
+elu(x, alpha = 1)
+
+tanh(x)
+
+sigmoid(x)
+
+hard_sigmoid(x)
+
+swish(x)
+
+sigmoid_binary(x)
+
+gelu(x)
+
+selu(x, lambda = 1.0507, alpha = 1.67326)
+
+mish(x)
+
+prelu(x, alpha = 0.01)
+
+softmax(z)
+
+maxout(x, w1 = 0.5, b1 = 1, w2 = -0.5, b2 = 0.5)
+
+bent_relu(x)
+
+bent_sigmoid(x)
+
+arctangent(x)
+
+sinusoid(x)
+
+gaussian(x)
+
+isrlu(x, alpha = 1)
+
+bent_swish(x)
+
+parametric_bent_relu(x, beta = 1)
+
+leaky_bent(x, alpha = 0.01)
+
+inverse_linear_unit(x)
+
+tanh_relu_hybrid(x)
+
+custom_bent_piecewise(x, threshold = 0.5)
+
+sigmoid_sharp(x, temp = 5)
+
+leaky_selu(x, alpha = 0.01, lambda = 1.0507)
+
+identity(x)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{x}] Numeric vector/matrix.
+
+\item[\code{threshold}] Threshold for piecewise.
+
+\item[\code{z}] Numeric vector/matrix.
+
+\item[\code{alpha}] Leak factor.
+
+\item[\code{lambda}] SELU lambda.
+
+\item[\code{w1}] Weight 1.
+
+\item[\code{b1}] Bias 1.
+
+\item[\code{w2}] Weight 2.
+
+\item[\code{b2}] Bias 2.
+
+\item[\code{beta}] Beta parameter.
+
+\item[\code{temp}] Temperature/sharpness.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Details}
+Many functions coerce inputs to matrix form and preserve dimensions.
+Some functions are experimental and may not be suitable for training.
+\end{Details}
+%
+\begin{Value}
+A matrix of 0/1 values with the same dimensions as \code{x}.
+
+A matrix of 0/1 values with the same dimensions as \code{x}.
+
+A matrix of 0/1 values with the same dimensions as \code{z}.
+
+Bent identity transform.
+
+ReLU transform.
+
+Softplus transform.
+
+Leaky ReLU transform.
+
+ELU transform.
+
+tanh transform.
+
+Sigmoid transform.
+
+Hard sigmoid transform.
+
+Swish transform.
+
+0/1 matrix.
+
+GELU transform.
+
+SELU transform.
+
+Mish transform.
+
+PReLU transform.
+
+Row-wise softmax probabilities.
+
+Elementwise max of two affine transforms.
+
+Bent ReLU transform.
+
+Bent sigmoid transform.
+
+atan transform.
+
+sin transform.
+
+exp(-x\textasciicircum{}2).
+
+ISRLU transform.
+
+Bent swish transform.
+
+Parametric bent ReLU transform.
+
+Leaky bent transform.
+
+x/(1+abs(x)).
+
+Hybrid transform.
+
+Piecewise transform.
+
+Sharpened sigmoid.
+
+Leaky SELU transform.
+
+Base identity function.
+\end{Value}
+\HeaderA{ddesonn\_activation\_defaults}{Default activation sequences for DDESONN helpers}{ddesonn.Rul.activation.Rul.defaults}
+%
+\begin{Description}
+Compute sensible activation functions for hidden and output
+layers based on the modelling mode and stage (training or prediction).
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_activation_defaults(
+  mode = c("binary", "multiclass", "regression"),
+  hidden_sizes = NULL,
+  stage = c("train", "predict")
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{mode}] Problem mode. One of \code{"binary"}, \code{"multiclass"}, or \code{"regression"}.
+
+\item[\code{hidden\_sizes}] Integer vector describing the hidden layer widths.
+
+\item[\code{stage}] Stage for which activations are required. Either \code{"train"} or \code{"predict"}.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A list of activation functions suitable for passing into the
+underlying R6 classes.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+ddesonn_activation_defaults("binary", hidden_sizes = c(32, 16))
+ddesonn_activation_defaults("regression", hidden_sizes = 64, stage = "predict")
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_activation\_derivatives}{Activation derivatives (DDESONN)}{ddesonn.Rul.activation.Rul.derivatives}
+\aliasA{arctangent\_derivative}{ddesonn\_activation\_derivatives}{arctangent.Rul.derivative}
+\aliasA{bent\_identity\_derivative}{ddesonn\_activation\_derivatives}{bent.Rul.identity.Rul.derivative}
+\aliasA{bent\_relu\_derivative}{ddesonn\_activation\_derivatives}{bent.Rul.relu.Rul.derivative}
+\aliasA{bent\_sigmoid\_derivative}{ddesonn\_activation\_derivatives}{bent.Rul.sigmoid.Rul.derivative}
+\aliasA{bent\_swish\_derivative}{ddesonn\_activation\_derivatives}{bent.Rul.swish.Rul.derivative}
+\aliasA{binary\_activation\_derivative}{ddesonn\_activation\_derivatives}{binary.Rul.activation.Rul.derivative}
+\aliasA{custom\_activation\_derivative}{ddesonn\_activation\_derivatives}{custom.Rul.activation.Rul.derivative}
+\aliasA{custom\_bent\_piecewise\_derivative}{ddesonn\_activation\_derivatives}{custom.Rul.bent.Rul.piecewise.Rul.derivative}
+\aliasA{custom\_binary\_activation\_derivative}{ddesonn\_activation\_derivatives}{custom.Rul.binary.Rul.activation.Rul.derivative}
+\aliasA{elu\_derivative}{ddesonn\_activation\_derivatives}{elu.Rul.derivative}
+\aliasA{gaussian\_derivative}{ddesonn\_activation\_derivatives}{gaussian.Rul.derivative}
+\aliasA{gelu\_derivative}{ddesonn\_activation\_derivatives}{gelu.Rul.derivative}
+\aliasA{hard\_sigmoid\_derivative}{ddesonn\_activation\_derivatives}{hard.Rul.sigmoid.Rul.derivative}
+\aliasA{identity\_derivative}{ddesonn\_activation\_derivatives}{identity.Rul.derivative}
+\aliasA{inverse\_linear\_unit\_derivative}{ddesonn\_activation\_derivatives}{inverse.Rul.linear.Rul.unit.Rul.derivative}
+\aliasA{isrlu\_derivative}{ddesonn\_activation\_derivatives}{isrlu.Rul.derivative}
+\aliasA{leaky\_bent\_derivative}{ddesonn\_activation\_derivatives}{leaky.Rul.bent.Rul.derivative}
+\aliasA{leaky\_relu\_derivative}{ddesonn\_activation\_derivatives}{leaky.Rul.relu.Rul.derivative}
+\aliasA{leaky\_selu\_derivative}{ddesonn\_activation\_derivatives}{leaky.Rul.selu.Rul.derivative}
+\aliasA{maxout\_derivative}{ddesonn\_activation\_derivatives}{maxout.Rul.derivative}
+\aliasA{mish\_derivative}{ddesonn\_activation\_derivatives}{mish.Rul.derivative}
+\aliasA{parametric\_bent\_relu\_derivative}{ddesonn\_activation\_derivatives}{parametric.Rul.bent.Rul.relu.Rul.derivative}
+\aliasA{prelu\_derivative}{ddesonn\_activation\_derivatives}{prelu.Rul.derivative}
+\aliasA{relu\_derivative}{ddesonn\_activation\_derivatives}{relu.Rul.derivative}
+\aliasA{selu\_derivative}{ddesonn\_activation\_derivatives}{selu.Rul.derivative}
+\aliasA{sigmoid\_binary\_derivative}{ddesonn\_activation\_derivatives}{sigmoid.Rul.binary.Rul.derivative}
+\aliasA{sigmoid\_derivative}{ddesonn\_activation\_derivatives}{sigmoid.Rul.derivative}
+\aliasA{sigmoid\_sharp\_derivative}{ddesonn\_activation\_derivatives}{sigmoid.Rul.sharp.Rul.derivative}
+\aliasA{sinusoid\_derivative}{ddesonn\_activation\_derivatives}{sinusoid.Rul.derivative}
+\aliasA{softmax\_derivative}{ddesonn\_activation\_derivatives}{softmax.Rul.derivative}
+\aliasA{softplus\_derivative}{ddesonn\_activation\_derivatives}{softplus.Rul.derivative}
+\aliasA{swish\_derivative}{ddesonn\_activation\_derivatives}{swish.Rul.derivative}
+\aliasA{tanh\_derivative}{ddesonn\_activation\_derivatives}{tanh.Rul.derivative}
+\aliasA{tanh\_relu\_hybrid\_derivative}{ddesonn\_activation\_derivatives}{tanh.Rul.relu.Rul.hybrid.Rul.derivative}
+%
+\begin{Description}
+A collection of derivative functions corresponding to DDESONN activation functions.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+binary_activation_derivative(x)
+
+custom_binary_activation_derivative(x, threshold = -1.08)
+
+custom_activation_derivative(z)
+
+bent_identity_derivative(x)
+
+relu_derivative(x)
+
+softplus_derivative(x)
+
+leaky_relu_derivative(x, alpha = 0.01)
+
+elu_derivative(x, alpha = 1)
+
+tanh_derivative(x)
+
+sigmoid_derivative(x)
+
+hard_sigmoid_derivative(x)
+
+swish_derivative(x)
+
+sigmoid_binary_derivative(x)
+
+gelu_derivative(x)
+
+selu_derivative(x, lambda = 1.0507, alpha = 1.67326)
+
+mish_derivative(x)
+
+maxout_derivative(x, w1 = 0.5, b1 = 1, w2 = -0.5, b2 = 0.5)
+
+prelu_derivative(x, alpha = 0.01)
+
+softmax_derivative(x)
+
+bent_relu_derivative(x)
+
+bent_sigmoid_derivative(x)
+
+arctangent_derivative(x)
+
+sinusoid_derivative(x)
+
+gaussian_derivative(x)
+
+isrlu_derivative(x, alpha = 1)
+
+bent_swish_derivative(x)
+
+parametric_bent_relu_derivative(x, beta = 1)
+
+leaky_bent_derivative(x, alpha = 0.01)
+
+inverse_linear_unit_derivative(x)
+
+tanh_relu_hybrid_derivative(x)
+
+custom_bent_piecewise_derivative(x, threshold = 0.5)
+
+sigmoid_sharp_derivative(x, temp = 5)
+
+leaky_selu_derivative(x, alpha = 0.01, lambda = 1.0507)
+
+identity_derivative(x)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{x}] Numeric vector/matrix.
+
+\item[\code{threshold}] Threshold.
+
+\item[\code{z}] Numeric vector/matrix.
+
+\item[\code{alpha}] Leak factor.
+
+\item[\code{lambda}] SELU lambda.
+
+\item[\code{w1}] Weight 1.
+
+\item[\code{b1}] Bias 1.
+
+\item[\code{w2}] Weight 2.
+
+\item[\code{b2}] Bias 2.
+
+\item[\code{beta}] Beta parameter.
+
+\item[\code{temp}] Temperature/sharpness.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+Vector of zeros.
+
+Vector of zeros.
+
+Zero array with same dims.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Vector of zeros.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Gradient of active affine branch.
+
+Derivative matrix.
+
+Derivative matrix (approx).
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix.
+
+Derivative matrix/vector.
+
+Matrix of ones with same dimensions as \code{x}.
+\end{Value}
+\HeaderA{ddesonn\_artifacts\_root}{Resolve the writable artifacts root for DDESONN.}{ddesonn.Rul.artifacts.Rul.root}
+%
+\begin{Description}
+Defaults to a user-writable data directory (via tools::R\_user\_dir()) so
+runtime outputs never write into the installed package tree.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_artifacts_root(output_root = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{output\_root}] Optional base directory for artifacts. When NULL, a
+user-scoped directory is selected automatically.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Details}
+Override order (first non-empty wins):
+\begin{enumerate}
+
+\item{} output\_root argument
+\item{} Sys.getenv("DDESONN\_ARTIFACTS\_ROOT")
+\item{} getOption("DDESONN\_OUTPUT\_ROOT")
+
+\end{enumerate}
+
+\end{Details}
+%
+\begin{Value}
+Absolute path to the artifacts directory (created if missing).
+\end{Value}
+\HeaderA{ddesonn\_debug\_state}{Inspect internal DDESONN debug state}{ddesonn.Rul.debug.Rul.state}
+%
+\begin{Description}
+Returns a named list snapshot of objects currently stored in the private package debug/state environment.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_debug_state()
+\end{verbatim}
+\end{Usage}
+%
+\begin{Value}
+A named list of objects from DDESONN internal state.
+\end{Value}
+\HeaderA{ddesonn\_dropout\_defaults}{Default dropout configuration}{ddesonn.Rul.dropout.Rul.defaults}
+%
+\begin{Description}
+Produce a simple dropout configuration matching the supplied
+hidden layer sizes.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_dropout_defaults(hidden_sizes)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{hidden\_sizes}] Integer vector describing the hidden layer widths.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A list of dropout rates for each hidden layer.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+ddesonn_dropout_defaults(c(64, 32))
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_fit}{Fit a \code{ddesonn\_model} with tidy inputs}{ddesonn.Rul.fit}
+%
+\begin{Description}
+Train a \code{ddesonn\_model} (backed by \code{DDESONN}) using matrices or
+data frames, handling label coercion, validation data, and training control
+defaults.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_fit(
+  model,
+  x,
+  y,
+  validation = NULL,
+  self_org = NULL,
+  ...,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{model}] A model created by \code{\LinkA{ddesonn\_model()}{ddesonn.Rul.model}}.
+
+\item[\code{x}] Training features.
+
+\item[\code{y}] Training targets/labels.
+
+\item[\code{validation}] Optional list containing \code{x} and \code{y} elements for validation.
+
+\item[\code{self\_org}] Optional logical override for the legacy self-organization
+phase. \code{TRUE} enables \code{self\_organize()} during training and \code{FALSE}
+disables it. \code{NULL} keeps the configured default (\code{self\_org = FALSE} in
+\code{\LinkA{ddesonn\_training\_defaults()}{ddesonn.Rul.training.Rul.defaults}}). Self-organization acts on input-space
+topology error (how well neighborhood structure is organized), not on the
+supervised prediction-loss term.
+
+\item[\code{...}] Named overrides for entries in \code{\LinkA{ddesonn\_training\_defaults()}{ddesonn.Rul.training.Rul.defaults}}.
+
+\item[\code{verbose}] Logical; emit detailed progress output when TRUE.
+
+\item[\code{verboseLow}] Logical; emit important progress output when TRUE.
+
+\item[\code{debug}] Logical; emit debug diagnostics when TRUE.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+The trained model (invisibly). The underlying R6 object is modified
+in-place and the last training result is stored under \code{model\$last\_training}.
+\end{Value}
+%
+\begin{SeeAlso}
+\LinkA{DDESONN}{DDESONN}
+\end{SeeAlso}
+%
+\begin{Examples}
+\begin{ExampleCode}
+data <- mtcars
+x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+y <- data$am
+model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+
+# Regression example (mtcars) with explicit scheduler controls.
+# If you do NOT want LR decay, set lr_decay_rate = 1.0.
+reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+reg_y <- mtcars$mpg
+reg_model <- ddesonn_model(
+  input_size = ncol(reg_x), # number of input features
+  output_size = 1, # one numeric target
+  hidden_sizes = c(16, 8), # hidden-layer widths
+  classification_mode = "regression" # problem type
+)
+ddesonn_fit(
+  model = reg_model, # model object from ddesonn_model()
+  x = reg_x, # training predictors
+  y = reg_y, # training target
+  num_epochs = 10, # training epochs
+  lr = 0.05, # initial learning rate
+  lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
+  lr_decay_epoch = 20L, # decay step interval in epochs
+  lr_min = 1e-5, # lower bound for learning rate
+  validation_metrics = FALSE # disable validation metric pass in this example
+)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_model}{Create a high-level DDESONN model wrapper}{ddesonn.Rul.model}
+%
+\begin{Description}
+Initialise a \code{ddesonn\_model} (R6) instance backed by the legacy
+\code{DDESONN} class, while handling sensible defaults for activations and node
+counts.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_model(
+  input_size,
+  output_size,
+  hidden_sizes = c(64, 32),
+  num_networks = 1L,
+  lambda = 0.00028,
+  classification_mode = c("binary", "multiclass", "regression"),
+  ML_NN = TRUE,
+  activation_functions = NULL,
+  activation_functions_predict = NULL,
+  init_method = "he",
+  custom_scale = 1,
+  N = NULL,
+  ensembles = NULL,
+  ensemble_number = 0L,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{input\_size}] Number of input features.
+
+\item[\code{output\_size}] Number of outputs.
+
+\item[\code{hidden\_sizes}] Integer vector describing hidden layer widths.
+
+\item[\code{num\_networks}] Number of SONN members to initialise within the ensemble.
+
+\item[\code{lambda}] Regularisation strength.
+
+\item[\code{classification\_mode}] Problem mode: \code{"binary"}, \code{"multiclass"}, or \code{"regression"}.
+
+\item[\code{ML\_NN}] Logical; whether to initialise a multi-layer SONN.
+
+\item[\code{activation\_functions}] Optional list of activation functions for training.
+
+\item[\code{activation\_functions\_predict}] Optional list of activation functions used during prediction.
+
+\item[\code{init\_method}] Weight initialisation scheme passed to the legacy constructor.
+
+\item[\code{custom\_scale}] Optional scaling factor for the initialiser.
+
+\item[\code{N}] Optional total node count. If omitted it is inferred from the architecture.
+
+\item[\code{ensembles}] Optional pre-existing ensemble container.
+
+\item[\code{ensemble\_number}] Identifier used when combining multiple ensembles.
+
+\item[\code{verbose}] Logical; emit detailed progress output when TRUE.
+
+\item[\code{verboseLow}] Logical; emit important progress output when TRUE.
+
+\item[\code{debug}] Logical; emit debug diagnostics when TRUE.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A \code{ddesonn\_model} (R6) instance ready for training.
+\end{Value}
+%
+\begin{SeeAlso}
+\LinkA{DDESONN}{DDESONN}
+\end{SeeAlso}
+%
+\begin{Examples}
+\begin{ExampleCode}
+model <- ddesonn_model(
+  input_size = 5,
+  output_size = 1,
+  hidden_sizes = c(32, 16),
+  classification_mode = "binary"
+)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_optimizer\_options}{Supported optimizer identifiers}{ddesonn.Rul.optimizer.Rul.options}
+%
+\begin{Description}
+List the optimizer strings understood by the legacy DDESONN
+training loop.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_optimizer_options()
+\end{verbatim}
+\end{Usage}
+%
+\begin{Value}
+A character vector of supported optimiser identifiers.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+ddesonn_optimizer_options()
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_plots\_dir}{Resolve the plots directory inside the artifacts root.}{ddesonn.Rul.plots.Rul.dir}
+%
+\begin{Description}
+Resolve the plots directory inside the artifacts root.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_plots_dir(output_root = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{output\_root}] Optional base directory for artifacts. When NULL, a
+user-scoped directory is selected automatically.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+Absolute path to the plots directory.
+\end{Value}
+\HeaderA{ddesonn\_predict}{Generate predictions from a fitted \code{ddesonn\_model}}{ddesonn.Rul.predict}
+%
+\begin{Description}
+Internal prediction engine / forward-pass primitive that
+produces ensemble or per-model predictions from a trained \code{ddesonn\_model}.
+For user-facing inference, prefer \code{\LinkA{predict.ddesonn\_model()}{predict.ddesonn.Rul.model}}, which wraps
+this helper to provide a stable API for \code{type}/\code{aggregate}/\code{threshold}
+handling and return shapes.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_predict(
+  model,
+  new_data,
+  aggregate = c("mean", "median", "none"),
+  type = c("response", "class"),
+  threshold = NULL,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{model}] A trained model produced by \code{\LinkA{ddesonn\_model()}{ddesonn.Rul.model}}.
+
+\item[\code{new\_data}] New feature matrix or data frame.
+
+\item[\code{aggregate}] Aggregation strategy across ensemble members. One of
+\code{"mean"}, \code{"median"}, or \code{"none"}.
+
+\item[\code{type}] Prediction type. \code{"response"} returns numeric predictions,
+while \code{"class"} applies thresholding for classification problems.
+
+\item[\code{threshold}] Optional threshold override when \code{type = "class"}.
+
+\item[\code{verbose}] Logical; emit detailed progress output when TRUE.
+
+\item[\code{verboseLow}] Logical; emit important progress output when TRUE.
+
+\item[\code{debug}] Logical; emit debug diagnostics when TRUE.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A list containing the aggregated prediction matrix and the
+per-model outputs when \code{aggregate = "none"}.
+\end{Value}
+%
+\begin{SeeAlso}
+\LinkA{DDESONN}{DDESONN}
+\end{SeeAlso}
+%
+\begin{Examples}
+\begin{ExampleCode}
+data <- mtcars
+x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+y <- data$am
+model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+preds <- ddesonn_predict(model, x)
+head(preds$prediction)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_run}{Run DDESONN across common ensemble scenarios.}{ddesonn.Rul.run}
+%
+\begin{Description}
+This helper re-creates the four orchestration modes that previously lived in
+\code{TestDDESONN.R}:
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_run(
+  x,
+  y,
+  classification_mode = c("binary", "multiclass", "regression"),
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = FALSE,
+  num_networks = if (isTRUE(do_ensemble)) 3L else 1L,
+  num_temp_iterations = 0L,
+  validation = NULL,
+  x_valid = NULL,
+  y_valid = NULL,
+  model_overrides = list(),
+  training_overrides = list(),
+  temp_overrides = NULL,
+  prediction_data = NULL,
+  test = NULL,
+  x_test = NULL,
+  y_test = NULL,
+  prediction_type = c("response", "class"),
+  aggregate = c("mean", "median", "none"),
+  seed_aggregate = c("mean", "median", "none"),
+  threshold = NULL,
+  output_root = NULL,
+  plot_controls = NULL,
+  save_models = TRUE,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{x}] Training features (the training split) as a data frame, matrix, or tibble.
+
+\item[\code{y}] Training labels/targets (the training split).
+
+\item[\code{classification\_mode}] Overall problem mode. One of \code{"binary"},
+\code{"multiclass"}, or \code{"regression"}.
+
+\item[\code{hidden\_sizes}] Integer vector describing the hidden layer widths.
+
+\item[\code{seeds}] Integer vector of seeds. A separate model (or ensemble stack) is
+trained for each seed.
+
+\item[\code{do\_ensemble}] Logical flag selecting the ensemble container modes
+(scenarios C/D). When \code{FALSE}, scenarios A/B are executed.
+
+\item[\code{num\_networks}] Number of ensemble members inside each
+\code{\LinkA{ddesonn\_model()}{ddesonn.Rul.model}} instance.
+
+\item[\code{num\_temp\_iterations}] Number of TEMP iterations to run when
+\code{do\_ensemble = TRUE} (scenario D). Ignored otherwise.
+
+\item[\code{validation}] Optional validation list with elements \code{x} and \code{y}.
+
+\item[\code{x\_valid}] Optional validation features. Overrides \code{validation\$x} when set.
+
+\item[\code{y\_valid}] Optional validation labels. Overrides \code{validation\$y} when set.
+
+\item[\code{model\_overrides}] Named list forwarded to \code{\LinkA{ddesonn\_model()}{ddesonn.Rul.model}} allowing
+custom architectures.
+
+\item[\code{training\_overrides}] Named list forwarded to \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}} for the
+main run(s). Any argument accepted by \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}} may be provided here.
+Unspecified values fall back to \code{\LinkA{ddesonn\_training\_defaults()}{ddesonn.Rul.training.Rul.defaults}} for the given
+\code{classification\_mode} and \code{hidden\_sizes}. See \strong{Details} and the example
+showing how to inspect defaults.
+
+\item[\code{temp\_overrides}] Optional named list forwarded to \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}} for
+TEMP iterations. Defaults to \code{training\_overrides}. Use this when TEMP
+candidates should train differently than the main model.
+
+\item[\code{prediction\_data}] Optional features for prediction. When supplied,
+predictions are computed for each seed/iteration.
+
+\item[\code{test}] Optional test list with elements \code{x} and \code{y}. When supplied,
+the final model computes test metrics (loss and, for classification,
+accuracy) and stores them in \code{result\$test\_metrics}. The run history
+(\code{result\$history}) mirrors the training metadata (train/validation losses)
+and appends \code{test\_loss} when test data is provided.
+
+\item[\code{x\_test}] Optional test features. Overrides \code{test\$x} when set.
+
+\item[\code{y\_test}] Optional test labels. Overrides \code{test\$y} when set.
+
+\item[\code{prediction\_type}] Passed to \code{\LinkA{ddesonn\_predict()}{ddesonn.Rul.predict}}.
+
+\item[\code{aggregate}] Aggregation strategy within a single model (across ensemble
+members).
+
+\item[\code{seed\_aggregate}] Aggregation strategy across seeds. Set to \code{"none"} to
+keep per-seed prediction matrices.
+
+\item[\code{threshold}] Optional threshold override for classification prediction.
+
+\item[\code{output\_root}] Optional directory where legacy-style artifacts are
+written. When \code{NULL} (default) no files are created.
+
+\item[\code{plot\_controls}] Optional list passed through to \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}} as
+\code{plot\_controls}. Use this to enable/disable specific report plots or
+diagnostics (for example, evaluation report settings). The supported
+structure is defined by \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}}; this function does not create
+defaults.
+
+\item[\code{save\_models}] Logical; if \code{TRUE} (default) individual models are
+persisted when \code{output\_root} is supplied.
+
+\item[\code{verbose}] Logical; emit detailed progress output when TRUE.
+
+\item[\code{verboseLow}] Logical; emit important progress output when TRUE.
+
+\item[\code{debug}] Logical; emit debug diagnostics when TRUE.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Details}
+\begin{itemize}
+
+\item{} Scenario A – single model (\code{do\_ensemble = FALSE}, \code{num\_networks = 1}).
+\item{} Scenario B – single run with multiple members inside a single model
+(\code{do\_ensemble = FALSE}, \code{num\_networks > 1}).
+\item{} Scenario C – main ensemble container (\code{do\_ensemble = TRUE},
+\code{num\_temp\_iterations = 0}).
+\item{} Scenario D – main ensemble plus TEMP iterations (\code{do\_ensemble = TRUE},
+\code{num\_temp\_iterations > 0}).
+
+\end{itemize}
+
+
+The function accepts a training set, optional validation data, and optional
+prediction features. It repeatedly instantiates \code{\LinkA{ddesonn\_model()}{ddesonn.Rul.model}} objects,
+fits them with \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}}, and (when requested) calls
+\code{\LinkA{ddesonn\_predict()}{ddesonn.Rul.predict}} to surface aggregated predictions.
+
+\strong{Discovering available training overrides}
+
+\code{training\_overrides} is a direct pass-through to \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}}. To see the
+baseline defaults used by \code{ddesonn\_run()}, call:
+
+\code{ddesonn\_training\_defaults(classification\_mode, hidden\_sizes)}
+
+To see all tunable training arguments, see \code{?ddesonn\_fit}.
+\end{Details}
+%
+\begin{Value}
+A list (classed as \code{"ddesonn\_run\_result"}) containing the
+configuration, per-seed models, and optional prediction summaries.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+
+# ============================================================
+# DDESONN — FULL example using package data in inst/extdata
+# (binary classification; train/valid/test split; scale train-only)
+# ============================================================
+
+library(DDESONN)
+
+set.seed(111)
+
+# ------------------------------------------------------------
+# 1) Locate package extdata folder (robust across check/install)  #$$$$$$$$$$$$$
+# ------------------------------------------------------------
+ext_dir <- system.file("extdata", package = "DDESONN")
+if (!nzchar(ext_dir)) {
+  stop("Could not find DDESONN extdata folder. Is the package installed?",
+       call. = FALSE)
+}
+
+# ------------------------------------------------------------
+# 1b) Find CSVs (recursive + check-dir edge cases)               #$$$$$$$$$$$$$
+# ------------------------------------------------------------
+csvs <- list.files(
+  ext_dir,
+  pattern = "\\\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+# Defensive fallback for rare nested layouts
+if (!length(csvs)) {                                             #$$$$$$$$$$$$$
+  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               #$$$$$$$$$$$$$
+  if (dir.exists(ext_dir2)) {                                    #$$$$$$$$$$$$$
+    csvs <- list.files(
+      ext_dir2,
+      pattern = "\\\\.csv$",
+      full.names = TRUE,
+      recursive = TRUE
+    )
+  }
+}
+
+if (!length(csvs)) {
+  message(sprintf(
+    "No .csv files found under: %s — skipping example.",
+    ext_dir
+  ))
+} else {
+
+  hf_path <- file.path(ext_dir, "heart_failure_clinical_records.csv")
+  data_path <- if (file.exists(hf_path)) hf_path else csvs[[1]]
+
+  cat("[extdata] using:", data_path, "\\n")
+
+# ------------------------------------------------------------
+# 2) Load data
+# ------------------------------------------------------------
+df <- read.csv(data_path)
+
+# Prefer DEATH_EVENT if present; otherwise infer a binary target
+target_col <- if ("DEATH_EVENT" %in% names(df)) {
+  "DEATH_EVENT"
+} else {
+  cand <- names(df)[vapply(df, function(col) {
+    v <- suppressWarnings(as.numeric(col))
+    if (all(is.na(v))) return(FALSE)
+    u <- unique(v[is.finite(v)])
+    length(u) <= 2 && all(sort(u) %in% c(0, 1))
+  }, logical(1))]
+  if (!length(cand)) {
+    stop(
+      "Could not infer a binary target column. ",
+      "Provide a binary CSV in extdata or rename target to DEATH_EVENT.",
+      call. = FALSE
+    )
+  }
+  cand[[1]]
+}
+
+cat("[data] target_col =", target_col, "\\n")
+
+# ------------------------------------------------------------
+# 3) Build X and y
+# ------------------------------------------------------------
+y_all <- matrix(as.integer(df[[target_col]]), ncol = 1)
+
+x_df <- df[, setdiff(names(df), target_col), drop = FALSE]
+x_all <- as.matrix(x_df)
+storage.mode(x_all) <- "double"
+
+# ------------------------------------------------------------
+# 4) Split 70 / 15 / 15
+# ------------------------------------------------------------
+n <- nrow(x_all)
+idx <- sample.int(n)
+
+n_train <- floor(0.70 * n)
+n_valid <- floor(0.15 * n)
+
+i_tr <- idx[1:n_train]
+i_va <- idx[(n_train + 1):(n_train + n_valid)]
+i_te <- idx[(n_train + n_valid + 1):n]
+
+x_train <- x_all[i_tr, , drop = FALSE]
+y_train <- y_all[i_tr, , drop = FALSE]
+
+x_valid <- x_all[i_va, , drop = FALSE]
+y_valid <- y_all[i_va, , drop = FALSE]
+
+x_test  <- x_all[i_te, , drop = FALSE]
+y_test  <- y_all[i_te, , drop = FALSE]
+
+cat(sprintf("[split] train=%d valid=%d test=%d\\n",
+            nrow(x_train), nrow(x_valid), nrow(x_test)))
+
+# ------------------------------------------------------------
+# 5) Scale using TRAIN stats only (no leakage)
+# ------------------------------------------------------------
+x_train_s <- scale(x_train)
+ctr <- attr(x_train_s, "scaled:center")
+scl <- attr(x_train_s, "scaled:scale")
+scl[!is.finite(scl) | scl == 0] <- 1
+
+x_valid_s <- sweep(sweep(x_valid, 2, ctr, "-"), 2, scl, "/")
+x_test_s  <- sweep(sweep(x_test,  2, ctr, "-"), 2, scl, "/")
+
+mx <- suppressWarnings(max(abs(x_train_s)))
+if (!is.finite(mx) || mx == 0) mx <- 1
+
+x_train <- x_train_s / mx
+x_valid <- x_valid_s / mx
+x_test  <- x_test_s  / mx
+
+# ------------------------------------------------------------
+# 6) Run DDESONN
+# ------------------------------------------------------------
+res <- ddesonn_run(
+  x = x_train,
+  y = y_train,
+  classification_mode = "binary",
+
+  hidden_sizes = c(64, 32),
+  seeds = 1L,
+  do_ensemble = FALSE,
+
+  validation = list(
+    x = x_valid,
+    y = y_valid
+  ),
+
+  test = list(
+    x = x_test,
+    y = y_test
+  ),
+
+  training_overrides = list(
+    init_method = "he",
+    optimizer = "adagrad",
+    lr = 0.125,
+    lambda = 0.00028,
+
+    activation_functions = list(relu, relu, sigmoid),
+    dropout_rates = list(0.10),
+    loss_type = "CrossEntropy",
+
+    validation_metrics = TRUE,
+    num_epochs = 360,
+    final_summary_decimals = 6L
+  ),
+
+  plot_controls = list(
+    evaluate_report = list(
+      roc_curve = TRUE,
+      pr_curve  = FALSE
+    )
+  )
+)
+}
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ddesonn\_training\_defaults}{Construct default training controls}{ddesonn.Rul.training.Rul.defaults}
+%
+\begin{Description}
+Build a list of training hyperparameters that mirror the
+expectations of the legacy DDESONN training loop.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ddesonn_training_defaults(
+  mode = c("binary", "multiclass", "regression"),
+  hidden_sizes = NULL
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{mode}] Problem mode used to determine sensible defaults.
+
+\item[\code{hidden\_sizes}] Integer vector describing the hidden layer widths.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A named list that can be modified and supplied to \code{\LinkA{ddesonn\_fit()}{ddesonn.Rul.fit}}.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
+
+# Inspect regression defaults (includes LR decay by default).
+cfg_reg <- ddesonn_training_defaults("regression", hidden_sizes = c(16, 8))
+cfg_reg$lr
+cfg_reg$lr_decay_rate
+cfg_reg$lr_decay_epoch
+cfg_reg$lr_min
+
+# If you prefer a fixed LR in regression, disable decay explicitly.
+cfg_reg$lr_decay_rate <- 1.0
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{predict.ddesonn\_model}{Predict method for DDESONN models}{predict.ddesonn.Rul.model}
+%
+\begin{Description}
+This is the canonical user-facing wrapper around \code{\LinkA{ddesonn\_predict()}{ddesonn.Rul.predict}}. It
+standardizes arguments (\code{type}, \code{aggregate}, \code{threshold}) and normalizes the
+output structure for inference workflows.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model’s class order), otherwise accuracy comparisons may be incorrect.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+## S3 method for class 'ddesonn_model'
+predict(
+  object,
+  newdata,
+  ...,
+  aggregate = c("mean", "median", "none"),
+  type = c("response", "class"),
+  threshold = NULL,
+  verbose = FALSE,
+  verboseLow = FALSE,
+  debug = FALSE
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{object}] A ddesonn\_model (R6) returned by ddesonn\_run() / ddesonn\_model().
+
+\item[\code{newdata}] Matrix/data.frame of predictors.
+
+\item[\code{...}] Unused.
+
+\item[\code{aggregate}] Aggregation strategy across ensemble members.
+
+\item[\code{type}] Prediction type. \code{"response"} returns numeric predictions,
+while \code{"class"} returns class labels for classification problems.
+
+\item[\code{threshold}] Optional threshold override when \code{type = "class"}.
+
+\item[\code{verbose}] Logical; emit detailed progress output when TRUE.
+
+\item[\code{verboseLow}] Logical; emit important progress output when TRUE.
+
+\item[\code{debug}] Logical; emit debug diagnostics when TRUE.
+\end{ldescription}
+\end{Arguments}
+\HeaderA{print.ddesonn\_run\_result}{Print a summary of a DDESONN run result}{print.ddesonn.Rul.run.Rul.result}
+%
+\begin{Description}
+Print a summary of a DDESONN run result
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+## S3 method for class 'ddesonn_run_result'
+print(x, ...)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{x}] A \code{ddesonn\_run\_result} object.
+
+\item[\code{...}] Unused.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+\code{x}, invisibly.
+\end{Value}
+\printindex{}
+\end{document}

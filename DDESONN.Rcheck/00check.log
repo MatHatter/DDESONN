@@ -6,7 +6,7 @@
     GNU Fortran (GCC) 14.2.0
 * running under: Windows 11 x64 (build 26100)
 * using session charset: UTF-8
-* using options '--no-manual --as-cran'
+* using option '--as-cran'
 * checking for file 'DDESONN/DESCRIPTION' ... OK
 * checking extension type ... Package
 * this is package 'DDESONN' version '0.1.0'
@@ -16,85 +16,29 @@ Maintainer: 'Mathew William Armitage Fok <quiksilver67213@yahoo.com>'
 
 New submission
 
-License components with restrictions and base license permitting such:
-  MIT + file LICENSE
-File 'LICENSE':
-  MIT License
-  
-  Copyright (c) 2026 Mathew William Armitage Fok
-  
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-  
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-  
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-  SOFTWARE.
-
-Suggests or Enhances not in mainstream repositories:
-  techila
-
 Package has a VignetteBuilder field but no prebuilt vignette index.
 
-Size of tarball: 27484177 bytes
+Size of tarball: 11760074 bytes
 * checking package namespace information ... OK
-* checking package dependencies ... INFO
-Package suggested but not available for checking: 'techila'
+* checking package dependencies ... OK
 * checking if this is a source package ... OK
 * checking if there is a namespace ... OK
 * checking for executable files ... OK
-* checking for hidden files and directories ... NOTE
-Found the following hidden files and directories:
-  .RDataTmp
-These were most likely included in error. See section 'Package
-structure' in the 'Writing R Extensions' manual.
-
-CRAN-pack does not know about
-  .RDataTmp
-* checking for portable file names ... NOTE
-Found the following non-portable file paths:
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251025_175155__m1__wSeed/SingleRun_Pretty_Test_Metrics_500_seeds_20251025_175155.rds
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251025_175155__m1__wSeed/SingleRun_Test_Metrics_500_seeds_20251025_175155.rds
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251025_175155__m1__wSeed/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025_175155.rds
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251026_111537__m1__wSeed/SingleRun_Pretty_Test_Metrics_500_seeds_20251026_111537.rds
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251026_111537__m1__wSeed/SingleRun_Test_Metrics_500_seeds_20251026_111537.rds
-  DDESONN/inst/extdata/sample_runs/heart_failure_single_runs/20251026_111537__m1__wSeed/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026_111537.rds
-
-Tarballs are only required to store paths of up to 100 bytes and cannot
-store those of more than 256 bytes, with restrictions including to 100
-bytes for the final component.
-See section 'Package structure' in the 'Writing R Extensions' manual.
-* checking whether package 'DDESONN' can be installed ... [28s] WARNING
-Found the following significant warnings:
-  Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-BEGIN] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
-  Note: possible error in 'ddesonn_console_log(sprintf("[EVOKE-FIT-END] where=%s | why=%s | seed=%s | run_index=%s\n", ': unused argument (debug = debug) 
-See 'C:/Users/wfky1/Desktop/DDESONN/DDESONN.Rcheck/00install.out' for details.
-Information on the location(s) of code generating the 'Note's can be
-obtained by re-running with environment variable R_KEEP_PKG_SOURCE set
-to 'yes'.
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking whether package 'DDESONN' can be installed ... [30s] OK
 * checking installed package size ... INFO
-  installed size is  7.2Mb
+  installed size is 19.8Mb
   sub-directories of 1Mb or more:
+    doc      12.6Mb
     extdata   5.9Mb
 * checking package directory ... OK
-* checking for future file timestamps ... NOTE
-unable to verify current time
-* checking DESCRIPTION meta-information ... NOTE
-License stub is invalid DCF.
+* checking for future file timestamps ... OK
+* checking DESCRIPTION meta-information ... OK
 * checking top-level files ... NOTE
 Files 'README.md' or 'NEWS.md' cannot be checked without 'pandoc' being installed.
 Non-standard file/directory found at top level:
-  'plots'
+  'README.html'
 * checking for left-over files ... OK
 * checking index information ... OK
 * checking package subdirectories ... OK
@@ -113,7 +57,7 @@ Namespace in Imports field not imported from: 'R6'
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [42s] NOTE
+* checking R code for possible problems ... [33s] NOTE
 apply_optimizer_update: warning in nag_update(params =
   optimizer_params[[layer]], grads = grads_input, lr = lr *
   layer_boost, beta = beta1): partial argument match of 'beta' to
@@ -195,39 +139,6 @@ clustering_quality_db: no visible global function definition for 'dist'
 ddesonn_fit: no visible global function definition for 'setNames'
 ddesonn_run : add_network_to_main: no visible global function
   definition for 'tail'
-ddesonn_run : <anonymous>: possible error in
-  ddesonn_console_log(sprintf("[EVOKE-FIT-BEGIN] where=%s | why=%s |
-  seed=%s | run_index=%s\n",
-  "ddesonn_run::per_seed(main_fit)->ddesonn_fit", "Training main model;
-  ddesonn_fit() may invoke predict() internally via
-  validation/metrics/snapshots", as.character(seed_i),
-  as.character(i)), level = "important", verbose = verbose, verboseLow
-  = verboseLow, debug = debug): unused argument (debug = debug)
-ddesonn_run : <anonymous>: possible error in
-  ddesonn_console_log(sprintf("[EVOKE-FIT-END] where=%s | why=%s |
-  seed=%s | run_index=%s\n",
-  "ddesonn_run::per_seed(main_fit)->ddesonn_fit", "ddesonn_fit()
-  returned to ddesonn_run; any predict() emitted above could have
-  originated inside training/metrics/validation", as.character(seed_i),
-  as.character(i)), level = "important", verbose = verbose, verboseLow
-  = verboseLow, debug = debug): unused argument (debug = debug)
-ddesonn_run : <anonymous>: possible error in
-  ddesonn_console_log(sprintf("[EVOKE-FIT-BEGIN] where=%s | why=%s |
-  seed=%s | run_index=%s\n",
-  sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),
-  "Training TEMP candidate model; ddesonn_fit() may invoke predict()
-  internally via validation/metrics/snapshots", as.character(seed_i),
-  as.character(i)), level = "important", verbose = verbose, verboseLow
-  = verboseLow, debug = debug): unused argument (debug = debug)
-ddesonn_run : <anonymous>: possible error in
-  ddesonn_console_log(sprintf("[EVOKE-FIT-END] where=%s | why=%s |
-  seed=%s | run_index=%s\n",
-  sprintf("ddesonn_run::TEMP(iter=%d)->ddesonn_fit", as.integer(iter)),
-  "ddesonn_fit() returned to ddesonn_run for TEMP candidate; any
-  predict() emitted above could have originated inside
-  training/metrics/validation", as.character(seed_i), as.character(i)),
-  level = "important", verbose = verbose, verboseLow = verboseLow,
-  debug = debug): unused argument (debug = debug)
 find_best_model: no visible binding for global variable '.BM_DIR'
 find_best_model: no visible global function definition for
   'bm_list_all'
@@ -244,7 +155,6 @@ initialize_optimizer_params: no visible global function definition for
   'rnorm'
 initialize_optimizer_params: no visible global function definition for
   'str'
-lr_scheduler: no visible binding for global variable 'lr'
 memory_usage: no visible global function definition for 'object.size'
 probe_last_layer: no visible global function definition for 'sd'
 probe_last_layer: no visible global function definition for 'head'
@@ -256,7 +166,7 @@ Undefined global functions or variables:
   actual_rate aggregate beta1 bin_mid bm_list_all bm_select_exact
   ddesonn_legacy_artifacts_candidates dev.list dev.off dist
   dropout_rates erf errors fpr grid head kmeans label lambda legend
-  lookahead_step lr na.omit object.size predict prob prob_bin rnorm
+  lookahead_step na.omit object.size predict prob prob_bin rnorm
   run_index sd seed setNames str tail tpr
 Consider adding
   importFrom("grDevices", "dev.list", "dev.off")
@@ -265,48 +175,14 @@ Consider adding
              "predict", "rnorm", "sd", "setNames")
   importFrom("utils", "head", "object.size", "str", "tail")
 to your NAMESPACE file.
-
-Found the following assignments to the global environment:
-File 'DDESONN/R/DDESONN.R':
-  assign("best_train_probs", probs_tr, envir = .GlobalEnv)
-  assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
-  assign("best_train_probs", probs_tr, envir = .GlobalEnv)
-  assign("best_train_labels", y_tr_epoch, envir = .GlobalEnv)
-  assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, 
-    "_metadata"), metadata, envir = .GlobalEnv)
-  assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, 
-    "_metadata"), metadata, envir = .GlobalEnv)
-File 'DDESONN/R/api.R':
-  assign(main_env, md, envir = .GlobalEnv)
-File 'DDESONN/R/utils.R':
-  assign("probe_last_train", dbg, envir = .GlobalEnv)
-  assign("probe_last_predict", dbg, envir = .GlobalEnv)
-  assign("probe_last_dbg", dbg, envir = .GlobalEnv)
-  assign(paste0("probe_last_layer_", tag), stats, envir = .GlobalEnv)
-  assign("LAST_APPLIED_X", X, .GlobalEnv)
-  assign("LAST_APPLIED_X", X, .GlobalEnv)
 * checking Rd files ... OK
-* checking Rd metadata ... OK
+* checking Rd metadata ... WARNING
+Rd files with duplicated name 'DDESONN':
+  'DDESONN-package.Rd' 'DDESONN.Rd'
+Rd files with duplicated alias 'DDESONN':
+  'DDESONN-package.Rd' 'DDESONN.Rd'
 * checking Rd line widths ... OK
-* checking Rd cross-references ... WARNING
-Missing link(s) in Rd file 'ddesonn_fit.Rd':
-  'DDESONN'
-
-Missing link(s) in Rd file 'ddesonn_model.Rd':
-  'DDESONN'
-
-Missing link(s) in Rd file 'ddesonn_predict.Rd':
-  'DDESONN'
-
-See section 'Cross-references' in the 'Writing R Extensions' manual.
-
-Found the following Rd file(s) with Rd \link{} targets missing package
-anchors:
-  ddesonn_fit.Rd: DDESONN
-  ddesonn_model.Rd: DDESONN
-  ddesonn_predict.Rd: DDESONN
-Please provide package anchors for all Rd \link{} targets not in the
-package itself and the base packages.
+* checking Rd cross-references ... OK
 * checking for missing documentation entries ... WARNING
 Undocumented code objects:
   'DDESONN_activation_defaults' 'DDESONN_artifacts_root'
@@ -317,48 +193,112 @@ All user-level objects in a package should have documentation entries.
 See chapter 'Writing R documentation files' in the 'Writing R
 Extensions' manual.
 * checking for code/documentation mismatches ... OK
-* checking Rd \usage sections ... WARNING
-Undocumented arguments in Rd file 'ddesonn_fit.Rd'
-  'verbose' 'verboseLow' 'debug'
-
-Undocumented arguments in Rd file 'ddesonn_model.Rd'
-  'verbose' 'verboseLow' 'debug'
-
-Undocumented arguments in Rd file 'ddesonn_predict.Rd'
-  'verbose' 'verboseLow' 'debug'
-
-Undocumented arguments in Rd file 'ddesonn_run.Rd'
-  'verbose' 'verboseLow' 'debug'
-
-Undocumented arguments in Rd file 'predict.ddesonn_model.Rd'
-  'verbose' 'verboseLow' 'debug'
-
-Functions with \usage entries need to have the appropriate \alias
-entries, and all their arguments documented.
-The \usage entries must correspond to syntactically valid R code.
-See chapter 'Writing R documentation files' in the 'Writing R
-Extensions' manual.
+* checking Rd \usage sections ... OK
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
-* checking files in 'vignettes' ... WARNING
-Files in the 'vignettes' directory but no files in 'inst/doc':
-  'DDESONNvKeras_1000Seeds.R' 'DDESONNvKeras_1000Seeds.Rmd'
-  'logs_scenarioD_ensemble_runs_temp_iterations.R'
-  'logs_scenarioD_ensemble_runs_temp_iterations.Rmd'
-  'logs_scenarioD_ensemble_runs_temp_iterations.html'
-  'plot-contols_scenario1_ensemble-runs_scenarioC-D.R'
-  'plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd'
-  'plot-contols_scenario1_ensemble-runs_scenarioC-D.html'
-  'plot-controls_scenario1-2_single-run_scenarioA.R'
-  'plot-controls_scenario1-2_single-run_scenarioA.Rmd'
-  'plot-controls_scenario1-2_single-run_scenarioA.html'
-* checking examples ... OK
-* checking examples with --run-donttest ... OK
-* checking package vignettes ... NOTE
-Package has 'vignettes' subdirectory but apparently no vignettes.
-Perhaps the 'VignetteBuilder' information is missing from the
-DESCRIPTION file?
-* checking for non-standard things in the check directory ... OK
+* checking installed files from 'inst/doc' ... OK
+* checking files in 'vignettes' ... OK
+* checking examples ... ERROR
+Running examples in 'DDESONN-Ex.R' failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ddesonn_fit
+> ### Title: Fit a 'ddesonn_model' with tidy inputs
+> ### Aliases: ddesonn_fit
+> 
+> ### ** Examples
+> 
+> data <- mtcars
+> x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+> y <- data$am
+> model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+> ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+> 
+> # Regression example (mtcars) with explicit scheduler controls.
+> # If you do NOT want LR decay, set lr_decay_rate = 1.0.
+> reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+> reg_y <- mtcars$mpg
+> reg_model <- ddesonn_model(
++   input_size = ncol(reg_x), # number of input features
++   output_size = 1, # one numeric target
++   hidden_sizes = c(16, 8), # hidden-layer widths
++   classification_mode = "regression" # problem type
++ )
+> ddesonn_fit(
++   model = reg_model, # model object from ddesonn_model()
++   x = reg_x, # training predictors
++   y = reg_y, # training target
++   num_epochs = 10, # training epochs
++   lr = 0.05, # initial learning rate
++   lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
++   lr_decay_epoch = 20L, # decay step interval in epochs
++   lr_min = 1e-5, # lower bound for learning rate
++   validation_metrics = FALSE # disable validation metric pass in this example
++ )
+Warning in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  :
+  [WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.
+Error in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  : 
+  object 'probs_val' not found
+Calls: ddesonn_fit ... suppressMessages -> withCallingHandlers -> <Anonymous> -> as.matrix
+Execution halted
+* checking examples with --run-donttest ... ERROR
+Running examples in 'DDESONN-Ex.R' failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ddesonn_fit
+> ### Title: Fit a 'ddesonn_model' with tidy inputs
+> ### Aliases: ddesonn_fit
+> 
+> ### ** Examples
+> 
+> data <- mtcars
+> x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
+> y <- data$am
+> model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
+> ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+> 
+> # Regression example (mtcars) with explicit scheduler controls.
+> # If you do NOT want LR decay, set lr_decay_rate = 1.0.
+> reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
+> reg_y <- mtcars$mpg
+> reg_model <- ddesonn_model(
++   input_size = ncol(reg_x), # number of input features
++   output_size = 1, # one numeric target
++   hidden_sizes = c(16, 8), # hidden-layer widths
++   classification_mode = "regression" # problem type
++ )
+> ddesonn_fit(
++   model = reg_model, # model object from ddesonn_model()
++   x = reg_x, # training predictors
++   y = reg_y, # training target
++   num_epochs = 10, # training epochs
++   lr = 0.05, # initial learning rate
++   lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
++   lr_decay_epoch = 20L, # decay step interval in epochs
++   lr_min = 1e-5, # lower bound for learning rate
++   validation_metrics = FALSE # disable validation metric pass in this example
++ )
+Warning in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  :
+  [WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.
+Error in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  : 
+  object 'probs_val' not found
+Calls: ddesonn_fit ... suppressMessages -> withCallingHandlers -> <Anonymous> -> as.matrix
+Execution halted
+* checking for unstated dependencies in vignettes ... NOTE
+'library' or 'require' call not declared from: 'tibble'
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... [13m] OK
+* checking PDF version of manual ... WARNING
+LaTeX errors when creating PDF version.
+This typically indicates Rd problems.
+* checking PDF version of manual without index ... ERROR
+Re-running with no redirection of stdout/stderr.
+* checking HTML version of manual ... OK
+* checking for non-standard things in the check directory ... NOTE
+Found the following files/directories:
+  'DDESONN-manual.tex'
 * checking for detritus in the temp directory ... OK
 * DONE
-Status: 5 WARNINGs, 9 NOTEs
+Status: 3 ERRORs, 3 WARNINGs, 6 NOTEs

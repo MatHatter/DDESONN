@@ -7,6 +7,7 @@ ddesonn_activations     Activation functions (DDESONN)
 ddesonn_artifacts_root
                         Resolve the writable artifacts root for
                         DDESONN.
+ddesonn_debug_state     Inspect internal DDESONN debug state
 ddesonn_dropout_defaults
                         Default dropout configuration
 ddesonn_fit             Fit a 'ddesonn_model' with tidy inputs

@@ -643,17 +643,17 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
   # ============================================================
   # SECTION: Predict on noisy data (NO predict() signature changes)
   # ============================================================
-  if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
-    cat("\n[ROBUSTNESS] calling predict() on noisy/outlier-perturbed data\n")  # #$$$$$$$$$$$$$
-  }  # #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) {  # 
+    cat("\n[ROBUSTNESS] calling predict() on noisy/outlier-perturbed data\n")  # 
+  }  # 
   
   # NOTE: predict should be deterministic (no dropout); pass activation_functions only.
   pred_obj <- SONN$predict(noisy_Rdata, SONN$weights, SONN$biases, activation_functions, verbose)
   pred_raw <- pred_obj$predicted_output
   
-  if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
-    cat("[ROBUSTNESS] predict() finished\n\n")  # #$$$$$$$$$$$$$
-  }  # #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) {  # 
+    cat("[ROBUSTNESS] predict() finished\n\n")  # 
+  }  # 
   
   # ============================================================
   # SECTION: Coerce labels/preds to numeric matrices
@@ -770,7 +770,7 @@ robustness <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, num_epochs,
       plot(
         losses, type = "l",
         main = paste("Loss over noise SD for SONN", model_iter_num),
-        xlab = "Noise step", ylab = "MSE", lwd = 2, adj = 0.5  #$$$$$$$$$$$$$
+        xlab = "Noise step", ylab = "MSE", lwd = 2, adj = 0.5  
       )
     }
   }
@@ -2089,22 +2089,22 @@ generalization_ability <- function(SONN, Rdata, labels, CLASSIFICATION_MODE, pre
   # ============================================================
   # SECTION: Predict safely (NO predict() signature changes)
   # ============================================================
-  safe_pred <- function(X, tag) {  # #$$$$$$$$$$$$$
+  safe_pred <- function(X, tag) {  # 
     
-    if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
-      cat(sprintf("\n[GENERALIZATION_ABILITY] %s: calling predict()\n", tag))  # #$$$$$$$$$$$$$
+    if (isTRUE(verbose)) {  # 
+      cat(sprintf("\n[GENERALIZATION_ABILITY] %s: calling predict()\n", tag))  # 
     }
     
     out <- tryCatch(SONN$predict(X), error = function(e) NA)
     
-    if (isTRUE(verbose)) {  # #$$$$$$$$$$$$$
-      cat(sprintf("[GENERALIZATION_ABILITY] %s: predict() finished\n\n", tag))  # #$$$$$$$$$$$$$
+    if (isTRUE(verbose)) {  # 
+      cat(sprintf("[GENERALIZATION_ABILITY] %s: predict() finished\n\n", tag))  # 
     }
     
     if (is.list(out) && !is.null(out$predicted_output)) out$predicted_output else out
   }
   
-  pred_test <- safe_pred(X_test, "TEST")  # #$$$$$$$$$$$$$
+  pred_test <- safe_pred(X_test, "TEST")  # 
   
   # ============================================================
   # SECTION: Metric compute

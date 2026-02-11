@@ -52,6 +52,12 @@ ddesonn_model(
 \item{ensembles}{Optional pre-existing ensemble container.}
 
 \item{ensemble_number}{Identifier used when combining multiple ensembles.}
+
+\item{verbose}{Logical; emit detailed progress output when TRUE.}
+
+\item{verboseLow}{Logical; emit important progress output when TRUE.}
+
+\item{debug}{Logical; emit debug diagnostics when TRUE.}
 }
 \value{
 A \code{ddesonn_model} (R6) instance ready for training.
