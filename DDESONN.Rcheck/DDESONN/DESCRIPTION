@@ -16,7 +16,7 @@ Suggests: testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
         reticulate, zoo, readxl
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2026-02-11 20:45:40 UTC; wfky1
+Packaged: 2026-02-11 21:30:38 UTC; wfky1
 Author: Mathew William Armitage Fok [aut, cre]
 Maintainer: Mathew William Armitage Fok <quiksilver67213@yahoo.com>
-Built: R 4.5.1; ; 2026-02-11 20:49:28 UTC; windows
+Built: R 4.5.1; ; 2026-02-11 21:38:50 UTC; windows

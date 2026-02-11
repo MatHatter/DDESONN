@@ -69,7 +69,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x0000015fb0d75f58>
+<bytecode: 0x0000022badd81f58>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -81,7 +81,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x0000015fb0d75f58>
+<bytecode: 0x0000022badd81f58>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -93,7 +93,7 @@ function (x)
     dim(x) <- dim(x)
     return(1/(1 + exp(-x)))
 }
-<bytecode: 0x0000015fb0d38e40>
+<bytecode: 0x0000022badd40e40>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "sigmoid"
@@ -106,7 +106,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x0000015fb0d75f58>
+<bytecode: 0x0000022badd81f58>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -114,7 +114,7 @@ attr(,"name")
 [[2]]
 function (x) 
 x
-<bytecode: 0x0000015fb88a3e38>
+<bytecode: 0x0000022bb5893e38>
 <environment: namespace:base>
 attr(,"name")
 [1] "identity"

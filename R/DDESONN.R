@@ -2917,11 +2917,27 @@ SONN <- R6::R6Class(
           }
           
           # --- STRICT CHECK: only when regression + validation enabled ---
-          if (identical(CLASSIFICATION_MODE, "regression")) {
+          if (identical(CLASSIFICATION_MODE, "regression") && isTRUE(validation_metrics)) {
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
-              warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
-              best_val_probs  <- as.matrix(probs_val)
-              best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
+              fallback_probs <- NULL
+              fallback_labels <- NULL
+              if (exists("probs_val", inherits = FALSE) && !is.null(probs_val)) {
+                fallback_probs <- probs_val
+              } else if (exists("val_probs", inherits = FALSE) && !is.null(val_probs)) {
+                fallback_probs <- val_probs
+              } else if (!is.null(last_val_probs)) {
+                fallback_probs <- last_val_probs
+              }
+              if (exists("y_val_epoch", inherits = FALSE) && !is.null(y_val_epoch)) {
+                fallback_labels <- y_val_epoch
+              } else if (!is.null(last_val_labels)) {
+                fallback_labels <- last_val_labels
+              }
+              if (!is.null(fallback_probs) && !is.null(fallback_labels)) {
+                warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
+                best_val_probs  <- as.matrix(fallback_probs)
+                best_val_labels <- if (is.matrix(fallback_labels)) fallback_labels else matrix(fallback_labels, ncol = 1L)
+              }
             }
           }
           

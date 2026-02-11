@@ -11,14 +11,14 @@
 * checking extension type ... Package
 * this is package 'DDESONN' version '0.1.0'
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [12s] NOTE
+* checking CRAN incoming feasibility ... [14s] NOTE
 Maintainer: 'Mathew William Armitage Fok <quiksilver67213@yahoo.com>'
 
 New submission
 
 Package has a VignetteBuilder field but no prebuilt vignette index.
 
-Size of tarball: 11760074 bytes
+Size of tarball: 11759530 bytes
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -26,7 +26,7 @@ Size of tarball: 11760074 bytes
 * checking for executable files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
-* checking whether package 'DDESONN' can be installed ... [30s] OK
+* checking whether package 'DDESONN' can be installed ... [25s] OK
 * checking installed package size ... INFO
   installed size is 19.8Mb
   sub-directories of 1Mb or more:
@@ -57,7 +57,7 @@ Namespace in Imports field not imported from: 'R6'
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [33s] NOTE
+* checking R code for possible problems ... [36s] NOTE
 apply_optimizer_update: warning in nag_update(params =
   optimizer_params[[layer]], grads = grads_input, lr = lr *
   layer_boost, beta = beta1): partial argument match of 'beta' to
@@ -289,16 +289,4 @@ Execution halted
 * checking for unstated dependencies in vignettes ... NOTE
 'library' or 'require' call not declared from: 'tibble'
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ... [13m] OK
-* checking PDF version of manual ... WARNING
-LaTeX errors when creating PDF version.
-This typically indicates Rd problems.
-* checking PDF version of manual without index ... ERROR
-Re-running with no redirection of stdout/stderr.
-* checking HTML version of manual ... OK
-* checking for non-standard things in the check directory ... NOTE
-Found the following files/directories:
-  'DDESONN-manual.tex'
-* checking for detritus in the temp directory ... OK
-* DONE
-Status: 3 ERRORs, 3 WARNINGs, 6 NOTEs
+* checking re-building of vignette outputs ...
