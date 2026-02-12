@@ -88,3 +88,5 @@
 ^\.RDataTmp$
 ^LICENSE\.md$
 ^plots$
+
+^README\.html$

@@ -11,6 +11,8 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
+options(DDESONN_OUTPUT_ROOT = tempdir())
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = tempdir())
 # ============================================================
 # FILE: vignettes/plot-controls_scenario1_ensemble-runs_scenarioC-D.Rmd
 # FULL FIXED — Scenario 1 — Ensemble Runs: Scenario C & D
@@ -25,7 +27,7 @@ knitr::opts_chunk$set(
   fig.retina = 2,                                                                   #$$$$$$$$$$$$$
   fig.align = "center",
   out.width = "900px",
-  fig.path = "plot-controls_scenario1_ensemble-runs_scenarioC-D_files/figure-html/",
+  fig.path = file.path(tempdir(), "plot-controls_scenario1_ensemble-runs_scenarioC-D_files", "figure-html", ""),
   cache.path = "cache/"
 )
 
@@ -36,7 +38,8 @@ if (!requireNamespace("DDESONN", quietly = TRUE)) {
 library(DDESONN)
 
 .fig_root <- knitr::opts_chunk$get("fig.path")
-if (!nzchar(.fig_root)) .fig_root <- "figure/"
+if (!nzchar(.fig_root)) .fig_root <- file.path(tempdir(), "figure", "")
+dir.create(.fig_root, recursive = TRUE, showWarnings = FALSE)
 
 # ============================================================
 # SECTION: RUN FLAGS (Scenario 1 — Ensemble)                    #$$$$$$$$$$$$$

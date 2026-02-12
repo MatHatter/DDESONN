@@ -2919,9 +2919,11 @@ SONN <- R6::R6Class(
           # --- STRICT CHECK: only when regression + validation enabled ---
           if (identical(CLASSIFICATION_MODE, "regression")) {
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
-              warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
-              best_val_probs  <- as.matrix(probs_val)
-              best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
+              if (isTRUE(validation_metrics) && exists("probs_val", inherits = FALSE)) {
+                warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
+                best_val_probs  <- as.matrix(probs_val)
+                best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
+              }
             }
           }
           

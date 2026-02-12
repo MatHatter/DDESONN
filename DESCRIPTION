@@ -31,5 +31,6 @@ Suggests:
     randomForest,
     reticulate,
     zoo,
-    readxl
+    readxl,
+    tibble
 VignetteBuilder: knitr

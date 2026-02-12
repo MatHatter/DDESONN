@@ -12,6 +12,8 @@ vignette: >
 
 
 ```{r setup, include=FALSE}
+options(DDESONN_OUTPUT_ROOT = tempdir())
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = tempdir())
 # ============================================================
 # FILE: vignettes/plot-controls_scenario1-2_single-run_scenarioA.Rmd
 # FULL WORKING — DDESONN Plot Controls — Scenario 1 & 2 — Single Run: Scenario A   #$$$$$$$$$$$$$
@@ -79,7 +81,8 @@ library(DDESONN)
 # - Anchor under knitr's figure path so PNGs ship with HTML.
 # ============================================================
 .fig_root <- knitr::opts_chunk$get("fig.path")
-if (!nzchar(.fig_root)) .fig_root <- "figure/"
+if (!nzchar(.fig_root)) .fig_root <- file.path(tempdir(), "figure", "")
+dir.create(.fig_root, recursive = TRUE, showWarnings = FALSE)
 out1 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s1")                               #$$$$$$$$$$$$$
 out2 <- file.path(.fig_root, "DDESONN_plots_scenarioA_s2")                               #$$$$$$$$$$$$$
 

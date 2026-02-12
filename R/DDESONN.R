@@ -1571,6 +1571,9 @@ SONN <- R6::R6Class(
       # ------------------------------------------------------------------
       if (is.null(X_train)) X_train <- Rdata
       if (is.null(y_train)) y_train <- labels
+
+      probs_val <- NULL
+      labels_val <- NULL
       
       # ----------------------------
       # State/optimizer
@@ -2362,7 +2365,7 @@ SONN <- R6::R6Class(
           last_val_predict   <- NULL
           last_train_predict <- NULL
           
-          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+          if ((!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0) && isTRUE(validation_metrics)) {
             
             to_one_hot_matrix <- function(y_vec, levels_ref = NULL) {
               if (is.matrix(y_vec) && ncol(y_vec) > 1L && all(y_vec %in% c(0, 1, NA))) {
@@ -2457,6 +2460,7 @@ SONN <- R6::R6Class(
               } else {
                 y_val_epoch <- y_val_vec[seq_len(n_eff)]
               }
+              labels_val <- y_val_epoch
               
               last_val_probs   <- probs_val
               last_val_labels  <- y_val_epoch
@@ -2827,7 +2831,7 @@ SONN <- R6::R6Class(
             }
             
             # recompute VAL preds with best snapshot when applicable
-            if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+            if ((!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0) && isTRUE(validation_metrics)) {
               if (isTRUE(verbose)) {  
                 cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # 
               }  
@@ -2917,7 +2921,7 @@ SONN <- R6::R6Class(
           }
           
           # --- STRICT CHECK: only when regression + validation enabled ---
-          if (identical(CLASSIFICATION_MODE, "regression") && isTRUE(validation_metrics)) {
+          if (identical(CLASSIFICATION_MODE, "regression") && isTRUE(validation_metrics) && (!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0)) {
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
               fallback_probs <- NULL
               fallback_labels <- NULL

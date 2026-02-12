@@ -1,3 +1,22 @@
+
+if (!exists("bm_list_all", mode = "function")) {
+  bm_list_all <- function(dir = get0(".BM_DIR", inherits = TRUE, ifnotfound = ".")) {
+    data.frame(name = character(), kind = character(), ens = integer(), model = integer(), source = character(), stringsAsFactors = FALSE)
+  }
+}
+
+if (!exists("bm_select_exact", mode = "function")) {
+  bm_select_exact <- function(kind, ens, model, dir = get0(".BM_DIR", inherits = TRUE, ifnotfound = ".")) {
+    NULL
+  }
+}
+
+if (!exists("ddesonn_legacy_artifacts_candidates", mode = "function")) {
+  ddesonn_legacy_artifacts_candidates <- function(base_dir = NULL) {
+    Filter(function(x) !is.null(x) && nzchar(x), unique(c(base_dir, file.path(base_dir %||% "", "artifacts"))))
+  }
+}
+
 # ===============================================================
 # DeepDynamic -- DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
