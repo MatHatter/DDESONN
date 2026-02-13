@@ -614,14 +614,15 @@ the same subfolder layout used previously under artifacts/.
 
 ## Datasets
 
-Bundled sample data in data:
+Bundled sample data in `inst/extdata/`:
 
 - heart_failure_clinical_records.csv
 - WMT_1970-10-01_2025-03-15.csv
 - train_multiclass_customer_segmentation.csv
 - test_multiclass_customer_segmentation.csv
 
-Verify original dataset licensing if repurposed.
+Current multiclass usage is demonstrated in `inst/scripts/TestDDESONN.R`.
+Standalone CRAN-friendly multiclass example scripts/vignettes are welcome via PR.
 
 ---
 

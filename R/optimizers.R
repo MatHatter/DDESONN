@@ -379,7 +379,7 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
       params = optimizer_params[[layer]],
       grads = grads_input,
       lr = lr * layer_boost,
-      beta = beta1
+      beta1 = beta1
     )
     
     optimizer_params[[layer]] <- nag_result$params
@@ -1180,7 +1180,7 @@ nag_update <- function(params, grads, lr, beta1 = 0.9) {
 
 ftrl_update <- function(params, grads, lr,
                         alpha   = 0.1,
-                        beta    = beta1,
+                        beta    = 1.0,
                         lambda1 = 0.01,
                         lambda2 = 0.01) {
   # 1) Wrap single matrix/vector into a list

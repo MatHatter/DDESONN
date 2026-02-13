@@ -29,6 +29,16 @@ if (!exists("ddesonn_legacy_artifacts_candidates", mode = "function")) {
 `%||%` <- function(a,b) if (is.null(a) || length(a)==0) b else a  
 
 
+# ============================================================
+# MATHEMATICAL SPECIAL FUNCTIONS - INTERNAL HELPERS for activation_functions.R
+# ============================================================
+
+# Internal helper: Gaussian error function (erf)
+# Used by GELU activation in activation_functions.R
+erf <- function(x) {
+  2 * stats::pnorm(x * sqrt(2)) - 1
+}
+
 # ============================================================  
 # Console / debug / table helpers (verbosity control)           
 # ============================================================   

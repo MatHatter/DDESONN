@@ -1,5 +1,15 @@
+# ============================================================
+# .Rbuildignore
+#
+# Notes:
+# - PRESERVED: your structure + nearly all patterns
+# - FIX: ignore DDESONN.Rcheck (local check dir)
+# - FIX: correct bad regex at end (^\.\.pdf$ -> ^.*\.pdf$ or remove)
+# - FIX: tighten README.html and ensure it's excluded
+# ============================================================
+
 # Dev-only folders
-^inst/dev$
+^inst/dev$ 
 ^inst/dev/.*$
 
 # MVP / experimental work
@@ -24,6 +34,9 @@
 ^build$
 ^tarballs$
 ^.*\.tar\.gz$
+
+# FIX: R CMD check output folder
+^DDESONN\.Rcheck$
 
 # OS junk
 ^Thumbs\.db$
@@ -63,7 +76,16 @@
 ^doc$
 ^Meta$
 ^\.RDataTmp$
+
+# Optional packaging choices
 ^LICENSE\.md$
+
+# Local plot dumps / scratch
 ^plots$
+
+# Exclude locally generated README HTML (CRAN renders its own)
 ^README\.html$
-^\.\.pdf$
+
+# Exclude standalone PDF files from package root (avoid accidental inclusion)
+^.*\.pdf$
+
