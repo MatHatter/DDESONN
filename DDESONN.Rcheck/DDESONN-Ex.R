@@ -200,7 +200,7 @@ library(DDESONN)
 set.seed(111)
 
 # ------------------------------------------------------------
-# 1) Locate package extdata folder (robust across check/install)  #$$$$$$$$$$$$$
+# 1) Locate package extdata folder (robust across check/install)  
 # ------------------------------------------------------------
 ext_dir <- system.file("extdata", package = "DDESONN")
 if (!nzchar(ext_dir)) {
@@ -209,7 +209,7 @@ if (!nzchar(ext_dir)) {
 }
 
 # ------------------------------------------------------------
-# 1b) Find CSVs (recursive + check-dir edge cases)               #$$$$$$$$$$$$$
+# 1b) Find CSVs (recursive + check-dir edge cases)               
 # ------------------------------------------------------------
 csvs <- list.files(
   ext_dir,
@@ -219,9 +219,9 @@ csvs <- list.files(
 )
 
 # Defensive fallback for rare nested layouts
-if (!length(csvs)) {                                             #$$$$$$$$$$$$$
-  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               #$$$$$$$$$$$$$
-  if (dir.exists(ext_dir2)) {                                    #$$$$$$$$$$$$$
+if (!length(csvs)) {                                             
+  ext_dir2 <- file.path(ext_dir, "inst", "extdata")               
+  if (dir.exists(ext_dir2)) {                                    
     csvs <- list.files(
       ext_dir2,
       pattern = "\\\\.csv$",

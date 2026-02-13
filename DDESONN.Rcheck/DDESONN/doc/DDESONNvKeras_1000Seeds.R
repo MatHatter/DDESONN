@@ -1,4 +1,6 @@
 ## ----setup, include=FALSE-----------------------------------------------------
+options(DDESONN_OUTPUT_ROOT = tempdir())
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = tempdir())
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment  = "#>",

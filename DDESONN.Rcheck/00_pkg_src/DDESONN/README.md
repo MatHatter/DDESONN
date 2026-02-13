@@ -14,14 +14,14 @@ The root `README.md` (this file) is the canonical public-facing README for users
 
 ## Table of contents
 1. Project overview
-2. Key capabilities
+2. Core capabilities
 3. Architecture
 4. Project timeline
 5. Repository structure
 6. Getting started
 7. Running the examples
 8. Datasets
-9. Reproducibility Artifacts for Vignette
+9. Reproducibility
 10. Roadmap
 11. To-Do (Active Work)
 12. Contributing
@@ -45,6 +45,16 @@ DDESONN blends self-organizing principles with modern deep-learning practices to
 - Reproducible evaluation and artifact reporting
 
 The primary design objective of DDESONN is to provide a fully customizable, entirely R-native neural network codebase and framework, intentionally avoiding external deep-learning backend library dependencies to preserve full architectural control and transparency.
+
+#### What DDESONN is
+
+DDESONN is a fully native R framework for constructing, training, evaluating,
+and inspecting Deep Dynamic Ensemble Self-Organizing Neural Networks.
+
+The package is designed for users who need direct control over model
+architecture, optimization behavior, and training workflow details rather than
+black-box abstractions. It exposes both high-level helpers and inspectable
+low-level behavior for reproducible neural-network experimentation in R.
 
 ---
 
@@ -89,19 +99,13 @@ DDESONN is built to show you what it's doing.
 
 Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks). High-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
 
-This is not just a model it's an implementation you can learn from.
-
-### Connect with me / questions welcome
-
-If you found this package useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
-
-If you send a connection request, please include a short message saying you found DDESONN I read those messages and I'll accept. If you have questions about the architecture or implementation details, I'll answer to the best of my ability.
+This is not just a model it's an implementation we can learn from.
 
 ---
 
 ## Logging / Verbosity levels
 
-DDESONN supports two tiers of debug output:
+DDESONN supports two tiers of debug output
 
 - **Low verbosity (default):** prints only the essential "trust" diagnostics (layer-by-layer)
   - layer dimensions per layer
@@ -134,17 +138,53 @@ Example template (R-style pseudo you can adapt):
 
 ---
 
-## Key capabilities
+## Core Capabilities
 
-- Flexible architecture selection (SL or ML) with independent activations, dropout, and initialization
-- Manual training loop with explicit forward and backward propagation
-- Optimizers implemented: SGD, RMSProp, Adam, Lookahead (weights and biases handled separately)
-- L1, L2, and mixed regularization for both weights and biases
-- Automatic F1-optimized threshold tuning with precision and recall scoring
-- Dynamic ensemble orchestration with metadata and relevance tracking
-- Excel and plot reporting using writexl, openxlsx, ggplot2, and plotly
-- High-level API helpers in R/api.R for external integration
-- User-controllable self-organization toggle (`self_org`) via `ddesonn_fit()` or `ddesonn_run(training_overrides = ...)`
+- Fully native R deep learning framework — no external deep-learning backend.
+- Object-oriented model engine implemented with R6.
+- Flexible architecture selection (single-layer or deep multi-layer) with dimension-agnostic configuration.
+- Independent activation functions, derivatives, dropout, and initialization per layer.
+- Manual training loop with explicit forward and backward propagation.
+- Transparent optimizer-state updates with full internal control.
+
+#### Optimization & Regularization
+
+- Optimizers implemented from scratch:
+  - SGD  
+  - RMSProp  
+  - Adam  
+  - Lookahead  
+- Separate weight and bias update logic in dedicated update blocks.
+- L1, L2, and mixed regularization for both weights and biases.
+- Optional learning-rate scheduling via training overrides.
+- User-controllable self-organization toggle (`self_org`) through:
+  - `ddesonn_fit()`
+  - `ddesonn_run(training_overrides = ...)`
+
+#### Evaluation & Threshold Intelligence
+
+- Automatic F1-optimized threshold tuning.
+- Precision and recall scoring.
+- ROC and Precision-Recall curve generation.
+- AUC and AUPRC computation.
+- Relevance tracking and custom performance metrics.
+
+#### Ensemble & Orchestration
+
+- Dynamic ensemble orchestration.
+- Primary and temporary model promotion.
+- Metadata tracking and structured relevance scoring.
+
+#### Reporting & Integration
+
+- Excel export and structured reporting via:
+  - `writexl`
+  - `openxlsx`
+- Static and interactive visualization with:
+  - `ggplot2`
+  - `plotly`
+- High-level API helpers in `R/api.R` for external integration.
+- Artifact path management and debug-state utilities for reproducibility.
 
 ---
 
@@ -498,19 +538,56 @@ Verify original dataset licensing if repurposed.
 
 ---
 
-## Reproducibility Artifacts for Vignette
+## Reproducibility
+
+DDESONN supports reproducible experimentation through:
+
+- Deterministic seed control (`set.seed(...)` and `seeds = ...` in `ddesonn_run()`)
+- Explicit training defaults via `ddesonn_training_defaults()`
+- Scriptable scenarios under `inst/scripts/`
+- Vignettes for reproducible walkthroughs
+- Artifact-root control via:
+  - `ddesonn_artifacts_root(output_root = ...)`
+  - `Sys.getenv("DDESONN_ARTIFACTS_ROOT")`
+  - `options(DDESONN_OUTPUT_ROOT = ...)`
+- Plot directory resolution via `ddesonn_plots_dir()`
+- Debug inspection via `ddesonn_debug_state()`
+
+These controls allow experiments to be rerun deterministically, inspected at multiple verbosity levels, and reproduced across systems without hidden state.
+
+#### Vignettes
+
+Start with these vignettes in `vignettes/`:
+
+- `plot-controls_scenario1-2_single-run_scenarioA.Rmd`
+- `plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd`
+- `logs_scenarioD_ensemble_runs_temp_iterations.Rmd`
+- `DDESONNvKeras_1000Seeds.Rmd`
+
+These cover:
+
+- Single-run flows  
+- Ensemble scenarios  
+- Logging and diagnostic analysis  
+- Benchmark-oriented multi-seed reproducibility experiments  
+
+#### Reproducibility Artifacts for 1000 Seeds Vignette
 
 DDESONN includes precomputed `.rds` files under:
 
-inst/extdata/
+`inst/extdata/`
 
-These files contain **saved model outputs, metrics, and summaries** used exclusively by package vignettes to:
+These files contain saved model outputs, metrics, and summaries used specifically for the `DDESONNvKeras_1000Seeds.Rmd` vignette to:
 
-- Demonstrate large multi-seed experiments (e.g., 500???1000 seeds)
+- Demonstrate large multi-seed experiments (1,000 randomized initializations)
 - Avoid long runtimes during vignette builds
-- Ensure deterministic, reproducible results
+- Ensure deterministic, reproducible benchmark comparisons
 
-These artifacts are **not loaded automatically**, **not part of the public API**, and **not intended for direct use** outside the accompanying vignettes.
+These artifacts are:
+
+- Not loaded automatically  
+- Not part of the public API  
+- Not intended for direct use outside the associated vignette  
 
 They are provided solely to support reproducibility and documentation.
 
@@ -702,7 +779,7 @@ Linked from: **R-06**
 - Clearly define what `validation_metrics` enables/returns (evaluation report
   pipeline + artifacts + tuned-threshold support)
 - Identify and document the call sites that currently depend on the flag
-- Reduce -?hidden behaviorand ensure the name matches the behavior contract
+- Reduce hidden behavior and ensure the name matches the behavior contract
 
 #### T-07 - Extract threshold tuning into a standalone utility  
 Linked from: **R-06**
@@ -752,18 +829,35 @@ Evaluate architectural portability and determine minimal core components require
 
 ## Contributing
 
-1. Fork and branch from main
-2. Run demos to confirm no regressions
-3. Submit pull requests with clear descriptions and tests
+Contributions are welcome and appreciated.
 
-Contributions are highly appreciated especially those focused on:
-- polishing and tightening documentation
-- improving vignettes and reproducible demos
-- reporting/diagnostics improvements (tables, plots, artifacts)
-- helping implement or refine items in the Roadmap & Design Intent / To-Do list
+### Workflow
 
-If you-?re interested in helping push the project toward a cleaner plateau, the
-Roadmap & To-Do sections are the best place to pick a meaningful contribution.
+1. Fork the repository and branch from `main`.
+2. Run existing demos and examples to confirm no regressions.
+3. Submit a pull request with a clear description and, where applicable, tests or reproducible examples.
+
+### For Substantive Changes
+
+If your pull request introduces behavioral changes, architectural adjustments, or new functionality, please include:
+
+- A clear problem statement  
+- Reproducible scripts or minimal examples  
+- Notes describing expected behavior vs. observed behavior  
+- Any relevant performance or diagnostic output  
+
+This helps ensure that changes remain scientifically traceable and consistent with the design philosophy of DDESONN.
+
+### Areas Where Help Is Especially Valuable
+
+Contributions are particularly appreciated in areas such as:
+
+- Polishing and tightening documentation  
+- Improving vignettes and reproducible demos  
+- Reporting and diagnostics enhancements (tables, plots, artifacts)  
+- Implementing or refining items in the Roadmap & Design Intent / To-Do list  
+
+If you're interested in helping move the project toward a cleaner and more stable plateau, the Roadmap & To-Do sections are the best place to identify meaningful contribution opportunities.
 
 ---
 
@@ -785,4 +879,10 @@ The author also maintains additional modeling projects in R and Python, includin
 
 ## Contact
 
-Mathew William Armitage Fok
+If you found DDESONN useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
+
+If you send a connection request, please include a short note mentioning DDESONN so I know where you found it. I read those messages.
+
+Questions about the architecture, implementation details, or research design are welcome. I’m happy to respond when I can.
+
+**Mathew William Armitage Fok**

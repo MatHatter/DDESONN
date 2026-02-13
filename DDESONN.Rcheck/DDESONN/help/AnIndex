@@ -1,4 +1,3 @@
-DDESONN-package	DDESONN
 arctangent	ddesonn_activations
 arctangent_derivative	ddesonn_activation_derivatives
 bent_identity	ddesonn_activations
@@ -18,7 +17,6 @@ custom_bent_piecewise_derivative	ddesonn_activation_derivatives
 custom_binary_activation	ddesonn_activations
 custom_binary_activation_derivative	ddesonn_activation_derivatives
 DDESONN	DDESONN-package
-DDESONN	DDESONN
 ddesonn_activations	ddesonn_activations
 ddesonn_activation_defaults	ddesonn_activation_defaults
 ddesonn_activation_derivatives	ddesonn_activation_derivatives

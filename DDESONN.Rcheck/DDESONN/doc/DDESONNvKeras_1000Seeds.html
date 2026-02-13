@@ -362,6 +362,35 @@ Failure)</h1>
 locally; together they form the 1000-seed composite.</p>
 <hr />
 </div>
+<div id="motivation-and-comparison-philosophy" class="section level3">
+<h3>Motivation and comparison philosophy</h3>
+<p>This vignette addresses a focused research question:</p>
+<blockquote>
+<p><strong>Can a fully R-native, from-first-principles neural network
+implementation achieve competitive statistical stability against an
+established deep-learning framework under repeated randomized
+initialization?</strong></p>
+</blockquote>
+<p>The comparison to Keras serves as a reference benchmark, not as an
+implementation template. DDESONN was built independently from scratch
+and was not derived from or based on Keras source code. Aside from a
+brief high-level review to get a general sense of benchmarking
+conventions and API structure, all implementation and architectural
+decisions were made independently.</p>
+<p>The objective of the 1000-seed experiment is not to highlight a
+single favorable run, but to evaluate <strong>distributional behavior
+across seeds</strong>. In this context, “competitive” refers to:</p>
+<ul>
+<li>mean performance across many randomized initializations,</li>
+<li>variance and standard deviation of outcomes,</li>
+<li>worst-case behavior under identical dataset and metric
+definitions.</li>
+</ul>
+<p>The comparison therefore evaluates implementation correctness,
+training stability, and reproducibility under stress — not code
+replication or framework mirroring.</p>
+<hr />
+</div>
 </div>
 <div id="load-ddesonn-runs-and-build-the-summary" class="section level2">
 <h2>Load DDESONN runs and build the summary</h2>

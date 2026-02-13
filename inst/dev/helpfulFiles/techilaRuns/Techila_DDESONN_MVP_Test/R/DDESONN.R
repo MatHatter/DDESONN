@@ -64,7 +64,7 @@ invisible(lapply(
 rm(.required_pkgs, .installed, .missing)
 
 
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_____/\\\\\\\\\\\__________/\\\\\________/\\\\\_____/\\\___/\\\\\_____/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___/\\\/////////\\\______/\\\///\\\_____\/\\\\\\___\/\\\__\/\\\\\\___\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #__\//\\\______\///_____/\\\/__\///\\\___\/\\\/\\\__\/\\\__\/\\\/\\\__\/\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -74,7 +74,7 @@ rm(.required_pkgs, .installed, .missing)
 #__/\\\______\//\\\____\///\\\__/\\\_____\/\\\__\//\\\\\\__\/\\\__\//\\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #_\///\\\\\\\\\\\/_______\///\\\\\/______\/\\\___\//\\\\\__\/\\\___\//\\\\\_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #___\///////////___________\/////________\///_____\/////___\///_____\/////_$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # Step 1: Define the Self-Organizing Neural Network (SONN) class
 
 
@@ -1941,19 +1941,19 @@ SONN <- R6Class(
           if (self$viewPerEpochPlots("accuracy_plot")) {
             tryCatch({
               
-              #$$$$$$$$$$$$$ FIX: wrap long titles so they never run off / clip (no helpers)
-              title_full <- paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)")  #$$$$$$$$$$$$$
-              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")           #$$$$$$$$$$$$$
+               FIX: wrap long titles so they never run off / clip (no helpers)
+              title_full <- paste(plot_title_prefix, "— Training Accuracy (blue) & Loss (red)")  
+              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")           
               
               p <- ggplot(df_accsat, aes(x = Epoch)) +
-                geom_line(aes(y = Accuracy), size = 1.2, color = "blue") +                       #$$$$$$$$$$$$$
-                geom_line(aes(y = Loss),     size = 1.2, color = "red") +                        #$$$$$$$$$$$$$
+                geom_line(aes(y = Accuracy), size = 1.2, color = "blue") +                       
+                geom_line(aes(y = Loss),     size = 1.2, color = "red") +                        
                 labs(
-                  title = title_wrapped,                                                         #$$$$$$$$$$$$$
-                  x = "Epoch",                                                                   #$$$$$$$$$$$$$
+                  title = title_wrapped,                                                         
+                  x = "Epoch",                                                                   
                   y = "Value"
                 ) +
-                theme_classic(base_size = 12) +                                                  #$$$$$$$$$$$$$
+                theme_classic(base_size = 12) +                                                  
                 theme(
                   plot.title = element_text(hjust = 0.5, face = "bold", size = 12, margin = margin(b = 10)),
                   axis.title = element_text(size = 11),
@@ -1964,18 +1964,18 @@ SONN <- R6Class(
               out <- file.path("plots", fname("training_accuracy_loss_plot.png"))
               message("📸 save: ", out)
               
-              #$$$$$$$$$$$$$ FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
-              if (capabilities("cairo")) {                                                       #$$$$$$$$$$$$$
-                png(out, width = 900, height = 650, res = 96, type = "cairo-png")                #$$$$$$$$$$$$$
+               FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
+              if (capabilities("cairo")) {                                                       
+                png(out, width = 900, height = 650, res = 96, type = "cairo-png")                
               } else {
-                png(out, width = 900, height = 650, res = 96)                                    #$$$$$$$$$$$$$
+                png(out, width = 900, height = 650, res = 96)                                    
               }
-              cat("Device before:", dev.cur(), "\n")                                             #$$$$$$$$$$$$$
-              print(p)                                                                           #$$$$$$$$$$$$$
-              dev.off()                                                                          #$$$$$$$$$$$$$
-              cat("Device after:", dev.cur(), "\n")                                              #$$$$$$$$$$$$$
-              fi <- file.info(out)                                                               #$$$$$$$$$$$$$
-              cat("Saved OK. Size:", fi$size, "bytes\n")                                         #$$$$$$$$$$$$$
+              cat("Device before:", dev.cur(), "\n")                                             
+              print(p)                                                                           
+              dev.off()                                                                          
+              cat("Device after:", dev.cur(), "\n")                                              
+              fi <- file.info(out)                                                               
+              cat("Saved OK. Size:", fi$size, "bytes\n")                                         
               
             }, error = function(e) message("❌ accuracy_loss_plot: ", e$message))
           }
@@ -1983,20 +1983,20 @@ SONN <- R6Class(
           if (self$viewPerEpochPlots("saturation_plot")) {
             tryCatch({
               
-              #$$$$$$$$$$$$$ FIX: wrap long titles so they never run off / clip (no helpers)
-              title_full <- paste(plot_title_prefix, "— Output Mean (blue) & Std Dev (red)")     #$$$$$$$$$$$$$
-              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")           #$$$$$$$$$$$$$
+               FIX: wrap long titles so they never run off / clip (no helpers)
+              title_full <- paste(plot_title_prefix, "— Output Mean (blue) & Std Dev (red)")     
+              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")           
               
-              #$$$$$$$$$$$$$ FIX: base-R-like look (theme_classic) + explicit colors
+               FIX: base-R-like look (theme_classic) + explicit colors
               p <- ggplot(df_accsat, aes(x = Epoch)) +
-                geom_line(aes(y = MeanOutput), size = 1.2, color = "blue") +                     #$$$$$$$$$$$$$
-                geom_line(aes(y = StdOutput),  size = 1.2, color = "red") +                      #$$$$$$$$$$$$$
+                geom_line(aes(y = MeanOutput), size = 1.2, color = "blue") +                     
+                geom_line(aes(y = StdOutput),  size = 1.2, color = "red") +                      
                 labs(
-                  title = title_wrapped,                                                         #$$$$$$$$$$$$$
-                  x = "Epoch",                                                                   #$$$$$$$$$$$$$
+                  title = title_wrapped,                                                         
+                  x = "Epoch",                                                                   
                   y = "Output Value"
                 ) +
-                theme_classic(base_size = 12) +                                                  #$$$$$$$$$$$$$
+                theme_classic(base_size = 12) +                                                  
                 theme(
                   plot.title = element_text(hjust = 0.5, face = "bold", size = 12, margin = margin(b = 10)),
                   axis.title = element_text(size = 11),
@@ -2007,18 +2007,18 @@ SONN <- R6Class(
               out <- file.path("plots", fname("output_saturation_plot.png"))
               message("📸 save: ", out)
               
-              #$$$$$$$$$$$$$ FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
-              if (capabilities("cairo")) {                                                       #$$$$$$$$$$$$$
-                png(out, width = 900, height = 650, res = 96, type = "cairo-png")                #$$$$$$$$$$$$$
+               FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
+              if (capabilities("cairo")) {                                                       
+                png(out, width = 900, height = 650, res = 96, type = "cairo-png")                
               } else {
-                png(out, width = 900, height = 650, res = 96)                                    #$$$$$$$$$$$$$
+                png(out, width = 900, height = 650, res = 96)                                    
               }
-              cat("Device before:", dev.cur(), "\n")                                             #$$$$$$$$$$$$$
-              print(p)                                                                           #$$$$$$$$$$$$$
-              dev.off()                                                                          #$$$$$$$$$$$$$
-              cat("Device after:", dev.cur(), "\n")                                              #$$$$$$$$$$$$$
-              fi <- file.info(out)                                                               #$$$$$$$$$$$$$
-              cat("Saved OK. Size:", fi$size, "bytes\n")                                         #$$$$$$$$$$$$$
+              cat("Device before:", dev.cur(), "\n")                                             
+              print(p)                                                                           
+              dev.off()                                                                          
+              cat("Device after:", dev.cur(), "\n")                                              
+              fi <- file.info(out)                                                               
+              cat("Saved OK. Size:", fi$size, "bytes\n")                                         
               
             }, error = function(e) message("❌ output_saturation_plot: ", e$message))
           }
@@ -2197,19 +2197,19 @@ SONN <- R6Class(
           if (self$viewPerEpochPlots("max_weight_plot")) {
             tryCatch({
               
-              #$$$$$$$$$$$$$ FIX: wrap long titles so they never run off the plot
-              title_full <- paste(plot_title_prefix, "— Max Weight Magnitude Over Time")  #$$$$$$$$$$$$$
-              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")    #$$$$$$$$$$$$$
+               FIX: wrap long titles so they never run off the plot
+              title_full <- paste(plot_title_prefix, "— Max Weight Magnitude Over Time")  
+              title_wrapped <- paste(strwrap(title_full, width = 60), collapse = "\n")    
               
-              #$$$$$$$$$$$$$ FIX: base-R-like look (theme_classic) + turquoise line (match loss plot)
+               FIX: base-R-like look (theme_classic) + turquoise line (match loss plot)
               p <- ggplot(df_maxw, aes(x = Epoch, y = MaxWeight)) +
-                geom_line(size = 1.2, color = "turquoise") +                              #$$$$$$$$$$$$$
+                geom_line(size = 1.2, color = "turquoise") +                              
                 labs(
-                  title = title_wrapped,                                                  #$$$$$$$$$$$$$
-                  x = "Epoch",                                                            #$$$$$$$$$$$$$
+                  title = title_wrapped,                                                  
+                  x = "Epoch",                                                            
                   y = "Max |Weight|"
                 ) +
-                theme_classic(base_size = 12) +                                           #$$$$$$$$$$$$$
+                theme_classic(base_size = 12) +                                           
                 theme(
                   plot.title = element_text(
                     hjust  = 0.5,
@@ -2225,21 +2225,21 @@ SONN <- R6Class(
               out <- file.path("plots", fname("max_weight_plot.png"))
               message("📸 save: ", out)
               
-              #$$$$$$$$$$$$$ FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
-              if (capabilities("cairo")) {                                                #$$$$$$$$$$$$$
-                png(out, width = 900, height = 650, res = 96, type = "cairo-png")         #$$$$$$$$$$$$$
+               FIX: save EXACTLY like loss plot (base R png device, 900x650 @ 96)
+              if (capabilities("cairo")) {                                                
+                png(out, width = 900, height = 650, res = 96, type = "cairo-png")         
               } else {
-                png(out, width = 900, height = 650, res = 96)                             #$$$$$$$$$$$$$
+                png(out, width = 900, height = 650, res = 96)                             
               }
-              cat("Device before:", dev.cur(), "\n")                                      #$$$$$$$$$$$$$
+              cat("Device before:", dev.cur(), "\n")                                      
               
-              print(p)                                                                    #$$$$$$$$$$$$$
+              print(p)                                                                    
               
-              dev.off()                                                                   #$$$$$$$$$$$$$
-              cat("Device after:", dev.cur(), "\n")                                       #$$$$$$$$$$$$$
+              dev.off()                                                                   
+              cat("Device after:", dev.cur(), "\n")                                       
               
-              fi <- file.info(out)                                                        #$$$$$$$$$$$$$
-              cat("Saved OK. Size:", fi$size, "bytes\n")                                  #$$$$$$$$$$$$$
+              fi <- file.info(out)                                                        
+              cat("Saved OK. Size:", fi$size, "bytes\n")                                  
               
             }, error = function(e) message("❌ max_weight_plot: ", e$message))
           }

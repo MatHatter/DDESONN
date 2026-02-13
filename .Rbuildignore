@@ -1,22 +1,4 @@
-# ============================================================
-# FILE: .Rbuildignore
-# FULL FIXED — block vignette output folders that break Windows build copy
-#
-# PRESERVED:
-# - Your entire existing ignore set + structure
-#
-# FIX:
-# - Ignore knitr fig/cache roots that you set in vignette opts (figure-html/, cache/)   
-# - Ignore DDESONN vignette-run artifact roots (DDESONN_plots_*)                        
-# - Slightly safer tarball pattern                                                     
-# - Ignore stdout / stderr runtime capture dirs                                        
-# ============================================================
-
-# ============================================================
-# CRAN / R CMD build ignores
-# ============================================================
-
-# Dev-only folders (must NEVER ship)
+# Dev-only folders
 ^inst/dev$
 ^inst/dev/.*$
 
@@ -41,7 +23,7 @@
 ^dist$
 ^build$
 ^tarballs$
-^.*\.tar\.gz$                                                              FIX: safer tarball ignore
+^.*\.tar\.gz$
 
 # OS junk
 ^Thumbs\.db$
@@ -53,40 +35,35 @@
 ^scratch$
 ^scratch/.*$
 
-# ============================================================
-# Runtime output capture (MUST NEVER SHIP)                     
-# ============================================================
+# Runtime output capture
+^stdout$
+^stderr$
+^DDESONN/stdout$
+^DDESONN/stderr$
 
-^stdout$                                                                   
-^stderr$                                                                   
-^DDESONN/stdout$                                                           
-^DDESONN/stderr$                                                           
-
-# ============================================================
-# Quarto / vignette intermediates (safe to ignore)
-# ============================================================
-
+# Vignette intermediates and generated outputs
 ^vignettes/.*\.knit\.md$
 ^vignettes/.*\.utf8\.md$
-^vignettes/.*_files$
 ^vignettes/.*_cache$
+^vignettes/.*_files$
+^vignettes/.*_files/.*$
+^vignettes/.*\.html$
+^vignettes/.*/artifacts$
+^vignettes/.*/artifacts/.*$
+^vignettes/artifacts$
+^vignettes/artifacts/.*$
+^vignettes/figure-html$
+^vignettes/figure-html/.*$
+^vignettes/cache$
+^vignettes/cache/.*$
+^vignettes/DDESONN_plots_.*$
+^vignettes/DDESONN_plots_.*/.*$
 
-^vignettes/figure-html$                                                     FIX: knitr fig.path root
-^vignettes/figure-html/.*$                                                  FIX
-^vignettes/cache$                                                           FIX: knitr cache.path root
-^vignettes/cache/.*$                                                        FIX
-
-^vignettes/DDESONN_plots_.*$                                                FIX: your scenario outputs under vignettes
-^vignettes/DDESONN_plots_.*/.*$                                             FIX
-
-# ============================================================
 # R CMD build metadata
-# ============================================================
-
 ^doc$
 ^Meta$
 ^\.RDataTmp$
 ^LICENSE\.md$
 ^plots$
-
 ^README\.html$
+^\.\.pdf$

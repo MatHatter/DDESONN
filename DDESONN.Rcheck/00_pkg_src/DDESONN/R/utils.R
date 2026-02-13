@@ -1,3 +1,22 @@
+
+if (!exists("bm_list_all", mode = "function")) {
+  bm_list_all <- function(dir = get0(".BM_DIR", inherits = TRUE, ifnotfound = ".")) {
+    data.frame(name = character(), kind = character(), ens = integer(), model = integer(), source = character(), stringsAsFactors = FALSE)
+  }
+}
+
+if (!exists("bm_select_exact", mode = "function")) {
+  bm_select_exact <- function(kind, ens, model, dir = get0(".BM_DIR", inherits = TRUE, ifnotfound = ".")) {
+    NULL
+  }
+}
+
+if (!exists("ddesonn_legacy_artifacts_candidates", mode = "function")) {
+  ddesonn_legacy_artifacts_candidates <- function(base_dir = NULL) {
+    Filter(function(x) !is.null(x) && nzchar(x), unique(c(base_dir, file.path(base_dir %||% "", "artifacts"))))
+  }
+}
+
 # ===============================================================
 # DeepDynamic -- DDESONN
 # Deep Dynamic Experimental Self-Organizing Neural Network
@@ -97,8 +116,8 @@ ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {
 
 ddesonn_wrap_plot_title <- function(title, width = 55L) {  
   if (is.null(title) || !length(title) || !nzchar(title[1])) return(title)  
-  paste(strwrap(as.character(title[1]), width = as.integer(width)), collapse = "\n")  #$$$$$$$$$$$$$
-}  #$$$$$$$$$$$$$
+  paste(strwrap(as.character(title[1]), width = as.integer(width)), collapse = "\n")  
+}  
 
 
 # ============================================================
@@ -2471,7 +2490,7 @@ optimizers_log_update <- function(
     update_applied = NULL,   # the actual update step applied (same shape as P)
     verbose = verbose
 ) {
-  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
+  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  
   
   # ---- helpers ----
   .as_num <- function(x) {
@@ -2498,11 +2517,11 @@ optimizers_log_update <- function(
   post_msg   <- if (!is.null(P_after))  sprintf(" | %s_post(%s):[%s]", target, .shape(P_after),  .stats(P_after))  else ""
   update_msg <- if (!is.null(update_applied)) sprintf(" | update(%s):[%s]", .shape(update_applied), .stats(update_applied)) else ""
   
-  if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
-    cat(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s\n",  #$$$$$$$$$$$$$
-                toupper(optimizer), epoch, layer, target,  #$$$$$$$$$$$$$
-                grads_msg, pre_msg, post_msg, update_msg))  #$$$$$$$$$$$$$
-  }  #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) {  
+    cat(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s\n",  
+                toupper(optimizer), epoch, layer, target,  
+                grads_msg, pre_msg, post_msg, update_msg))  
+  }  
   
 }
 

@@ -378,7 +378,7 @@ cat("[BN] numeric_columns:", paste(numeric_columns, collapse = ", "), "\n")
 # ------------------------------------------------------------
 if (CLASSIFICATION_MODE == "binary") {
   
-  # $$$$$$$$$$$$$ Feature scaling without leakage (standardization first)
+  # Feature scaling without leakage (standardization first)
   X_train_scaled <- scale(X_train)
   center <- attr(X_train_scaled, "scaled:center")
   scale_ <- attr(X_train_scaled, "scaled:scale")
@@ -386,7 +386,7 @@ if (CLASSIFICATION_MODE == "binary") {
   X_validation_scaled <- scale(X_validation, center = center, scale = scale_)
   X_test_scaled       <- scale(X_test,       center = center, scale = scale_)
   
-  # $$$$$$$$$$$$$ Further rescale to prevent exploding activations (keep parity)
+  # Further rescale to prevent exploding activations (keep parity)
   max_val <- suppressWarnings(max(abs(X_train_scaled)))
   if (!is.finite(max_val) || is.na(max_val) || max_val == 0) max_val <- 1
   

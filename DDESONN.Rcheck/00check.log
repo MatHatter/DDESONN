@@ -11,14 +11,14 @@
 * checking extension type ... Package
 * this is package 'DDESONN' version '0.1.0'
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [14s] NOTE
+* checking CRAN incoming feasibility ... [16s] NOTE
 Maintainer: 'Mathew William Armitage Fok <quiksilver67213@yahoo.com>'
 
 New submission
 
 Package has a VignetteBuilder field but no prebuilt vignette index.
 
-Size of tarball: 11759530 bytes
+Size of tarball: 14605373 bytes
 * checking package namespace information ... OK
 * checking package dependencies ... OK
 * checking if this is a source package ... OK
@@ -26,19 +26,17 @@ Size of tarball: 11759530 bytes
 * checking for executable files ... OK
 * checking for hidden files and directories ... OK
 * checking for portable file names ... OK
-* checking whether package 'DDESONN' can be installed ... [25s] OK
+* checking whether package 'DDESONN' can be installed ... [35s] OK
 * checking installed package size ... INFO
-  installed size is 19.8Mb
+  installed size is 24.9Mb
   sub-directories of 1Mb or more:
-    doc      12.6Mb
+    doc      17.7Mb
     extdata   5.9Mb
 * checking package directory ... OK
 * checking for future file timestamps ... OK
 * checking DESCRIPTION meta-information ... OK
 * checking top-level files ... NOTE
 Files 'README.md' or 'NEWS.md' cannot be checked without 'pandoc' being installed.
-Non-standard file/directory found at top level:
-  'README.html'
 * checking for left-over files ... OK
 * checking index information ... OK
 * checking package subdirectories ... OK
@@ -51,49 +49,24 @@ Non-standard file/directory found at top level:
 * checking whether the namespace can be unloaded cleanly ... OK
 * checking loading without being on the library search path ... OK
 * checking use of S3 registration ... OK
-* checking dependencies in R code ... NOTE
-Namespace in Imports field not imported from: 'R6'
-  All declared Imports should be used.
+* checking dependencies in R code ... OK
 * checking S3 generic/method consistency ... OK
 * checking replacement functions ... OK
 * checking foreign function calls ... OK
-* checking R code for possible problems ... [36s] NOTE
+* checking R code for possible problems ... [58s] NOTE
 apply_optimizer_update: warning in nag_update(params =
   optimizer_params[[layer]], grads = grads_input, lr = lr *
   layer_boost, beta = beta1): partial argument match of 'beta' to
   'beta1'
-.compute_test_metrics: no visible global function definition for
-  'predict'
-.flatten_metric_list : <anonymous>: no visible global function
-  definition for 'setNames'
-.is_linear_verbose: no visible global function definition for 'str'
-.safe_run_predict: no visible global function definition for 'sd'
-.summarize_matrix: no visible global function definition for 'sd'
 .write_fused_consensus: no visible binding for global variable
   'run_index'
 .write_fused_consensus: no visible binding for global variable
   'RUN_INDEX'
 .write_fused_consensus: no visible binding for global variable 'seed'
 .write_fused_consensus: no visible binding for global variable 'SEED'
-DDESONN_fuse_from_agg: no visible global function definition for
-  'na.omit'
-DDESONN_fuse_from_agg : get_prob_mat_mc: no visible global function
-  definition for 'na.omit'
-DDESONN_predict_eval : .resolve_meta: no visible global function
-  definition for 'ddesonn_legacy_artifacts_candidates'
 DDESONN_predict_eval: no visible binding for global variable 'ML_NN'
-EvaluatePredictionsReport: no visible global function definition for
-  'abline'
-EvaluatePredictionsReport : .close_devices: no visible global function
-  definition for 'dev.list'
-EvaluatePredictionsReport : .close_devices : <anonymous>: no visible
-  global function definition for 'dev.off'
 EvaluatePredictionsReport: no visible binding for global variable 'fpr'
 EvaluatePredictionsReport: no visible binding for global variable 'tpr'
-EvaluatePredictionsReport: no visible global function definition for
-  'head'
-EvaluatePredictionsReport: no visible global function definition for
-  'tail'
 EvaluatePredictionsReport : maybe_plot_binary: no visible binding for
   global variable 'Predicted'
 EvaluatePredictionsReport : maybe_plot_binary: no visible binding for
@@ -110,8 +83,6 @@ EvaluatePredictionsReport : maybe_plot_binary: no visible binding for
   global variable 'actual_rate'
 EvaluatePredictionsReport : maybe_plot_binary: no visible binding for
   global variable 'bin_mid'
-EvaluatePredictionsReport: no visible global function definition for
-  'legend'
 EvaluatePredictionsReport: no visible binding for global variable
   'Type'
 EvaluatePredictionsReport: no visible binding for global variable
@@ -120,173 +91,39 @@ EvaluatePredictionsReport: no visible binding for global variable
   'Actual'
 EvaluatePredictionsReport: no visible binding for global variable
   'Count'
-EvaluatePredictionsReport: no visible global function definition for
-  'str'
 apply_optimizer_update: no visible binding for global variable
   'lookahead_step'
 apply_optimizer_update: no visible binding for global variable 'lambda'
 apply_optimizer_update: no visible binding for global variable 'errors'
-calculate_performance : calculate_wss: no visible global function
-  definition for 'kmeans'
-calculate_performance: no visible global function definition for
-  'kmeans'
-calculate_performance: no visible binding for global variable 'grid'
 calculate_performance: no visible binding for global variable
   'dropout_rates'
-clustering_quality_db: no visible global function definition for
-  'aggregate'
-clustering_quality_db: no visible global function definition for 'dist'
-ddesonn_fit: no visible global function definition for 'setNames'
-ddesonn_run : add_network_to_main: no visible global function
-  definition for 'tail'
 find_best_model: no visible binding for global variable '.BM_DIR'
-find_best_model: no visible global function definition for
-  'bm_list_all'
-find_best_model : <anonymous>: no visible global function definition
-  for 'bm_select_exact'
-find_best_model: no visible global function definition for
-  'bm_select_exact'
-find_best_model: no visible global function definition for 'head'
 ftrl_update: no visible binding for global variable 'beta1'
 gelu: no visible global function definition for 'erf'
 gelu_derivative: no visible global function definition for 'erf'
-infer_is_binary: no visible global function definition for 'na.omit'
-initialize_optimizer_params: no visible global function definition for
-  'rnorm'
-initialize_optimizer_params: no visible global function definition for
-  'str'
-memory_usage: no visible global function definition for 'object.size'
-probe_last_layer: no visible global function definition for 'sd'
-probe_last_layer: no visible global function definition for 'head'
-robustness: no visible global function definition for 'rnorm'
-update_biases_block: no visible global function definition for 'str'
-update_weights_block: no visible global function definition for 'str'
 Undefined global functions or variables:
-  .BM_DIR Actual Count ML_NN Predicted RUN_INDEX SEED Type abline
-  actual_rate aggregate beta1 bin_mid bm_list_all bm_select_exact
-  ddesonn_legacy_artifacts_candidates dev.list dev.off dist
-  dropout_rates erf errors fpr grid head kmeans label lambda legend
-  lookahead_step na.omit object.size predict prob prob_bin rnorm
-  run_index sd seed setNames str tail tpr
-Consider adding
-  importFrom("grDevices", "dev.list", "dev.off")
-  importFrom("graphics", "abline", "grid", "legend")
-  importFrom("stats", "aggregate", "dist", "kmeans", "na.omit",
-             "predict", "rnorm", "sd", "setNames")
-  importFrom("utils", "head", "object.size", "str", "tail")
-to your NAMESPACE file.
+  .BM_DIR Actual Count ML_NN Predicted RUN_INDEX SEED Type actual_rate
+  beta1 bin_mid dropout_rates erf errors fpr label lambda
+  lookahead_step prob prob_bin run_index seed tpr
 * checking Rd files ... OK
-* checking Rd metadata ... WARNING
-Rd files with duplicated name 'DDESONN':
-  'DDESONN-package.Rd' 'DDESONN.Rd'
-Rd files with duplicated alias 'DDESONN':
-  'DDESONN-package.Rd' 'DDESONN.Rd'
+* checking Rd metadata ... OK
 * checking Rd line widths ... OK
 * checking Rd cross-references ... OK
-* checking for missing documentation entries ... WARNING
-Undocumented code objects:
-  'DDESONN_activation_defaults' 'DDESONN_artifacts_root'
-  'DDESONN_dropout_defaults' 'DDESONN_fit' 'DDESONN_model'
-  'DDESONN_optimizer_options' 'DDESONN_plots_dir' 'DDESONN_predict'
-  'DDESONN_run' 'DDESONN_training_defaults'
-All user-level objects in a package should have documentation entries.
-See chapter 'Writing R documentation files' in the 'Writing R
-Extensions' manual.
+* checking for missing documentation entries ... OK
 * checking for code/documentation mismatches ... OK
 * checking Rd \usage sections ... OK
 * checking Rd contents ... OK
 * checking for unstated dependencies in examples ... OK
 * checking installed files from 'inst/doc' ... OK
 * checking files in 'vignettes' ... OK
-* checking examples ... ERROR
-Running examples in 'DDESONN-Ex.R' failed
-The error most likely occurred in:
-
-> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
-> ### Name: ddesonn_fit
-> ### Title: Fit a 'ddesonn_model' with tidy inputs
-> ### Aliases: ddesonn_fit
-> 
-> ### ** Examples
-> 
-> data <- mtcars
-> x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
-> y <- data$am
-> model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
-> ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
-> 
-> # Regression example (mtcars) with explicit scheduler controls.
-> # If you do NOT want LR decay, set lr_decay_rate = 1.0.
-> reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
-> reg_y <- mtcars$mpg
-> reg_model <- ddesonn_model(
-+   input_size = ncol(reg_x), # number of input features
-+   output_size = 1, # one numeric target
-+   hidden_sizes = c(16, 8), # hidden-layer widths
-+   classification_mode = "regression" # problem type
-+ )
-> ddesonn_fit(
-+   model = reg_model, # model object from ddesonn_model()
-+   x = reg_x, # training predictors
-+   y = reg_y, # training target
-+   num_epochs = 10, # training epochs
-+   lr = 0.05, # initial learning rate
-+   lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
-+   lr_decay_epoch = 20L, # decay step interval in epochs
-+   lr_min = 1e-5, # lower bound for learning rate
-+   validation_metrics = FALSE # disable validation metric pass in this example
-+ )
-Warning in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  :
-  [WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.
-Error in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  : 
-  object 'probs_val' not found
-Calls: ddesonn_fit ... suppressMessages -> withCallingHandlers -> <Anonymous> -> as.matrix
-Execution halted
-* checking examples with --run-donttest ... ERROR
-Running examples in 'DDESONN-Ex.R' failed
-The error most likely occurred in:
-
-> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
-> ### Name: ddesonn_fit
-> ### Title: Fit a 'ddesonn_model' with tidy inputs
-> ### Aliases: ddesonn_fit
-> 
-> ### ** Examples
-> 
-> data <- mtcars
-> x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
-> y <- data$am
-> model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
-> ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
-> 
-> # Regression example (mtcars) with explicit scheduler controls.
-> # If you do NOT want LR decay, set lr_decay_rate = 1.0.
-> reg_x <- mtcars[, c("disp", "hp", "wt", "qsec", "drat")]
-> reg_y <- mtcars$mpg
-> reg_model <- ddesonn_model(
-+   input_size = ncol(reg_x), # number of input features
-+   output_size = 1, # one numeric target
-+   hidden_sizes = c(16, 8), # hidden-layer widths
-+   classification_mode = "regression" # problem type
-+ )
-> ddesonn_fit(
-+   model = reg_model, # model object from ddesonn_model()
-+   x = reg_x, # training predictors
-+   y = reg_y, # training target
-+   num_epochs = 10, # training epochs
-+   lr = 0.05, # initial learning rate
-+   lr_decay_rate = 0.5, # decay multiplier (use 1.0 to disable)
-+   lr_decay_epoch = 20L, # decay step interval in epochs
-+   lr_min = 1e-5, # lower bound for learning rate
-+   validation_metrics = FALSE # disable validation metric pass in this example
-+ )
-Warning in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  :
-  [WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.
-Error in self$ensemble[[i]]$train_network(Rdata, labels, X_train, y_train,  : 
-  object 'probs_val' not found
-Calls: ddesonn_fit ... suppressMessages -> withCallingHandlers -> <Anonymous> -> as.matrix
-Execution halted
-* checking for unstated dependencies in vignettes ... NOTE
-'library' or 'require' call not declared from: 'tibble'
+* checking examples ... OK
+* checking examples with --run-donttest ... OK
+* checking for unstated dependencies in vignettes ... OK
 * checking package vignettes ... OK
-* checking re-building of vignette outputs ...
+* checking re-building of vignette outputs ... [590s] OK
+* checking PDF version of manual ... OK
+* checking HTML version of manual ... OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 3 NOTEs

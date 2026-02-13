@@ -10,6 +10,8 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
+options(DDESONN_OUTPUT_ROOT = tempdir())
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = tempdir())
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment  = "#>",
@@ -39,6 +41,24 @@ inst/extdata/hf_runs/
 ```
 
 Each folder is one **500-seed** single-run performed locally; together they form the 1000-seed composite.
+
+---
+
+### Motivation and comparison philosophy
+
+This vignette addresses a focused research question:
+
+> **Can a fully R-native, from-first-principles neural network implementation achieve competitive statistical stability against an established deep-learning framework under repeated randomized initialization?**
+
+The comparison to Keras serves as a reference benchmark, not as an implementation template. DDESONN was built independently from scratch and was not derived from or based on Keras source code. Aside from a brief high-level review to get a general sense of benchmarking conventions and API structure, all implementation and architectural decisions were made independently.
+
+The objective of the 1000-seed experiment is not to highlight a single favorable run, but to evaluate **distributional behavior across seeds**. In this context, “competitive” refers to:
+
+- mean performance across many randomized initializations,
+- variance and standard deviation of outcomes,
+- worst-case behavior under identical dataset and metric definitions.
+
+The comparison therefore evaluates implementation correctness, training stability, and reproducibility under stress — not code replication or framework mirroring.
 
 ---
 

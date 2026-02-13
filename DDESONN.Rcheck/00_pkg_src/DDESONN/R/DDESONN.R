@@ -1571,6 +1571,9 @@ SONN <- R6::R6Class(
       # ------------------------------------------------------------------
       if (is.null(X_train)) X_train <- Rdata
       if (is.null(y_train)) y_train <- labels
+
+      probs_val <- NULL
+      labels_val <- NULL
       
       # ----------------------------
       # State/optimizer
@@ -2362,7 +2365,7 @@ SONN <- R6::R6Class(
           last_val_predict   <- NULL
           last_train_predict <- NULL
           
-          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+          if ((!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0) && isTRUE(validation_metrics)) {
             
             to_one_hot_matrix <- function(y_vec, levels_ref = NULL) {
               if (is.matrix(y_vec) && ncol(y_vec) > 1L && all(y_vec %in% c(0, 1, NA))) {
@@ -2457,6 +2460,7 @@ SONN <- R6::R6Class(
               } else {
                 y_val_epoch <- y_val_vec[seq_len(n_eff)]
               }
+              labels_val <- y_val_epoch
               
               last_val_probs   <- probs_val
               last_val_labels  <- y_val_epoch
@@ -2827,7 +2831,7 @@ SONN <- R6::R6Class(
             }
             
             # recompute VAL preds with best snapshot when applicable
-            if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+            if ((!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0) && isTRUE(validation_metrics)) {
               if (isTRUE(verbose)) {  
                 cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # 
               }  
@@ -2917,12 +2921,26 @@ SONN <- R6::R6Class(
           }
           
           # --- STRICT CHECK: only when regression + validation enabled ---
-          if (identical(CLASSIFICATION_MODE, "regression")) {
+          if (identical(CLASSIFICATION_MODE, "regression") && isTRUE(validation_metrics) && (!is.null(X_validation) && !is.null(y_validation) && nrow(as.matrix(X_validation)) > 0)) {
             if (is.null(best_val_probs) || is.null(best_val_labels)) {
-              if (isTRUE(validation_metrics) && exists("probs_val", inherits = FALSE)) {
+              fallback_probs <- NULL
+              fallback_labels <- NULL
+              if (exists("probs_val", inherits = FALSE) && !is.null(probs_val)) {
+                fallback_probs <- probs_val
+              } else if (exists("val_probs", inherits = FALSE) && !is.null(val_probs)) {
+                fallback_probs <- val_probs
+              } else if (!is.null(last_val_probs)) {
+                fallback_probs <- last_val_probs
+              }
+              if (exists("y_val_epoch", inherits = FALSE) && !is.null(y_val_epoch)) {
+                fallback_labels <- y_val_epoch
+              } else if (!is.null(last_val_labels)) {
+                fallback_labels <- last_val_labels
+              }
+              if (!is.null(fallback_probs) && !is.null(fallback_labels)) {
                 warning("[WARN] Regression best snapshot missing explicit val_probs/labels -- using last validation predictions instead.")
-                best_val_probs  <- as.matrix(probs_val)
-                best_val_labels <- if (is.matrix(y_val_epoch)) y_val_epoch else matrix(y_val_epoch, ncol = 1L)
+                best_val_probs  <- as.matrix(fallback_probs)
+                best_val_labels <- if (is.matrix(fallback_labels)) fallback_labels else matrix(fallback_labels, ncol = 1L)
               }
             }
           }
@@ -4596,15 +4614,15 @@ DDESONN <- R6::R6Class(
         pr_relev_high_mean <- TRUE                                                                             
         pr_relev_low_mean  <- TRUE                                                                             
       }                                                                                                        
-      if (isTRUE(pr_trace)) {                                                                                  #$$$$$$$$$$$$$
-        cat("[PR] flags resolved (post viewAll): perf_high=", pr_perf_high_mean,                               #$$$$$$$$$$$$$
-            " perf_low=", pr_perf_low_mean,                                                                    #$$$$$$$$$$$$$
-            " relev_high=", pr_relev_high_mean,                                                                #$$$$$$$$$$$$$
-            " relev_low=", pr_relev_low_mean, "\n", sep = "")                                                  #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+      if (isTRUE(pr_trace)) {                                                                                  
+        cat("[PR] flags resolved (post viewAll): perf_high=", pr_perf_high_mean,                               
+            " perf_low=", pr_perf_low_mean,                                                                    
+            " relev_high=", pr_relev_high_mean,                                                                
+            " relev_low=", pr_relev_low_mean, "\n", sep = "")                                                  
+      }                                                                                                        
       
       # ============================================================
-      # SECTION: plots (compute + RETURN ggplots)                     #$$$$$$$$$$$$$
+      # SECTION: plots (compute + RETURN ggplots)                     
       # - saveEnabled ONLY affects saving inside plot creators
       # - printing happens HERE, controlled ONLY by toggles
       # ============================================================
@@ -4614,66 +4632,66 @@ DDESONN <- R6::R6Class(
       relevance_high_mean_plots   <- NULL
       relevance_low_mean_plots    <- NULL
       
-      if (isTRUE(pr_trace)) {                                                                                  #$$$$$$$$$$$$$
-        cat("[PR TRACE] pr_viewAllPlots=", pr_viewAllPlots,                                                    #$$$$$$$$$$$$$
-            " pr_saveEnabled=", pr_saveEnabled, "\n")                                                         #$$$$$$$$$$$$$
-        cat("[PR TRACE] rows: perf_high=", if (is.null(performance_high_mean_df)) 0 else nrow(performance_high_mean_df),  #$$$$$$$$$$$$$
-            " perf_low=", if (is.null(performance_low_mean_df)) 0 else nrow(performance_low_mean_df),         #$$$$$$$$$$$$$
-            " relev_high=", if (is.null(relevance_high_mean_df)) 0 else nrow(relevance_high_mean_df),         #$$$$$$$$$$$$$
-            " relev_low=", if (is.null(relevance_low_mean_df)) 0 else nrow(relevance_low_mean_df), "\n")       #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+      if (isTRUE(pr_trace)) {                                                                                  
+        cat("[PR TRACE] pr_viewAllPlots=", pr_viewAllPlots,                                                    
+            " pr_saveEnabled=", pr_saveEnabled, "\n")                                                         
+        cat("[PR TRACE] rows: perf_high=", if (is.null(performance_high_mean_df)) 0 else nrow(performance_high_mean_df),  
+            " perf_low=", if (is.null(performance_low_mean_df)) 0 else nrow(performance_low_mean_df),         
+            " relev_high=", if (is.null(relevance_high_mean_df)) 0 else nrow(relevance_high_mean_df),         
+            " relev_low=", if (is.null(relevance_low_mean_df)) 0 else nrow(relevance_low_mean_df), "\n")       
+      }                                                                                                        
       print_plots <- isTRUE(getOption("knitr.in.progress")) || interactive()
-      if (isTRUE(pr_trace)) {                                                                                  #$$$$$$$$$$$$$
-        cat("[PR TRACE] print_plots=", print_plots, "\n", sep = "")                                            #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+      if (isTRUE(pr_trace)) {                                                                                  
+        cat("[PR TRACE] print_plots=", print_plots, "\n", sep = "")                                            
+      }                                                                                                        
       
-      if (isTRUE(pr_perf_high_mean)) {                                                                         #$$$$$$$$$$$$$
-        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL high(perf)\n")                                              #$$$$$$$$$$$$$
+      if (isTRUE(pr_perf_high_mean)) {                                                                         
+        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL high(perf)\n")                                              
         performance_high_mean_plots <- self$update_performance_and_relevance_high(
           performance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
-          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               
+          verbose = verbose,                                                                                    
+          verboseLow = verboseLow                                                                               
         )
-        if (isTRUE(pr_trace)) .log_plot_obj(performance_high_mean_plots, "performance_high_mean_plots")        #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+        if (isTRUE(pr_trace)) .log_plot_obj(performance_high_mean_plots, "performance_high_mean_plots")        
+      }                                                                                                        
       
-      if (isTRUE(pr_perf_low_mean)) {                                                                          #$$$$$$$$$$$$$
-        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL low(perf)\n")                                               #$$$$$$$$$$$$$
+      if (isTRUE(pr_perf_low_mean)) {                                                                          
+        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL low(perf)\n")                                               
         performance_low_mean_plots <- self$update_performance_and_relevance_low(
           performance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
-          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               
+          verbose = verbose,                                                                                    
+          verboseLow = verboseLow                                                                               
         )
-        if (isTRUE(pr_trace)) .log_plot_obj(performance_low_mean_plots, "performance_low_mean_plots")          #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+        if (isTRUE(pr_trace)) .log_plot_obj(performance_low_mean_plots, "performance_low_mean_plots")          
+      }                                                                                                        
       
-      if (isTRUE(pr_relev_high_mean)) {                                                                        #$$$$$$$$$$$$$
-        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL high(relev)\n")                                             #$$$$$$$$$$$$$
+      if (isTRUE(pr_relev_high_mean)) {                                                                        
+        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL high(relev)\n")                                             
         relevance_high_mean_plots <- self$update_performance_and_relevance_high(
           relevance_high_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
-          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               
+          verbose = verbose,                                                                                    
+          verboseLow = verboseLow                                                                               
         )
-        if (isTRUE(pr_trace)) .log_plot_obj(relevance_high_mean_plots, "relevance_high_mean_plots")            #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+        if (isTRUE(pr_trace)) .log_plot_obj(relevance_high_mean_plots, "relevance_high_mean_plots")            
+      }                                                                                                        
       
-      if (isTRUE(pr_relev_low_mean)) {                                                                         #$$$$$$$$$$$$$
-        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL low(relev)\n")                                              #$$$$$$$$$$$$$
+      if (isTRUE(pr_relev_low_mean)) {                                                                         
+        if (isTRUE(pr_trace)) cat("[PR TRACE] CALL low(relev)\n")                                              
         relevance_low_mean_plots <- self$update_performance_and_relevance_low(
           relevance_low_mean_df,
-          saveEnabled  = isTRUE(pr_saveEnabled),                                                                #$$$$$$$$$$$$$
-          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               #$$$$$$$$$$$$$
-          verbose = verbose,                                                                                    #$$$$$$$$$$$$$
-          verboseLow = verboseLow                                                                               #$$$$$$$$$$$$$
+          saveEnabled  = isTRUE(pr_saveEnabled),                                                                
+          viewAllPlots = isTRUE(pr_viewAllPlots),                                                               
+          verbose = verbose,                                                                                    
+          verboseLow = verboseLow                                                                               
         )
-        if (isTRUE(pr_trace)) .log_plot_obj(relevance_low_mean_plots, "relevance_low_mean_plots")              #$$$$$$$$$$$$$
-      }                                                                                                        #$$$$$$$$$$$$$
+        if (isTRUE(pr_trace)) .log_plot_obj(relevance_low_mean_plots, "relevance_low_mean_plots")              
+      }                                                                                                        
       
       
       # ============================================================
@@ -4696,14 +4714,14 @@ DDESONN <- R6::R6Class(
         relev_group_summary <- summarize_grouped(relev_df)
         
         # --- Optional notify user ---
-        if (!verbose && !viewTables) {  #$$$$$$$$$$$$$
-          ddesonn_console_log(  #$$$$$$$$$$$$$
-            "[INFO] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.",  #$$$$$$$$$$$$$
-            level = "important",  #$$$$$$$$$$$$$
-            verbose = verbose,  #$$$$$$$$$$$$$
-            verboseLow = verboseLow  #$$$$$$$$$$$$$
-          )  #$$$$$$$$$$$$$
-        }  #$$$$$$$$$$$$$
+        if (!verbose && !viewTables) {  
+          ddesonn_console_log(  
+            "[INFO] Group summaries computed silently. Set `verbose = verbose` to print data frames, or `viewTables = TRUE` to see tables.",  
+            level = "important",  
+            verbose = verbose,  
+            verboseLow = verboseLow  
+          )  
+        }  
         
         # Grouped metrics (run whenever you have >=1 model)
         if (ensemble_number >= 1 && length(self$ensemble) > 1) {
@@ -4861,39 +4879,39 @@ DDESONN <- R6::R6Class(
                "100%+")  # Add a catch-all label for unexpected values
       }))
     },
-    update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {  #$$$$$$$$$$$$$
-      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
-      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
+    update_performance_and_relevance_high = function(high_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {  
+      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  
+      # (no local verbosity defaults here)  
       
-      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
-        cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  #$$$$$$$$$$$$$
-            " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
-            " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  #$$$$$$$$$$$$$
-      }  #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  
+        cat("[PR HIGH] ENTER | saveEnabled=", isTRUE(saveEnabled),                                  
+            " viewAllPlots=", isTRUE(viewAllPlots),                                                
+            " rows=", if (is.null(high_mean_df)) 0 else nrow(high_mean_df), "\n")                  
+      }  
       
       if (is.null(high_mean_df) || !nrow(high_mean_df)) {
-        if (isTRUE(verbose)) cat("[PR HIGH] SKIP | no data\n")                                     #$$$$$$$$$$$$$
+        if (isTRUE(verbose)) cat("[PR HIGH] SKIP | no data\n")                                     
         return(list())
       }
       
       high_mean_plots <- list()
       
-      .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
+      .safe_filename <- function(x) {                                              
         x <- as.character(x)
         x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
         x <- gsub("_+", "_", x)
         x <- gsub("^_|_$", "", x)
         if (!nzchar(x)) "metric" else x
-      }                                                                            #$$$$$$$$$$$$$
+      }                                                                            
       
-      .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+      .resolve_pr_plot_dir <- function() {                                         
         output_root_current <- getOption("DDESONN_OUTPUT_ROOT", default = NULL)
         env_root <- Sys.getenv("DDESONN_ARTIFACTS_ROOT", unset = "")
         has_root <- (is.character(output_root_current) && length(output_root_current) && nzchar(output_root_current)) ||
           nzchar(env_root)
         if (!has_root) {
           msg <- "[PR HIGH] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
-          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4903,11 +4921,11 @@ DDESONN <- R6::R6Class(
         base_dir <- NULL
         if (is.function(f)) {
           root_arg <- if (is.character(output_root_current) && nzchar(output_root_current)) output_root_current else NULL
-          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  #$$$$$$$$$$$$$
+          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           msg <- "[PR HIGH] Unable to resolve plots dir for saving."
-          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -4916,9 +4934,9 @@ DDESONN <- R6::R6Class(
         dir <- file.path(base_dir, "performance_relevance")
         if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
         dir
-      }                                                                            #$$$$$$$$$$$$$
+      }                                                                            
       
-      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      #$$$$$$$$$$$$$
+      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      
       
       for (metric in unique(high_mean_df$Metric)) {
         
@@ -4957,9 +4975,9 @@ DDESONN <- R6::R6Class(
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 #$$$$$$$$$$$$$
-            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  #$$$$$$$$$$$$$
+            ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      
+            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 
+            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  
           
           high_mean_plot <- high_mean_plot +
             ggplot2::geom_text(
@@ -4977,55 +4995,55 @@ DDESONN <- R6::R6Class(
             fn <- paste0("performance_relevance_high_", .safe_filename(metric), ".png")
             fp <- file.path(pr_plot_dir, fn)
             tryCatch(
-              ggplot2::ggsave(filename = fp, plot = high_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  #$$$$$$$$$$$$$
+              ggplot2::ggsave(filename = fp, plot = high_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  
               error = function(e) NULL
             )
           }
         }
       }
       
-      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
-        cat("[PR HIGH] EXIT | plots_len=", length(high_mean_plots),                                 #$$$$$$$$$$$$$
-            " names_head=", paste(utils::head(names(high_mean_plots), 3), collapse = ","), "\n")    #$$$$$$$$$$$$$
-      }  #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  
+        cat("[PR HIGH] EXIT | plots_len=", length(high_mean_plots),                                 
+            " names_head=", paste(utils::head(names(high_mean_plots), 3), collapse = ","), "\n")    
+      }  
       
       return(high_mean_plots)
     },
     
     
-    update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {     #$$$$$$$$$$$$$
-      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  #$$$$$$$$$$$$$
-      # (no local verbosity defaults here)  #$$$$$$$$$$$$$
+    update_performance_and_relevance_low = function(low_mean_df, saveEnabled, viewAllPlots, verbose = FALSE, verboseLow = FALSE) {     
+      verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  
+      # (no local verbosity defaults here)  
       
-      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
-        cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   #$$$$$$$$$$$$$
-            " viewAllPlots=", isTRUE(viewAllPlots),                                                #$$$$$$$$$$$$$
-            " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    #$$$$$$$$$$$$$
-      }  #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  
+        cat("[PR LOW] ENTER | saveEnabled=", isTRUE(saveEnabled),                                   
+            " viewAllPlots=", isTRUE(viewAllPlots),                                                
+            " rows=", if (is.null(low_mean_df)) 0 else nrow(low_mean_df), "\n")                    
+      }  
       
       if (is.null(low_mean_df) || !nrow(low_mean_df)) {
-        if (isTRUE(verbose)) cat("[PR LOW] SKIP | no data\n")                                     #$$$$$$$$$$$$$
+        if (isTRUE(verbose)) cat("[PR LOW] SKIP | no data\n")                                     
         return(list())
       }
       
       low_mean_plots <- list()
       
-      .safe_filename <- function(x) {                                              #$$$$$$$$$$$$$
+      .safe_filename <- function(x) {                                              
         x <- as.character(x)
         x <- gsub("[^A-Za-z0-9_\\-]+", "_", x)
         x <- gsub("_+", "_", x)
         x <- gsub("^_|_$", "", x)
         if (!nzchar(x)) "metric" else x
-      }                                                                            #$$$$$$$$$$$$$
+      }                                                                            
       
-      .resolve_pr_plot_dir <- function() {                                         #$$$$$$$$$$$$$
+      .resolve_pr_plot_dir <- function() {                                         
         output_root_current <- getOption("DDESONN_OUTPUT_ROOT", default = NULL)
         env_root <- Sys.getenv("DDESONN_ARTIFACTS_ROOT", unset = "")
         has_root <- (is.character(output_root_current) && length(output_root_current) && nzchar(output_root_current)) ||
           nzchar(env_root)
         if (!has_root) {
           msg <- "[PR LOW] saveEnabled requested but DDESONN artifacts root is not set. Set DDESONN_OUTPUT_ROOT or DDESONN_ARTIFACTS_ROOT."
-          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -5035,11 +5053,11 @@ DDESONN <- R6::R6Class(
         base_dir <- NULL
         if (is.function(f)) {
           root_arg <- if (is.character(output_root_current) && nzchar(output_root_current)) output_root_current else NULL
-          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  #$$$$$$$$$$$$$
+          base_dir <- tryCatch(f(root_arg), error = function(e) NULL)  
         }
         if (is.null(base_dir) || !nzchar(base_dir)) {
           msg <- "[PR LOW] Unable to resolve plots dir for saving."
-          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  #$$$$$$$$$$$$$
+          ddesonn_console_log(msg, level = "important", verbose = verbose, verboseLow = verboseLow)  
           verbose_flag <- isTRUE(get0("verbose", inherits = TRUE, ifnotfound = FALSE))
           strict_flag <- isTRUE(getOption("DDESONN_STRICT_SAVE", FALSE))
           if (verbose_flag || strict_flag) stop(msg, call. = FALSE)
@@ -5048,9 +5066,9 @@ DDESONN <- R6::R6Class(
         dir <- file.path(base_dir, "performance_relevance")
         if (!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
         dir
-      }                                                                            #$$$$$$$$$$$$$
+      }                                                                            
       
-      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      #$$$$$$$$$$$$$
+      pr_plot_dir <- if (isTRUE(saveEnabled)) .resolve_pr_plot_dir() else NULL      
       
       for (metric in unique(low_mean_df$Metric)) {
         
@@ -5089,9 +5107,9 @@ DDESONN <- R6::R6Class(
               x = "Metric",
               y = "Value"
             ) +
-            ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       #$$$$$$$$$$$$$
-            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 #$$$$$$$$$$$$$
-            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  #$$$$$$$$$$$$$
+            ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       
+            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 
+            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  
           
           low_mean_plot <- low_mean_plot +
             ggplot2::geom_text(
@@ -5109,17 +5127,17 @@ DDESONN <- R6::R6Class(
             fn <- paste0("performance_relevance_low_", .safe_filename(metric), ".png")
             fp <- file.path(pr_plot_dir, fn)
             tryCatch(
-              ggplot2::ggsave(filename = fp, plot = low_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  #$$$$$$$$$$$$$
+              ggplot2::ggsave(filename = fp, plot = low_mean_plot, width = 10, height = 6, units = "in", dpi = 300),  
               error = function(e) NULL
             )
           }
         }
       }
       
-      if (isTRUE(verbose)) {  #$$$$$$$$$$$$$
-        cat("[PR LOW] EXIT | plots_len=", length(low_mean_plots),                                   #$$$$$$$$$$$$$
-            " names_head=", paste(utils::head(names(low_mean_plots), 3), collapse = ","), "\n")     #$$$$$$$$$$$$$
-      }  #$$$$$$$$$$$$$
+      if (isTRUE(verbose)) {  
+        cat("[PR LOW] EXIT | plots_len=", length(low_mean_plots),                                   
+            " names_head=", paste(utils::head(names(low_mean_plots), 3), collapse = ","), "\n")     
+      }  
       
       return(low_mean_plots)
     },
@@ -5437,16 +5455,16 @@ DDESONN <- R6::R6Class(
       
       if (ensemble_number <= 1) {
         
-        if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
+        if (isTRUE(verbose) || isTRUE(debug)) {                                   
           print(paste("Storing metadata for main ensemble model", model_iter_num, "as", model_serial_num))
-        }                                                                         #$$$$$$$$$$$$$
+        }                                                                         
         assign(paste0("Ensemble_Main_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .ddesonn_state)
         
       } else {
         
-        if (isTRUE(verbose) || isTRUE(debug)) {                                   #$$$$$$$$$$$$$
+        if (isTRUE(verbose) || isTRUE(debug)) {                                   
           print(paste("Storing metadata for temp ensemble model", model_iter_num, "as", model_serial_num))
-        }                                                                         #$$$$$$$$$$$$$
+        }                                                                         
         assign(paste0("Ensemble_Temp_", ensemble_number, "_model_", model_iter_num, "_metadata"), metadata, envir = .ddesonn_state)
       }
       
@@ -5510,8 +5528,8 @@ calculate_performance <- function(SONN, Rdata, labels, lr, CLASSIFICATION_MODE, 
   cluster_assignments <- kmeans(Rdata, centers = optimal_k, iter.max = 50)$cluster
 
 
-  if (isTRUE(verbose)) cat("Length of SONN$weights: ", length(SONN$weights), "\n")  #$$$$$$$$$$$$$
-  if (isTRUE(verbose)) cat("Length of SONN$map: ", if (is.null(SONN$map)) "NULL" else length(SONN$map), "\n")  #$$$$$$$$$$$$$
+  if (isTRUE(verbose)) cat("Length of SONN$weights: ", length(SONN$weights), "\n")  
+  if (isTRUE(verbose)) cat("Length of SONN$map: ", if (is.null(SONN$map)) "NULL" else length(SONN$map), "\n")  
 
 
   # --- Metrics (all take SONN) ---

@@ -1,10 +1,15 @@
 ## ----setup, include=FALSE-----------------------------------------------------
+is_check_env <- nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
+.vig_tmp_root <- file.path(tempdir(), "ddesonn-vig-logs")
+dir.create(.vig_tmp_root, recursive = TRUE, showWarnings = FALSE)
+options(DDESONN_OUTPUT_ROOT = .vig_tmp_root)
+Sys.setenv(DDESONN_ARTIFACTS_ROOT = .vig_tmp_root)
 knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
   warning = FALSE,
   results = "asis",
-  cache.path = "cache/"
+  cache.path = file.path(.vig_tmp_root, "cache", "")
 )
 
 if (!requireNamespace("DDESONN", quietly = TRUE)) {
@@ -20,9 +25,9 @@ library(DDESONN)
 # ============================================================
 # VIGNETTE SAFETY SWITCH (DEFAULT OFF)
 # ============================================================
-build_artifacts <- FALSE
+build_artifacts <- FALSE && !is_check_env
 
-.dd_out_root <- file.path(tempdir(), "DDESONN_vignette_logs")
+.dd_out_root <- file.path(.vig_tmp_root, "DDESONN_vignette_logs")
 outD <- file.path(.dd_out_root, "scenarioD_ensemble_temp")
 
 if (isTRUE(build_artifacts)) {

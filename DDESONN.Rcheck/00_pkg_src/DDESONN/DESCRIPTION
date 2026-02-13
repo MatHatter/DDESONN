@@ -4,7 +4,27 @@ Title: A Deep Dynamic Experimental Self-Organizing Neural Network
         Framework
 Version: 0.1.0
 Authors@R: c(person("Mathew William", "Armitage Fok", email = "quiksilver67213@yahoo.com", role = c("aut", "cre")))
-Description: High-level helpers for constructing, training, and evaluating Deep Dynamic Experimental Self-Organizing Neural Networks (DDESONN). The package wraps the legacy R6 implementations and exposes a modern API for modelling workflows. Evaluation utilities include ROC and Precision–Recall curves with default AUC/AUPRC annotation, configurable via ddesonn_run() and ddesonn_fit().
+Description: Provides a fully native R deep learning framework for
+    constructing, training, evaluating, and inspecting Deep Dynamic Ensemble
+    Self Organizing Neural Networks at research scale. The core engine is an
+    object oriented R6 implementation with explicit control over layer layout,
+    dimensional flow, forward propagation, backpropagation, and optimizer
+    state updates. Users can define dimension agnostic single layer or deep
+    multi layer networks without hard coded architecture limits, then run
+    reproducible workflows through high level helpers for fit, run, and
+    predict. Training pipelines expose optional self organization, adaptive
+    learning rate behavior, dynamic ensemble orchestration with primary and
+    temporary model promotion, activation and derivative customization, and
+    dropout defaults that can be tuned per scenario. Optimization includes
+    SGD, RMSProp, Adam, and Lookahead with separate weight and bias update
+    blocks plus regularization controls for L1, L2, and mixed penalties.
+    Evaluation features provide threshold tuning, relevance scoring, ROC and
+    Precision Recall curve generation, AUC and AUPRC computation, and report
+    ready metric outputs. The package also includes artifact path management,
+    debug state utilities, reproducible scripts, and vignettes that document
+    end to end experiments. To our knowledge, this represents one of the most
+    extensive end to end native R implementations of a deep dynamic
+    self organizing neural network framework currently available for R users.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -13,9 +33,9 @@ Depends: R (>= 4.1.0)
 Imports: R6, stats, utils, dplyr, openxlsx, tidyr, pROC, PRROC,
         reshape2, digest, ggplot2
 Suggests: testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
-        reticulate, zoo, readxl
+        reticulate, zoo, readxl, tibble
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2026-02-11 21:30:38 UTC; wfky1
+Packaged: 2026-02-13 03:51:35 UTC; wfky1
 Author: Mathew William Armitage Fok [aut, cre]
 Maintainer: Mathew William Armitage Fok <quiksilver67213@yahoo.com>
