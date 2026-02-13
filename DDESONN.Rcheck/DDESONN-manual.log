@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.12)  12 FEB 2026 23:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2026.2.12)  13 FEB 2026 12:25
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -319,16 +319,17 @@ Package hyperref Info: Link coloring ON on input line 8.
 \@outlinefile=\write4
 \openout4 = `Rd2.out'.
 
-LaTeX Font Info:    Trying to load font information for T1+zi4 on input line 55.
+ [1
+
+
+{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/base/8r.enc}]
+LaTeX Font Info:    Trying to load font information for T1+zi4 on input line 62.
  (c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/inconsolata/t1zi4.fd
 File: t1zi4.fd 2018/01/14 T1/zi4 (Inconsolata)
 )
 LaTeX Font Info:    Font shape `T1/zi4/m/n' will be
-(Font)              scaled to size 10.0pt on input line 55.
- [1
-
-
-{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/base/8r.enc}] (./Rd2.toc
+(Font)              scaled to size 10.0pt on input line 62.
+ (./Rd2.toc
 LaTeX Font Info:    Trying to load font information for U+msa on input line 1.
  (c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
@@ -342,29 +343,32 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 
  [2{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/inconsolata/i4-t1-0.enc}] [3] [4] [5]
 LaTeX Font Info:    Font shape `T1/zi4/m/n' will be
-(Font)              scaled to size 9.0pt on input line 310.
- [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16]
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 1027.
+(Font)              scaled to size 9.0pt on input line 317.
+ [6]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [7] [8] [9] [10] [11] [12] [13] [14] [15] [16] [17]
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 1034.
  (c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-Overfull \hbox (15.24756pt too wide) in paragraph at lines 1032--1034
+Overfull \hbox (15.24756pt too wide) in paragraph at lines 1039--1041
 []\T1/ptm/m/n/10 Scenario D ^^U main en-sem-ble plus TEMP it-er-a-tions ([]\T1/zi4/m/n/10 do_ensemble = TRUE[]\T1/ptm/m/n/10 , []\T1/zi4/m/n/10 num_temp_iterations
  []
 
-[17] [18]
+[18]
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [19]
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [20] [21]
-LaTeX Font Info:    Trying to load font information for TS1+zi4 on input line 1296.
+LaTeX Font Info:    Trying to load font information for TS1+zi4 on input line 1303.
  (c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/tex/latex/inconsolata/ts1zi4.fd
 File: ts1zi4.fd 2018/01/14 TS1/zi4 (Inconsolata)
 )
 LaTeX Font Info:    Font shape `TS1/zi4/m/n' will be
-(Font)              scaled to size 10.0pt on input line 1296.
+(Font)              scaled to size 10.0pt on input line 1303.
  [22{c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/enc/dvips/inconsolata/i4-ts1.enc}] (./Rd2.ind [23]
 
 LaTeX Font Warning: Font shape `T1/zi4/m/it' undefined
@@ -559,13 +563,13 @@ Package rerunfilecheck Info: File `Rd2.out' has not changed.
 Here is how much of TeX's memory you used:
  10518 strings out of 469514
  161152 string characters out of 5468199
- 566777 words of memory out of 5000000
+ 565777 words of memory out of 5000000
  38802 multiletter control sequences out of 15000+600000
  661382 words of font info for 81 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 92i,6n,95p,307b,782s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 92i,6n,95p,307b,780s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/inconsolata/Inconsolata-zi4r.pfb><c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb><c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/Users/wfky1/AppData/Roaming/TinyTeX/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on Rd2.pdf (25 pages, 134290 bytes).
+Output written on Rd2.pdf (25 pages, 134806 bytes).
 PDF statistics:
  564 PDF objects out of 1000 (max. 8388607)
  518 compressed objects within 6 object streams

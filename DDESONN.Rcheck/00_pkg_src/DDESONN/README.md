@@ -15,19 +15,20 @@ The root `README.md` (this file) is the canonical public-facing README for users
 ## Table of contents
 1. Project overview
 2. Core capabilities
-3. Architecture
-4. Project timeline
-5. Repository structure
-6. Getting started
-7. Running the examples
-8. Datasets
-9. Reproducibility
-10. Roadmap
-11. To-Do (Active Work)
-12. Contributing
-13. License
-14. Other work by the author
-15. Contact
+3. Advanced Customization
+4. Architecture
+5. Project timeline
+6. Repository structure
+7. Getting started
+8. Running the examples
+9. Datasets
+10. Reproducibility
+11. Roadmap
+12. To-Do
+13. Contributing
+14. License
+15. Other work by the author
+16. Contact
 
 ---
 
@@ -46,7 +47,7 @@ DDESONN blends self-organizing principles with modern deep-learning practices to
 
 The primary design objective of DDESONN is to provide a fully customizable, entirely R-native neural network codebase and framework, intentionally avoiding external deep-learning backend library dependencies to preserve full architectural control and transparency.
 
-#### What DDESONN is
+### What DDESONN is
 
 DDESONN is a fully native R framework for constructing, training, evaluating,
 and inspecting Deep Dynamic Ensemble Self-Organizing Neural Networks.
@@ -55,6 +56,23 @@ The package is designed for users who need direct control over model
 architecture, optimization behavior, and training workflow details rather than
 black-box abstractions. It exposes both high-level helpers and inspectable
 low-level behavior for reproducible neural-network experimentation in R.
+
+### Native Implementation (No External Deep Learning Backends)
+
+DDESONN is implemented entirely in R and does **not** rely on external
+deep-learning computational backends (e.g., TensorFlow, Torch, or compiled
+GPU runtimes). All forward propagation, backpropagation, optimizer state
+updates, and ensemble orchestration are handled directly within the R codebase.
+
+This design choice ensures:
+
+- Full inspectability of internal model state
+- Transparent dimensional flow and gradient behavior
+- Reproducible numerical execution without hidden backend logic
+- Architectural control at the layer, optimizer, and update-block level
+
+The framework is intentionally explicit rather than abstracted behind
+external engine calls.
 
 ---
 
@@ -157,6 +175,9 @@ Example template (R-style pseudo you can adapt):
 - Separate weight and bias update logic in dedicated update blocks.
 - L1, L2, and mixed regularization for both weights and biases.
 - Optional learning-rate scheduling via training overrides.
+- Optimizer and activation selection is available through the public API
+  (`ddesonn_model(...)`, `ddesonn_fit(...)`, and
+  `ddesonn_run(training_overrides = list(optimizer = ..., activation_functions = ...))`).
 - User-controllable self-organization toggle (`self_org`) through:
   - `ddesonn_fit()`
   - `ddesonn_run(training_overrides = ...)`
@@ -171,9 +192,44 @@ Example template (R-style pseudo you can adapt):
 
 #### Ensemble & Orchestration
 
-- Dynamic ensemble orchestration.
-- Primary and temporary model promotion.
-- Metadata tracking and structured relevance scoring.
+DDESONN supports structured dynamic ensemble orchestration built around
+a **Primary (Main) Ensemble** and one or more **Temporary (Challenger)
+Ensembles**.
+
+The workflow operates conceptually as:
+
+- Temporary ensembles are trained and evaluated  
+- Performance is measured under user-selected metrics  
+- Models may be promoted from Temporary to Main  
+- Underperforming models may be pruned  
+- The Main ensemble evolves over iterations  
+
+This architecture allows controlled model competition under a chosen
+metric (e.g., loss, F1, AUC, relevance score).
+
+In practical terms:
+
+- You can run multiple temporary ensemble iterations  
+- Select a metric to govern promotion  
+- Build a progressively refined main ensemble  
+- Compare stability across seeds and iterations  
+
+This design mirrors a **champion vs challenger** structure while remaining
+fully metric-driven and reproducible.
+
+Current vignettes demonstrate ensemble scenarios. A future vignette will
+provide a focused walkthrough of main vs temporary promotion logic,
+metric-based pruning, and multi-iteration refinement.
+
+- Dynamic ensemble orchestration.  
+- MAIN/TEMP metric-based replacement flow (remove worst MAIN, insert best TEMP using the resolved target metric and direction).  
+- Deterministic promotion governed strictly by the selected metric (maximize or minimize).  
+- Metadata tracking and structured relevance scoring across iterations.  
+
+- Public API support for `classification_mode = "binary"`, `"multiclass"`, and `"regression"`.  
+- Binary classification supports threshold tuning, ROC/AUC, precision-recall, and relevance-based evaluation.  
+- Multiclass note: For multiclass classification, `y` should be encoded as integer class indices `1..K` (or a one-hot matrix whose columns follow the model's class order), otherwise accuracy comparisons may be incorrect.  
+- Regression mode supports continuous target prediction with metric-driven evaluation and error diagnostics.
 
 #### Reporting & Integration
 
@@ -185,6 +241,33 @@ Example template (R-style pseudo you can adapt):
   - `plotly`
 - High-level API helpers in `R/api.R` for external integration.
 - Artifact path management and debug-state utilities for reproducibility.
+
+---
+
+## Advanced Customization
+
+While high-level workflows are provided through `ddesonn_run()`,
+`ddesonn_model()`, and `ddesonn_fit()`, the project also includes an
+experimentation script located at:
+
+`inst/scripts/TestDDESONN.R`
+
+This script reflects the original development workflow and provides
+direct, low-level control over the training pipeline, including:
+
+- Optimizer behavior
+- Activation-function selection and derivatives
+- Ensemble configuration
+- Self-organization toggling
+- Training overrides and metric selection
+- Seed-loop experimentation
+
+In this context, nearly every component of the training process can be
+explicitly tuned and inspected.
+
+The current public API exposes structured configuration for most common
+use cases. Future releases may expand first-class API hooks to make
+advanced customization more directly accessible through the public interface.
 
 ---
 
@@ -233,25 +316,29 @@ DDESONN began as an exploratory research project and progressed through several 
 
 Subsequent iterations focused on formalizing the architecture, improving reproducibility, and restructuring the codebase to meet CRAN packaging standards.
 
-- 2024-05-07 - Project origin  
-  The project formally began in May 2024 as a personal research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
+- 2024-05-07 — Project origin  
+  The project formally began as a personal research initiative to design and implement a novel self-organizing neural network framework in R, prioritizing explicit training logic, architectural transparency, and experimental flexibility.
 
-- Initial intensive sprint (approximately 3 months)  
-  Sustained day-in/day-out development. Learning machine learning from first principles was unavoidable in order to design the architecture manually, reason through layer interactions and dimensional flow, identify bottlenecks, and resolve bugs by tracing logic across layers.
+- 2024-05 to 2024-08 — Initial intensive development phase (4 months)  
+  Sustained day-in/day-out development. Machine learning concepts were studied from first principles in order to design the architecture manually, reason through dimensional flow, identify bottlenecks, and resolve deep implementation issues.
 
-- Iterative development (lax / intermittent)  
-  Development continued at a more sustainable pace, refining architectural decisions and expanding functionality while preserving full transparency and custom control.
+- 2024-09 to 2025-06 — Development pause (10 months)  
+  Active development slowed significantly during this period due to full-time professional commitments.
 
-- May 2025 had to relearn and pick back up. Second intensive hardening phase (approximately 3-4 months)  
-  Focused on correctness, stability, optimizer behavior, ensemble reliability, and reproducibility.
+- 2025-06 to 2025-08 — Iterative refinement and hardening phase (3 months)  
+  Work resumed with renewed focus on correctness, optimizer stability, ensemble reliability, and reproducibility. Significant bug-clearing and mathematical alignment improvements were completed during this period.
 
-- End of Sept. 2025 
-  Development paused in late 2025 while focusing on two other high-intensity projects.
+- 2025-09 to 2025-10 — Transitional development and benchmark breakthrough (2 months)  
+  A key multi-seed stability breakthrough was achieved during this period. This led to the creation of the comparative benchmark vignette `DDESONNvKeras_1000Seeds.Rmd`, formally documenting 1,000-seed reproducibility experiments and cross-framework evaluation against Keras. Work during this phase focused on validation rigor, controlled seed sweeps, and structured reproducibility reporting.
 
-- Jan. 2026 - Feb. 2026 (approximately 1.5 months) 
-  Work resumed with emphasis on maintainability, documentation, and long-term research viability.
+- 2025-11 to 2025-12 — Reduced development activity (2 months)  
+  Development intensity decreased substantially as parallel projects required priority. Work during this period was limited.
 
-Earlier checkpoint versions and legacy research code may be published separately in a dedicated archival repository to document the project???s evolution, including early snapshots where some components were not fully retained.
+- 2026-01 to 2026-02 — Final packaging, vignette expansion, and CRAN preparation phase (2 months)  
+  Focus shifted to converting the research framework into a structured, turnkey R package suitable for CRAN distribution. This included API stabilization, documentation alignment, artifact-path standardization, reproducibility controls, and the creation of formal vignettes for guided exploration.  
+  Additional vignettes are planned to further expand structured demonstrations and ensemble deep-dive documentation.
+
+Earlier checkpoint versions and legacy research code may be published separately in a dedicated archival repository to document the project's evolution, including early snapshots where certain components were not fully retained.
 
 ---
 
@@ -437,12 +524,12 @@ paths).** **`predict.ddesonn_model()` / `predict()` = public, canonical user-fac
 that wraps `ddesonn_predict()` and standardizes arguments + output shape + optional
 thresholding.**
 
-Why: internal code uses `ddesonn_predict()` because it-?s a forward-pass primitive
-that-?s faster and easier to control inside training loops (no user-facing return
+Why: internal code uses `ddesonn_predict()` because it's a forward-pass primitive
+that's faster and easier to control inside training loops (no user-facing return
 formatting). User-facing inference should use `predict()` because it provides a
 stable contract (type/aggregate/threshold handling, return structure).
 
-Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model-?s class order), otherwise accuracy comparisons may be incorrect.
+Multiclass note: For multiclass classification, y should be encoded as integer class indices 1..K (or a one-hot matrix whose columns follow the model's class order), otherwise accuracy comparisons may be incorrect.
 
 When `test = list(x = test_x, y = test_y)` is provided, the final run summary
 always includes test loss and test accuracy computed once after training
@@ -468,7 +555,7 @@ API design notes (optional explicit splits):
 
 ### Model usage note (post-training)
 
-Training and validation run inside `ddesonn_run()` and call the model-?s R6
+Training and validation run inside `ddesonn_run()` and call the model's R6
 methods directly.
 
 **Evaluation contract (test data):**
@@ -485,7 +572,7 @@ methods directly.
   **should match** the `ddesonn_run()` test accuracy. Any mismatch indicates a
   threshold or data-handling difference (not a model inconsistency).
 - `ddesonn_run()` is for **evaluation**, while `predict()` is for **inspection,
-  custom metrics, and downstream logic**-?neither replaces the other.
+  custom metrics, and downstream logic** - neither replaces the other.
 - `ddesonn_run()` does **not** return per-row predictions; per-row outputs are
   provided by `predict()` only.
 
@@ -555,7 +642,7 @@ DDESONN supports reproducible experimentation through:
 
 These controls allow experiments to be rerun deterministically, inspected at multiple verbosity levels, and reproduced across systems without hidden state.
 
-#### Vignettes
+### Vignettes
 
 Start with these vignettes in `vignettes/`:
 
@@ -736,6 +823,20 @@ Future releases may explore reference implementations of the DDESONN architectur
 
 The goal would not be to wrap existing deep-learning libraries, but to preserve the same architectural transparency and explicit training logic across languages.
 
+#### R-11 - Main vs Temporary Ensemble Deep-Dive Vignette  
+**Status:** Planned documentation expansion  
+
+A dedicated vignette will formally document:
+
+- Champion vs challenger promotion logic
+- Metric-based pruning and selection
+- Iterative temporary ensemble sweeps
+- Stability analysis across seeds
+- Controlled main-ensemble refinement
+
+This will provide a structured walkthrough of ensemble evolution mechanics
+currently demonstrated in `TestDDESONN.R` and related scripts.
+
 ---
 
 ## To-Do (Design-Linked)
@@ -812,7 +913,7 @@ Linked from: **R-08**
 
 - Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
-- Treat vignettes as the primary -?user education layerfor v1+ releases
+- Treat vignettes as the primary-user education layer for v1+ releases
 
 #### T-10 - Techila distributed experimentation hardening  
 Linked from: **R-09**
@@ -833,8 +934,8 @@ Contributions are welcome and appreciated.
 
 ### Workflow
 
-1. Fork the repository and branch from `main`.
-2. Run existing demos and examples to confirm no regressions.
+1. Fork the repository and create a branch from `main`.
+2. Run existing demos and example scripts to confirm there are no regressions.
 3. Submit a pull request with a clear description and, where applicable, tests or reproducible examples.
 
 ### For Substantive Changes
@@ -843,10 +944,14 @@ If your pull request introduces behavioral changes, architectural adjustments, o
 
 - A clear problem statement  
 - Reproducible scripts or minimal examples  
-- Notes describing expected behavior vs. observed behavior  
-- Any relevant performance or diagnostic output  
+- Notes describing expected behavior versus observed behavior  
+- Any relevant performance metrics or diagnostic output  
 
-This helps ensure that changes remain scientifically traceable and consistent with the design philosophy of DDESONN.
+This ensures that changes remain scientifically traceable and consistent with the design philosophy of DDESONN.
+
+### Optional Integrations (Techila)
+
+Techila support is available for distributed experimentation and large-scale seed sweeps. As distributed environments can vary significantly, contributions and validation feedback related to Techila integration are especially welcome.
 
 ### Areas Where Help Is Especially Valuable
 
@@ -857,7 +962,7 @@ Contributions are particularly appreciated in areas such as:
 - Reporting and diagnostics enhancements (tables, plots, artifacts)  
 - Implementing or refining items in the Roadmap & Design Intent / To-Do list  
 
-If you're interested in helping move the project toward a cleaner and more stable plateau, the Roadmap & To-Do sections are the best place to identify meaningful contribution opportunities.
+If you are interested in helping move the project toward a cleaner and more stable plateau, the Roadmap & To-Do sections are the best place to identify meaningful contribution opportunities.
 
 ---
 

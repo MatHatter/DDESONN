@@ -9,22 +9,29 @@ Description: Provides a fully native R deep learning framework for
     Self Organizing Neural Networks at research scale. The core engine is an
     object oriented R6 implementation with explicit control over layer layout,
     dimensional flow, forward propagation, backpropagation, and optimizer
-    state updates. Users can define dimension agnostic single layer or deep
-    multi layer networks without hard coded architecture limits, then run
-    reproducible workflows through high level helpers for fit, run, and
-    predict. Training pipelines expose optional self organization, adaptive
-    learning rate behavior, dynamic ensemble orchestration with primary and
-    temporary model promotion, activation and derivative customization, and
-    dropout defaults that can be tuned per scenario. Optimization includes
-    SGD, RMSProp, Adam, and Lookahead with separate weight and bias update
-    blocks plus regularization controls for L1, L2, and mixed penalties.
-    Evaluation features provide threshold tuning, relevance scoring, ROC and
-    Precision Recall curve generation, AUC and AUPRC computation, and report
-    ready metric outputs. The package also includes artifact path management,
-    debug state utilities, reproducible scripts, and vignettes that document
-    end to end experiments. To our knowledge, this represents one of the most
-    extensive end to end native R implementations of a deep dynamic
-    self organizing neural network framework currently available for R users.
+    state updates. The framework does not rely on external deep learning
+    backends, enabling transparent inspection of model state, reproducible
+    numerical behavior, and fine-grained architectural control without
+    requiring compiled dependencies or GPU-specific runtimes. Users can define
+    dimension agnostic single layer or deep multi layer networks without hard
+    coded architecture limits, then run reproducible workflows through high
+    level helpers for fit, run, and predict across binary classification,
+    multiclass classification, and regression modes. Training pipelines
+    support optional self organization, adaptive learning rate behavior,
+    and dynamic ensemble orchestration in which candidate models are evaluated
+    under user specified performance metrics and selectively promoted to a
+    primary ensemble, enabling structured model comparison and controlled
+    ensemble evolution. The framework supports multiple optimization
+    approaches, including but not limited to SGD, RMSProp, Adam, and
+    Lookahead, alongside configurable regularization controls such as L1,
+    L2, and mixed penalties with separate weight and bias update blocks.
+    Activation functions and their corresponding derivatives can be specified
+    per model configuration. Evaluation features provide threshold tuning,
+    relevance scoring, ROC and Precision Recall curve generation, AUC and
+    AUPRC computation, regression error diagnostics, and report ready metric
+    outputs. The package also includes artifact path management, debug state
+    utilities, reproducible scripts, and vignettes that document end to end
+    experiments.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -36,6 +43,6 @@ Suggests: testthat, knitr, rmarkdown, foreach, quantmod, randomForest,
         reticulate, zoo, readxl, tibble
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2026-02-13 03:51:35 UTC; wfky1
+Packaged: 2026-02-13 17:19:11 UTC; wfky1
 Author: Mathew William Armitage Fok [aut, cre]
 Maintainer: Mathew William Armitage Fok <quiksilver67213@yahoo.com>

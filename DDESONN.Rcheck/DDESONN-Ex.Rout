@@ -69,7 +69,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x000001e1add41188>
+<bytecode: 0x000001bef8d13188>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -81,7 +81,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x000001e1add41188>
+<bytecode: 0x000001bef8d13188>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -93,7 +93,7 @@ function (x)
     dim(x) <- dim(x)
     return(1/(1 + exp(-x)))
 }
-<bytecode: 0x000001e1ada6ecb0>
+<bytecode: 0x000001bef8a6ecb0>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "sigmoid"
@@ -106,7 +106,7 @@ function (x)
     dim(x) <- dim(x)
     return(ifelse(x > 0, x, 0))
 }
-<bytecode: 0x000001e1add41188>
+<bytecode: 0x000001bef8d13188>
 <environment: namespace:DDESONN>
 attr(,"name")
 [1] "relu"
@@ -114,7 +114,7 @@ attr(,"name")
 [[2]]
 function (x) 
 x
-<bytecode: 0x000001e1afa67350>
+<bytecode: 0x000001befaa6d350>
 <environment: namespace:base>
 attr(,"name")
 [1] "identity"
@@ -723,7 +723,7 @@ function (predicted_output, labels, metric = c("accuracy", "f1",
         tuned_score = as.numeric(tuned_score), tuned_accuracy = as.numeric(tuned_acc), 
         metric_used = metric))
 }
-<bytecode: 0x000001e1ad9312d8>
+<bytecode: 0x000001bef89192d8>
 <environment: namespace:DDESONN>
 
 $ML_NN
@@ -769,7 +769,7 @@ NULL
 > cleanEx()
 > options(digits = 7L)
 > base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  1.86 0.33 2.31 NA NA 
+Time elapsed:  1.4 0.33 1.78 NA NA 
 > grDevices::dev.off()
 null device 
           1 
