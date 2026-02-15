@@ -1,7 +1,7 @@
 Package: DDESONN
 Type: Package
 Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
-Version: 7.1.0
+Version: 7.1.2
 Authors@R: c(person("Mathew William", "Armitage Fok", email = "quiksilver67213@yahoo.com", role = c("aut", "cre")))
 Description: Provides a fully native R deep learning framework for
     constructing, training, evaluating, and inspecting Deep Dynamic Ensemble
@@ -54,6 +54,7 @@ Suggests:
     knitr,
     rmarkdown,
     foreach,
+    techila,
     quantmod,
     randomForest,
     reticulate,
@@ -61,3 +62,5 @@ Suggests:
     readxl,
     tibble
 VignetteBuilder: knitr
+URL: https://github.com/MatHatter/DDESONN
+BugReports: https://github.com/MatHatter/DDESONN/issues

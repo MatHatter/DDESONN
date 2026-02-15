@@ -3,32 +3,38 @@
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
 **Note on multiple README files:**  
-This repository intentionally contains a second README at:
-
-`inst/dev/README.md`
-
-That file is used for development notes, internal context, and in-progress documentation during active experimentation.  
-The root `README.md` (this file) is the canonical public-facing README for users, CRAN, and external contributors.
+This repository also includes `inst/dev/README.md`, which is preserved as a historical development snapshot for archival and safety purposes.  
+The root `README.md` is the canonical public-facing README for users, CRAN, and external contributors.
 
 ---
 
 ## Table of contents
-1. Project overview
-2. Core capabilities
-3. Advanced Customization
-4. Architecture
-5. Project timeline
-6. Repository structure
-7. Getting started
-8. Running the examples
-9. Datasets
-10. Reproducibility
-11. Roadmap
-12. To-Do
-13. Contributing
-14. License
-15. Other work by the author
-16. Contact
+1. Project links
+2. Project overview
+3. Core capabilities
+4. Advanced Customization
+5. Architecture
+6. Project timeline
+7. Repository structure
+8. Getting started
+9. Running the examples
+10. Datasets
+11. Reproducibility
+12. Roadmap
+13. To-Do
+14. Contributing
+15. License
+16. Other work by the author
+17. Contact
+
+---
+
+## Project links
+
+[![GitHub Repo](https://img.shields.io/badge/GitHub-DDESONN-blue?logo=github)](https://github.com/MatHatter/DDESONN)
+
+- **Source code:** [https://github.com/MatHatter/DDESONN](https://github.com/MatHatter/DDESONN)
+- **Issue tracker:** [https://github.com/MatHatter/DDESONN/issues](https://github.com/MatHatter/DDESONN/issues)
 
 ---
 
@@ -80,23 +86,29 @@ external engine calls.
 
 DDESONN exists because I wanted to understand machine learning at a deeper level than "use a library and hope it works."
 
+Neural networks first fascinated me during an Advanced Time Series Analysis course, where I began to appreciate the mathematical structure behind prediction, stability, and model evaluation, and I knew early that understanding these systems deeply—not just using them—would matter long-term. I also remember telling classmates in a business science course that I aspired to publish another package beyond OLR - Optimal Linear Regression, and that commitment quietly stayed with me, eventually evolving into what became DDESONN.
+
 I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into layer by layer, error by error, update by update and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
 
-So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit** and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
+So I built DDESONN to be **inspectable**, **transparent**, and **architecturally explicit**, and I intentionally avoided relying on external neural network or machine learning libraries. That wasn't because I couldn't use them. It was because I wanted to build the full machinery end-to-end and learn what "correct implementation" actually means.
 
 ### The honest story (trials, tribulations, and why it matters)
 
 This package took an extreme amount of time and emotional energy to build.
 
-There were long stretches where I thought it was correct, but still didn't fully trust it. And that uncertainty is hard because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
+There were long stretches where I thought it was correct, but still didn't fully trust it, and that uncertainty is hard because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
 
 I nearly gave up twice.
 
-What kept me going was the belief that I was on the right track - even when the results didn't always look right. In a weird way, life events kept pulling me back onto this path. Every time I stepped away, I came back with more clarity. And every time I came back, I pushed the implementation closer to what it should be.
+What kept me going was the belief that I was on the right track—even when the results didn't always look right. In a strange way, life events kept pulling me back onto this path. Every time I stepped away, I came back with more clarity, and every time I came back, I pushed the implementation closer to what it should be.
 
-As I went deeper, it honestly got scarier - because there were moments where DDESONN looked better than the benchmark models, and other moments where it didn't. That inconsistency can mess with your head when you've invested everything into building it correctly.
+As I went deeper, it honestly got scarier, because there were moments where DDESONN looked better than benchmark models, and other moments where it didn't, and that inconsistency can mess with your head when you've invested everything into building it correctly.
 
-But the turning point wasn't "one magic upgrade." It was the final phase of **clearing out the bugs** and **aligning the implementation to the mathematically correct behavior**. Once those last issues were resolved, the model became dramatically more stable.
+An additional motivation along the way was to benchmark DDESONN against established deep-learning frameworks and push it toward competitive performance. Early on, I set an ambitious target around a 96.00% reference result, but I later realized that some comparison settings were not properly aligned, which forced me to revisit tuning assumptions, correct implementation details, and remove duplicated or misrouted update logic that had subtly distorted behavior. That effectively reset the target and turned the benchmark into a moving goalpost, because once the implementation was aligned correctly, the bar naturally shifted upward.
+
+As performance improved into the high 98% range, the dynamic changed again, because at that level single-run comparisons stopped being meaningful and variance across random seeds began to dominate observed differences. What initially felt like a race toward peak accuracy evolved into a deeper investigation of stability, reproducibility, and distributional behavior across large seed sweeps, where mean performance, standard deviation, and worst-case outcomes mattered more than isolated best runs.
+
+The turning point wasn't one magic upgrade. It was the final phase of clearing out the subtle bugs and aligning the implementation to mathematically correct behavior, eliminating duplicate logic, tightening update flows, and ensuring evaluation consistency. Once those last structural issues were resolved, the model became dramatically more stable.
 
 ### What "better" means here
 
@@ -111,13 +123,46 @@ I mean repeated evaluation across large numbers of randomized initializations (s
 
 At that point, it stopped feeling like "maybe this works" and started feeling like "this is now a stable, correct implementation that competes."
 
+The broader acceleration of AI made this kind of from-scratch, fully inspectable work feel even more important - not as a trend to follow, but as a way to understand what these systems are actually doing.
+
 ### Transparency is the point
 
 DDESONN is built to show you what it's doing.
 
-Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks). High-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
+Even in low-verbosity mode, it exposes the key structural diagnostics (layer dimensions, activation choices, error shapes, and sanity checks), and high-verbosity mode expands that into full step-by-step tracing when you're debugging or studying behavior.
 
-This is not just a model it's an implementation we can learn from.
+This is not just a model — it is an implementation we can learn from.
+
+### AI-Assisted Iteration Disclosure
+
+Artificial intelligence tools were used during development to support
+iteration speed, debugging, refactoring, and documentation drafting.
+
+The primary tools used were:
+
+- ChatGPT  
+- Codex (sparingly)  
+
+Additionally used on a more limited basis:
+
+- Copilot  
+- Blackbox  
+
+While AI tools accelerated iteration, the completion of this project
+required substantial sustained personal effort, discipline, and persistence.
+
+DDESONN was designed with a flexible, research-oriented architecture that
+enables structured ensemble workflows, temporary-to-main model promotion,
+metric-driven refinement, customizable optimization strategies, and
+configurable activation behavior. The innovative ensemble methodology,
+experimental structure, validation logic, user-level customization depth,
+and final implementation authority remained under my direct authorship,
+review, and verification.
+
+AI systems functioned as development accelerators and exploratory aids.
+All architectural design decisions ultimately reflect deliberate human
+direction and sustained independent effort.
+
 
 ---
 
@@ -346,42 +391,18 @@ Earlier checkpoint versions and legacy research code may be published separately
 
 DDESONN/
 ├── R/
-│   ├── DDESONN-package.R
-│   ├── DDESONN.R
-│   ├── activation_functions.R
-│   ├── aliases.R
-│   ├── api.R
-│   ├── evaluate_predictions_report.R
-│   ├── optimizers.R
-│   ├── paths.R
-│   ├── performance_relevance_metrics.R
-│   ├── predict.R
-│   ├── state.R
-│   ├── update_biases_block.R
-│   ├── update_weights_block.R
-│   └── utils.R
-│
+├── man/
+├── vignettes/
 ├── inst/
 │   ├── dev/
 │   │   └── README.Rmd
 │   ├── extdata/
-│   │   ├── WMT_1970-10-01_2025-03-15.csv
-│   │   ├── heart_failure_clinical_records.csv
-│   │   ├── test_multiclass_customer_segmentation.csv
-│   │   └── train_multiclass_customer_segmentation.csv
 │   └── scripts/
-│       ├── DDESONN_mtcars_A-D_examples.R
-│       ├── DDESONN_mtcars_A-D_examples_regression.R
-│       ├── Heart_failure_ScenarioA.R
-│       ├── LoadandPredict.R
-│       └── TestDDESONN.R
-│
-├── man/
-├── vignettes/
 ├── DESCRIPTION
 ├── NAMESPACE
-├── DDESONN.Rproj
 ├── README.md
+├── .Rbuildignore
+├── .gitignore
 ├── LICENSE
 └── LICENSE.md
 
@@ -405,6 +426,12 @@ Bash:
 
     git clone https://github.com/MatHatter/DDESONN.git
     cd DDESONN
+
+Install the development version directly from GitHub (optional):
+
+```r
+remotes::install_github("MatHatter/DDESONN")
+```
 
 Inside R:
 
@@ -931,7 +958,7 @@ Evaluate architectural portability and determine minimal core components require
 
 ## Contributing
 
-Contributions are welcome and appreciated.
+Contributions are welcome and appreciated. For bugs, feature requests, and collaboration discussion, please use the GitHub issues page: [https://github.com/MatHatter/DDESONN/issues](https://github.com/MatHatter/DDESONN/issues).
 
 ### Workflow
 

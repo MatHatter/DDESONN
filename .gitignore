@@ -79,3 +79,10 @@ EvaluatePredictionsReportPlots/**/*.rds
 
 /doc/
 /Meta/
+
+
+
+# Local R CMD check/build directories
+/*.Rcheck/
+/..Rcheck/
+/DDESONN.Rcheck/

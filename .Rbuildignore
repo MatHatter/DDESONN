@@ -8,14 +8,6 @@
 # - FIX: tighten README.html and ensure it's excluded
 # ============================================================
 
-# Dev-only folders
-^inst/dev$ 
-^inst/dev/.*$
-
-# MVP / experimental work
-^_DDESONN_MVP_Test$
-^_DDESONN_MVP_Test/.*$
-
 # RStudio / IDE
 ^\.Rproj\.user$
 ^\.Rhistory$

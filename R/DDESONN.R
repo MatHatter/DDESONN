@@ -21,6 +21,16 @@
 
 # Step 1: Define the Self-Organizing Neural Network (SONN) class
 
+#' SONN R6 class
+#'
+#' Internal legacy R6 class backing the SONN engine.
+#' Future proof when build out SONN.Rd in DDESONN/man
+#' 
+#' @name SONN_R6
+#' @docType data
+#' @keywords internal
+NULL
+
 SONN <- R6::R6Class( 
   "SONN",
   lock_objects = FALSE,
@@ -3173,6 +3183,16 @@ return(list(
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 # Step 2: Define the Deep Dynamic Experimental of Self-Organizing Neural Networks (DDESONN) class
+
+#' DDESONN R6 class
+#'
+#' Internal R6 class backing the DDESONN framework.
+#'
+#' @name DDESONN_R6
+#' @docType data
+#' @keywords internal
+NULL
+
 DDESONN <- R6::R6Class( 
   "DDESONN",
   lock_objects = FALSE,

@@ -299,7 +299,7 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #'   classification_mode = "binary"
 #' )
 #'
-#' @seealso [DDESONN]
+#' @seealso [DDESONN-package]
 #' @export
 ddesonn_model <- function(input_size,  
                           output_size,  
@@ -421,7 +421,7 @@ ddesonn_model <- function(input_size,
 #'   validation_metrics = FALSE         # disable validation metric pass in this example
 #' )
 #'
-#' @seealso [DDESONN]
+#' @seealso [DDESONN-package]
 #' @export
 ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  
   if (!inherits(model, "ddesonn_model")) {
@@ -1120,9 +1120,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
       cat("\n```text\n")                                                             
     }                                                                                
     
-    cat("\n# ===========================================================\n")
+    cat("\n# ================================================================================\n")
     cat("# ================================= CORE METRICS =================================\n")
-    cat("# ===========================================================\n")
+    cat("# ================================================================================\n\n")
     
     # FIX: print stacked lines (do NOT rely on HTML respecting \n unless fenced)     
     cat(paste(summary_lines, collapse = "\n"), "\n")                                 
@@ -1413,7 +1413,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
 
 
 
-
 #' @title Generate predictions from a fitted `ddesonn_model`
 #' @description Internal prediction engine / forward-pass primitive that
 #'   produces ensemble or per-model predictions from a trained `ddesonn_model`.
@@ -1437,15 +1436,58 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
 #'   per-model outputs when `aggregate = "none"`.
 #'
 #' @examples
+#' # ============================================================
+#' # Example 1 — Manual API (minimal, CRAN-safe)
+#' # ============================================================
+#' # This is the base mtcars binary classification example.
+#' # The exact same setup is used again below in the full workflow script.
+#'
 #' data <- mtcars
-#' x <- data[, c("disp", "hp", "wt", "qsec", "drat")]
-#' y <- data$am
-#' model <- ddesonn_model(input_size = ncol(x), output_size = 1, hidden_sizes = 8)
-#' ddesonn_fit(model, x, y, num_epochs = 1, lr = 0.05, validation_metrics = FALSE)
+#' target <- "am"
+#' features <- setdiff(colnames(data), target)
+#'
+#' x <- data[, features]
+#' y <- data[[target]]
+#'
+#' model <- ddesonn_model(
+#'   input_size = ncol(x),
+#'   output_size = 1,
+#'   hidden_sizes = c(32, 16),
+#'   classification_mode = "binary",
+#'   activation_functions = c("relu", "relu", "sigmoid"),
+#'   activation_functions_predict = c("relu", "relu", "sigmoid"),
+#'   num_networks = 1
+#' )
+#'
+#' ddesonn_fit(
+#'   model,
+#'   x,
+#'   y,
+#'   num_epochs = 3,
+#'   lr = 0.02,
+#'   validation_metrics = FALSE
+#' )
+#'
 #' preds <- ddesonn_predict(model, x)
 #' head(preds$prediction)
 #'
-#' @seealso [DDESONN]
+#' # ============================================================
+#' # Example 2 — Same example, extended (A–D scenarios)
+#' # ============================================================
+#' # This is the SAME mtcars example shown above.
+#' # The only difference is that the full script adds:
+#' # - train/validation/test splitting
+#' # - scaling (fit on training data)
+#' # - ensemble configurations
+#' # - scenario orchestration (A–D)
+#'
+#' # View the full version of this same example:
+#' system.file("scripts", "DDESONN_mtcars_A-D_examples.R", package = "DDESONN")
+#'
+#' # Repository path:
+#' # /DDESONN/inst/scripts/DDESONN_mtcars_A-D_examples.R
+#' 
+#' @seealso [DDESONN-package]
 #' @export
 ddesonn_predict <- function(model, new_data,  
                             aggregate = c("mean", "median", "none"),  

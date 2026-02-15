@@ -29,7 +29,7 @@ This vignette shows **DDESONN** results across **1000 seeds** (two 500-seed runs
 The four RDS artifacts included with the package are under:
 
 ```
-inst/extdata/hf_runs/
+inst/extdata/heart_failure_runs/
 │
 ├─ run1/
 │   ├─ SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds
@@ -40,7 +40,7 @@ inst/extdata/hf_runs/
     └─ SingleRun_Test_Metrics_500_seeds_20251026.rds
 ```
 
-Each folder is one **500-seed** single-run performed locally; together they form the 1000-seed composite.
+Each folder represents one **500-seed** single-run performed locally; together they form the 1000-seed composite.
 
 ---
 
@@ -50,7 +50,7 @@ This vignette addresses a focused research question:
 
 > **Can a fully R-native, from-first-principles neural network implementation achieve competitive statistical stability against an established deep-learning framework under repeated randomized initialization?**
 
-The comparison to Keras serves as a reference benchmark, not as an implementation template. DDESONN was built independently from scratch and was not derived from or based on Keras source code. Aside from a brief high-level review to get a general sense of benchmarking conventions and API structure, all implementation and architectural decisions were made independently.
+The comparison to Keras serves as a reference benchmark, not as an implementation template. DDESONN was built independently from scratch and was not derived from or based on Keras source code. Aside from a brief high-level review to understand benchmarking conventions, all implementation and architectural decisions were made independently.
 
 The objective of the 1000-seed experiment is not to highlight a single favorable run, but to evaluate **distributional behavior across seeds**. In this context, “competitive” refers to:
 
@@ -58,13 +58,13 @@ The objective of the 1000-seed experiment is not to highlight a single favorable
 - variance and standard deviation of outcomes,
 - worst-case behavior under identical dataset and metric definitions.
 
-The comparison therefore evaluates implementation correctness, training stability, and reproducibility under stress — not code replication or framework mirroring.
+The comparison evaluates implementation correctness, training stability, and reproducibility under stress — not code replication or framework mirroring.
 
 ---
 
 ## Load DDESONN runs and build the summary
 
-```{r ddesonn-summary, message=FALSE}
+```{r ddesonn-summary}
 suppressPackageStartupMessages({
   library(dplyr)
   library(tibble)
@@ -74,41 +74,38 @@ suppressPackageStartupMessages({
   get("ddesonn_viewTables", envir = asNamespace("DDESONN"))(x, title = title, ...)
 }
 
-# Locate package data root
-hf_root <- system.file(
-  "extdata", "hf_runs",
+heart_failure_root <- system.file(
+  "extdata", "heart_failure_runs",
   package = "DDESONN"
 )
 
-# ---- Define RDS paths ----
+stopifnot(nzchar(heart_failure_root))
+
 train_run1_path <- file.path(
-  hf_root, "run1",
+  heart_failure_root, "run1",
   "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds"
 )
 test_run1_path <- file.path(
-  hf_root, "run1",
+  heart_failure_root, "run1",
   "SingleRun_Test_Metrics_500_seeds_20251025.rds"
 )
 train_run2_path <- file.path(
-  hf_root, "run2",
+  heart_failure_root, "run2",
   "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds"
 )
 test_run2_path <- file.path(
-  hf_root, "run2",
+  heart_failure_root, "run2",
   "SingleRun_Test_Metrics_500_seeds_20251026.rds"
 )
 
-# Read the four files
 train_run1 <- readRDS(train_run1_path)
 test_run1  <- readRDS(test_run1_path)
 train_run2 <- readRDS(train_run2_path)
 test_run2  <- readRDS(test_run2_path)
 
-# Combine
 train_all <- dplyr::bind_rows(train_run1, train_run2)
 test_all  <- dplyr::bind_rows(test_run1,  test_run2)
 
-# Per-seed tables
 train_seed <- train_all %>%
   group_by(seed) %>%
   slice_max(order_by = best_val_acc, n = 1, with_ties = FALSE) %>%
@@ -131,7 +128,6 @@ test_seed <- test_all %>%
 merged <- inner_join(train_seed, test_seed, by = "seed") %>%
   arrange(seed)
 
-# Helper to summarize a numeric vector
 summarize_column <- function(x) {
   pct <- function(p) stats::quantile(x, probs = p, names = FALSE, type = 7)
   data.frame(
@@ -165,47 +161,33 @@ pretty_summary <- as.data.frame(lapply(summary_all, round4))
 .vtbl(pretty_summary, title = "DDESONN — 1000-seed summary (train/val/test)")
 ```
 
-If you want to inspect individual seeds:
-
-```{r ddesonn-merged-preview}
-.vtbl(head(merged, 10), title = "First 10 seeds — per-seed train/val/test accuracies")
-```
-
 ---
 
 ## Keras parity (Excel, Sheet 2)
 
-Keras parity results are stored in an Excel workbook as **raw and summary tables**.  
-If you ship the file with the package, place it at:
+Keras parity results are stored in an Excel workbook included with the package under:
 
 ```
-inst/extdata/vKeras/1000SEEDSRESULTSvkeras/1000seedsKeras.xlsx
+inst/extdata/vKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx
 ```
 
-```{r keras-summary, message=FALSE}
+The file is accessed programmatically using `system.file()` to ensure CRAN-safe, cross-platform installation paths.
+
+```{r keras-summary}
 if (!requireNamespace("readxl", quietly = TRUE)) {
   message("Skipping keras-summary chunk: 'readxl' not installed.")
 } else {
-  suppressPackageStartupMessages(library(readxl))
-  # ... rest of your chunk code ...
-}
+  keras_path <- system.file(
+    "extdata", "vsKeras", "1000SEEDSRESULTSvsKeras", "1000seedsKeras.xlsx",
+    package = "DDESONN"
+  )
 
-keras_pkg_path <- system.file(
-  "extdata", "vKeras", "1000SEEDSRESULTSvkeras", "1000seedsKeras.xlsx",
-  package = "DDESONN"
-)
-
-keras_local_fallback <- file.path(
-  "helpfulFiles", "vKeras", "1000SEEDSRESULTSvkeras", "1000seedsKeras.xlsx"
-)
-
-keras_path <- if (nzchar(keras_pkg_path)) keras_pkg_path else keras_local_fallback
-
-if (file.exists(keras_path)) {
-  keras_stats <- readxl::read_excel(keras_path, sheet = 2)
-  .vtbl(keras_stats, title = "Keras — 1000-seed summary imported from Excel (Sheet 2)")
-} else {
-  cat("Keras Excel not found; expected either the packaged path or local fallback.\n")
+  if (nzchar(keras_path) && file.exists(keras_path)) {
+    keras_stats <- readxl::read_excel(keras_path, sheet = 2)
+    .vtbl(keras_stats, title = "Keras — 1000-seed summary (Sheet 2)")
+  } else {
+    cat("Keras Excel not found in installed package.\n")
+  }
 }
 ```
 
@@ -213,32 +195,17 @@ if (file.exists(keras_path)) {
 
 ## Reproducibility notes
 
-- These results aggregate **two 500-seed runs** done locally.  
-- A **master seed was not set** for those two local runs, so full reproducibility was not guaranteed at the time.  
-- This was not intentional; the focus then was validating self-organizing + backprop logic at scale.  
-- **DDESONN** now sets a master seed in `TestDDESONN_1000seeds.R`.  
-- **Keras** parity has been coded to do the same in `TestKERAS_1000seeds.py`.  
-- Keras raw/summary outputs are compiled in `1000seedsKeras.xlsx` for side-by-side comparison.
-
-### Planned re-runs
-
-1) **DDESONN:** I will re-run the full **1000 seeds** (Techila or local) because I now compute **AUC/ROC** in addition to accuracy, enabled by the inclusion of the **pretty RDS tables** for **train**, **validation**, and **test** (initially only **test** had pretty tables).  
-2) **Keras:** I will re-run **1000 seeds** (Techila or local) with a synchronized **master seed** and publish a **new version of this vignette** with the updated numbers.
+- These results aggregate **two 500-seed runs** done locally.
+- A master seed was not set for those two original runs.
+- DDESONN now sets a master seed in `TestDDESONN_1000seeds.R`.
+- Keras parity sets a synchronized master seed in `TestKERAS_1000seeds.py`.
+- Keras raw and summary outputs are compiled in `1000seedsKeras.xlsx` under `inst/extdata/vKeras/1000SEEDSRESULTSvsKeras/`.
 
 ---
 
 ## Distributed execution (scaling note)
 
-The results presented in this vignette were computed using **local execution**.
+The results shown here were computed locally.
 
-For experiments involving:
+For large-scale experiments (hundreds to thousands of seeds), DDESONN can be executed in distributed environments to significantly reduce wall-clock time. Distributed tooling and development-stage orchestration scripts are maintained in the GitHub repository and intentionally excluded from the CRAN build so that this vignette remains focused on validated results and methodology.
 
-- hundreds to thousands of randomized seeds  
-- deep models or long training horizons (many epochs)  
-- repeated sweeps across hyperparameters or architectures  
-
-DDESONN can be run in distributed environments to reduce wall-clock time substantially.
-
-Techila Distributed Computing Engine is one supported option for parallelizing over seeds/experiment indices without changing model logic. The distributed tooling and development-stage scripts are intentionally documented under `inst/dev` so that this vignette remains focused on validated results and methodology.
-
----

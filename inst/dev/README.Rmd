@@ -1,181 +1,80 @@
----
-title: "DDESONN — Development & Background Materials (`inst/dev`)"
-output:
-  html_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
----
+# Techila Distributed Execution
 
-## What is this folder?
+This directory contains optional scripts for running DDESONN experiments in a distributed Techila environment.
 
-This directory contains **development-stage, historical, and exploratory materials** created during the evolution of **DDESONN**.
+These scripts:
 
-Nothing in this folder is required to use the package, and nothing here is executed automatically.  
-It exists as a **read-only archive of background work** that may be useful to advanced users, researchers, or those curious about how the current architecture came to be.
+- Use the installed **DDESONN** package API (no `source()` / no direct `R/` file loading)
+- Require a configured **Techila** backend
+- Are **not required** for standard package usage
 
-Think of this folder as **optional context** — not supported API surface.
+DDESONN behaves the same in local execution mode. Techila is provided only to reduce wall-clock time for large experiment runs.
 
 ---
 
-## Where is the official documentation?
+## Why parallel processing is ideal here
 
-**Official, supported documentation lives outside this folder.**
+DDESONN workflows often involve **many independent runs** that are naturally parallelizable:
 
-Authoritative materials are provided through:
+- randomized seed sweeps (e.g., 100–1,000 seeds)
+- ensemble / temp-ensemble runs
+- longer training schedules (e.g., 360+ epochs)
 
-- 📘 **Package vignettes** under `vignettes/`
-- 📄 Reproducible analyses, benchmarks, and methodology write-ups
+Each run is typically **independent** (different seed, different ensemble member, or different iteration), so it can be dispatched to its own worker. This avoids waiting for runs sequentially, which quickly becomes cumbersome when each training job takes meaningful time.
 
-If you are looking for **canonical explanations, validated results, or supported workflows**, the vignettes are the correct place to start.
+As a concrete benchmark reference from development: a 1,000-seed Keras comparison sweep took roughly **~2 days** end-to-end (about **~1 hour per 100 seeds**, give or take), largely because sequential execution compounds wall-clock time. The same principle applies to DDESONN: once you run higher epoch counts (e.g., >10, and especially ~360), waiting per-run becomes significant, and parallel execution becomes the practical option for large sweeps.
 
-Everything in `inst/dev` should be viewed as **background and context**, not the final word.
+Techila is most beneficial when:
 
----
+- you are running **many seeds** (hundreds/thousands)
+- you are running **ensembles** (multiple models)
+- you are using **higher epoch counts** (e.g., 360+)
+- you want throughput without changing model behavior
 
-## What kind of material is included here?
-
-This folder intentionally aggregates a variety of **pre-packaging and exploratory artifacts**, including:
-
-- Early MVP scripts and experiment runners  
-- Script-style local workflows that source files directly  
-- Experimental optimizers, metrics, and update logic  
-- Techila-based distributed experiment runners and diagnostics  
-- Keras comparison scripts (R and Python)  
-- CSV/XLSX dumps from large randomized seed sweeps  
-- One-off checks, proofs, and sanity tests  
-
-These materials reflect how the work was originally developed **before** being refactored into a formal R package.
-
-Some users may find these files helpful as:
-
-- reference implementations  
-- inspiration for custom workflows  
-- examples of large-scale experimentation  
-- historical context for architectural decisions  
-
-Others may safely ignore them.
-
-Both are valid.
+Parallelization does not change the model logic or results — it reduces wall-clock time by distributing independent runs across workers.
 
 ---
 
-## Techila usage and why it appears here
+## Execution runners
 
-You will find **Techila-related runs and scripts** in this folder that are **not package-ready by design**.
-
-Specifically:
-
-- Scripts may source one another directly  
-- Code may assume a local project directory structure  
-- Files reflect iterative, exploratory development patterns  
-
-This is intentional.
-
-These artifacts preserve the **original experimental environment** used during development and benchmarking, rather than forcing everything into package conventions after the fact.
-
-### Why Techila matters
-
-Techila allows DDESONN experiments to scale efficiently when:
-
-- running hundreds or thousands of randomized seeds  
-- training deep models or long-epoch architectures  
-- executing large validation or ablation sweeps  
-
-Even **single-run experiments** can benefit when training is computationally expensive.
-
-However:
-
-- Techila is **optional**
-- Techila is **not required** to use DDESONN
-- Techila does **not** change model behavior or results
-
-It only reduces wall-clock execution time.
-
----
-
-## MVP runners and execution styles
-
-You will encounter multiple runner patterns in this folder.
-
-### Script-style MVP runners
+Two execution modes are provided for parity and validation:
 
 - `single_runner_local_mvp.R`  
-  → Local machine, script-style execution that closely mirrors early research workflows
+  Local execution using the installed DDESONN package. Useful for baseline validation and reproducibility.
 
 - `single_runner_techila_mvp.R`  
-  → Same concept, but distributed across Techila workers
+  Distributed execution via Techila. Intended for large-scale or computationally intensive runs.
 
-These MVP runners intentionally mirror the **classic monolithic script style** rather than the package API.  
-They exist to preserve parity with early experimentation and benchmarking runs.
-
-### API-style runners
-
-Files that rely on `api.R` represent a **decomposed, callable entry-point approach** rather than a single monolithic script.
-
-They are still development-stage artifacts and are **not meant to mirror package usage line-for-line**, but they illustrate how core logic was modularized over time.
+Both runners call the same DDESONN package API and are designed to produce comparable outputs.
 
 ---
 
-## Why this differs from CRAN package behavior
+## Requirements
 
-Many files under:
+To run Techila scripts, you must have:
 
-```
-inst/dev/helpfulFiles/techilaRuns/
-```
+- The **DDESONN** package installed
+- The **foreach** and **techila** packages installed
+- A working Techila configuration on the machine submitting the job
 
-behave like a **research repository**, not a CRAN-facing package.
-
-In particular:
-
-- Scripts explicitly `source()` other scripts  
-- Assumptions are made about working directories  
-- Execution is imperative rather than namespace-driven  
-
-This is exactly why these materials live **outside** the supported package runtime.
-
-They are preserved for transparency and potential reuse — not as supported tooling.
+Techila is optional and is listed under `Suggests` in the package metadata.
 
 ---
 
-## Notes on historical files
+## Alternative parallel infrastructure
 
-Files such as:
+While these scripts focus on Techila, the same distributed-run pattern
+can be implemented using other parallel compute environments.
 
-- `TestDDESONN_original.R`  
-- `evaluate_predictions_report_original.R`  
+Examples include:
 
-are included to preserve **earlier development phases**.
+- Microsoft Azure virtual machines or batch compute services
+- Amazon Web Services (EC2, Batch, or similar)
+- Any multi-core or multi-node cluster environment
 
-These versions reflect a time when:
+DDESONN’s seed-based and ensemble-based workflows are naturally
+parallelizable because individual runs are independent.
 
-- reporting logic was less structured  
-- plot output paths were not yet standardized  
-- newer plot toggling and artifact workflows did not exist  
-
-They are retained as historical reference points only.
-
----
-
-## What this folder is NOT
-
-To be explicit, this directory is **not**:
-
-- part of the public DDESONN API  
-- required to install or use the package  
-- guaranteed to be stable  
-- actively maintained or refactored  
-- executed during normal package usage  
-
-All supported functionality is exposed through the package itself and documented in the main README and vignettes.
-
----
-
-## Summary
-
-- Use **package vignettes** for official documentation and results  
-- Browse **inst/dev** for background, history, and experimentation context  
-- Ignore this folder entirely if you simply want to use DDESONN  
-
-This directory exists to provide **context, transparency, and optional insight** — nothing more.
+If you implement and validate an alternative parallel backend that
+preserves output parity with the local runner, contributions are
+welcome via pull request.
