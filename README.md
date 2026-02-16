@@ -2,8 +2,8 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-**Note on multiple README files:**  
-This repository also includes `inst/dev/README.md`, which is preserved as a historical development snapshot for archival and safety purposes.  
+**Documentation structure:**  
+This repository also includes `inst/scripts/techila/README.Rmd`, which provides Techila/distributed-run notes and execution guidance.  
 The root `README.md` is the canonical public-facing README for users, CRAN, and external contributors.
 
 ---
@@ -387,24 +387,47 @@ Earlier checkpoint versions and legacy research code may be published separately
 
 ---
 
-## Repository structure
+## Repository Structure
 
+```text
 DDESONN/
 ├── R/
 ├── man/
 ├── vignettes/
+│   ├── DDESONNvKeras_1000Seeds.Rmd
+│   ├── logs_scenarioD_ensemble_runs_temp_iterations.Rmd
+│   ├── plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd
+│   └── plot-controls_scenario1-2_single-run_scenarioA.Rmd
+│
 ├── inst/
-│   ├── dev/
-│   │   └── README.Rmd
 │   ├── extdata/
+│   │   ├── heart_failure_clinical_records.csv
+│   │   ├── train_multiclass_customer_segmentation.csv
+│   │   ├── test_multiclass_customer_segmentation.csv
+│   │   ├── WMT_1970-10-01_2025-03-15.csv
+│   │   ├── heart_failure_runs/
+│   │   │   ├── run1/
+│   │   │   └── run2/
+│   │   └── vsKeras/
+│   │       └── 1000SEEDSRESULTSvsKeras/
+│   │
 │   └── scripts/
+│       ├── DDESONN_mtcars_A-D_examples.R
+│       ├── DDESONN_mtcars_A-D_examples_regression.R
+│       ├── Heart_failure_ScenarioA.R
+│       ├── LoadandPredict.R
+│       ├── TestDDESONN.R
+│       └── techila/
+│           ├── README.Rmd
+│           ├── single_runner_local_mvp.R
+│           └── single_runner_techila_mvp.R
+│
 ├── DESCRIPTION
 ├── NAMESPACE
 ├── README.md
-├── .Rbuildignore
-├── .gitignore
 ├── LICENSE
 └── LICENSE.md
+```
 
 ---
 
