@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>DDESONN vs Keras — 1000-Seed Summary — Heart Failure</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">DDESONN vs Keras — 1000-Seed Summary —
+Heart Failure</h1>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>This vignette shows <strong>DDESONN</strong> results across
+<strong>1000 seeds</strong> (two 500-seed runs) and compares them with a
+<strong>Keras</strong> parity run compiled in an Excel workbook.</p>
+<div id="where-the-demo-data-lives" class="section level3">
+<h3>Where the demo data lives</h3>
+<p>The four RDS artifacts included with the package are under:</p>
+<pre><code>inst/extdata/heart_failure_runs/
+│
+├─ run1/
+│   ├─ SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds
+│   └─ SingleRun_Test_Metrics_500_seeds_20251025.rds
+│
+└─ run2/
+    ├─ SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds
+    └─ SingleRun_Test_Metrics_500_seeds_20251026.rds</code></pre>
+<p>Each folder represents one <strong>500-seed</strong> single-run
+performed locally; together they form the 1000-seed composite.</p>
+<hr />
+</div>
+<div id="motivation-and-comparison-philosophy" class="section level3">
+<h3>Motivation and comparison philosophy</h3>
+<p>This vignette addresses a focused research question:</p>
+<blockquote>
+<p><strong>Can a fully R-native, from-first-principles neural network
+implementation achieve competitive statistical stability against an
+established deep-learning framework under repeated randomized
+initialization?</strong></p>
+</blockquote>
+<p>The comparison to Keras serves as a reference benchmark, not as an
+implementation template. DDESONN was built independently from scratch
+and was not derived from or based on Keras source code. Aside from a
+brief high-level review to understand benchmarking conventions, all
+implementation and architectural decisions were made independently.</p>
+<p>The objective of the 1000-seed experiment is not to highlight a
+single favorable run, but to evaluate <strong>distributional behavior
+across seeds</strong>. In this context, “competitive” refers to:</p>
+<ul>
+<li>mean performance across many randomized initializations,</li>
+<li>variance and standard deviation of outcomes,</li>
+<li>worst-case behavior under identical dataset and metric
+definitions.</li>
+</ul>
+<p>The comparison evaluates implementation correctness, training
+stability, and reproducibility under stress — not code replication or
+framework mirroring.</p>
+<hr />
+</div>
+</div>
+<div id="load-ddesonn-runs-and-build-the-summary" class="section level2">
+<h2>Load DDESONN runs and build the summary</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">suppressPackageStartupMessages</span>({</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="fu">library</span>(dplyr)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="fu">library</span>(tibble)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>})</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">&quot;DDESONN&quot;</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">&quot;DDESONN not installed in this build session; skipping evaluation.&quot;</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">eval =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>}</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>.vtbl <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">title =</span> <span class="cn">NULL</span>, ...) {</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  <span class="fu">get</span>(<span class="st">&quot;ddesonn_viewTables&quot;</span>, <span class="at">envir =</span> <span class="fu">asNamespace</span>(<span class="st">&quot;DDESONN&quot;</span>))(x, <span class="at">title =</span> title, ...)</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>}</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>heart_failure_root <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;heart_failure_runs&quot;</span>, <span class="at">package =</span> <span class="st">&quot;DDESONN&quot;</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">nzchar</span>(heart_failure_root)) {</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="co"># fallback when building vignettes from SOURCE (package not installed yet)</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  heart_failure_root <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;..&quot;</span>, <span class="st">&quot;inst&quot;</span>, <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;heart_failure_runs&quot;</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>}</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">dir.exists</span>(heart_failure_root))</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>train_run1_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(</span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>  heart_failure_root, <span class="st">&quot;run1&quot;</span>,</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>  <span class="st">&quot;SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds&quot;</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>)</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>test_run1_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>  heart_failure_root, <span class="st">&quot;run1&quot;</span>,</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>  <span class="st">&quot;SingleRun_Test_Metrics_500_seeds_20251025.rds&quot;</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>)</span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>train_run2_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>  heart_failure_root, <span class="st">&quot;run2&quot;</span>,</span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>  <span class="st">&quot;SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds&quot;</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a>)</span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>test_run2_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(</span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>  heart_failure_root, <span class="st">&quot;run2&quot;</span>,</span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>  <span class="st">&quot;SingleRun_Test_Metrics_500_seeds_20251026.rds&quot;</span></span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>)</span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a><span class="co"># Ensure required files exist</span></span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a><span class="fu">stopifnot</span>(</span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>  <span class="fu">file.exists</span>(train_run1_path),</span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a>  <span class="fu">file.exists</span>(test_run1_path),</span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a>  <span class="fu">file.exists</span>(train_run2_path),</span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a>  <span class="fu">file.exists</span>(test_run2_path)</span>
+<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a>)</span>
+<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a></span>
+<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a>train_run1 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(train_run1_path)</span>
+<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a>test_run1  <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(test_run1_path)</span>
+<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a>train_run2 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(train_run2_path)</span>
+<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a>test_run2  <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(test_run2_path)</span>
+<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a></span>
+<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a>train_all <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(train_run1, train_run2)</span>
+<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a>test_all  <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(test_run1,  test_run2)</span>
+<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a></span>
+<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a>train_seed <span class="ot">&lt;-</span> train_all <span class="sc">%&gt;%</span></span>
+<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a>  <span class="fu">group_by</span>(seed) <span class="sc">%&gt;%</span></span>
+<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a>  <span class="fu">slice_max</span>(<span class="at">order_by =</span> best_val_acc, <span class="at">n =</span> <span class="dv">1</span>, <span class="at">with_ties =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb2-62"><a href="#cb2-62" tabindex="-1"></a>    seed, </span>
+<span id="cb2-63"><a href="#cb2-63" tabindex="-1"></a>    <span class="at">train_acc =</span> best_train_acc,</span>
+<span id="cb2-64"><a href="#cb2-64" tabindex="-1"></a>    <span class="at">val_acc   =</span> best_val_acc</span>
+<span id="cb2-65"><a href="#cb2-65" tabindex="-1"></a>  )</span>
+<span id="cb2-66"><a href="#cb2-66" tabindex="-1"></a></span>
+<span id="cb2-67"><a href="#cb2-67" tabindex="-1"></a>test_seed <span class="ot">&lt;-</span> test_all <span class="sc">%&gt;%</span></span>
+<span id="cb2-68"><a href="#cb2-68" tabindex="-1"></a>  <span class="fu">group_by</span>(seed) <span class="sc">%&gt;%</span></span>
+<span id="cb2-69"><a href="#cb2-69" tabindex="-1"></a>  <span class="fu">slice_max</span>(<span class="at">order_by =</span> accuracy, <span class="at">n =</span> <span class="dv">1</span>, <span class="at">with_ties =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-70"><a href="#cb2-70" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a>    seed,</span>
+<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a>    <span class="at">test_acc =</span> accuracy</span>
+<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a>  )</span>
+<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a></span>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a>merged <span class="ot">&lt;-</span> <span class="fu">inner_join</span>(train_seed, test_seed, <span class="at">by =</span> <span class="st">&quot;seed&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a>  <span class="fu">arrange</span>(seed)</span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a></span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a>summarize_column <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a>  pct <span class="ot">&lt;-</span> <span class="cf">function</span>(p) stats<span class="sc">::</span><span class="fu">quantile</span>(x, <span class="at">probs =</span> p, <span class="at">names =</span> <span class="cn">FALSE</span>, <span class="at">type =</span> <span class="dv">7</span>)</span>
+<span id="cb2-81"><a href="#cb2-81" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb2-82"><a href="#cb2-82" tabindex="-1"></a>    <span class="at">count =</span> <span class="fu">length</span>(x),</span>
+<span id="cb2-83"><a href="#cb2-83" tabindex="-1"></a>    <span class="at">mean  =</span> <span class="fu">mean</span>(x),</span>
+<span id="cb2-84"><a href="#cb2-84" tabindex="-1"></a>    <span class="at">std   =</span> <span class="fu">sd</span>(x),</span>
+<span id="cb2-85"><a href="#cb2-85" tabindex="-1"></a>    <span class="at">min   =</span> <span class="fu">min</span>(x),</span>
+<span id="cb2-86"><a href="#cb2-86" tabindex="-1"></a>    <span class="st">`</span><span class="at">25%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">pct</span>(<span class="fl">0.25</span>),</span>
+<span id="cb2-87"><a href="#cb2-87" tabindex="-1"></a>    <span class="st">`</span><span class="at">50%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">pct</span>(<span class="fl">0.50</span>),</span>
+<span id="cb2-88"><a href="#cb2-88" tabindex="-1"></a>    <span class="st">`</span><span class="at">75%</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">pct</span>(<span class="fl">0.75</span>),</span>
+<span id="cb2-89"><a href="#cb2-89" tabindex="-1"></a>    <span class="at">max   =</span> <span class="fu">max</span>(x),</span>
+<span id="cb2-90"><a href="#cb2-90" tabindex="-1"></a>    <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-91"><a href="#cb2-91" tabindex="-1"></a>  )</span>
+<span id="cb2-92"><a href="#cb2-92" tabindex="-1"></a>}</span>
+<span id="cb2-93"><a href="#cb2-93" tabindex="-1"></a></span>
+<span id="cb2-94"><a href="#cb2-94" tabindex="-1"></a>summary_train <span class="ot">&lt;-</span> <span class="fu">summarize_column</span>(merged<span class="sc">$</span>train_acc)</span>
+<span id="cb2-95"><a href="#cb2-95" tabindex="-1"></a>summary_val   <span class="ot">&lt;-</span> <span class="fu">summarize_column</span>(merged<span class="sc">$</span>val_acc)</span>
+<span id="cb2-96"><a href="#cb2-96" tabindex="-1"></a>summary_test  <span class="ot">&lt;-</span> <span class="fu">summarize_column</span>(merged<span class="sc">$</span>test_acc)</span>
+<span id="cb2-97"><a href="#cb2-97" tabindex="-1"></a></span>
+<span id="cb2-98"><a href="#cb2-98" tabindex="-1"></a>summary_all <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb2-99"><a href="#cb2-99" tabindex="-1"></a>  <span class="at">stat =</span> <span class="fu">c</span>(<span class="st">&quot;count&quot;</span>,<span class="st">&quot;mean&quot;</span>,<span class="st">&quot;std&quot;</span>,<span class="st">&quot;min&quot;</span>,<span class="st">&quot;25%&quot;</span>,<span class="st">&quot;50%&quot;</span>,<span class="st">&quot;75%&quot;</span>,<span class="st">&quot;max&quot;</span>),</span>
+<span id="cb2-100"><a href="#cb2-100" tabindex="-1"></a>  <span class="at">train_acc =</span> <span class="fu">unlist</span>(summary_train[<span class="dv">1</span>,]),</span>
+<span id="cb2-101"><a href="#cb2-101" tabindex="-1"></a>  <span class="at">val_acc   =</span> <span class="fu">unlist</span>(summary_val[<span class="dv">1</span>,]),</span>
+<span id="cb2-102"><a href="#cb2-102" tabindex="-1"></a>  <span class="at">test_acc  =</span> <span class="fu">unlist</span>(summary_test[<span class="dv">1</span>,]),</span>
+<span id="cb2-103"><a href="#cb2-103" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-104"><a href="#cb2-104" tabindex="-1"></a>)</span>
+<span id="cb2-105"><a href="#cb2-105" tabindex="-1"></a></span>
+<span id="cb2-106"><a href="#cb2-106" tabindex="-1"></a>round4 <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="cf">if</span> (<span class="fu">is.numeric</span>(x)) <span class="fu">round</span>(x, <span class="dv">4</span>) <span class="cf">else</span> x</span>
+<span id="cb2-107"><a href="#cb2-107" tabindex="-1"></a>pretty_summary <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">lapply</span>(summary_all, round4))</span>
+<span id="cb2-108"><a href="#cb2-108" tabindex="-1"></a></span>
+<span id="cb2-109"><a href="#cb2-109" tabindex="-1"></a><span class="fu">.vtbl</span>(pretty_summary, <span class="at">title =</span> <span class="st">&quot;DDESONN — 1000-seed summary (train/val/test)&quot;</span>)</span>
+<span id="cb2-110"><a href="#cb2-110" tabindex="-1"></a><span class="co">#&gt; &lt;table&gt;</span></span>
+<span id="cb2-111"><a href="#cb2-111" tabindex="-1"></a><span class="co">#&gt;  &lt;thead&gt;</span></span>
+<span id="cb2-112"><a href="#cb2-112" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-113"><a href="#cb2-113" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:left;&quot;&gt; stat &lt;/th&gt;</span></span>
+<span id="cb2-114"><a href="#cb2-114" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; train_acc &lt;/th&gt;</span></span>
+<span id="cb2-115"><a href="#cb2-115" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; val_acc &lt;/th&gt;</span></span>
+<span id="cb2-116"><a href="#cb2-116" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; test_acc &lt;/th&gt;</span></span>
+<span id="cb2-117"><a href="#cb2-117" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-118"><a href="#cb2-118" tabindex="-1"></a><span class="co">#&gt;  &lt;/thead&gt;</span></span>
+<span id="cb2-119"><a href="#cb2-119" tabindex="-1"></a><span class="co">#&gt; &lt;tbody&gt;</span></span>
+<span id="cb2-120"><a href="#cb2-120" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-121"><a href="#cb2-121" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; count &lt;/td&gt;</span></span>
+<span id="cb2-122"><a href="#cb2-122" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000 &lt;/td&gt;</span></span>
+<span id="cb2-123"><a href="#cb2-123" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000 &lt;/td&gt;</span></span>
+<span id="cb2-124"><a href="#cb2-124" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000 &lt;/td&gt;</span></span>
+<span id="cb2-125"><a href="#cb2-125" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-126"><a href="#cb2-126" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-127"><a href="#cb2-127" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; mean &lt;/td&gt;</span></span>
+<span id="cb2-128"><a href="#cb2-128" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9928 &lt;/td&gt;</span></span>
+<span id="cb2-129"><a href="#cb2-129" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9992 &lt;/td&gt;</span></span>
+<span id="cb2-130"><a href="#cb2-130" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9992 &lt;/td&gt;</span></span>
+<span id="cb2-131"><a href="#cb2-131" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-132"><a href="#cb2-132" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-133"><a href="#cb2-133" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; std &lt;/td&gt;</span></span>
+<span id="cb2-134"><a href="#cb2-134" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0014 &lt;/td&gt;</span></span>
+<span id="cb2-135"><a href="#cb2-135" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0013 &lt;/td&gt;</span></span>
+<span id="cb2-136"><a href="#cb2-136" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0013 &lt;/td&gt;</span></span>
+<span id="cb2-137"><a href="#cb2-137" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-138"><a href="#cb2-138" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-139"><a href="#cb2-139" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; min &lt;/td&gt;</span></span>
+<span id="cb2-140"><a href="#cb2-140" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9854 &lt;/td&gt;</span></span>
+<span id="cb2-141"><a href="#cb2-141" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9893 &lt;/td&gt;</span></span>
+<span id="cb2-142"><a href="#cb2-142" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9920 &lt;/td&gt;</span></span>
+<span id="cb2-143"><a href="#cb2-143" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-144"><a href="#cb2-144" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-145"><a href="#cb2-145" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 25% &lt;/td&gt;</span></span>
+<span id="cb2-146"><a href="#cb2-146" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9920 &lt;/td&gt;</span></span>
+<span id="cb2-147"><a href="#cb2-147" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9987 &lt;/td&gt;</span></span>
+<span id="cb2-148"><a href="#cb2-148" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9987 &lt;/td&gt;</span></span>
+<span id="cb2-149"><a href="#cb2-149" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-150"><a href="#cb2-150" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-151"><a href="#cb2-151" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 50% &lt;/td&gt;</span></span>
+<span id="cb2-152"><a href="#cb2-152" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9929 &lt;/td&gt;</span></span>
+<span id="cb2-153"><a href="#cb2-153" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-154"><a href="#cb2-154" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-155"><a href="#cb2-155" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-156"><a href="#cb2-156" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-157"><a href="#cb2-157" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 75% &lt;/td&gt;</span></span>
+<span id="cb2-158"><a href="#cb2-158" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9937 &lt;/td&gt;</span></span>
+<span id="cb2-159"><a href="#cb2-159" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-160"><a href="#cb2-160" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-161"><a href="#cb2-161" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-162"><a href="#cb2-162" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb2-163"><a href="#cb2-163" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; max &lt;/td&gt;</span></span>
+<span id="cb2-164"><a href="#cb2-164" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9963 &lt;/td&gt;</span></span>
+<span id="cb2-165"><a href="#cb2-165" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-166"><a href="#cb2-166" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb2-167"><a href="#cb2-167" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb2-168"><a href="#cb2-168" tabindex="-1"></a><span class="co">#&gt; &lt;/tbody&gt;</span></span>
+<span id="cb2-169"><a href="#cb2-169" tabindex="-1"></a><span class="co">#&gt; &lt;/table&gt;</span></span></code></pre></div>
+<hr />
+</div>
+<div id="keras-parity-excel-sheet-2" class="section level2">
+<h2>Keras parity (Excel, Sheet 2)</h2>
+<p>Keras parity results are stored in an Excel workbook included with
+the package under:</p>
+<pre><code>inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx</code></pre>
+<p>The file is accessed programmatically using
+<code>system.file()</code> to ensure CRAN-safe, cross-platform
+installation paths.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">&quot;readxl&quot;</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">&quot;Skipping keras-summary chunk: &#39;readxl&#39; not installed.&quot;</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  keras_path <span class="ot">&lt;-</span> <span class="fu">system.file</span>(</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;vsKeras&quot;</span>, <span class="st">&quot;1000SEEDSRESULTSvsKeras&quot;</span>, <span class="st">&quot;1000seedsKeras.xlsx&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">package =</span> <span class="st">&quot;DDESONN&quot;</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  )</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nzchar</span>(keras_path) <span class="sc">&amp;&amp;</span> <span class="fu">file.exists</span>(keras_path)) {</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>    keras_stats <span class="ot">&lt;-</span> readxl<span class="sc">::</span><span class="fu">read_excel</span>(keras_path, <span class="at">sheet =</span> <span class="dv">2</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>    <span class="fu">.vtbl</span>(keras_stats, <span class="at">title =</span> <span class="st">&quot;Keras — 1000-seed summary (Sheet 2)&quot;</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;Keras Excel not found in installed package.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  }</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>}</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; &lt;table&gt;</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt;  &lt;thead&gt;</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:left;&quot;&gt; stat &lt;/th&gt;</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; seed &lt;/th&gt;</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; train_loss &lt;/th&gt;</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; train_acc &lt;/th&gt;</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; val_loss &lt;/th&gt;</span></span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; val_acc &lt;/th&gt;</span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; val_auc &lt;/th&gt;</span></span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; val_auprc &lt;/th&gt;</span></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; test_loss &lt;/th&gt;</span></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; test_acc &lt;/th&gt;</span></span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; test_auc &lt;/th&gt;</span></span>
+<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a><span class="co">#&gt;    &lt;th style=&quot;text-align:right;&quot;&gt; test_auprc &lt;/th&gt;</span></span>
+<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a><span class="co">#&gt;  &lt;/thead&gt;</span></span>
+<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a><span class="co">#&gt; &lt;tbody&gt;</span></span>
+<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; count &lt;/td&gt;</span></span>
+<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000 &lt;/td&gt;</span></span>
+<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-38"><a href="#cb4-38" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-39"><a href="#cb4-39" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-40"><a href="#cb4-40" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-41"><a href="#cb4-41" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-42"><a href="#cb4-42" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.00000e+03 &lt;/td&gt;</span></span>
+<span id="cb4-43"><a href="#cb4-43" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-44"><a href="#cb4-44" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-45"><a href="#cb4-45" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-46"><a href="#cb4-46" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-47"><a href="#cb4-47" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-48"><a href="#cb4-48" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-49"><a href="#cb4-49" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; mean &lt;/td&gt;</span></span>
+<span id="cb4-50"><a href="#cb4-50" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 500.0999 &lt;/td&gt;</span></span>
+<span id="cb4-51"><a href="#cb4-51" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.1285539 &lt;/td&gt;</span></span>
+<span id="cb4-52"><a href="#cb4-52" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9853164 &lt;/td&gt;</span></span>
+<span id="cb4-53"><a href="#cb4-53" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0923288 &lt;/td&gt;</span></span>
+<span id="cb4-54"><a href="#cb4-54" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9943097 &lt;/td&gt;</span></span>
+<span id="cb4-55"><a href="#cb4-55" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9981954 &lt;/td&gt;</span></span>
+<span id="cb4-56"><a href="#cb4-56" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 9.97682e-01 &lt;/td&gt;</span></span>
+<span id="cb4-57"><a href="#cb4-57" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0801902 &lt;/td&gt;</span></span>
+<span id="cb4-58"><a href="#cb4-58" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9968086 &lt;/td&gt;</span></span>
+<span id="cb4-59"><a href="#cb4-59" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9992427 &lt;/td&gt;</span></span>
+<span id="cb4-60"><a href="#cb4-60" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9989122 &lt;/td&gt;</span></span>
+<span id="cb4-61"><a href="#cb4-61" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-62"><a href="#cb4-62" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-63"><a href="#cb4-63" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; std &lt;/td&gt;</span></span>
+<span id="cb4-64"><a href="#cb4-64" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 288.9524 &lt;/td&gt;</span></span>
+<span id="cb4-65"><a href="#cb4-65" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.2685126 &lt;/td&gt;</span></span>
+<span id="cb4-66"><a href="#cb4-66" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0031003 &lt;/td&gt;</span></span>
+<span id="cb4-67"><a href="#cb4-67" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.1312915 &lt;/td&gt;</span></span>
+<span id="cb4-68"><a href="#cb4-68" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0048215 &lt;/td&gt;</span></span>
+<span id="cb4-69"><a href="#cb4-69" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0046459 &lt;/td&gt;</span></span>
+<span id="cb4-70"><a href="#cb4-70" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 6.14290e-03 &lt;/td&gt;</span></span>
+<span id="cb4-71"><a href="#cb4-71" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.1931197 &lt;/td&gt;</span></span>
+<span id="cb4-72"><a href="#cb4-72" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0035695 &lt;/td&gt;</span></span>
+<span id="cb4-73"><a href="#cb4-73" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0031493 &lt;/td&gt;</span></span>
+<span id="cb4-74"><a href="#cb4-74" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0052804 &lt;/td&gt;</span></span>
+<span id="cb4-75"><a href="#cb4-75" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-76"><a href="#cb4-76" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-77"><a href="#cb4-77" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; min &lt;/td&gt;</span></span>
+<span id="cb4-78"><a href="#cb4-78" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000 &lt;/td&gt;</span></span>
+<span id="cb4-79"><a href="#cb4-79" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0810060 &lt;/td&gt;</span></span>
+<span id="cb4-80"><a href="#cb4-80" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9705710 &lt;/td&gt;</span></span>
+<span id="cb4-81"><a href="#cb4-81" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0511130 &lt;/td&gt;</span></span>
+<span id="cb4-82"><a href="#cb4-82" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9653330 &lt;/td&gt;</span></span>
+<span id="cb4-83"><a href="#cb4-83" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9612140 &lt;/td&gt;</span></span>
+<span id="cb4-84"><a href="#cb4-84" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 9.03136e-01 &lt;/td&gt;</span></span>
+<span id="cb4-85"><a href="#cb4-85" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0498250 &lt;/td&gt;</span></span>
+<span id="cb4-86"><a href="#cb4-86" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9786670 &lt;/td&gt;</span></span>
+<span id="cb4-87"><a href="#cb4-87" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9691980 &lt;/td&gt;</span></span>
+<span id="cb4-88"><a href="#cb4-88" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.8900960 &lt;/td&gt;</span></span>
+<span id="cb4-89"><a href="#cb4-89" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-90"><a href="#cb4-90" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-91"><a href="#cb4-91" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 25% &lt;/td&gt;</span></span>
+<span id="cb4-92"><a href="#cb4-92" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 250.0000 &lt;/td&gt;</span></span>
+<span id="cb4-93"><a href="#cb4-93" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0951690 &lt;/td&gt;</span></span>
+<span id="cb4-94"><a href="#cb4-94" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9837140 &lt;/td&gt;</span></span>
+<span id="cb4-95"><a href="#cb4-95" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0653810 &lt;/td&gt;</span></span>
+<span id="cb4-96"><a href="#cb4-96" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9920000 &lt;/td&gt;</span></span>
+<span id="cb4-97"><a href="#cb4-97" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9989820 &lt;/td&gt;</span></span>
+<span id="cb4-98"><a href="#cb4-98" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 9.98331e-01 &lt;/td&gt;</span></span>
+<span id="cb4-99"><a href="#cb4-99" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0591380 &lt;/td&gt;</span></span>
+<span id="cb4-100"><a href="#cb4-100" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9946670 &lt;/td&gt;</span></span>
+<span id="cb4-101"><a href="#cb4-101" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9999330 &lt;/td&gt;</span></span>
+<span id="cb4-102"><a href="#cb4-102" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9998530 &lt;/td&gt;</span></span>
+<span id="cb4-103"><a href="#cb4-103" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-104"><a href="#cb4-104" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-105"><a href="#cb4-105" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 50% &lt;/td&gt;</span></span>
+<span id="cb4-106"><a href="#cb4-106" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 500.0000 &lt;/td&gt;</span></span>
+<span id="cb4-107"><a href="#cb4-107" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.1022350 &lt;/td&gt;</span></span>
+<span id="cb4-108"><a href="#cb4-108" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9857140 &lt;/td&gt;</span></span>
+<span id="cb4-109"><a href="#cb4-109" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0709260 &lt;/td&gt;</span></span>
+<span id="cb4-110"><a href="#cb4-110" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9960000 &lt;/td&gt;</span></span>
+<span id="cb4-111"><a href="#cb4-111" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9997410 &lt;/td&gt;</span></span>
+<span id="cb4-112"><a href="#cb4-112" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 9.99473e-01 &lt;/td&gt;</span></span>
+<span id="cb4-113"><a href="#cb4-113" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0629980 &lt;/td&gt;</span></span>
+<span id="cb4-114"><a href="#cb4-114" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9973330 &lt;/td&gt;</span></span>
+<span id="cb4-115"><a href="#cb4-115" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-116"><a href="#cb4-116" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-117"><a href="#cb4-117" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-118"><a href="#cb4-118" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-119"><a href="#cb4-119" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 75% &lt;/td&gt;</span></span>
+<span id="cb4-120"><a href="#cb4-120" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 750.0000 &lt;/td&gt;</span></span>
+<span id="cb4-121"><a href="#cb4-121" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.1121150 &lt;/td&gt;</span></span>
+<span id="cb4-122"><a href="#cb4-122" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9874290 &lt;/td&gt;</span></span>
+<span id="cb4-123"><a href="#cb4-123" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0812150 &lt;/td&gt;</span></span>
+<span id="cb4-124"><a href="#cb4-124" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9986670 &lt;/td&gt;</span></span>
+<span id="cb4-125"><a href="#cb4-125" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9999420 &lt;/td&gt;</span></span>
+<span id="cb4-126"><a href="#cb4-126" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 9.99873e-01 &lt;/td&gt;</span></span>
+<span id="cb4-127"><a href="#cb4-127" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.0697250 &lt;/td&gt;</span></span>
+<span id="cb4-128"><a href="#cb4-128" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-129"><a href="#cb4-129" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-130"><a href="#cb4-130" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-131"><a href="#cb4-131" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-132"><a href="#cb4-132" tabindex="-1"></a><span class="co">#&gt;   &lt;tr&gt;</span></span>
+<span id="cb4-133"><a href="#cb4-133" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; max &lt;/td&gt;</span></span>
+<span id="cb4-134"><a href="#cb4-134" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1000.0000 &lt;/td&gt;</span></span>
+<span id="cb4-135"><a href="#cb4-135" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 6.0387850 &lt;/td&gt;</span></span>
+<span id="cb4-136"><a href="#cb4-136" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 0.9925710 &lt;/td&gt;</span></span>
+<span id="cb4-137"><a href="#cb4-137" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 2.1582980 &lt;/td&gt;</span></span>
+<span id="cb4-138"><a href="#cb4-138" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-139"><a href="#cb4-139" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-140"><a href="#cb4-140" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.00000e+00 &lt;/td&gt;</span></span>
+<span id="cb4-141"><a href="#cb4-141" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 5.5763540 &lt;/td&gt;</span></span>
+<span id="cb4-142"><a href="#cb4-142" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-143"><a href="#cb4-143" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-144"><a href="#cb4-144" tabindex="-1"></a><span class="co">#&gt;    &lt;td style=&quot;text-align:right;&quot;&gt; 1.0000000 &lt;/td&gt;</span></span>
+<span id="cb4-145"><a href="#cb4-145" tabindex="-1"></a><span class="co">#&gt;   &lt;/tr&gt;</span></span>
+<span id="cb4-146"><a href="#cb4-146" tabindex="-1"></a><span class="co">#&gt; &lt;/tbody&gt;</span></span>
+<span id="cb4-147"><a href="#cb4-147" tabindex="-1"></a><span class="co">#&gt; &lt;/table&gt;</span></span></code></pre></div>
+<hr />
+</div>
+<div id="reproducibility-notes" class="section level2">
+<h2>Reproducibility notes</h2>
+<ul>
+<li>These results aggregate <strong>two 500-seed runs</strong> done
+locally.</li>
+<li>A master seed was not set for those two original runs.</li>
+<li>DDESONN now sets a master seed in
+<code>TestDDESONN_1000seeds.R</code>.</li>
+<li>Keras parity sets a synchronized master seed in
+<code>TestKeras_1000seeds.py</code>.</li>
+<li>Keras raw and summary outputs are compiled in
+<code>1000seedsKeras.xlsx</code> under
+<code>inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/</code>.</li>
+</ul>
+<hr />
+</div>
+<div id="distributed-execution-scaling-note" class="section level2">
+<h2>Distributed execution (scaling note)</h2>
+<p>The results shown here were computed locally.</p>
+<p>For large-scale experiments (hundreds to thousands of seeds), DDESONN
+can be executed in distributed environments to significantly reduce
+wall-clock time. Distributed tooling and development-stage orchestration
+scripts are maintained in the GitHub repository and intentionally
+excluded from the CRAN build so that this vignette remains focused on
+validated results and methodology.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

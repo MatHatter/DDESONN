@@ -70,16 +70,23 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
+if (!requireNamespace("DDESONN", quietly = TRUE)) {
+  message("DDESONN not installed in this build session; skipping evaluation.")
+  knitr::opts_chunk$set(eval = FALSE)
+}
+
 .vtbl <- function(x, title = NULL, ...) {
   get("ddesonn_viewTables", envir = asNamespace("DDESONN"))(x, title = title, ...)
 }
 
-heart_failure_root <- system.file(
-  "extdata", "heart_failure_runs",
-  package = "DDESONN"
-)
+heart_failure_root <- system.file("extdata", "heart_failure_runs", package = "DDESONN")
 
-stopifnot(nzchar(heart_failure_root))
+if (!nzchar(heart_failure_root)) {
+  # fallback when building vignettes from SOURCE (package not installed yet)
+  heart_failure_root <- file.path("..", "inst", "extdata", "heart_failure_runs")
+}
+
+stopifnot(dir.exists(heart_failure_root))
 
 train_run1_path <- file.path(
   heart_failure_root, "run1",
@@ -96,6 +103,14 @@ train_run2_path <- file.path(
 test_run2_path <- file.path(
   heart_failure_root, "run2",
   "SingleRun_Test_Metrics_500_seeds_20251026.rds"
+)
+
+# Ensure required files exist
+stopifnot(
+  file.exists(train_run1_path),
+  file.exists(test_run1_path),
+  file.exists(train_run2_path),
+  file.exists(test_run2_path)
 )
 
 train_run1 <- readRDS(train_run1_path)
