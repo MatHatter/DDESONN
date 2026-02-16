@@ -6,7 +6,11 @@
 suppressPackageStartupMessages({
   if (!requireNamespace("foreach", quietly = TRUE) ||
       !requireNamespace("techila", quietly = TRUE)) {
-    stop("Techila execution requires the 'foreach' and 'techila' packages. Install them to run this script.")
+    message(
+      "Techila runner requires optional packages 'foreach' and 'techila'.\n",
+      "Install them separately to run: inst/scripts/techila/single_runner_techila_mvp.R"
+    )
+    quit(status = 0)
   }
   
   library(foreach)

@@ -1029,7 +1029,7 @@ Commercial use requires written authorization.
 The author also maintains additional modeling projects in R and Python, including:
 
 - **OLR - Optimal Linear Regression**  
-  CRAN: [olr on CRAN](https://cran.r-project.org/web/packages/olr/index.html)
+  CRAN: [olr on CRAN](https://CRAN.R-project.org/package=olr)
 
 ---
 

@@ -52,7 +52,6 @@
 ^vignettes/.*_cache$
 ^vignettes/.*_files$
 ^vignettes/.*_files/.*$
-^vignettes/.*\.html$
 ^vignettes/.*/artifacts$
 ^vignettes/.*/artifacts/.*$
 ^vignettes/artifacts$
