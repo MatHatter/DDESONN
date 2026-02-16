@@ -1,10 +1,10 @@
 ---
-title: "DDESONN vs Keras — 1000-Seed Summary (Heart Failure)"
+title: "DDESONN vs Keras — 1000-Seed Summary — Heart Failure"
 output:
   rmarkdown::html_vignette:
     df_print: paged
 vignette: >
-  %\VignetteIndexEntry{DDESONN vs Keras — 1000-Seed Summary (Heart Failure)}
+  %\VignetteIndexEntry{DDESONN vs Keras — 1000-Seed Summary — Heart Failure}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -168,7 +168,7 @@ pretty_summary <- as.data.frame(lapply(summary_all, round4))
 Keras parity results are stored in an Excel workbook included with the package under:
 
 ```
-inst/extdata/vKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx
+inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx
 ```
 
 The file is accessed programmatically using `system.file()` to ensure CRAN-safe, cross-platform installation paths.
@@ -198,8 +198,8 @@ if (!requireNamespace("readxl", quietly = TRUE)) {
 - These results aggregate **two 500-seed runs** done locally.
 - A master seed was not set for those two original runs.
 - DDESONN now sets a master seed in `TestDDESONN_1000seeds.R`.
-- Keras parity sets a synchronized master seed in `TestKERAS_1000seeds.py`.
-- Keras raw and summary outputs are compiled in `1000seedsKeras.xlsx` under `inst/extdata/vKeras/1000SEEDSRESULTSvsKeras/`.
+- Keras parity sets a synchronized master seed in `TestKeras_1000seeds.py`.
+- Keras raw and summary outputs are compiled in `1000seedsKeras.xlsx` under `inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/`.
 
 ---
 

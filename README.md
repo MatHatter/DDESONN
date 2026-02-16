@@ -377,7 +377,7 @@ Subsequent iterations focused on formalizing the architecture, improving reprodu
   A key multi-seed stability breakthrough was achieved during this period. This led to the creation of the comparative benchmark vignette `DDESONNvKeras_1000Seeds.Rmd`, formally documenting 1,000-seed reproducibility experiments and cross-framework evaluation against Keras. Work during this phase focused on validation rigor, controlled seed sweeps, and structured reproducibility reporting.
 
 - 2025-11 to 2025-12 — Reduced development activity (2 months)  
-  Development intensity decreased substantially as parallel projects required priority. Work during this period was limited.
+  Development intensity decreased substantially as two new parallel projects required priority. Work during this period was limited.
 
 - 2026-01 to 2026-02 — Final packaging, vignette expansion, and CRAN preparation phase (2 months)  
   Focus shifted to converting the research framework into a structured, turnkey R package suitable for CRAN distribution. This included API stabilization, documentation alignment, artifact-path standardization, reproducibility controls, and the creation of formal vignettes for guided exploration.  
