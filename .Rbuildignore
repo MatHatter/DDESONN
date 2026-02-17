@@ -23,7 +23,6 @@
 
 # Build artifacts
 ^dist$
-^build$
 ^tarballs$
 ^.*\.tar\.gz$
 
@@ -64,8 +63,6 @@
 ^vignettes/DDESONN_plots_.*/.*$
 
 # R CMD build metadata
-^doc$
-^Meta$
 ^\.RDataTmp$
 
 # Optional packaging choices

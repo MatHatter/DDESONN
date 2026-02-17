@@ -1,11 +1,11 @@
 ---
-title: "DDESONN Logs - Scenario D (Ensemble TEMP Runs Only)"
+title: "DDESONN Logs - Scenario D - Ensemble Main vs TEMP Runs Only"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{DDESONN Logs - Scenario D (Ensemble TEMP Runs Only)}
+  %\VignetteIndexEntry{DDESONN Logs - Scenario D - Ensemble Main vs TEMP Runs Only)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -209,7 +209,27 @@ logs_D <- res_D$runs[[1]]$tables
 main_cols     <- c("serial","iteration","epoch","phase","metric_name","metric_value","message","timestamp")
 movement_cols <- c("serial","iteration","epoch","param_name","from","to","delta","message","timestamp")
 change_cols   <- c("serial","iteration","epoch","layer","target","param_name","grad_norm","update_norm","message","timestamp")
+```
 
+### Interpreting the Scenario D Logs
+
+Scenario D emits three structured log tables that document ensemble behavior
+and make the MAIN vs TEMP workflow auditable and reproducible.
+
+- **Main Log (`main_log`)** — Iteration-level snapshots of the Primary (MAIN)
+  ensemble state and evaluation results under the selected metric.
+
+- **Movement Log (`movement_log`)** — Deterministic promotion and replacement
+  events between TEMP and MAIN (what moved, directionality, and why).
+
+- **Change Log (`change_log`)** — Per-iteration update diagnostics and
+  structural deltas recorded during training and selection steps.
+
+These tables are returned in `res_D$runs[[1]]$tables`.
+
+The previews below are capped for vignette readability.
+
+```{r scenario-d-display}
 show_log_table(logs_D$main_log,     "Scenario D - Main Log",     key_cols = main_cols)
 show_log_table(logs_D$movement_log, "Scenario D - Movement Log", key_cols = movement_cols)
 show_log_table(logs_D$change_log,   "Scenario D - Change Log",   key_cols = change_cols)
@@ -217,7 +237,7 @@ show_log_table(logs_D$change_log,   "Scenario D - Change Log",   key_cols = chan
 if (knitr::is_html_output()) {
   cat(knitr::asis_output("
 <div class='dd-note'>
-<b>Note:</b> Tables are preview-capped for vignette readability.
+<b>Note:</b> Tables below are preview-capped for vignette readability.
 Full tables remain available in <code>res_D$runs[[1]]$tables</code>.
 Artifact writing is <b>OFF</b> by default for CRAN-safety.
 </div>

@@ -238,43 +238,49 @@ Example template (R-style pseudo you can adapt):
 #### Ensemble & Orchestration
 
 DDESONN supports structured dynamic ensemble orchestration built around
-a **Primary (Main) Ensemble** and one or more **Temporary (Challenger)
-Ensembles**.
+a **Primary (Main / Champion) Ensemble** and one or more
+**Temporary (Temp / Challenger) Ensembles**.
+
+All Champion vs Challenger promotions and prunes are recorded as structured run
+metadata so ensemble evolution is reproducible and fully auditable.
 
 The workflow operates conceptually as:
 
-- Temporary ensembles are trained and evaluated  
+- Temporary (Challenger) ensembles are trained and evaluated  
 - Performance is measured under user-selected metrics  
-- Models may be promoted from Temporary to Main  
-- Underperforming models may be pruned  
-- The Main ensemble evolves over iterations  
+- High-performing Challenger models may be promoted to the Main (Champion) ensemble  
+- Underperforming Champion models may be pruned  
+- The Champion ensemble evolves over iterations  
 
 This architecture allows controlled model competition under a chosen
-metric (e.g., loss, F1, AUC, relevance score).
+metric (e.g., loss, F1, AUC, or other user-selected evaluation criteria).
 
 In practical terms:
 
-- You can run multiple temporary ensemble iterations  
-- Select a metric to govern promotion  
-- Build a progressively refined main ensemble  
+- You can run multiple Challenger iterations  
+- Select a metric to govern Champion promotion  
+- Build a progressively refined Champion ensemble  
 - Compare stability across seeds and iterations  
 
-This design mirrors a **champion vs challenger** structure while remaining
+This design mirrors a strict **Champion vs Challenger** structure while remaining
 fully metric-driven and reproducible.
 
 Current vignettes demonstrate ensemble scenarios. A future vignette will
-provide a focused walkthrough of main vs temporary promotion logic,
+provide a focused walkthrough of Champion vs Challenger promotion logic,
 metric-based pruning, and multi-iteration refinement.
 
 - Dynamic ensemble orchestration.  
-- MAIN/TEMP metric-based replacement flow (remove worst MAIN, insert best TEMP using the resolved target metric and direction).  
+- Champion/Challenger metric-based replacement flow (remove weakest Champion, insert strongest Challenger using the resolved target metric and direction).  
 - Deterministic promotion governed strictly by the selected metric (maximize or minimize).  
-- Metadata tracking and structured relevance scoring across iterations.  
+- Structured ensemble metadata tracking across iterations, including:
+  - `main_log` (Champion log): iteration-level snapshots of the Champion ensemble state and metric values
+  - `movement_log` (Champion/Challenger transitions): deterministic promotion/replacement events (what moved, from/to, delta, and why)
+  - `change_log`: iteration-level update diagnostics and structural deltas for traceability
 
 - Public API support for `classification_mode = "binary"`, `"multiclass"`, and `"regression"`.  
 - Binary classification supports threshold tuning, ROC/AUC, precision-recall, and relevance-based evaluation.  
 - Multiclass note: For multiclass classification, `y` should be encoded as integer class indices `1..K` (or a one-hot matrix whose columns follow the model's class order), otherwise accuracy comparisons may be incorrect.  
-- Regression mode supports continuous target prediction with metric-driven evaluation and error diagnostics.
+- Regression mode supports continuous target prediction with metric-driven evaluation and error diagnostics.  
 
 #### Reporting & Integration
 
@@ -677,6 +683,18 @@ Standalone CRAN-friendly multiclass example scripts/vignettes are welcome via PR
 ---
 
 ## Reproducibility
+
+DDESONN includes a run-level metadata store that persists the critical inputs and
+outputs needed to compare, trace, and reproduce experiments across iterations and
+environments. This metadata is recorded automatically during training via the core
+engine (`R/DDESONN.R`) and captures seeds, configuration, training flags, selected
+metrics, thresholds used, and per-model identifiers so results are auditable rather
+than dependent on console output.
+
+In addition to artifact path controls, this metadata store retains structured fields
+such as model serial IDs, ensemble iteration context, activation/dropout settings,
+best-epoch summaries, and the resolved performance/relevance metric selections used
+during evaluation and selection.
 
 DDESONN supports reproducible experimentation through:
 
