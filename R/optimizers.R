@@ -836,7 +836,7 @@ initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer, v
   
   layer_dim <- dim[[1]]  # always using first dim block
   if (length(layer_dim) != 2 || any(is.na(layer_dim)) || any(layer_dim <= 0)) {
-    message("Invalid dimensions detected. Setting default dimension [1, 1].")
+    if (verbose) message("Invalid dimensions detected. Setting default dimension [1, 1].")
     layer_dim <- c(1, 1)
   }
   

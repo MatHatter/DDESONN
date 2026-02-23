@@ -1,11 +1,12 @@
 ---
-title: "DDESONN Logs - Scenario D - Ensemble Main vs TEMP Runs Only"
+title: "DDESONN Main / Change / Movement Logs - Ensemble Runs: Scenario D"
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 2
+    self_contained: false
 vignette: >
-  %\VignetteIndexEntry{DDESONN Logs - Scenario D - Ensemble Main vs TEMP Runs Only)}
+  %\VignetteIndexEntry{DDESONN Main / Change / Movement Logs - Ensemble Runs: Scenario D}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -20,6 +21,8 @@ knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
   warning = FALSE,
+  dpi = 96,
+  fig.retina = 1,
   results = "asis",
   cache.path = file.path(.vig_tmp_root, "cache", "")
 )
@@ -175,7 +178,7 @@ x_test  <- scale(x_all[i_te, ])
 y_test  <- y_all[i_te, ]
 ```
 
-## Scenario D - Ensemble run (TEMP iterations only)
+## Scenario D - Ensemble runs (TEMP iterations only)
 
 ```{r scenario-d-run}
 res_D <- ddesonn_run(

@@ -109,7 +109,7 @@ update_biases_block <- function(
             bias_update <- lr * grads_matrix + reg_term
             
           } else {
-            message("Warning: Unknown reg_type in ML bias update. No regularization applied.")
+            if (verbose) message("Warning: Unknown reg_type in ML bias update. No regularization applied.")
             bias_update <- lr * grads_matrix
           }
         } else {
@@ -422,7 +422,7 @@ update_biases_block <- function(
           reg_term <- self$lambda * (self$biases - clipped_bias)
           bias_update <- bias_update + reg_term
         } else {
-          message("Warning: Unknown reg_type in SL bias update. No regularization applied.")
+          if (verbose) message("Warning: Unknown reg_type in SL bias update. No regularization applied.")
         }
       }
       

@@ -17,15 +17,16 @@ The root `README.md` is the canonical public-facing README for users, CRAN, and 
 6. Project timeline
 7. Repository structure
 8. Getting started
-9. Running the examples
-10. Datasets
-11. Reproducibility
-12. Roadmap
-13. To-Do
-14. Contributing
-15. License
-16. Other work by the author
-17. Contact
+9. Run terminology
+10. Running the examples
+11. Datasets
+12. Reproducibility
+13. Roadmap
+14. To-Do
+15. Contributing
+16. License
+17. Other work by the author
+18. Contact
 
 ---
 
@@ -86,7 +87,7 @@ external engine calls.
 
 DDESONN exists because I wanted to understand machine learning at a deeper level than "use a library and hope it works."
 
-Neural networks first fascinated me during an Advanced Time Series Analysis course, where I began to appreciate the mathematical structure behind prediction, stability, and model evaluation, and I knew early that understanding these systems deeply—not just using them—would matter long-term. I also remember telling classmates in a business science course that I aspired to publish another package beyond OLR - Optimal Linear Regression, and that commitment quietly stayed with me, eventually evolving into what became DDESONN.
+Neural networks first fascinated me during an Advanced Time Series Analysis course (before the current wave of AI hype), where I began to appreciate the mathematical structure behind prediction, stability, and model evaluation, and I knew early that understanding these systems deeply—not just using them—would matter long-term. I also remember telling classmates in a business science course that I aspired to publish another package beyond OLR - Optimal Linear Regression, and that commitment quietly stayed with me, eventually evolving into what became DDESONN.
 
 I didn't want a neural network that was hidden behind abstractions. I wanted a neural network that people could actually look into layer by layer, error by error, update by update and see exactly what's happening. Most modern frameworks make it easy to train a model, but they also make it easy to never truly understand what the model is doing internally.
 
@@ -106,7 +107,7 @@ As I went deeper, it honestly got scarier, because there were moments where DDES
 
 An additional motivation along the way was to benchmark DDESONN against established deep-learning frameworks and push it toward competitive performance. Early on, I set an ambitious target around a 96.00% reference result, but I later realized that some comparison settings were not properly aligned, which forced me to revisit tuning assumptions, correct implementation details, and remove duplicated or misrouted update logic that had subtly distorted behavior. That effectively reset the target and turned the benchmark into a moving goalpost, because once the implementation was aligned correctly, the bar naturally shifted upward.
 
-As performance improved into the high 98% range, the dynamic changed again, because at that level single-run comparisons stopped being meaningful and variance across random seeds began to dominate observed differences. What initially felt like a race toward peak accuracy evolved into a deeper investigation of stability, reproducibility, and distributional behavior across large seed sweeps, where mean performance, standard deviation, and worst-case outcomes mattered more than isolated best runs.
+As performance improved into the high 99.8% range, the dynamic changed again, because at that level single-run comparisons stopped being meaningful and variance across random seeds began to dominate observed differences. What initially felt like a race toward peak accuracy evolved into a deeper investigation of stability, reproducibility, and distributional behavior across large seed sweeps, where mean performance, standard deviation, and worst-case outcomes mattered more than isolated best runs.
 
 The turning point wasn't one magic upgrade. It was the final phase of clearing out the subtle bugs and aligning the implementation to mathematically correct behavior, eliminating duplicate logic, tightening update flows, and ensuring evaluation consistency. Once those last structural issues were resolved, the model became dramatically more stable.
 
@@ -138,15 +139,7 @@ This is not just a model — it is an implementation we can learn from.
 Artificial intelligence tools were used during development to support
 iteration speed, debugging, refactoring, and documentation drafting.
 
-The primary tools used were:
-
-- ChatGPT  
-- Codex (sparingly)  
-
-Additionally used on a more limited basis:
-
-- Copilot  
-- Blackbox  
+The primary tools used were ChatGPT and Codex (sparingly), with Copilot and Blackbox AI used on a more limited basis.
 
 While AI tools accelerated iteration, the completion of this project
 required substantial sustained personal effort, discipline, and persistence.
@@ -168,36 +161,40 @@ direction and sustained independent effort.
 
 ## Logging / Verbosity levels
 
-DDESONN supports two tiers of debug output
+DDESONN supports structured diagnostics designed to keep runs scientifically inspectable without overwhelming console noise.
 
-- **Low verbosity (default):** prints only the essential "trust" diagnostics (layer-by-layer)
-  - layer dimensions per layer
-  - activation name per layer
-  - predicted output shape
-  - error shape / key scalar metrics per layer
-  - any shape/NA/overflow guards and recovery actions
-- **High verbosity:** prints full tracing for debugging and research
-  - per-layer forward values (summary stats)
-  - per-layer backprop error stats
-  - gradient shape + update sanity checks
-  - detailed corrective actions when dimension alignment occurs
+### Always-on output (independent of flags)
 
-This design ensures that even low verbosity is still inspectable and scientifically meaningful, while high verbosity remains available for deep debugging.
+**CORE METRICS / Final Summary** output is emitted as part of the run summary path, independent of `verbose`, `verboseLow`, and `debug` settings. This keeps key end-of-run reporting consistent across executions.
 
----
+### Diagnostic tiers
 
-## How to implement low verbose but still layer-by-layer without spamming
+DDESONN exposes two verbosity tiers via `verboseLow` and `verbose`:
 
-Use two principles:
+- **Low verbosity (`verboseLow = TRUE`, `verbose = FALSE`)**
+  - prints the **most important** trust diagnostics
+  - focuses on compact, layer-oriented structural and sanity output
+  - intended for routine runs where you want inspectability with low noise
 
-1. **Print structure once per run** (or once per epoch if something changes)
-2. **Print per-layer summaries, not full matrices** (dims + min/max/mean + NA counts)
+- **High verbosity (`verbose = TRUE`)**
+  - prints deeper tracing intended for debugging/research inspection
+  - includes richer per-layer forward/backward summaries and update sanity context
+  - useful when diagnosing shape alignment, gradient flow, or training instability
 
-Example template (R-style pseudo you can adapt):
+### Debug mode (`debug`)
 
-- Always print: `dims`, `activation`, `dropout`, `label/pred dims`
-- For errors: print `dim(error)`, `mean(abs(error))`, `max(abs(error))`
-- For weights/gradients: print only `dim()` + `max(abs())` if high verbose
+`debug = TRUE` enables additional targeted debug diagnostics, but in the public API it is intentionally hard-gated by `DDESONN_DEBUG=1` for safety. In practice, this means:
+
+- set `debug = TRUE` **and** environment variable `DDESONN_DEBUG=1`
+- then debug-only checkpoints and diagnostics are allowed to print
+
+### Table views (`viewTables`)
+
+- `viewTables = TRUE` enables table-formatted output for supported sections
+- table rendering uses `ddesonn_viewTables()` and requires `knitr` for polished formatting
+- this supplements structured reporting; it does not remove core summary reporting
+
+This design keeps low-verbosity runs practical, while still allowing deeper trace/debug modes when needed.
 
 ---
 
@@ -205,10 +202,14 @@ Example template (R-style pseudo you can adapt):
 
 - Fully native R deep learning framework — no external deep-learning backend.
 - Object-oriented model engine implemented with R6.
-- Flexible architecture selection (single-layer or deep multi-layer) with dimension-agnostic configuration.
+- Flexible architecture selection (single-layer or deep multi-layer).
+- Dimension-agnostic per-layer configuration: per-layer configuration vectors automatically align to network depth (replicate/truncate), supporting flexible architectures with reduced manual setup.
 - Independent activation functions, derivatives, dropout, and initialization per layer.
 - Manual training loop with explicit forward and backward propagation.
+- Optional self-organization phase (`self_org`) for topology-oriented pre-adjustment during training.
 - Transparent optimizer-state updates with full internal control.
+- Structured ensemble orchestration: Main (Champion) vs Temporary (Challenger) ensembles with metric-driven promotion, pruning, and iterative refinement to converge toward a stronger primary ensemble.
+- Run-level metadata persistence (`store_metadata()`): automatic recording of seeds, configuration, thresholds, metrics, ensemble transitions, and model identifiers for reproducible, auditable experimentation.
 
 #### Optimization & Regularization
 
@@ -292,6 +293,120 @@ metric-based pruning, and multi-iteration refinement.
   - `plotly`
 - High-level API helpers in `R/api.R` for external integration.
 - Artifact path management and debug-state utilities for reproducibility.
+
+---
+
+### Dimension-agnostic behavior (exactly how it works)
+
+DDESONN lets you define single-layer or deep multi-layer architectures with user-selected widths (no hardcoded depth limit in the public API flow).
+
+For `hidden_sizes`, the current rules are:
+
+- **`architecture = "single"`**: any supplied `hidden_sizes` are ignored (with a warning).
+- **`architecture = "multi"`**: at least one positive hidden size is required.
+- Non-positive hidden entries are removed during normalization.
+
+For list/vector conformance elsewhere, DDESONN aligns by direct replicate/truncate logic:
+
+1. **Activation specs at predict time** are normalized to match layer count `L`:
+   - too short -> last provided activation is repeated to length `L`
+   - too long -> extras are truncated
+2. **Dropout-rate specs in training** are aligned to layer count:
+   - too short -> padded with `NULL`
+   - too long -> truncated
+   - output-layer dropout is explicitly disabled
+3. **Prediction vs target shape guards** (metric/evaluation paths):
+   - if prediction columns are fewer than required, values are replicated to fill
+   - if prediction columns are extra, columns are truncated
+
+Structural conformance in this section is strictly **replicate/truncate only**. Values are copied or sliced to the required shape without additional transformation.
+
+Architecture can also be set explicitly in user code, or auto-resolved by an API helper:
+
+- **Explicit (user-facing, `ddesonn_model`)**
+  - Single-layer: set `ML_NN = FALSE`.
+  - Multi-layer: set `ML_NN = TRUE` and provide `hidden_sizes` (for example `c(32, 16)`).
+- **Auto-detected helper (`R/api.R`)**
+  - `normalize_architecture(architecture = "auto", hidden_sizes = ...)` resolves to single vs multi based on whether positive hidden sizes are present.
+
+Minimal examples:
+
+```r
+# explicit single-layer
+m_single <- ddesonn_model(input_size = ncol(x), output_size = 1, ML_NN = FALSE, hidden_sizes = integer())
+
+# explicit multi-layer
+m_multi  <- ddesonn_model(input_size = ncol(x), output_size = 1, ML_NN = TRUE, hidden_sizes = c(32, 16))
+
+# API helper auto-detect (internal helper in R/api.R)
+normalize_architecture(architecture = "auto", hidden_sizes = integer(0))  # -> single
+normalize_architecture(architecture = "auto", hidden_sizes = c(32, 16))   # -> multi
+```
+
+---
+
+### Prediction Aggregation & Grouped Metrics
+
+`predict(..., aggregate = ...)` applies when a DDESONN object contains multiple ensemble members. In that case, each model produces a prediction matrix, and the aggregation rule combines those per-model outputs into one final prediction matrix.
+
+Conceptually, this follows standard ensemble learning practice: combine outputs from multiple learners into a single decision surface for downstream use.
+
+Common usage patterns:
+
+- **Regression** (`n x 1` or `n x d` numeric outputs):
+  - aggregate = `"mean"`: combines model outputs element-wise using the arithmetic mean.
+  - aggregate = `"median"`: combines model outputs element-wise using the median, often useful for robustness to outlier models.
+
+- **Binary classification** (`n x 1` probabilities):
+  - model-level probability outputs are combined element-wise to form a final probability vector of shape `n x 1`.
+  - if class labels are requested, thresholding is applied after aggregation.
+
+- **Multiclass classification** (`n x K` class-probability matrices):
+  - model outputs are combined element-wise across all `K` columns, preserving shape `n x K`.
+  - predicted classes are selected from the aggregated matrix (for example by highest class score per row).
+
+Expected shape behavior:
+
+- If there are `M` models and each returns shape `n x K`, aggregation consumes `M` matrices and returns one `n x K` matrix.
+- If `aggregate = "none"`, the workflow uses a single member output directly (no cross-model combining).
+
+#### What grouped metrics are
+
+Reachability in this repository:
+
+- **API path (`R/api.R`)**: grouped metrics are reachable via training configuration (`grouped_metrics`) that is passed through `ddesonn_fit()`/`ddesonn_run()` into the model training call.
+- **Script path (`inst/scripts/TestDDESONN.R`)**: grouped metrics are also directly toggled in the script workflow via `grouped_metrics <- ...`.
+
+Grouped metrics are summary metrics computed across a set of models or runs, rather than from a single model only. They are useful when you want segmented evaluation views across experiment dimensions (for example, by run, seed, ensemble role, or model subset) to understand stability and behavior under variation.
+
+In practice, grouped metrics support questions such as:
+
+- How does typical performance change across seeds?
+- Are temporary/challenger members consistently stronger or weaker than champion/main members?
+- Does a chosen aggregation rule improve consistency across runs?
+
+Example usage scenarios:
+
+1. **Seed-sweep analysis**
+   - Input: predictions from multiple models across many seeds, each with shape `n x 1` (binary) or `n x K` (multiclass).
+   - Output: per-seed metric tables plus grouped summaries to compare central tendency and spread across seeds.
+
+2. **Champion vs challenger iteration review**
+   - Input: model outputs from main and temp ensembles during iterative replacement.
+   - Output: grouped summaries by ensemble group/iteration to audit whether replacements improve the selected objective metric over time.
+
+3. **Regression ensemble comparison**
+   - Input: `M` model prediction vectors (`n x 1`) on the same test set.
+   - Output: aggregated prediction vector (`n x 1`) and grouped error summaries to compare combined output quality versus per-model performance.
+
+#### Relationship to high/low performance relevance boxplots
+
+Grouped metrics and high/low performance relevance boxplots are complementary, but they are not generated from the same source objects.
+
+- Grouped metrics summarize evaluation outcomes across model/run groupings.
+- High/low relevance boxplots visualize distributional behavior from the relevance/performance plotting pipeline.
+
+Because they are computed through different paths, values are not expected to match one-to-one. A practical workflow is to use grouped metrics for comparative selection/monitoring, then use high/low relevance boxplots for visual distribution diagnostics on the selected groups.
 
 ---
 
@@ -401,7 +516,7 @@ DDESONN/
 ├── man/
 ├── vignettes/
 │   ├── DDESONNvKeras_1000Seeds.Rmd
-│   ├── logs_scenarioD_ensemble_runs_temp_iterations.Rmd
+│   ├── logs_main-change-movement_ensemble_runs_scenarioD.Rmd
 │   ├── plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd
 │   └── plot-controls_scenario1-2_single-run_scenarioA.Rmd
 │
@@ -411,11 +526,9 @@ DDESONN/
 │   │   ├── train_multiclass_customer_segmentation.csv
 │   │   ├── test_multiclass_customer_segmentation.csv
 │   │   ├── WMT_1970-10-01_2025-03-15.csv
-│   │   ├── heart_failure_runs/
-│   │   │   ├── run1/
-│   │   │   └── run2/
-│   │   └── vsKeras/
-│   │       └── 1000SEEDSRESULTSvsKeras/
+│   │   └── heart_failure_runs/
+│   │       ├── run1/
+│   │       └── run2/
 │   │
 │   └── scripts/
 │       ├── DDESONN_mtcars_A-D_examples.R
@@ -423,6 +536,8 @@ DDESONN/
 │       ├── Heart_failure_ScenarioA.R
 │       ├── LoadandPredict.R
 │       ├── TestDDESONN.R
+│       ├── vsKeras/
+│       │   └── 1000SEEDSRESULTSvsKeras/
 │       └── techila/
 │           ├── README.Rmd
 │           ├── single_runner_local_mvp.R
@@ -648,6 +763,41 @@ Notes on aggregation + split reports:
 
 ---
 
+## Run terminology
+
+Single vs Ensemble:
+
+- Use **"single run"** when referring to one run/mode.
+  - Scenario A (`do_ensemble = FALSE`, `num_networks = 1`).
+- Use **"single runs"** when referring to multiple single-run cases.
+  - Scenario B (`do_ensemble = FALSE`, `num_networks > 1L`).
+- Use **"ensemble run"** only when explicitly referring to one specific ensemble execution.
+  - Scenario C (`do_ensemble = TRUE`, `num_temp_iterations = 0`).
+- Use **"ensemble runs"** when referring to multiple ensemble executions.
+  - Scenario D (`do_ensemble = TRUE`, `num_temp_iterations > 0`).
+
+Important distinction:
+
+- `length(seeds) > 1L` does **not** by itself mean "runs" in this terminology block.
+- Here, plural wording is tied to model multiplicity (`num_networks > 1L`) and ensemble iteration structure, not to seed count alone.
+
+
+Scenario-family note:
+
+- **Scenario A/B/C/D** refers to run-orchestration families (`do_ensemble`, `num_networks`, `num_temp_iterations`).
+- **Scenario 1/2** is a separate naming family used for **plot-controls wiring only** (not run-orchestration mode labels).
+- In plot-controls docs, **Scenario 1** means three plot call sites are configured/called independently.
+- In plot-controls docs, **Scenario 2** means the same three are configured via one `plot_controls` umbrella call.
+
+What this repository already reflects:
+
+- API/docs primarily describe the mode as **"single run"** (singular).
+- Plural phrasing such as **"single runs"** appears when discussing broader scope/coverage.
+- Workflow guidance uses **"ensemble runs"** (plural) for multi-execution contexts.
+- Internal comments also use singular phrasing when pointing to one specific run (for example, "the single run lives at ...").
+
+---
+
 ## Running the examples
 
 Ready-to-run demos are available under inst/scripts:
@@ -711,14 +861,58 @@ DDESONN supports reproducible experimentation through:
 
 These controls allow experiments to be rerun deterministically, inspected at multiple verbosity levels, and reproduced across systems without hidden state.
 
+### Per-seed test metrics and fused ensemble behavior
+
+DDESONN run artifacts commonly include RDS outputs for train/validation and test metrics.
+Depending on mode, per-seed test representation is built differently:
+
+- **Ensemble mode (`is_ens = TRUE`)**
+  - The per-seed table helper reads fused files from `RUN_DIR/fused/` matching
+    `fused_run*_seed*_*.rds`.
+  - It binds each file's `metrics` table, parses `seed` and `run_index` from the filename,
+    then filters one fusion strategy as the canonical test view (default: `Ensemble_wavg`;
+    alternatives may include `Ensemble_avg`, `Ensemble_vote_soft`, `Ensemble_vote_hard`).
+  - The selected fused metrics are normalized to `test_acc`, `test_precision`,
+    `test_recall`, and `test_f1` before joining to train/validation summaries.
+
+- **Single-run mode (`is_ens = FALSE`)**
+  - The helper reads the latest `SingleRun_Test_Metrics_*_seeds_*.rds` file.
+  - It normalizes seed naming (`seed`/`SEED`) and metric columns (including `f1_score` -> `f1`),
+    then keeps one row per seed (highest accuracy) for the final merged table.
+
+In both modes, merged per-seed summaries are produced by combining train/validation seed-level
+metrics with the mode-appropriate test representation.
+
+`SingleRun_Pretty_Test_Metrics_*_seeds_*.rds` files are intended as readable/inspection-oriented
+outputs (for example, predicted labels/probabilities aligned with outcome `y` and predictor context)
+rather than as the canonical source used for the numeric per-seed summary merge above.
+
+Reference helper scripts and related workflows currently include:
+
+- `inst/extdata/vsKeras/TablesPerSeedMostRecentRunResults.R`
+- `inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/DDESONNproof.R`
+- `inst/scripts/LoadandPredict.R`
+- `R/predict.R`
+
+Clarification on terminology: the per-seed fused rows `Ensemble_avg`, `Ensemble_wavg`,
+`Ensemble_vote_soft`, `Ensemble_vote_hard` are **ensemble-style fused prediction outputs**
+computed from model predictions for reporting/selection at the seed level. They are not, by themselves, the full 
+training/orchestration process that builds and evolves ensembles; the Champion/Challenger promotion and pruning 
+flow is handled in the run pipeline.
+
+Availability note: the compact/package-friendly snapshot may not include every large
+vsKeras artifact (especially `DDESONNproof.R` and related full benchmark outputs) to save
+space. Full artifacts are available from the GitHub release/tag bundle **v7.1.7**.
 ### Vignettes
 
 Start with these vignettes in `vignettes/`:
 
 - `plot-controls_scenario1-2_single-run_scenarioA.Rmd`
 - `plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd`
-- `logs_scenarioD_ensemble_runs_temp_iterations.Rmd`
+- `logs_main-change-movement_ensemble_runs_scenarioD.Rmd`
 - `DDESONNvKeras_1000Seeds.Rmd`
+
+Naming clarification: in these vignette filenames, "Scenario 1/2" indicates plot-control style only, while "Scenario A/B/C/D" indicates run orchestration family. Refer to section: Run terminology.
 
 These cover:
 
@@ -906,6 +1100,19 @@ A dedicated vignette will formally document:
 This will provide a structured walkthrough of ensemble evolution mechanics
 currently demonstrated in `TestDDESONN.R` and related scripts.
 
+#### R-12 - Alternative Structural Alignment Strategies  
+**Status:** Forward-looking consideration  
+**Related To-Do:** T-12  
+
+Structural conformance is currently limited to replicate/truncate alignment. Refer to subsection: Dimension-agnostic behavior (exactly how it works).
+
+Future iterations may explore alternative alignment strategies (e.g., averaging,
+weighted aggregation, or other reconciliation mechanisms), if empirical
+evaluation supports their inclusion.
+
+The current implementation intentionally avoids transformation during
+shape alignment to preserve deterministic and explicit structural behavior.
+
 ---
 
 ## To-Do (Design-Linked)
@@ -994,6 +1201,15 @@ Linked from: **R-09**
 Linked from: **R-10**
 
 Evaluate architectural portability and determine minimal core components required for a language-agnostic implementation.
+
+#### T-12 - Evaluate alternative alignment mechanisms  
+Linked from: **R-12**
+
+- Assess feasibility of averaging or weighted reconciliation during
+  structural conformance
+- Benchmark against replicate/truncate baseline
+- Ensure deterministic behavior and reproducibility guarantees
+- Avoid introducing implicit transformation into current alignment paths
 
 ---
 

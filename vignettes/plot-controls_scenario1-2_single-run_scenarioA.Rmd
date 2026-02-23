@@ -4,12 +4,47 @@ output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 2
+    self_contained: false
 vignette: >
   %\VignetteIndexEntry{DDESONN — Plot Controls — Scenario 1 & 2 — Single Run: Scenario A}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
+## Plot Interface — Scenario 1 vs Scenario 2
+
+This vignette demonstrates two supported plot configuration interfaces in DDESONN.
+
+---
+
+### Scenario 1 — Independent Call Sites (`training_overrides`)
+
+Scenario 1 configures plotting through **three independent call sites** inside `training_overrides`:
+
+1. `training_overrides$per_epoch_plots`
+2. `training_overrides$performance_relevance`
+3. `training_overrides$evaluate_predictions_report_plots`
+
+Each plot category is configured separately.  
+This represents the minimal integration bridge interface.
+
+For the unified umbrella interface (recommended), see:
+
+**`plot-controls_scenario1-2_single-run_scenarioA.Rmd`**
+
+---
+
+### Scenario 2 — Unified Umbrella (`plot_controls`)
+
+Scenario 2 configures all plots through a **single unified interface**:
+
+- `plot_controls`
+
+All plot categories (e.g., `per_epoch`, `performance_relevance`, `evaluate_report`) are defined under this one umbrella.
+
+For comparison with the three-call-site structure (Scenario 1), see:
+
+**`plot-controls_scenario1-2_single-run_scenarioA.Rmd`**
 
 ```{r setup, include=FALSE}
 is_check_env <- nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
@@ -44,15 +79,15 @@ Sys.setenv(DDESONN_ARTIFACTS_ROOT = .vig_tmp_root)
 # ============================================================
 # knitr options (SINGLE consolidated set)
 # ============================================================
-knitr::opts_chunk$set(                                                              
-  echo = TRUE,                                                                      
-  message = TRUE,                                                                   
-  warning = FALSE,                                                                  
-  fig.width = 8,                                                                    
-  fig.height = 5,                                                                   
-  fig.retina = 2,                                                                    
-  fig.align = "center",                                                             
-  out.width = "900px",                                                              
+knitr::opts_chunk$set(                                                      
+  echo = TRUE,                                                              
+  message = FALSE,                                                         
+  warning = FALSE,                                                         
+  fig.width = 6.5,
+  fig.height = 4,
+  dpi = 96,
+  fig.retina = 1,                                                           
+  out.width = "85%",                                                        
   fig.path = file.path(.vig_tmp_root, "figures", ""),
   cache.path = file.path(.vig_tmp_root, "cache", "")
 )                                                                                   

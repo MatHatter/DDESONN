@@ -77,3 +77,6 @@
 # Exclude standalone PDF files from package root (avoid accidental inclusion)
 ^.*\.pdf$
 
+# Generated vignette render outputs (keep only .Rmd sources)
+^vignettes/.*\.html$
+^vignettes/.*\.R$

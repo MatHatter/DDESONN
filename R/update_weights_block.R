@@ -101,7 +101,7 @@ update_weights_block <- function(
             }
             weight_update <- lr * grads_matrix + self$lambda * (self$weights[[layer]] - clipped_weights)
           } else {
-            message("Warning: Unknown reg_type provided. No regularization applied.")
+            if (verbose) message("Warning: Unknown reg_type provided. No regularization applied.")
             weight_update <- lr * grads_matrix
           }
         } else {
@@ -342,7 +342,7 @@ update_weights_block <- function(
           reg_term <- self$lambda * (weights_mat - clipped_weights)
           weight_update <- lr * grads_matrix + reg_term
         } else {
-          message("Warning: Unknown reg_type in SL. No regularization applied.")
+          if (verbose) message("Warning: Unknown reg_type in SL. No regularization applied.")
           weight_update <- lr * grads_matrix
         }
       } else {

@@ -366,13 +366,13 @@ SONN <- R6::R6Class(
       
 
       if (self$ML_NN) {
-        print(paste("LAYER", self$num_layers))
+        if (isTRUE(verbose)) print(paste("LAYER", self$num_layers))
 
         expected_shape <- dim(outputs[[self$num_layers]])
         input_shape <- dim(Rdata)
 
         if (!all(expected_shape == input_shape)) {
-          cat("Mismatch between Rdata and outputs[[num_layers]]: correcting...\n")
+          if (isTRUE(verbose)) cat("Mismatch between Rdata and outputs[[num_layers]]: correcting...\n")
           # Try to reshape outputs to match Rdata
           output_matrix <- matrix(
             rep(outputs[[self$num_layers]], length.out = nrow(Rdata) * ncol(Rdata)),
@@ -388,7 +388,7 @@ SONN <- R6::R6Class(
 
       } else {
         if (!all(dim(outputs) == dim(Rdata))) {
-          cat("Mismatch between Rdata and outputs (single-layer): correcting...\n")
+          if (isTRUE(verbose)) cat("Mismatch between Rdata and outputs (single-layer): correcting...\n")
           output_matrix <- matrix(
             rep(outputs, length.out = nrow(Rdata) * ncol(Rdata)),
             nrow = nrow(Rdata),
@@ -668,10 +668,12 @@ SONN <- R6::R6Class(
           result_dim <- dim(errors[[layer]] %*% (hidden_outputs[[layer - 1]]))
           weight_dim <- dim(self$weights[[layer]])
 
-          print("results_dim")
-          print(dim(errors[[layer]]))
-          print("hidden_outputs[[layer - 1]])")
-          print(dim(hidden_outputs[[layer - 1]]))
+          if (isTRUE(verbose)) {
+            print("results_dim")
+            print(dim(errors[[layer]]))
+            print("hidden_outputs[[layer - 1]])")
+            print(dim(hidden_outputs[[layer - 1]]))
+          }
 
           # Update weights for the layer
           if (ncol(self$weights[[layer]]) == ncol(hidden_outputs[[layer - 1]])) {
@@ -679,7 +681,7 @@ SONN <- R6::R6Class(
               grad <- t(hidden_outputs[[layer - 1]]) %*% errors[[layer]]
               self$weights[[layer]] <- self$weights[[layer]] - lr * grad
             } else {
-              cat("Dimensions mismatch, handling default case for weights.\n")
+              if (isTRUE(verbose)) cat("Dimensions mismatch, handling default case for weights.\n")
               grad <- t(hidden_outputs[[layer - 1]]) %*% errors[[layer]]
               grad <- grad[1:nrow(self$weights[[layer]]), 1:ncol(self$weights[[layer]])]
               self$weights[[layer]] <- self$weights[[layer]] - lr * grad
@@ -721,7 +723,7 @@ SONN <- R6::R6Class(
 
 
       if (is.null(self$map)) {
-        cat("[Debug] SOM not yet trained. Training now...\n")
+        if (isTRUE(verbose)) cat("[Debug] SOM not yet trained. Training now...\n")
         self$train_map(Rdata)
 
         # Determine how many SOM neurons to keep based on max allowed
@@ -754,8 +756,10 @@ SONN <- R6::R6Class(
         }
 
         # Debug info
-        cat("[Debug] SOM-trained weights dim after truncation:\n")
-        print(weight_dim)
+        if (isTRUE(verbose)) {
+          cat("[Debug] SOM-trained weights dim after truncation:\n")
+          print(weight_dim)
+        }
       }
 
 

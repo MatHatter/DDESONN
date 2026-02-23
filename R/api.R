@@ -2172,7 +2172,7 @@ ddesonn_predict <- function(model, new_data,
     CLASSIFICATION_MODE = NULL,
     model_slot = 1L
 ) {
-  .log <- function(...) cat("[BuildPretty] ", paste0(..., collapse = ""), "\n")
+  .log <- function(...) if (isTRUE(getOption("DDESONN.verbose", FALSE))) cat("[BuildPretty] ", paste0(..., collapse = ""), "\n")
   
   .log("------------------------------------------------------------")
   .log("ENTER .build_single_pretty_tables")
