@@ -14,7 +14,7 @@ ddesonn_plots_dir(output_root = NULL)
 \code{ddesonn_plots_dir()}.}
 
 \item{output_root}{Optional base directory for artifacts. When NULL, a
-user-scoped directory is selected automatically.}
+temp-directory location is selected automatically.}
 }
 \value{
 Same as \code{ddesonn_plots_dir()}.

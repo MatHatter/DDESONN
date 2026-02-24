@@ -951,6 +951,11 @@ They are provided solely to support reproducibility and documentation.
 > They are documented to clarify direction and preserve future ideas.  
 > They do **not** imply active development or any committed delivery timeline.
 
+#### R-00 - Maintenance cleanup pass (non-breaking)
+**Status:** Forward-looking consideration  
+
+A future maintenance pass may perform light, non-breaking cleanup in shared utilities (especially `R/utils.R`), including removing legacy safety helpers that are no longer referenced, tightening comments, and reducing incidental duplication. This work would be scoped to readability and maintainability only, with no behavioral changes intended.
+
 #### R-01 - Structured hyperparameter experimentation  
 **Status:** Design intent (future)  
 **Related To-Do:** T-01

@@ -4,8 +4,9 @@
 
 #' Resolve the writable artifacts root for DDESONN.
 #'
-#' Defaults to a user-writable data directory (via tools::R_user_dir()) so
-#' runtime outputs never write into the installed package tree.
+#' Defaults to a session-scoped temp directory so examples/tests/vignettes
+#' do not write into the user home, working directory, or package tree by
+#' default.
 #'
 #' Override order (first non-empty wins):
 #' 1) output_root argument
@@ -13,7 +14,7 @@
 #' 3) getOption("DDESONN_OUTPUT_ROOT")
 #'
 #' @param output_root Optional base directory for artifacts. When NULL, a
-#'   user-scoped directory is selected automatically.
+#'   temp-directory location is selected automatically.
 #' @return Absolute path to the artifacts directory (created if missing).
 #' @export
 ddesonn_artifacts_root <- function(output_root = NULL) { 
@@ -24,8 +25,7 @@ ddesonn_artifacts_root <- function(output_root = NULL) {
     NULL 
   } 
 
-  user_root <- tryCatch(tools::R_user_dir("DDESONN", which = "data"), error = function(e) NULL) 
-  fallback  <- pick_first(user_root, file.path(tempdir(), "DDESONN")) 
+  fallback <- file.path(tempdir(), "DDESONN") 
 
   base <- pick_first( 
     output_root, 

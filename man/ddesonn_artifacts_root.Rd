@@ -14,7 +14,7 @@ ddesonn_artifacts_root(output_root = NULL)
 \code{\link[=ddesonn_artifacts_root]{ddesonn_artifacts_root()}}.}
 
 \item{output_root}{Optional base directory for artifacts. When NULL, a
-user-scoped directory is selected automatically.}
+temp-directory location is selected automatically.}
 }
 \value{
 Same as \code{\link[=ddesonn_artifacts_root]{ddesonn_artifacts_root()}}.
@@ -22,8 +22,9 @@ Same as \code{\link[=ddesonn_artifacts_root]{ddesonn_artifacts_root()}}.
 Absolute path to the artifacts directory (created if missing).
 }
 \description{
-Defaults to a user-writable data directory (via tools::R_user_dir()) so
-runtime outputs never write into the installed package tree.
+Defaults to a session-scoped temp directory so runtime outputs in
+examples/tests/vignettes stay inside \code{tempdir()} by default and do not
+write into the user home, working directory, or installed package tree.
 }
 \details{
 Override order (first non-empty wins):

@@ -2494,13 +2494,23 @@ compute_error <- function(
 
 optimizers_log_update <- function(
     optimizer, epoch, layer, target,
-    grads_matrix,            # gradient(s) passed in
-    P_before = NULL,         # param before (weights or biases)
-    P_after  = NULL,         # param after  (weights or biases)
-    update_applied = NULL,   # the actual update step applied (same shape as P)
-    verbose = verbose
+    grads_matrix,
+    P_before = NULL,
+    P_after  = NULL,
+    update_applied = NULL,
+    verboseLow = FALSE,
+    verbose = FALSE,
+    debug = FALSE
 ) {
-  verbose <- isTRUE(verbose %||% getOption("DDESONN.verbose", FALSE))  
+  verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
+  verbose    <- isTRUE(verbose    %||% getOption("DDESONN.verbose",    FALSE))
+  
+  debug_allowed <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG", unset = "0"), "1")
+  
+  # Print when:
+  # - low tier on OR high tier on
+  # - or debug is explicitly allowed (rare override)
+  if (!verboseLow && !verbose && !debug_allowed) return(invisible(NULL))
   
   # ---- helpers ----
   .as_num <- function(x) {
@@ -2511,8 +2521,10 @@ optimizers_log_update <- function(
   .stats <- function(x) {
     v <- suppressWarnings(.as_num(x))
     if (!length(v) || all(!is.finite(v))) return("min=NA mean=NA max=NA")
-    sprintf("min=%.3g mean=%.3g max=%.3g", min(v, na.rm = TRUE),
-            mean(v, na.rm = TRUE), max(v, na.rm = TRUE))
+    sprintf("min=%.3g mean=%.3g max=%.3g",
+            min(v, na.rm = TRUE),
+            mean(v, na.rm = TRUE),
+            max(v, na.rm = TRUE))
   }
   .shape <- function(x) {
     if (is.list(x)) x <- x[[1]]
@@ -2521,18 +2533,18 @@ optimizers_log_update <- function(
     if (is.null(d)) sprintf("len=%d", length(x)) else sprintf("%dx%d", d[1], d[2])
   }
   
-  # ---- build message ----
+  # ---- build message (unchanged) ----
   grads_msg  <- sprintf("grads(%s):[%s]",  .shape(grads_matrix),  .stats(grads_matrix))
   pre_msg    <- if (!is.null(P_before)) sprintf(" | %s_pre(%s):[%s]",  target, .shape(P_before), .stats(P_before)) else ""
   post_msg   <- if (!is.null(P_after))  sprintf(" | %s_post(%s):[%s]", target, .shape(P_after),  .stats(P_after))  else ""
   update_msg <- if (!is.null(update_applied)) sprintf(" | update(%s):[%s]", .shape(update_applied), .stats(update_applied)) else ""
   
-  if (isTRUE(verbose)) {  
-    cat(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s\n",  
-                toupper(optimizer), epoch, layer, target,  
-                grads_msg, pre_msg, post_msg, update_msg))  
-  }  
+  # CRAN-safe output (message, not cat/print)
+  message(sprintf("[OPT=%s][E%d][L%d][%s] %s%s%s%s",
+                  toupper(optimizer), epoch, layer, target,
+                  grads_msg, pre_msg, post_msg, update_msg))
   
+  invisible(NULL)
 }
 
 coerce_pred_schema <- function(df) {
