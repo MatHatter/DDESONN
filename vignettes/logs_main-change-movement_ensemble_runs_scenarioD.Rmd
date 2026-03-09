@@ -201,7 +201,7 @@ res_D <- ddesonn_run(
     dropout_rates = list(0.10),
     loss_type = "CrossEntropy",
     validation_metrics = TRUE,
-    num_epochs = 3,
+    num_epochs = 360,
     final_summary_decimals = 6L
   ),
   output_root = if (isTRUE(build_artifacts)) outD else NULL

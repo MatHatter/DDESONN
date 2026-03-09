@@ -1,0 +1,317 @@
+
+---
+title: "DDESONN vs Keras — 1000-Seed Summary — Heart Failure"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{DDESONN vs Keras — 1000-Seed Summary — Heart Failure}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+## Overview
+
+This vignette summarizes DDESONN results across **1000 randomized seeds**
+(two separate 500-seed runs) and compares them against a Keras benchmark
+summary stored in an Excel workbook bundled with the package.
+
+The purpose of this benchmark is not to showcase a single favorable run.
+Instead, it evaluates **distributional behavior across many random
+initializations**, with emphasis on:
+
+- mean performance
+- variance and standard deviation
+- worst-case behavior
+- reproducibility under repeated stress
+
+In this context, stronger stability across seeds is important because it
+indicates that the training procedure is less sensitive to random
+initialization and therefore more dependable at scale.
+
+## Where the demo data lives
+
+The four RDS artifacts included with the package are stored under:
+
+```text
+inst/extdata/heart_failure_runs/
+├─ run1/
+│  ├─ SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds
+│  └─ SingleRun_Test_Metrics_500_seeds_20251025.rds
+└─ run2/
+   ├─ SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds
+   └─ SingleRun_Test_Metrics_500_seeds_20251026.rds
+```
+
+Each folder represents one 500-seed run performed locally; together they
+form the 1000-seed composite.
+
+## Motivation and comparison philosophy
+
+This benchmark addresses a focused research question:
+
+> Can a fully R-native, from-first-principles neural network implementation
+> achieve competitive statistical stability relative to an established
+> deep-learning framework under repeated randomized initialization?
+
+The Keras comparison is included as a **reference benchmark**, not as an
+implementation template. DDESONN was built independently from scratch and
+was not derived from Keras source code.
+
+## Load DDESONN runs and build the summary
+
+```{r setup, message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tibble)
+  library(knitr)
+})
+
+if (!requireNamespace("DDESONN", quietly = TRUE)) {
+  message("DDESONN not installed in this build session; skipping evaluation.")
+  knitr::opts_chunk$set(eval = FALSE)
+}
+```
+
+```{r helpers, message=FALSE, warning=FALSE}
+.render_tbl <- function(x, title = NULL, digits = 4) {
+  if (requireNamespace("DDESONN", quietly = TRUE) &&
+      exists("ddesonn_viewTables", envir = asNamespace("DDESONN"), inherits = FALSE)) {
+    get("ddesonn_viewTables", envir = asNamespace("DDESONN"))(x, title = title)
+  } else {
+    if (!is.null(title)) cat("\n\n###", title, "\n\n")
+    knitr::kable(x, digits = digits, format = "html")
+  }
+}
+```
+
+```{r ddesonn-summary, message=FALSE, warning=FALSE, results='asis'}
+heart_failure_root <- system.file("extdata", "heart_failure_runs", package = "DDESONN")
+
+if (!nzchar(heart_failure_root)) {
+  # Fallback when building from source before installation
+  heart_failure_root <- file.path("..", "inst", "extdata", "heart_failure_runs")
+}
+
+stopifnot(dir.exists(heart_failure_root))
+
+train_run1_path <- file.path(
+  heart_failure_root, "run1",
+  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds"
+)
+test_run1_path <- file.path(
+  heart_failure_root, "run1",
+  "SingleRun_Test_Metrics_500_seeds_20251025.rds"
+)
+train_run2_path <- file.path(
+  heart_failure_root, "run2",
+  "SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds"
+)
+test_run2_path <- file.path(
+  heart_failure_root, "run2",
+  "SingleRun_Test_Metrics_500_seeds_20251026.rds"
+)
+
+stopifnot(
+  file.exists(train_run1_path),
+  file.exists(test_run1_path),
+  file.exists(train_run2_path),
+  file.exists(test_run2_path)
+)
+
+train_run1 <- readRDS(train_run1_path)
+test_run1  <- readRDS(test_run1_path)
+train_run2 <- readRDS(train_run2_path)
+test_run2  <- readRDS(test_run2_path)
+
+train_all <- dplyr::bind_rows(train_run1, train_run2)
+test_all  <- dplyr::bind_rows(test_run1, test_run2)
+
+train_seed <- train_all %>%
+  group_by(seed) %>%
+  slice_max(order_by = best_val_acc, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  transmute(
+    seed,
+    train_acc = best_train_acc,
+    val_acc   = best_val_acc
+  )
+
+test_seed <- test_all %>%
+  group_by(seed) %>%
+  slice_max(order_by = accuracy, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  transmute(
+    seed,
+    test_acc = accuracy
+  )
+
+merged <- inner_join(train_seed, test_seed, by = "seed") %>%
+  arrange(seed)
+
+summarize_column <- function(x) {
+  pct <- function(p) stats::quantile(x, probs = p, names = FALSE, type = 7)
+  data.frame(
+    count = length(x),
+    mean  = mean(x),
+    std   = sd(x),
+    min   = min(x),
+    `25%` = pct(0.25),
+    `50%` = pct(0.50),
+    `75%` = pct(0.75),
+    max   = max(x),
+    check.names = FALSE
+  )
+}
+
+summary_train <- summarize_column(merged$train_acc)
+summary_val   <- summarize_column(merged$val_acc)
+summary_test  <- summarize_column(merged$test_acc)
+
+summary_all <- data.frame(
+  stat = c("count","mean","std","min","25%","50%","75%","max"),
+  train_acc = unlist(summary_train[1, ]),
+  val_acc   = unlist(summary_val[1, ]),
+  test_acc  = unlist(summary_test[1, ]),
+  check.names = FALSE
+)
+
+round4 <- function(x) if (is.numeric(x)) round(x, 4) else x
+pretty_summary <- as.data.frame(lapply(summary_all, round4))
+
+.render_tbl(
+  pretty_summary,
+  title = "DDESONN — 1000-seed summary (train/val/test)"
+)
+```
+
+## Keras parity (Excel, Sheet 2)
+
+Keras parity results are stored in an Excel workbook included with the package
+under:
+
+```text
+inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx
+```
+
+The file is accessed programmatically using `system.file()` so the path remains
+CRAN-safe and cross-platform.
+
+```{r keras-summary, message=FALSE, warning=FALSE, results='asis'}
+if (!requireNamespace("readxl", quietly = TRUE)) {
+  message("Skipping keras-summary chunk: 'readxl' not installed.")
+} else {
+  keras_path <- system.file(
+    "scripts", "vsKeras", "1000SEEDSRESULTSvsKeras", "1000seedsKeras.xlsx",
+    package = "DDESONN"
+  )
+
+  if (nzchar(keras_path) && file.exists(keras_path)) {
+    keras_stats <- readxl::read_excel(keras_path, sheet = 2)
+    .render_tbl(
+      keras_stats,
+      title = "Keras — 1000-seed summary (Sheet 2)"
+    )
+  } else {
+    cat("Keras Excel not found in installed package.\n")
+  }
+}
+```
+
+## 🔬 Benchmark results across 1000 seeds
+
+Across **1000 random neural network initializations**, DDESONN demonstrated
+stronger stability than the Keras benchmark model on this heart-failure task.
+
+```{r benchmark-comparison, message=FALSE, warning=FALSE, results='asis'}
+benchmark_results <- data.frame(
+  Metric = c(
+    "Mean Test Accuracy",
+    "Standard Deviation",
+    "Minimum Test Accuracy",
+    "Maximum Test Accuracy"
+  ),
+  DDESONN = c("≈ 99.92%", "≈ 0.0013", "≈ 99.20%", "100%"),
+  Keras   = c("≈ 99.69%", "≈ 0.0036", "≈ 97.82%", "100%"),
+  check.names = FALSE
+)
+
+.render_tbl(
+  benchmark_results,
+  title = "Benchmark results across 1000 seeds"
+)
+```
+
+These results suggest that DDESONN achieved:
+
+- **higher average test accuracy**
+- **materially lower variance across seeds**
+- **stronger minimum-case performance**
+- **equal best-case ceiling performance**
+
+This is important because lower variance implies the model is less sensitive
+to randomized initialization and more dependable across repeated training runs.
+
+## Why this matters for large-scale projects
+
+### Enterprise machine learning pipelines
+
+In large corporate environments, teams may train hundreds or thousands of
+models across changing datasets, validation windows, and deployment cycles.
+A lower-variance model reduces the need for repeated retraining simply to
+obtain a “good seed,” which lowers compute cost and improves operational
+predictability.
+
+### Trading and financial systems
+
+In trading, portfolio analytics, execution modeling, or risk forecasting,
+model instability can create inconsistent outputs across retrains. A model
+that is more stable across seeds can improve confidence in:
+
+- signal consistency,
+- scenario analysis,
+- risk control calibration,
+- production retraining pipelines.
+
+This does not guarantee trading profitability, but it does support stronger
+engineering reliability and more reproducible model behavior.
+
+### Healthcare and regulated environments
+
+In healthcare and other regulated domains, reproducibility matters because
+stakeholders need confidence that retraining the same workflow will not
+produce materially unstable outcomes. Lower dispersion across seeds can help
+support validation, governance, and auditability.
+
+### Aerospace and autonomous systems
+
+In mission-critical environments such as autonomous control or space-related
+analytics, reproducibility and reliability are essential. More stable training
+behavior can be valuable when models need to be trusted under constrained or
+high-stakes deployment settings.
+
+## Reproducibility notes
+
+These results aggregate **two independent 500-seed runs** performed locally.
+
+A master seed was **not** set for those original runs. Since then:
+
+- DDESONN benchmarking has been updated to use a master seed in
+  `TestDDESONN_1000seeds.R`
+- Keras parity benchmarking has been updated to use a synchronized master seed
+  in `TestKeras_1000seeds.py`
+
+Keras raw and summary outputs are compiled in:
+
+```text
+inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx
+```
+
+## Distributed execution (scaling note)
+
+The results shown here were computed locally.
+
+For large-scale experiments involving hundreds or thousands of seeds,
+DDESONN can be executed in distributed environments to reduce wall-clock
+time significantly. Distributed orchestration and development-stage scaling
+scripts are maintained in the GitHub repository and are intentionally
+excluded from the CRAN package so this vignette remains focused on validated
+results and benchmark methodology.

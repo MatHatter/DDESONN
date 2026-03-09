@@ -2,6 +2,8 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+<img src="https://raw.githubusercontent.com/MatHatter/ddesonn-assets/main/DDESONN_brain.png" width="800">
+
 **Documentation structure:**  
 This repository also includes `inst/scripts/techila/README.Rmd`, which provides Techila/distributed-run notes and execution guidance.  
 The root `README.md` is the canonical public-facing README for users, CRAN, and external contributors.
@@ -435,6 +437,19 @@ The current public API exposes structured configuration for most common
 use cases. Future releases may expand first-class API hooks to make
 advanced customization more directly accessible through the public interface.
 
+**Learning-rate scheduling observations**
+
+During experimentation, learning-rate scheduling did not consistently
+improve binary-classification performance and in several tests slightly
+reduced accuracy relative to fixed learning-rate runs.  
+
+However, the same scheduling logic appeared more beneficial in
+regression settings, where gradual step-down learning rates improved
+training stability and convergence behavior.
+
+As a result, learning-rate scheduling should be considered
+experiment-dependent rather than universally beneficial.
+
 ---
 
 ## Architecture
@@ -515,7 +530,7 @@ DDESONN/
 ├── R/
 ├── man/
 ├── vignettes/
-│   ├── DDESONNvKeras_1000Seeds.Rmd
+│   ├── DDESONNvsKeras_1000Seeds.Rmd
 │   ├── logs_main-change-movement_ensemble_runs_scenarioD.Rmd
 │   ├── plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd
 │   └── plot-controls_scenario1-2_single-run_scenarioA.Rmd
@@ -599,6 +614,16 @@ For installed packages:
 
 Note: `source()` is development-only and not recommended for installed packages.
 
+**Epoch selection**
+
+The optimal number of epochs is experiment-dependent and may vary
+significantly across datasets, architectures, and seeds.
+
+In practice, `num_epochs` should be treated as a tunable upper bound
+rather than a fixed universal value. The objective is to identify a
+suitable stopping point for each model configuration rather than rely
+on a single epoch count across experiments.
+
 High-level API usage (training split is always `x`/`y`):
 
     res <- ddesonn_run(
@@ -612,6 +637,11 @@ High-level API usage (training split is always `x`/`y`):
         self_org = FALSE  # set TRUE to enable self-organization
       )
     )
+    
+Many experiments in this repository use `num_epochs = 360` for the
+heart-failure dataset used in the benchmark vignettes. This value was
+empirically suitable for that dataset but should not be interpreted as
+a recommended universal setting.
 
 #### Which function should I use?
 
@@ -910,7 +940,7 @@ Start with these vignettes in `vignettes/`:
 - `plot-controls_scenario1-2_single-run_scenarioA.Rmd`
 - `plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd`
 - `logs_main-change-movement_ensemble_runs_scenarioD.Rmd`
-- `DDESONNvKeras_1000Seeds.Rmd`
+- `DDESONNvsKeras_1000Seeds.Rmd`
 
 Naming clarification: in these vignette filenames, "Scenario 1/2" indicates plot-control style only, while "Scenario A/B/C/D" indicates run orchestration family. Refer to section: Run terminology.
 
@@ -927,7 +957,7 @@ DDESONN includes precomputed `.rds` files under:
 
 `inst/extdata/`
 
-These files contain saved model outputs, metrics, and summaries used specifically for the `DDESONNvKeras_1000Seeds.Rmd` vignette to:
+These files contain saved model outputs, metrics, and summaries used specifically for the `DDESONNvsKeras_1000Seeds.Rmd` vignette to:
 
 - Demonstrate large multi-seed experiments (1,000 randomized initializations)
 - Avoid long runtimes during vignette builds
@@ -945,11 +975,15 @@ They are provided solely to support reproducibility and documentation.
 
 ## Roadmap & Design Intent
 
+<small>
+
 > **Note on scope and intent**  
-> The items below describe **current behavior**, **explicit design intent**, and
+> The items below describe **current behavior**, **explicit design intent**, and  
 > **forward-looking considerations**.  
 > They are documented to clarify direction and preserve future ideas.  
 > They do **not** imply active development or any committed delivery timeline.
+
+</small>
 
 #### R-00 - Maintenance cleanup pass (non-breaking)
 **Status:** Forward-looking consideration  
@@ -1070,7 +1104,7 @@ the same helper.
 **Related To-Do:** T-09
 
 The project already includes a major comparative vignette:
-`vignettes/DDESONNvKeras_1000Seeds.Rmd` (Heart Failure, 1000-seed summary).
+`vignettes/DDESONNvsKeras_1000Seeds.Rmd` (Heart Failure, 1000-seed summary).
 
 Future releases may expand the vignette suite (more datasets, more experiments,
 more reproducible walkthroughs) and optionally explore interactive diagnostics
@@ -1117,6 +1151,20 @@ evaluation supports their inclusion.
 
 The current implementation intentionally avoids transformation during
 shape alignment to preserve deterministic and explicit structural behavior.
+
+#### R-13 - Neural Network Visualization / Equation Artwork Generator  
+**Status:** Forward-looking concept  
+
+Future versions may include a visualization utility capable of generating
+neural-network artwork where equations, constants, and hyperparameters from
+the DDESONN engine (e.g., learning rate, hidden sizes, activation functions,
+optimizer parameters) are embedded along network pathways and synaptic
+structures.
+
+The visual output would intentionally follow the same aesthetic style as the
+DDESONN neural-network brain artwork shown at the top of the README, keeping
+equations and numbers integrated along synaptic paths rather than placed
+randomly around the network.
 
 ---
 
@@ -1192,7 +1240,7 @@ consistency sweep, not a redesign
 #### T-09 - Expand vignettes and research demos  
 Linked from: **R-08**
 
-- Add additional polished vignettes for guided exploration (beyond `DDESONNvKeras_1000Seeds.Rmd`)
+- Add additional polished vignettes for guided exploration (beyond `DDESONNvsKeras_1000Seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
 - Treat vignettes as the primary-user education layer for v1+ releases
 

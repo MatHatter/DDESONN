@@ -22,9 +22,9 @@ Same as \code{\link[=ddesonn_artifacts_root]{ddesonn_artifacts_root()}}.
 Absolute path to the artifacts directory (created if missing).
 }
 \description{
-Defaults to a session-scoped temp directory so runtime outputs in
-examples/tests/vignettes stay inside \code{tempdir()} by default and do not
-write into the user home, working directory, or installed package tree.
+Defaults to a session-scoped temp directory so examples/tests/vignettes
+do not write into the user home, working directory, or package tree by
+default.
 }
 \details{
 Override order (first non-empty wins):
