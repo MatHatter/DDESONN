@@ -532,6 +532,9 @@ if (!exists(".normalize_metrics_schema_minimal", mode="function")) {
 
 # ===========================================================
 # MAIN
+# Native-R SSM models persist their encoder and training-only scaling as model
+# attributes.  When loading one, provide a numeric samples x length x features
+# array as `sequence_data` to `ddesonn_predict()`; never refit scaling here.
 # ===========================================================
 LoadandPredict <- function(
     FLOW                  = c("TestDDESONN","API"),
