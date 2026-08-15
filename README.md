@@ -2,6 +2,27 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Optional native-R sequence encoder
+
+The engineered-feature workflow is unchanged by default (`sequence_encoder =
+"none"`). To add causal temporal context, build aligned windows and enable the
+native selective state-space encoder:
+
+```r
+seq <- ddesonn_sequence_data(market_matrix, sequence_length = 48)
+x_aligned <- engineered_features[attr(seq, "end_index"), ]
+model <- ddesonn_model(ncol(x_aligned), 1, hidden_sizes = 16,
+  sequence_encoder = "ssm", sequence_data = seq,
+  sequence_length = 48, ssm_state_dim = 16, ssm_conv = 4)
+ddesonn_fit(model, x_aligned, y_aligned, sequence_data = seq)
+probability <- ddesonn_predict(model, x_aligned,
+  sequence_data = seq)$prediction
+```
+
+Windows use only observations at or before their end row. Training-channel
+scaling and learned encoder parameters are stored in the model and reused after
+save/reload; inference never refits them.
+
 <img src="https://raw.githubusercontent.com/MatHatter/ddesonn-assets/main/DDESONN_brain.png" width="800">
 
 **Documentation structure:**  

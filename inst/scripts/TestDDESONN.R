@@ -1097,6 +1097,10 @@ num_temp_iterations <- 0L   # ignored when do_ensemble = FALSE
 # num_temp_iterations <- 0L
 #
 ## SCENARIO C: Main ensemble only (no TEMP/prune-add)
+# Optional native-R sequence path (the default remains fully unchanged): set
+# sequence_encoder <- "ssm" and pass aligned `sequence_data` through
+# ddesonn_run().  A promoted model carries its encoder atomically as an
+# attribute, so MAIN/TEMP candidates cannot be detached from their features.
 # do_ensemble         <- TRUE
 # num_networks        <- 5L          # example main size
 # num_temp_iterations <- 0L
@@ -3024,7 +3028,6 @@ if(train) {
   
   
 }
-
 
 
 

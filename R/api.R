@@ -317,8 +317,13 @@ ddesonn_model <- function(input_size,
                           ensemble_number = 0L,  
                           verbose = FALSE,  
                           verboseLow = FALSE,  
-                          debug = FALSE) {  
+                          debug = FALSE,
+                          sequence_encoder = "none", sequence_data = NULL,
+                          sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
   classification_mode <- match.arg(classification_mode)
+  sequence_encoder <- match.arg(sequence_encoder, c("none", "ssm"))
+  engineered_input_size <- input_size
+  if (sequence_encoder == "ssm") input_size <- input_size + as.integer(ssm_state_dim)
   
   activation_functions <- activation_functions %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "train")
@@ -356,6 +361,12 @@ ddesonn_model <- function(input_size,
   attr(model, "hidden_sizes") <- hidden_sizes
   attr(model, "lambda") <- lambda
   attr(model, "ML_NN") <- ML_NN
+  attr(model, "engineered_input_size") <- engineered_input_size
+  attr(model, "sequence_config") <- list(encoder=sequence_encoder, sequence_length=as.integer(sequence_length), state_dim=as.integer(ssm_state_dim), conv_width=as.integer(ssm_conv))
+  if (sequence_encoder == "ssm" && !is.null(sequence_data)) {
+    d <- .ddesonn_validate_sequence(sequence_data, as.integer(sequence_length))
+    attr(model, "ssm_encoder") <- ddesonn_ssm_init(d[3], ssm_state_dim, ssm_conv)
+  }
   class(model) <- unique(c("ddesonn_model", class(model)))
   model
 }
@@ -423,7 +434,8 @@ ddesonn_model <- function(input_size,
 #'
 #' @seealso [DDESONN-package]
 #' @export
-ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE) {  
+ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE,
+                        sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
@@ -431,6 +443,22 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   
+  seq_cfg <- attr(model, "sequence_config") %||% list(encoder="none")
+  if (identical(seq_cfg$encoder, "ssm")) {
+    if (is.null(sequence_data)) stop("sequence_data is required for an SSM model.", call.=FALSE)
+    d <- .ddesonn_validate_sequence(sequence_data, seq_cfg$sequence_length, NROW(x))
+    enc <- attr(model, "ssm_encoder") %||% ddesonn_ssm_init(d[3], seq_cfg$state_dim, seq_cfg$conv_width)
+    invisible(ddesonn_ssm_encode(enc, sequence_data, fit_scale=TRUE)); enc <- attr(ddesonn_ssm_encode(enc, sequence_data), "encoder")
+    enc <- .ddesonn_ssm_train(enc, sequence_data, y, epochs=max(1L,min(10L,list(...)$num_epochs %||% 3L)), lr=min(.01,list(...)$lr %||% .001))
+    attr(model,"ssm_encoder") <- enc
+    x <- cbind(.as_numeric_matrix(x), ddesonn_ssm_encode(enc, sequence_data))
+    if (!is.null(validation)) {
+      vs <- validation$sequence_data %||% NULL
+      if (is.null(vs)) stop("validation$sequence_data is required for SSM validation.", call.=FALSE)
+      .ddesonn_validate_sequence(vs,seq_cfg$sequence_length,NROW(validation$x))
+      validation$x <- cbind(.as_numeric_matrix(validation$x),ddesonn_ssm_encode(enc,vs))
+    }
+  } else if (!is.null(sequence_data)) warning("sequence_data is ignored when sequence_encoder='none'.",call.=FALSE)
   data_prep <- .prepare_training_data(x)
   
   overrides <- list(...)  # <-- move earlier so we can use it for mode  
@@ -1495,7 +1523,8 @@ ddesonn_predict <- function(model, new_data,
                             threshold = NULL,  
                             verbose = FALSE,  
                             verboseLow = FALSE,  
-                            debug = FALSE) {  
+                            debug = FALSE,
+                            sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
@@ -1505,6 +1534,13 @@ ddesonn_predict <- function(model, new_data,
   type <- match.arg(type)
   
   X <- .as_numeric_matrix(new_data)
+  seq_cfg <- attr(model,"sequence_config") %||% list(encoder="none")
+  if (identical(seq_cfg$encoder,"ssm")) {
+    if (is.null(sequence_data)) stop("sequence_data is required for SSM prediction.",call.=FALSE)
+    .ddesonn_validate_sequence(sequence_data,seq_cfg$sequence_length,nrow(X))
+    enc<-attr(model,"ssm_encoder");if(is.null(enc)||is.null(enc$scale))stop("Saved model has no fitted SSM encoder.",call.=FALSE)
+    X<-cbind(X,ddesonn_ssm_encode(enc,sequence_data))
+  }
   mode <- attr(model, "classification_mode") %||% "binary"
   
   preds <- lapply(seq_along(model$ensemble), function(i) {
@@ -3399,11 +3435,15 @@ ddesonn_run <- function(x,
                         save_models = TRUE,  
                         verbose = FALSE,  
                         verboseLow = FALSE,  
-                        debug = FALSE) {  
+                        debug = FALSE,
+                        sequence_encoder = "none", sequence_data = NULL,
+                        sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
   seed_aggregate <- match.arg(seed_aggregate)
   prediction_type <- match.arg(prediction_type)
+  sequence_encoder <- match.arg(sequence_encoder,c("none","ssm"))
+  if(sequence_encoder=="ssm") .ddesonn_validate_sequence(sequence_data,as.integer(sequence_length),NROW(x))
   
   verbose <- isTRUE(verbose %||% FALSE)  
   verboseLow <- isTRUE(verboseLow %||% FALSE)  
@@ -3439,7 +3479,9 @@ ddesonn_run <- function(x,
     output_size = output_size,
     hidden_sizes = hidden_sizes,
     num_networks = max(1L, as.integer(num_networks)),
-    classification_mode = classification_mode
+    classification_mode = classification_mode,
+    sequence_encoder=sequence_encoder, sequence_data=sequence_data, sequence_length=sequence_length,
+    ssm_state_dim=ssm_state_dim, ssm_conv=ssm_conv
   )
   base_model_args <- utils::modifyList(base_model_args, model_overrides, keep.null = TRUE)
   
@@ -4038,7 +4080,8 @@ ddesonn_run <- function(x,
       )                                                                                
     }                                                                                  
     
-    do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val), base_train_overrides))
+    if(sequence_encoder=="ssm" && !is.null(val) && is.null(val$sequence_data)) stop("validation$sequence_data is required for SSM runs.",call.=FALSE)
+    do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
     
     if (isTRUE(debug)) {                                                                # 
       ddesonn_console_log(                                                              # 
@@ -4124,7 +4167,7 @@ ddesonn_run <- function(x,
           )                                                                             # 
         }                                                                               # 
         
-        do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val), tmp_overrides))
+        do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), tmp_overrides))
         
         if (isTRUE(debug)) {                                                            # 
           ddesonn_console_log(                                                          # 
