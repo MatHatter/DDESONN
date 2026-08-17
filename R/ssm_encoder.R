@@ -83,12 +83,19 @@ ddesonn_ssm_encode <- function(encoder, sequence_data, fit_scale = FALSE) {
 #' @export
 ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
   p<-encoder$params; cfg<-encoder$config; x<-cache$x; z<-cache$z; n<-dim(x)[1];T<-dim(x)[2];f<-dim(x)[3];h<-cfg$state_dim;k<-cfg$conv_width
+  grad_embedding <- as.matrix(grad_embedding)
+  if (!identical(dim(grad_embedding), c(n, h)))
+    stop("grad_embedding must have dimensions samples x state_dim.", call. = FALSE)
   g<-lapply(p,function(v){array(0,dim=dim(v)%||%length(v))}); names(g)<-names(p)
   gx<-array(0,dim(x)); gs_next<-matrix(0,n,h); A <- -exp(p$A_log)
   for(t in T:1L) for(i in seq_len(n)) {
     go <- if(t==T) as.numeric(grad_embedding[i,]) else numeric(h)
     st<-cache$states[i,t,]; prev<-if(t==1L)numeric(h) else cache$states[i,t-1L,]; zz<-z[i,t,]; cc<-cache$C[i,t,]; bb<-cache$B[i,t,]; dtt<-cache$dt[i,t,]; da<-exp(dtt*A)
-    g$W_C <- g$W_C + outer(zz,go*st); g$b_C<-g$b_C+go*st; gst<-go*cc+gs_next
+    g$W_C <- g$W_C + outer(zz,go*st); g$b_C<-g$b_C+go*st
+    # Only this sample's recurrent gradient flows into its previous state.
+    # Adding the entire samples x states matrix here silently flattened gB in
+    # outer(zz, gB), making the projection gradient features x (samples*states).
+    gst<-go*cc+gs_next[i,]
     g$D <- g$D + outer(zz,go); gz<-as.numeric(p$D%*%go)
     gB<-gst*rep(zz,length.out=h); gxrep<-gst*bb
     g$W_B<-g$W_B+outer(zz,gB);g$b_B<-g$b_B+gB;gz<-gz+as.numeric(p$W_B%*%gB)

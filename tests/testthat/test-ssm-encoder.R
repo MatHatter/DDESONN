@@ -19,6 +19,54 @@ test_that("analytical convolution gradient agrees numerically", {
   expect_equal(an,num,tolerance=2e-5)
 })
 
+test_that("backward supports non-square feature and state dimensions", {
+  set.seed(817)
+  x <- array(rnorm(3L * 48L * 13L), c(3L, 48L, 13L))
+  e <- ddesonn_ssm_init(13L, 16L, 4L, 19L)
+  fw <- ddesonn_ssm_forward(e, x, TRUE)
+  upstream <- matrix(rnorm(3L * 16L), 3L, 16L)
+
+  expect_no_error(gr <- ddesonn_ssm_backward(e, fw$cache, upstream))
+  expect_equal(dim(fw$embedding), c(3L, 16L))
+  expect_equal(dim(gr$params$W_B), c(13L, 16L))
+  expect_equal(dim(gr$params$W_C), c(13L, 16L))
+  expect_equal(dim(gr$params$W_dt), c(13L, 16L))
+  expect_equal(dim(gr$params$D), c(13L, 16L))
+  expect_equal(dim(gr$params$conv), c(4L, 13L))
+  expect_equal(dim(gr$input), c(3L, 48L, 13L))
+  expect_true(all(vapply(gr$params, function(value) all(is.finite(value)), logical(1L))))
+})
+
+test_that("non-square projection gradients agree with finite differences", {
+  set.seed(23)
+  x <- array(rnorm(2L * 3L * 3L), c(2L, 3L, 3L))
+  e <- ddesonn_ssm_init(3L, 5L, 2L, 29L)
+  upstream <- matrix(rnorm(2L * 5L), 2L, 5L)
+  fw <- ddesonn_ssm_forward(e, x, TRUE)
+  analytical <- ddesonn_ssm_backward(e, fw$cache, upstream)$params
+  loss <- function(parameter, row, column, value) {
+    candidate <- e
+    candidate$params[[parameter]][row, column] <- value
+    sum(ddesonn_ssm_forward(candidate, x)$embedding * upstream) / dim(x)[1L]
+  }
+  finite_difference <- function(parameter, row, column, epsilon = 1e-6) {
+    value <- e$params[[parameter]][row, column]
+    (loss(parameter, row, column, value + epsilon) -
+       loss(parameter, row, column, value - epsilon)) / (2 * epsilon)
+  }
+
+  # W_B, W_C, and W_dt are feature-to-state projections; D is the
+  # feature-to-output skip projection. All therefore have features x states.
+  for (parameter in c("W_B", "W_C", "W_dt", "D")) {
+    expect_equal(
+      analytical[[parameter]][2L, 4L],
+      finite_difference(parameter, 2L, 4L),
+      tolerance = 3e-5,
+      info = parameter
+    )
+  }
+})
+
 test_that("training scaling is reused after serialization", {
   x<-array(seq_len(48),c(4,3,4));e<-ddesonn_ssm_init(4,2,3,1)
   z<-ddesonn_ssm_encode(e,x,TRUE);e<-attr(z,"encoder");before<-ddesonn_ssm_encode(e,x)
