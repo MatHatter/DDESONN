@@ -2,6 +2,30 @@
 .ssm_softplus <- function(x) log1p(exp(-abs(x))) + pmax(x, 0)
 .ssm_sigmoid <- function(x) 1 / (1 + exp(-x))
 
+.ssm_shape_text <- function(x) {
+  if (is.null(dim(x))) paste0("length ", length(x), " vector") else paste(dim(x), collapse = " x ")
+}
+
+.ssm_assert_shape <- function(x, expected, name, vector = FALSE) {
+  valid <- if (vector) is.null(dim(x)) && length(x) == expected else identical(dim(x), as.integer(expected))
+  if (!valid) {
+    wanted <- if (vector) paste0("length ", expected, " vector") else paste(expected, collapse = " x ")
+    stop(sprintf("SSM shape invariant failed for %s: expected %s; actual %s.",
+                 name, wanted, .ssm_shape_text(x)), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+.ssm_assert_parameter_shapes <- function(params, cfg, prefix = "params") {
+  f <- cfg$sequence_features; h <- cfg$state_dim; k <- cfg$conv_width
+  matrices <- list(conv = c(k, f), W_dt = c(f, h), W_B = c(f, h),
+                   W_C = c(f, h), D = c(f, h))
+  vectors <- list(conv_bias = f, b_dt = h, b_B = h, b_C = h, A_log = h)
+  for (nm in names(matrices)) .ssm_assert_shape(params[[nm]], matrices[[nm]], paste0(prefix, "$", nm))
+  for (nm in names(vectors)) .ssm_assert_shape(params[[nm]], vectors[[nm]], paste0(prefix, "$", nm), vector = TRUE)
+  invisible(TRUE)
+}
+
 #' Initialise a native-R selective state-space encoder
 #' @param sequence_features Number of input channels.
 #' @param state_dim Temporal embedding width.
@@ -42,6 +66,7 @@ ddesonn_ssm_forward <- function(encoder, sequence_data, return_cache = FALSE) {
   d <- .ddesonn_validate_sequence(sequence_data); cfg <- encoder$config; p <- encoder$params
   if (d[3] != cfg$sequence_features) stop("sequence feature count differs from encoder configuration.", call.=FALSE)
   n <- d[1]; T <- d[2]; f <- d[3]; h <- cfg$state_dim; k <- cfg$conv_width
+  .ssm_assert_parameter_shapes(p, cfg)
   states <- array(0,c(n,T,h)); z <- array(0,c(n,T,f)); dt <- B <- C <- array(0,c(n,T,h)); out <- array(0,c(n,T,h))
   for (i in seq_len(n)) for (t in seq_len(T)) {
     for (lag in 0:(k-1L)) if (t-lag >= 1L) z[i,t,] <- z[i,t,] + sequence_data[i,t-lag,] * p$conv[lag+1L,]
@@ -83,10 +108,14 @@ ddesonn_ssm_encode <- function(encoder, sequence_data, fit_scale = FALSE) {
 #' @export
 ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
   p<-encoder$params; cfg<-encoder$config; x<-cache$x; z<-cache$z; n<-dim(x)[1];T<-dim(x)[2];f<-dim(x)[3];h<-cfg$state_dim;k<-cfg$conv_width
+  .ssm_assert_parameter_shapes(p, cfg)
   grad_embedding <- as.matrix(grad_embedding)
   if (!identical(dim(grad_embedding), c(n, h)))
     stop("grad_embedding must have dimensions samples x state_dim.", call. = FALSE)
-  g<-lapply(p,function(v){array(0,dim=dim(v)%||%length(v))}); names(g)<-names(p)
+  # Preserve vectors as vectors.  `array(0, dim = length(v))` turns biases and
+  # A_log into one-dimensional arrays, which then also turns the parameters
+  # into arrays during an Adam update and breaks matrix-plus-bias projection.
+  g<-lapply(p,function(v) if (is.null(dim(v))) numeric(length(v)) else array(0, dim=dim(v))); names(g)<-names(p)
   gx<-array(0,dim(x)); gs_next<-matrix(0,n,h); A <- -exp(p$A_log)
   for(t in T:1L) for(i in seq_len(n)) {
     go <- if(t==T) as.numeric(grad_embedding[i,]) else numeric(h)
@@ -108,12 +137,34 @@ ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
     gzraw<-gz*(1-zz^2);g$conv_bias<-g$conv_bias+gzraw
     for(lag in 0:(k-1L)) if(t-lag>=1L){g$conv[lag+1L,]<-g$conv[lag+1L,]+gzraw*x[i,t-lag,];gx[i,t-lag,]<-gx[i,t-lag,]+gzraw*p$conv[lag+1L,]}
   }
-  list(params=lapply(g,function(v)v/n), input=gx/n)
+  g <- lapply(g,function(v)v/n)
+  .ssm_assert_parameter_shapes(g, cfg, "grads")
+  list(params=g, input=gx/n)
 }
 
 .ddesonn_ssm_update <- function(encoder, grads, lr=.001, beta1=.9, beta2=.999, epsilon=1e-8) {
+  .ssm_assert_parameter_shapes(encoder$params, encoder$config)
+  .ssm_assert_parameter_shapes(grads, encoder$config, "grads")
   o<-encoder$optimizer;o$step<-o$step+1L
-  for(nm in names(encoder$params)){if(is.null(o$m[[nm]])){o$m[[nm]]<-encoder$params[[nm]]*0;o$v[[nm]]<-encoder$params[[nm]]*0};o$m[[nm]]<-beta1*o$m[[nm]]+(1-beta1)*grads[[nm]];o$v[[nm]]<-beta2*o$v[[nm]]+(1-beta2)*grads[[nm]]^2;mh<-o$m[[nm]]/(1-beta1^o$step);vh<-o$v[[nm]]/(1-beta2^o$step);encoder$params[[nm]]<-encoder$params[[nm]]-lr*mh/(sqrt(vh)+epsilon)}
+  for(nm in names(encoder$params)) {
+    parameter <- encoder$params[[nm]]
+    if(is.null(o$m[[nm]])) {
+      o$m[[nm]] <- parameter*0
+      o$v[[nm]] <- parameter*0
+    }
+    vector <- is.null(dim(parameter))
+    expected <- if(vector) length(parameter) else dim(parameter)
+    .ssm_assert_shape(o$m[[nm]], expected, paste0("optimizer$m$",nm), vector=vector)
+    .ssm_assert_shape(o$v[[nm]], expected, paste0("optimizer$v$",nm), vector=vector)
+    o$m[[nm]] <- beta1*o$m[[nm]]+(1-beta1)*grads[[nm]]
+    o$v[[nm]] <- beta2*o$v[[nm]]+(1-beta2)*grads[[nm]]^2
+    mh <- o$m[[nm]]/(1-beta1^o$step)
+    vh <- o$v[[nm]]/(1-beta2^o$step)
+    encoder$params[[nm]] <- parameter-lr*mh/(sqrt(vh)+epsilon)
+  }
+  .ssm_assert_parameter_shapes(encoder$params, encoder$config)
+  .ssm_assert_parameter_shapes(o$m, encoder$config, "optimizer$m")
+  .ssm_assert_parameter_shapes(o$v, encoder$config, "optimizer$v")
   encoder$optimizer<-o;encoder
 }
 

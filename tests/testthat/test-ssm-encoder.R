@@ -37,6 +37,62 @@ test_that("backward supports non-square feature and state dimensions", {
   expect_true(all(vapply(gr$params, function(value) all(is.finite(value)), logical(1L))))
 })
 
+test_that("non-square dimensions survive a complete Adam training cycle", {
+  set.seed(818)
+  x <- array(rnorm(2L * 48L * 13L), c(2L, 48L, 13L))
+  e <- ddesonn_ssm_init(13L, 16L, 4L, 31L)
+  first <- ddesonn_ssm_forward(e, x, TRUE)
+  grads <- ddesonn_ssm_backward(e, first$cache, matrix(rnorm(32L), 2L, 16L))$params
+  e <- DDESONN:::.ddesonn_ssm_update(e, grads)
+  expect_no_error(second <- ddesonn_ssm_forward(e, x, TRUE))
+
+  matrix_shapes <- list(conv=c(4L,13L), W_dt=c(13L,16L), W_B=c(13L,16L),
+                        W_C=c(13L,16L), D=c(13L,16L))
+  vector_lengths <- list(conv_bias=13L, b_dt=16L, b_B=16L, b_C=16L, A_log=16L)
+  for (nm in names(matrix_shapes)) {
+    expect_identical(dim(grads[[nm]]), matrix_shapes[[nm]], info=nm)
+    expect_identical(dim(e$params[[nm]]), matrix_shapes[[nm]], info=nm)
+    expect_identical(dim(e$optimizer$m[[nm]]), matrix_shapes[[nm]], info=nm)
+    expect_identical(dim(e$optimizer$v[[nm]]), matrix_shapes[[nm]], info=nm)
+  }
+  for (nm in names(vector_lengths)) for (value in list(grads[[nm]], e$params[[nm]],
+                                                        e$optimizer$m[[nm]], e$optimizer$v[[nm]])) {
+    expect_null(dim(value), info=nm)
+    expect_length(value, vector_lengths[[nm]], info=nm)
+  }
+  expect_equal(dim(second$embedding), c(2L,16L))
+})
+
+test_that("shape invariants diagnose corrupted projection and optimizer shapes", {
+  x <- array(0, c(1L,48L,13L)); e <- ddesonn_ssm_init(13L,16L,4L,37L)
+  e$params$b_dt <- array(e$params$b_dt, 16L)
+  expect_error(ddesonn_ssm_forward(e,x),
+               "params\\$b_dt: expected length 16 vector; actual 16")
+
+  e <- ddesonn_ssm_init(13L,16L,4L,37L)
+  fw <- ddesonn_ssm_forward(e,x,TRUE)
+  grads <- ddesonn_ssm_backward(e,fw$cache,matrix(1,1L,16L))$params
+  e$optimizer$m$W_dt <- matrix(0,16L,13L)
+  e$optimizer$v$W_dt <- matrix(0,13L,16L)
+  expect_error(DDESONN:::.ddesonn_ssm_update(e,grads),
+               "optimizer\\$m\\$W_dt: expected 13 x 16; actual 16 x 13")
+})
+
+test_that("W_dt finite difference holds for 13 feature by 16 state projection", {
+  set.seed(819)
+  x <- array(rnorm(48L * 13L), c(1L,48L,13L))
+  e <- ddesonn_ssm_init(13L,16L,4L,41L)
+  upstream <- matrix(rnorm(16L),1L,16L)
+  fw <- ddesonn_ssm_forward(e,x,TRUE)
+  analytical <- ddesonn_ssm_backward(e,fw$cache,upstream)$params$W_dt[13L,16L]
+  value <- e$params$W_dt[13L,16L]; epsilon <- 1e-6
+  loss <- function(candidate) sum(ddesonn_ssm_forward(candidate,x)$embedding*upstream)
+  plus <- minus <- e
+  plus$params$W_dt[13L,16L] <- value+epsilon
+  minus$params$W_dt[13L,16L] <- value-epsilon
+  expect_equal(analytical,(loss(plus)-loss(minus))/(2*epsilon),tolerance=3e-5)
+})
+
 test_that("non-square projection gradients agree with finite differences", {
   set.seed(23)
   x <- array(rnorm(2L * 3L * 3L), c(2L, 3L, 3L))
