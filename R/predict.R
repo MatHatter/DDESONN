@@ -25,8 +25,10 @@ predict.ddesonn_model <- function(object,
                                   verbose = FALSE,  
                                   verboseLow = FALSE,  
                                   debug = FALSE,
+                                  # [SSM] BEGIN: saved-model sequence prediction arguments.
                                   sequence_data = NULL, sequence_length = 48L,
                                   ssm_state_dim = 16L, ssm_conv = 4L) {
+  # [SSM] END: saved-model sequence prediction arguments.
   if (is.null(object) || !inherits(object, "ddesonn_model")) {
     stop("'object' must be a ddesonn_model.", call. = FALSE)
   }
@@ -43,8 +45,9 @@ predict.ddesonn_model <- function(object,
     threshold = threshold,  
     verbose = verbose,  
     verboseLow = verboseLow,  
-    debug = debug  
-    ,sequence_data = sequence_data, sequence_length=sequence_length,
+    debug = debug,
+    # [SSM] Forward new sequence data; the fitted encoder remains on the model.
+    sequence_data = sequence_data, sequence_length=sequence_length,
     ssm_state_dim=ssm_state_dim, ssm_conv=ssm_conv
   )
   if (type == "class") {
