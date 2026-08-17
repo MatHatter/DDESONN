@@ -1,3 +1,4 @@
+# [SSM] This entire source file implements the native SSM encoder.
 .ssm_softplus <- function(x) log1p(exp(-abs(x))) + pmax(x, 0)
 .ssm_sigmoid <- function(x) 1 / (1 + exp(-x))
 

@@ -1,3 +1,4 @@
+# [SSM] This entire source file implements SSM sequence construction/validation.
 #' Build causal fixed-length market sequences
 #'
 #' Each output row ends at the corresponding input row; no future observation

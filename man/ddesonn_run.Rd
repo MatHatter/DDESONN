@@ -35,7 +35,13 @@ ddesonn_run(
   save_models = TRUE,
   verbose = FALSE,
   verboseLow = FALSE,
-  debug = FALSE
+  debug = FALSE,
+  sequence_encoder = "none",
+  sequence_data = NULL,
+  sequence_length = 48L,
+  ssm_state_dim = 16L,
+  ssm_conv = 4L,
+  prediction_sequence_data = NULL
 )
 }
 \arguments{
@@ -63,7 +69,8 @@ trained for each seed.}
 \item{num_temp_iterations}{Number of TEMP iterations to run when
 \code{do_ensemble = TRUE} (scenario D). Ignored otherwise.}
 
-\item{validation}{Optional validation list with elements \code{x} and \code{y}.}
+\item{validation}{Optional validation list with elements \code{x} and \code{y};
+SSM runs also require an aligned \code{sequence_data} array.}
 
 \item{x_valid}{Optional validation features. Overrides \code{validation$x} when set.}
 
@@ -82,10 +89,12 @@ showing how to inspect defaults.}
 TEMP iterations. Defaults to \code{training_overrides}. Use this when TEMP
 candidates should train differently than the main model.}
 
-\item{prediction_data}{Optional features for prediction. When supplied,
+\item{prediction_data}{Optional features for prediction, or a list containing
+\code{x} and \code{sequence_data} for SSM prediction. When supplied,
 predictions are computed for each seed/iteration.}
 
-\item{test}{Optional test list with elements \code{x} and \code{y}. When supplied,
+\item{test}{Optional test list with elements \code{x} and \code{y} (and, for SSM
+runs, an aligned \code{sequence_data} array). When supplied,
 the final model computes test metrics (loss and, for classification,
 accuracy) and stores them in \code{result$test_metrics}. The run history
 (\code{result$history}) mirrors the training metadata (train/validation losses)
@@ -122,6 +131,20 @@ persisted when \code{output_root} is supplied.}
 \item{verboseLow}{Logical; emit important progress output when TRUE.}
 
 \item{debug}{Logical; emit debug diagnostics when TRUE.}
+
+\item{sequence_encoder}{Optional sequence encoder, \code{"none"} (the default)
+or \code{"ssm"}.}
+
+\item{sequence_data}{Training sequence array aligned to \code{x}.}
+
+\item{sequence_length}{Expected number of timesteps in each sequence.}
+
+\item{ssm_state_dim}{SSM latent state/embedding dimension.}
+
+\item{ssm_conv}{SSM causal convolution width.}
+
+\item{prediction_sequence_data}{Sequence array aligned to matrix-form
+\code{prediction_data}. Alternatively, supply both in a \code{prediction_data} list.}
 }
 \value{
 Same as \code{\link[=ddesonn_run]{ddesonn_run()}}.

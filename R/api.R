@@ -1,5 +1,8 @@
 #' Internal package environment used to lazily load the legacy DDESONN stack.
 #'
+#' Source-maintenance note: every SSM-specific API integration line or bounded
+#' block is identified by a searchable `# [SSM]` comment.
+#'
 #' @keywords internal
 #' @noRd
 .ddesonn_env <- new.env(parent = emptyenv())
@@ -318,12 +321,16 @@ ddesonn_model <- function(input_size,
                           verbose = FALSE,  
                           verboseLow = FALSE,  
                           debug = FALSE,
+                          # [SSM] BEGIN: optional sequence-encoder arguments.
                           sequence_encoder = "none", sequence_data = NULL,
                           sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
+  # [SSM] END: optional sequence-encoder arguments.
   classification_mode <- match.arg(classification_mode)
+  # [SSM] BEGIN: configure the model input shape.
   sequence_encoder <- match.arg(sequence_encoder, c("none", "ssm"))
   engineered_input_size <- input_size
   if (sequence_encoder == "ssm") input_size <- input_size + as.integer(ssm_state_dim)
+  # [SSM] END: configure the model input shape.
   
   activation_functions <- activation_functions %||%
     ddesonn_activation_defaults(classification_mode, hidden_sizes, stage = "train")
@@ -362,11 +369,13 @@ ddesonn_model <- function(input_size,
   attr(model, "lambda") <- lambda
   attr(model, "ML_NN") <- ML_NN
   attr(model, "engineered_input_size") <- engineered_input_size
+  # [SSM] BEGIN: attach encoder metadata/state to the model.
   attr(model, "sequence_config") <- list(encoder=sequence_encoder, sequence_length=as.integer(sequence_length), state_dim=as.integer(ssm_state_dim), conv_width=as.integer(ssm_conv))
   if (sequence_encoder == "ssm" && !is.null(sequence_data)) {
     d <- .ddesonn_validate_sequence(sequence_data, as.integer(sequence_length))
     attr(model, "ssm_encoder") <- ddesonn_ssm_init(d[3], ssm_state_dim, ssm_conv)
   }
+  # [SSM] END: attach encoder metadata/state to the model.
   class(model) <- unique(c("ddesonn_model", class(model)))
   model
 }
@@ -435,7 +444,9 @@ ddesonn_model <- function(input_size,
 #' @seealso [DDESONN-package]
 #' @export
 ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE,
+                        # [SSM] BEGIN: fit-time sequence arguments.
                         sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
+  # [SSM] END: fit-time sequence arguments.
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
@@ -443,7 +454,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   
+  # [SSM] BEGIN: train the encoder and augment aligned train/validation data.
   seq_cfg <- attr(model, "sequence_config") %||% list(encoder="none")
+  # Keep raw features for post-fit prediction. The legacy trainer receives
+  # SSM-augmented matrices, while ddesonn_predict() performs that augmentation.
+  prediction_x <- x
+  validation_prediction_x <- if (!is.null(validation)) validation$x else NULL
   if (identical(seq_cfg$encoder, "ssm")) {
     if (is.null(sequence_data)) stop("sequence_data is required for an SSM model.", call.=FALSE)
     d <- .ddesonn_validate_sequence(sequence_data, seq_cfg$sequence_length, NROW(x))
@@ -459,6 +475,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
       validation$x <- cbind(.as_numeric_matrix(validation$x),ddesonn_ssm_encode(enc,vs))
     }
   } else if (!is.null(sequence_data)) warning("sequence_data is ignored when sequence_encoder='none'.",call.=FALSE)
+  # [SSM] END: train the encoder and augment aligned train/validation data.
   data_prep <- .prepare_training_data(x)
   
   overrides <- list(...)  # <-- move earlier so we can use it for mode  
@@ -748,13 +765,15 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     thr_used <- cfg$threshold %||% .ddesonn_threshold_default(mode)
     
     # TRAIN predictions (per-member)
-    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+    # [SSM] Supply the original train features with their aligned sequence.
+    pr_train <- try(ddesonn_predict(model, prediction_x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = sequence_data), silent = TRUE)
     per_model_train <- if (!inherits(pr_train, "try-error")) pr_train$per_model else NULL
     
     # VALID predictions (per-member) if present
     per_model_valid <- NULL
     if (!is.null(validation)) {
-      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+      # [SSM] Supply the original validation features with validation's sequence.
+      pr_valid <- try(ddesonn_predict(model, validation_prediction_x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = validation$sequence_data %||% NULL), silent = TRUE)
       per_model_valid <- if (!inherits(pr_valid, "try-error")) pr_valid$per_model else NULL
     }
     
@@ -891,13 +910,15 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     }
   } else if (mode == "regression") {
     # TRAIN predictions (per-member)
-    pr_train <- try(ddesonn_predict(model, x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+    # [SSM] Supply the original train features with their aligned sequence.
+    pr_train <- try(ddesonn_predict(model, prediction_x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = sequence_data), silent = TRUE)
     per_model_train <- if (!inherits(pr_train, "try-error")) pr_train$per_model else NULL
     
     # VALID predictions (per-member) if present
     per_model_valid <- NULL
     if (!is.null(validation)) {
-      pr_valid <- try(ddesonn_predict(model, validation$x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+      # [SSM] Supply the original validation features with validation's sequence.
+      pr_valid <- try(ddesonn_predict(model, validation_prediction_x, aggregate = "none", type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = validation$sequence_data %||% NULL), silent = TRUE)
       per_model_valid <- if (!inherits(pr_valid, "try-error")) pr_valid$per_model else NULL
     }
     
@@ -1170,11 +1191,14 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
                                   y_test,
                                   classification_mode,
                                   cfg,
-                                  threshold) {
+                                  threshold,
+                                  # [SSM] Test-specific sequence; NULL for non-SSM.
+                                  sequence_data = NULL) {
   if (is.null(model) || is.null(x_test) || is.null(y_test)) {
     return(list(ok = FALSE, reason = "missing test data"))
   }
-  pr <- try(predict(model, x_test, type = "response"), silent = TRUE)
+  # [SSM] Forward only the caller's test sequence to response prediction.
+  pr <- try(predict(model, x_test, type = "response", sequence_data = sequence_data), silent = TRUE)
   if (inherits(pr, "try-error") || is.null(pr$predicted_output)) {
     return(list(ok = FALSE, reason = "response prediction failed"))
   }
@@ -1201,7 +1225,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   loss <- if (inherits(loss, "try-error")) NA_real_ else suppressWarnings(as.numeric(loss))
   accuracy <- NA_real_
   if (mode %in% c("binary", "multiclass")) {
-    class_pred <- try(predict(model, x_test, type = "class", threshold = threshold), silent = TRUE)
+    # [SSM] Forward the same test sequence to class prediction.
+    class_pred <- try(predict(model, x_test, type = "class", threshold = threshold, sequence_data = sequence_data), silent = TRUE)
     if (inherits(class_pred, "try-error") || is.null(class_pred)) {
       return(list(ok = FALSE, reason = "class prediction failed"))
     }
@@ -1524,6 +1549,7 @@ ddesonn_predict <- function(model, new_data,
                             verbose = FALSE,  
                             verboseLow = FALSE,  
                             debug = FALSE,
+                            # [SSM] Sequence arguments for new-data inference.
                             sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
@@ -1534,6 +1560,7 @@ ddesonn_predict <- function(model, new_data,
   type <- match.arg(type)
   
   X <- .as_numeric_matrix(new_data)
+  # [SSM] BEGIN: validate and encode the caller's new sequence data.
   seq_cfg <- attr(model,"sequence_config") %||% list(encoder="none")
   if (identical(seq_cfg$encoder,"ssm")) {
     if (is.null(sequence_data)) stop("sequence_data is required for SSM prediction.",call.=FALSE)
@@ -1541,6 +1568,7 @@ ddesonn_predict <- function(model, new_data,
     enc<-attr(model,"ssm_encoder");if(is.null(enc)||is.null(enc$scale))stop("Saved model has no fitted SSM encoder.",call.=FALSE)
     X<-cbind(X,ddesonn_ssm_encode(enc,sequence_data))
   }
+  # [SSM] END: validate and encode the caller's new sequence data.
   mode <- attr(model, "classification_mode") %||% "binary"
   
   preds <- lapply(seq_along(model$ensemble), function(i) {
@@ -3170,7 +3198,8 @@ ddesonn_predict <- function(model, new_data,
 #'   [ddesonn_model()] instance.
 #' @param num_temp_iterations Number of TEMP iterations to run when
 #'   `do_ensemble = TRUE` (scenario D). Ignored otherwise.
-#' @param validation Optional validation list with elements `x` and `y`.
+#' @param validation Optional validation list with elements `x` and `y`;
+#'   SSM runs also require an aligned `sequence_data` array.
 #' @param x_valid Optional validation features. Overrides `validation$x` when set.
 #' @param y_valid Optional validation labels. Overrides `validation$y` when set.
 #' @param model_overrides Named list forwarded to [ddesonn_model()] allowing
@@ -3183,9 +3212,11 @@ ddesonn_predict <- function(model, new_data,
 #' @param temp_overrides Optional named list forwarded to [ddesonn_fit()] for
 #'   TEMP iterations. Defaults to `training_overrides`. Use this when TEMP
 #'   candidates should train differently than the main model.
-#' @param prediction_data Optional features for prediction. When supplied,
-#'   predictions are computed for each seed/iteration.
-#' @param test Optional test list with elements `x` and `y`. When supplied,
+#' @param prediction_data Optional features for prediction, or a list containing
+#'   `x` and `sequence_data` for SSM prediction. When supplied, predictions
+#'   are computed for each seed/iteration.
+#' @param test Optional test list with elements `x` and `y` (and, for SSM
+#'   runs, an aligned `sequence_data` array). When supplied,
 #'   the final model computes test metrics (loss and, for classification,
 #'   accuracy) and stores them in `result$test_metrics`. The run history
 #'   (`result$history`) mirrors the training metadata (train/validation losses)
@@ -3210,6 +3241,14 @@ ddesonn_predict <- function(model, new_data,
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_encoder Optional sequence encoder, `"none"` (the default)
+#'   or `"ssm"`.
+#' @param sequence_data Training sequence array aligned to `x`.
+#' @param sequence_length Expected number of timesteps in each sequence.
+#' @param ssm_state_dim SSM latent state/embedding dimension.
+#' @param ssm_conv SSM causal convolution width.
+#' @param prediction_sequence_data Sequence array aligned to matrix-form
+#'   `prediction_data`. Alternatively, supply both in a `prediction_data` list.
 #'
 #' @details
 #' **Discovering available training overrides**
@@ -3436,12 +3475,16 @@ ddesonn_run <- function(x,
                         verbose = FALSE,  
                         verboseLow = FALSE,  
                         debug = FALSE,
+                        # [SSM] BEGIN: run-level sequence bridge arguments.
                         sequence_encoder = "none", sequence_data = NULL,
-                        sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
+                        sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
+                        prediction_sequence_data = NULL) {
+  # [SSM] END: run-level sequence bridge arguments.
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
   seed_aggregate <- match.arg(seed_aggregate)
   prediction_type <- match.arg(prediction_type)
+  # [SSM] Validate the aligned training sequence at the API boundary.
   sequence_encoder <- match.arg(sequence_encoder,c("none","ssm"))
   if(sequence_encoder=="ssm") .ddesonn_validate_sequence(sequence_data,as.integer(sequence_length),NROW(x))
   
@@ -3480,6 +3523,7 @@ ddesonn_run <- function(x,
     hidden_sizes = hidden_sizes,
     num_networks = max(1L, as.integer(num_networks)),
     classification_mode = classification_mode,
+    # [SSM] Carry sequence configuration into every MAIN/TEMP model.
     sequence_encoder=sequence_encoder, sequence_data=sequence_data, sequence_length=sequence_length,
     ssm_state_dim=ssm_state_dim, ssm_conv=ssm_conv
   )
@@ -3613,28 +3657,67 @@ ddesonn_run <- function(x,
     if (is.null(x_valid) || is.null(y_valid)) {
       stop("Provide both x_valid and y_valid or neither.", call. = FALSE)
     }
-    validation_data <- list(x = x_valid, y = y_valid)
+    # [SSM] Preserve validation sequence data while legacy x/y overrides rebuild the list.
+    validation_data <- list(
+      x = x_valid,
+      y = y_valid,
+      sequence_data = validation_data$sequence_data %||% NULL
+    )
   }
   test_data <- test
   if (!is.null(x_test) || !is.null(y_test)) {
     if (is.null(x_test) || is.null(y_test)) {
       stop("Provide both x_test and y_test or neither.", call. = FALSE)
     }
-    test_data <- list(x = x_test, y = y_test)
+    # [SSM] Preserve test sequence data while legacy x/y overrides rebuild the list.
+    test_data <- list(
+      x = x_test,
+      y = y_test,
+      sequence_data = test_data$sequence_data %||% NULL
+    )
   }
   
   prediction_matrix <- NULL
   if (!is.null(prediction_data)) {
-    prediction_matrix <- .as_numeric_matrix(prediction_data)
+    # [SSM] A prediction list may carry its own sequence; matrix input remains compatible.
+    if (is.list(prediction_data) && !is.null(prediction_data$x)) {
+      prediction_sequence_data <- prediction_data$sequence_data %||% prediction_sequence_data
+      prediction_matrix <- .as_numeric_matrix(prediction_data$x)
+    } else {
+      prediction_matrix <- .as_numeric_matrix(prediction_data)
+    }
   }
   test_matrix <- NULL
   test_labels <- NULL
+  # [SSM] Test sequences are intentionally separate from training sequences.
+  test_sequence_data <- NULL
   if (!is.null(test_data)) {
     if (is.list(test_data) && !is.null(test_data$x)) {
       test_matrix <- .as_numeric_matrix(test_data$x)
       test_labels <- test_data$y %||% NULL
+      test_sequence_data <- test_data$sequence_data %||% NULL
     }
   }
+
+  # [SSM] BEGIN: require and validate every requested split's own sequence.
+  if (identical(sequence_encoder, "ssm")) {
+    if (!is.null(validation_data)) {
+      if (is.null(validation_data$sequence_data))
+        stop("validation$sequence_data is required for SSM runs.", call. = FALSE)
+      .ddesonn_validate_sequence(validation_data$sequence_data, as.integer(sequence_length), NROW(validation_data$x))
+    }
+    if (!is.null(test_data)) {
+      if (is.null(test_sequence_data))
+        stop("test$sequence_data is required for SSM runs.", call. = FALSE)
+      .ddesonn_validate_sequence(test_sequence_data, as.integer(sequence_length), NROW(test_matrix))
+    }
+    if (!is.null(prediction_matrix)) {
+      if (is.null(prediction_sequence_data))
+        stop("prediction_sequence_data is required for SSM prediction_data.", call. = FALSE)
+      .ddesonn_validate_sequence(prediction_sequence_data, as.integer(sequence_length), NROW(prediction_matrix))
+    }
+  }
+  # [SSM] END: require and validate every requested split's own sequence.
   
   target_metric <- {
     default_metric <- if (identical(classification_mode, "regression")) "MSE" else "accuracy"
@@ -3727,6 +3810,8 @@ ddesonn_run <- function(x,
   build_split_predictions <- function(model,
                                       new_data,
                                       y_source,
+                                      # [SSM] Sequence aligned with this exact diagnostic split.
+                                      split_sequence_data,
                                       split_label,
                                       run_idx,
                                       seed_val) {
@@ -3748,7 +3833,8 @@ ddesonn_run <- function(x,
         type = "response",                                                                                    
         verbose = verbose,                                                                                    
         verboseLow = verboseLow,                                                                              
-        debug = debug                                                                                          
+        debug = debug,
+        sequence_data = split_sequence_data # [SSM] Never substitute the train sequence.
       ),                                                                                                      
       silent = TRUE                                                                                           
     )                                                                                                         
@@ -4035,7 +4121,12 @@ ddesonn_run <- function(x,
     
     val <- NULL
     if (!is.null(validation_data)) {
-      val <- list(x = validation_data$x, y = validation_data$y)
+      # [SSM] Preserve validation sequence data in the object passed to ddesonn_fit().
+      val <- list(
+        x = validation_data$x,
+        y = validation_data$y,
+        sequence_data = validation_data$sequence_data %||% NULL
+      )
     }
     
     if (isTRUE(debug)) {                                                                # 
@@ -4080,7 +4171,9 @@ ddesonn_run <- function(x,
       )                                                                                
     }                                                                                  
     
+    # [SSM] Guard the fit bridge even if orchestration above changes later.
     if(sequence_encoder=="ssm" && !is.null(val) && is.null(val$sequence_data)) stop("validation$sequence_data is required for SSM runs.",call.=FALSE)
+    # [SSM] Fit receives only the aligned training sequence plus validation's own list.
     do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
     
     if (isTRUE(debug)) {                                                                # 
@@ -4121,7 +4214,8 @@ ddesonn_run <- function(x,
         threshold = threshold,                                                          
         verbose = verbose,                                                              
         verboseLow = verboseLow,                                                        
-        debug = debug                                                                   
+        debug = debug,
+        sequence_data = prediction_sequence_data # [SSM] Explicit prediction sequence.
       )                                                                                 
       main_pred <- preds
       
@@ -4167,6 +4261,7 @@ ddesonn_run <- function(x,
           )                                                                             # 
         }                                                                               # 
         
+        # [SSM] TEMP models use the same aligned train/validation bridge as MAIN.
         do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), tmp_overrides))
         
         if (isTRUE(debug)) {                                                            # 
@@ -4206,7 +4301,8 @@ ddesonn_run <- function(x,
             type = "response",                                                          
             verbose = verbose,                                                          
             verboseLow = verboseLow,                                                    
-            debug = debug                                                               
+            debug = debug,
+            sequence_data = prediction_sequence_data # [SSM] TEMP prediction sequence.
           )                                                                             
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
@@ -4268,7 +4364,8 @@ ddesonn_run <- function(x,
           threshold = threshold,                                                        
           verbose = verbose,                                                            
           verboseLow = verboseLow,                                                      
-          debug = debug                                                                 
+          debug = debug,
+          sequence_data = prediction_sequence_data # [SSM] Post-TEMP prediction sequence.
         )                                                                               
         main_pred <- preds
         
@@ -4283,17 +4380,18 @@ ddesonn_run <- function(x,
       }
     }
     
+    # [SSM] Each diagnostic path receives its own split-specific sequence array.
     run_predictions <- list(
-      train = build_split_predictions(mdl, x_matrix, y_matrix, "train", i, seed_i),
+      train = build_split_predictions(mdl, x_matrix, y_matrix, sequence_data, "train", i, seed_i),
       validation = if (!is.null(validation_data) && !is.null(validation_data$x)) {
-        build_split_predictions(mdl, validation_data$x, validation_data$y, "validation", i, seed_i)
+        build_split_predictions(mdl, validation_data$x, validation_data$y, validation_data$sequence_data %||% NULL, "validation", i, seed_i)
       } else {
         NULL
       },
       test = if (!is.null(test_matrix)) {
-        build_split_predictions(mdl, test_matrix, test_labels, "test", i, seed_i)
+        build_split_predictions(mdl, test_matrix, test_labels, test_sequence_data, "test", i, seed_i)
       } else if (!is.null(prediction_matrix)) {
-        build_split_predictions(mdl, prediction_matrix, NULL, "test", i, seed_i)
+        build_split_predictions(mdl, prediction_matrix, NULL, prediction_sequence_data, "test", i, seed_i)
       } else {
         NULL
       }
@@ -4460,7 +4558,8 @@ ddesonn_run <- function(x,
       y_test = test_labels,
       classification_mode = classification_mode,
       cfg = base_train_overrides,
-      threshold = test_threshold
+      threshold = test_threshold,
+      sequence_data = test_sequence_data # [SSM] Evaluate with test data only.
     )
     if (is.list(test_metrics_result) && isTRUE(test_metrics_result$ok)) {
       test_metrics <- test_metrics_result
@@ -4502,7 +4601,8 @@ ddesonn_run <- function(x,
       attr(final_model, "threshold") %||%
       .ddesonn_threshold_default("binary")
     
-    train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+    # [SSM] Final reports preserve train/validation/test sequence separation.
+    train_probs <- try(ddesonn_predict(final_model, x_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = sequence_data), silent = TRUE)
     if (!inherits(train_probs, "try-error") && !is.null(train_probs$prediction)) {
       y_train_vec <- .coerce_binary_labels(y_matrix)
       .emit_binary_classification_report(
@@ -4512,7 +4612,8 @@ ddesonn_run <- function(x,
       )
     }
     if (!is.null(validation_data) && !is.null(validation_data$x)) {
-      val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+      # [SSM] Validation report uses validation's sequence array.
+      val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = validation_data$sequence_data %||% NULL), silent = TRUE)
       if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
         y_val_vec <- .coerce_binary_labels(validation_data$y)
         .emit_binary_classification_report(
@@ -4523,7 +4624,8 @@ ddesonn_run <- function(x,
       }
     }
     if (!is.null(test_matrix) && !is.null(test_labels)) {
-      test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug), silent = TRUE)  
+      # [SSM] Test report uses the separate test sequence array.
+      test_probs <- try(ddesonn_predict(final_model, test_matrix, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = test_sequence_data), silent = TRUE)
       if (!inherits(test_probs, "try-error") && !is.null(test_probs$prediction)) {
         y_test_vec <- .coerce_binary_labels(test_labels)
         .emit_binary_classification_report(
