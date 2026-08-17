@@ -86,3 +86,6 @@ EvaluatePredictionsReportPlots/**/*.rds
 /*.Rcheck/
 /..Rcheck/
 /DDESONN.Rcheck/
+dev/nq_probability_engine/DDESONN_NQ_FeatureDataset.csv
+dev/nq_probability_engine/NQ_5Minute_History.csv
+dev/nq_probability_engine/*_Results/
