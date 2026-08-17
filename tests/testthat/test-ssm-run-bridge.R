@@ -58,6 +58,26 @@ test_that("SSM run bridges separate train, validation, and test sequences", {
 
   encoder <- attr(result$model, "ssm_encoder")
   expect_false(is.null(encoder$scale))
+  train_center <- vapply(
+    seq_len(dim(d$train_s)[3L]),
+    function(j) mean(d$train_s[, , j]),
+    numeric(1L)
+  )
+  train_scale <- vapply(
+    seq_len(dim(d$train_s)[3L]),
+    function(j) stats::sd(as.vector(d$train_s[, , j])),
+    numeric(1L)
+  )
+  expect_equal(encoder$scale$center, train_center)
+  expect_equal(encoder$scale$scale, train_scale)
+  expect_false(isTRUE(all.equal(
+    encoder$scale$center,
+    vapply(
+      seq_len(dim(d$validation_s)[3L]),
+      function(j) mean(d$validation_s[, , j]),
+      numeric(1L)
+    )
+  )))
   expect_equal(
     nrow(ddesonn_ssm_encode(encoder, d$validation_s)),
     nrow(d$validation_x)
@@ -119,6 +139,10 @@ test_that("saved SSM run models predict with newly supplied sequences", {
   path <- tempfile(fileext = ".rds")
   saveRDS(model, path)
   restored <- readRDS(path)
+  expect_equal(
+    attr(restored, "ssm_encoder")$scale,
+    attr(model, "ssm_encoder")$scale
+  )
 
   new_x <- matrix(rnorm(2L * ncol(d$train_x)), 2L, ncol(d$train_x))
   new_sequence <- array(rnorm(2L * 48L * 13L), c(2L, 48L, 13L))

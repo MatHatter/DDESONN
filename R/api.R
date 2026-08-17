@@ -464,7 +464,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     if (is.null(sequence_data)) stop("sequence_data is required for an SSM model.", call.=FALSE)
     d <- .ddesonn_validate_sequence(sequence_data, seq_cfg$sequence_length, NROW(x))
     enc <- attr(model, "ssm_encoder") %||% ddesonn_ssm_init(d[3], seq_cfg$state_dim, seq_cfg$conv_width)
-    invisible(ddesonn_ssm_encode(enc, sequence_data, fit_scale=TRUE)); enc <- attr(ddesonn_ssm_encode(enc, sequence_data), "encoder")
+    # [SSM] BEGIN: fit scaling on Train once and retain the fitted encoder.
+    enc <- attr(
+      ddesonn_ssm_encode(enc, sequence_data, fit_scale=TRUE),
+      "encoder"
+    )
+    # [SSM] END: validation and later predictions reuse these frozen statistics.
     enc <- .ddesonn_ssm_train(enc, sequence_data, y, epochs=max(1L,min(10L,list(...)$num_epochs %||% 3L)), lr=min(.01,list(...)$lr %||% .001))
     attr(model,"ssm_encoder") <- enc
     x <- cbind(.as_numeric_matrix(x), ddesonn_ssm_encode(enc, sequence_data))
@@ -4174,7 +4179,9 @@ ddesonn_run <- function(x,
     # [SSM] Guard the fit bridge even if orchestration above changes later.
     if(sequence_encoder=="ssm" && !is.null(val) && is.null(val$sequence_data)) stop("validation$sequence_data is required for SSM runs.",call.=FALSE)
     # [SSM] Fit receives only the aligned training sequence plus validation's own list.
-    do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
+    # [SSM] BEGIN: retain the fitted encoder returned with the trained model.
+    mdl <- do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
+    # [SSM] END: all subsequent split and saved-model predictions use it.
     
     if (isTRUE(debug)) {                                                                # 
       ddesonn_console_log(                                                              # 
@@ -4262,7 +4269,9 @@ ddesonn_run <- function(x,
         }                                                                               # 
         
         # [SSM] TEMP models use the same aligned train/validation bridge as MAIN.
-        do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), tmp_overrides))
+        # [SSM] BEGIN: retain each TEMP candidate's fitted Train-only scaler.
+        tmp_model <- do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), tmp_overrides))
+        # [SSM] END: candidate evaluation must not use an unfitted initializer.
         
         if (isTRUE(debug)) {                                                            # 
           ddesonn_console_log(                                                          # 
