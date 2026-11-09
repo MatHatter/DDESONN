@@ -788,7 +788,10 @@ run_arguments <- list(
   training_overrides = list(
     num_epochs = 3L,
     lr = 0.001,
-    optimizer = "adagrad",
+    # Preserve the original custom Adagrad behavior with previously reported good results.
+    # It was renamed adagrad_x because it differs from standard Adagrad.
+    # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+    optimizer = "adagrad_x",
     dropout_rates = list(0.10, 0.10),
     loss_type = "CrossEntropy",
     preprocessScaledData = list(already_scaled = TRUE),

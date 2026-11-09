@@ -2,6 +2,27 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Optimizer compatibility
+
+The default optimizer is now named `adagrad_x`. It preserves the custom Adagrad
+training behavior from the pre-review 7.1.11 code, including its multilayer
+manual-plus-adaptive updates, matrix ordering, bias error sums, and optimizer
+initialization RNG consumption. It is a compatibility algorithm, not standard
+Adagrad.
+
+Set `training_overrides = list(optimizer = "adagrad_x")` in `ddesonn_run()` to
+request that behavior explicitly. Set `optimizer = "adagrad_x"` in `ddesonn_fit()`.
+The corrected standard implementation remains available as `optimizer = "adagrad"`.
+Existing scripts that explicitly select `"adagrad"` must switch to `"adagrad_x"`
+if they are intended to preserve the pre-review custom behavior.
+
+Compatibility tests match the pre-review commit's parameters, optimizer state,
+predictions, and RNG state in representative single/multilayer runs. This does
+not certify equivalence to an unspecified older benchmark version. See
+[the optimizer review](dev/optimizer-review.md) for scope and numerical details.
+For a runnable Adagrad-versus-Adagrad-X comparison and local commands, see
+[local optimizer testing](dev/LOCAL_OPTIMIZER_TESTING.md).
+
 ## Optional native-R sequence encoder
 
 The engineered-feature workflow is unchanged by default (`sequence_encoder =

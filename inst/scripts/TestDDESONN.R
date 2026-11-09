@@ -31,7 +31,10 @@ x <- 1
 train <- TRUE
 test <- TRUE
 init_method <- "he" #variance_scaling" #glorot_uniform" #"orthogonal" #"orthogonal" #lecun" #xavier"
-optimizer <- "adagrad" #"lamb" #ftrl #nag #"sgd" #NULL "rmsprop" #adam #sgd_momentum #lookahead #adagrad
+# Preserve the original custom Adagrad behavior with previously reported good results.
+# It was renamed adagrad_x because it differs from standard Adagrad.
+# Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+optimizer <- "adagrad_x" #"lamb" #ftrl #nag #"sgd" #NULL "rmsprop" #adam #sgd_momentum #lookahead #adagrad
 lookahead_step <- 5
 batch_normalize_data <- TRUE
 shuffle_bn <- FALSE
@@ -46,21 +49,30 @@ beta2 <- 0.8 # Slightly lower for better adaptability
 # 
 if (CLASSIFICATION_MODE == "binary") {
   init_method <- "he"
-  optimizer <- "adagrad"
+  # Preserve the original custom Adagrad behavior with previously reported good results.
+  # It was renamed adagrad_x because it differs from standard Adagrad.
+  # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+  optimizer <- "adagrad_x"
   lr <- .125
   lambda <- 0.00028
   num_epochs <- 3
   custom_scale <- 1.04349
 } else if (CLASSIFICATION_MODE == "multiclass") {
   init_method <- "he"
-  optimizer <- "adagrad" 
+  # Preserve the original custom Adagrad behavior with previously reported good results.
+  # It was renamed adagrad_x because it differs from standard Adagrad.
+  # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+  optimizer <- "adagrad_x"
   lr <- 0.22           
   lambda <- 1e-4         
   custom_scale <- 1.0
   num_epochs <- 1
 } else if (CLASSIFICATION_MODE == "regression") {
   init_method <- "he"
-  optimizer <- "adagrad"
+  # Preserve the original custom Adagrad behavior with previously reported good results.
+  # It was renamed adagrad_x because it differs from standard Adagrad.
+  # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+  optimizer <- "adagrad_x"
   lr <- .121
   lambda <- 0.0003
   custom_scale <- .05

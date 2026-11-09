@@ -166,6 +166,9 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #' @title Supported optimizer identifiers
 #' @description List the optimizer strings understood by the legacy DDESONN
 #'   training loop.
+#' @details The default, `adagrad_x`, preserves the custom Adagrad training
+#'   behavior from version 7.1.11 before the optimizer review. Select
+#'   `adagrad` explicitly for the corrected standard implementation.
 #'
 #' @return A character vector of supported optimiser identifiers.
 #'
@@ -174,7 +177,7 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #'
 #' @export
 ddesonn_optimizer_options <- function() {
-  c("adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead")
+  c("adagrad_x", "adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead", "adadelta")
 }
 
 .ddesonn_threshold_default <- function(mode) {
@@ -184,6 +187,9 @@ ddesonn_optimizer_options <- function() {
 #' @title Construct default training controls
 #' @description Build a list of training hyperparameters that mirror the
 #'   expectations of the legacy DDESONN training loop.
+#' @details The optimizer default is `adagrad_x`, which preserves the previous
+#'   custom Adagrad behavior. Set `optimizer = "adagrad"` explicitly in training
+#'   overrides to use corrected standard Adagrad instead.
 #'
 #' @param mode Problem mode used to determine sensible defaults.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -228,7 +234,8 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     activation_functions = NULL,
     activation_functions_predict = NULL,
     dropout_rates = ddesonn_dropout_defaults(hidden_sizes),
-    optimizer = "adagrad",
+    # Preserve original custom behavior while standard Adagrad is evaluated separately.
+    optimizer = "adagrad_x",
     beta1 = 0.9,
     beta2 = 0.8,
     epsilon = 1e-7,
@@ -3427,7 +3434,10 @@ ddesonn_predict <- function(model, new_data,
 #'
 #'   training_overrides = list(
 #'     init_method = "he",
-#'     optimizer = "adagrad",
+#'     # Preserve the original custom Adagrad behavior with previously reported good results.
+#'     # It was renamed adagrad_x because it differs from standard Adagrad.
+#'     # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+#'     optimizer = "adagrad_x",
 #'     lr = 0.125,
 #'     lambda = 0.00028,
 #'

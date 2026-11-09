@@ -339,7 +339,10 @@ res <- ddesonn_run(
 
   training_overrides = list(
     init_method = "he",
-    optimizer = "adagrad",
+    # Preserve the original custom Adagrad behavior with previously reported good results.
+    # It was renamed adagrad_x because it differs from standard Adagrad.
+    # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
+    optimizer = "adagrad_x",
     lr = 0.125,
     lambda = 0.00028,
 

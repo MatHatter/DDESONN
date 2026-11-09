@@ -22,6 +22,11 @@ A character vector of supported optimiser identifiers.
 List the optimizer strings understood by the legacy DDESONN
 training loop.
 }
+\details{
+The default, \code{adagrad_x}, preserves the custom Adagrad training behavior
+from version 7.1.11 before the optimizer review. Select \code{adagrad}
+explicitly for the corrected standard implementation.
+}
 \examples{
 ddesonn_optimizer_options()
 

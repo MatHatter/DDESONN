@@ -1,11 +1,11 @@
 #' Update weights block (ML + SL) for DDESONN
 #' 
-#' This function is a direct extraction of your inlined `if (update_weights) { ... }`
-#' block. It preserves all original logic and debug prints.
+#' Apply one standard optimizer update per tensor, or dispatch to the preserved
+#' custom Adagrad X implementation.
 #' 
 #' @param self R6 model (DDESONN/SONN) – modified in-place
 #' @param update_weights logical
-#' @param optimizer character (adam, rmsprop, sgd, sgd_momentum, nag, ftrl, lamb, lookahead, adagrad, adadelta)
+#' @param optimizer character (adam, rmsprop, sgd, sgd_momentum, nag, ftrl, lamb, lookahead, adagrad, adagrad_x, adadelta)
 #' @param optimizer_params_weights list of per-layer optimizer params (will be returned/updated)
 #' @param weight_gradients list of per-layer dL/dW from learn()
 #' @param lr numeric learning rate
@@ -23,407 +23,86 @@
 #' @keywords internal
 #' @noRd
 update_weights_block <- function(
-    self,
-    update_weights,
-    optimizer,
-    optimizer_params_weights,
-    weight_gradients,
-    lr,
-    reg_type,
-    beta1, beta2, epsilon,
-    epoch,
-    lookahead_step,
-    verbose = FALSE
+    self, update_weights, optimizer, optimizer_params_weights, weight_gradients,
+    lr, reg_type, beta1, beta2, epsilon, epoch, lookahead_step, verbose = FALSE
 ) {
-  if (!update_weights) {
-    return(list(updated_optimizer_params = optimizer_params_weights))
+  if (!update_weights) return(list(updated_optimizer_params = optimizer_params_weights))
+  if (identical(optimizer, "adagrad_x")) {
+    return(.adagrad_x$weights(self, update_weights, "adagrad",
+      optimizer_params_weights, weight_gradients, lr, reg_type, beta1, beta2,
+      epsilon, epoch, lookahead_step, verbose))
   }
-  
-  # =========================
-  # MULTI-LAYER NN BRANCH
-  # =========================
-  if (self$ML_NN) {
-    for (layer in 1:self$num_layers) {
-      if (!is.null(self$weights[[layer]]) && !is.null(optimizer)) {
-        
-        if (is.null(optimizer_params_weights[[layer]])) {
-          optimizer_params_weights[[layer]] <- initialize_optimizer_params(
-            optimizer,
-            list(dim(self$weights[[layer]])),
-            lookahead_step,
-            layer
-          )
-          
-          if (verbose) {
-            message(">>> After initialize_optimizer_params() for layer ", layer)
-            for (line in utils::capture.output(str(optimizer_params_weights[[layer]]))) message(line)
-            message("Names: ", paste(names(optimizer_params_weights[[layer]]), collapse = ", "))
-          }
-        }
-        
-        # Get weight gradients from learn()
-        grads_matrix <- weight_gradients[[layer]]
-        
-        # Clip weight gradient
-        grads_matrix <- clip_gradient_norm(grads_matrix, max_norm = 5.0)
-        
-        # --------- Apply Regularization to Weight Gradient ---------
-        if (!is.null(reg_type)) {
-          if (reg_type == "L2") {
-            weight_update <- lr * grads_matrix + self$lambda * self$weights[[layer]]
-          } else if (reg_type == "L1") {
-            l1_grad <- self$lambda * sign(self$weights[[layer]])
-            weight_update <- lr * grads_matrix + l1_grad
-          } else if (reg_type == "L1_L2") {
-            l1_ratio <- 0.5
-            l1_grad <- l1_ratio * sign(self$weights[[layer]])
-            l2_grad <- (1 - l1_ratio) * self$weights[[layer]]
-            weight_update <- lr * grads_matrix + self$lambda * (l1_grad + l2_grad)
-          } else if (reg_type == "Group_Lasso") {
-            if (is.null(self$groups) || is.null(self$groups[[layer]])) {
-              self$groups[[layer]] <- list(1:ncol(self$weights[[layer]]))  # Default: entire layer as one group
-            }
-            group_lasso_grad <- matrix(0, nrow = nrow(self$weights[[layer]]), ncol = ncol(self$weights[[layer]]))
-            for (group in self$groups[[layer]]) {
-              group_weights <- self$weights[[layer]][, group, drop = FALSE]
-              norm_group <- sqrt(sum(group_weights^2, na.rm = TRUE)) + 1e-8
-              group_lasso_grad[, group] <- group_weights / norm_group
-            }
-            weight_update <- lr * grads_matrix + self$lambda * group_lasso_grad
-          } else if (reg_type == "Max_Norm") {
-            max_norm <- 1.0
-            weight_norms <- sqrt(colSums(self$weights[[layer]]^2, na.rm = TRUE))
-            clipped_weights <- self$weights[[layer]]
-            for (j in seq_along(weight_norms)) {
-              if (weight_norms[j] > max_norm) {
-                clipped_weights[, j] <- (clipped_weights[, j] / weight_norms[j]) * max_norm
-              }
-            }
-            weight_update <- lr * grads_matrix + self$lambda * (self$weights[[layer]] - clipped_weights)
-          } else {
-            if (verbose) message("Warning: Unknown reg_type provided. No regularization applied.")
-            weight_update <- lr * grads_matrix
-          }
-        } else {
-          weight_update <- lr * grads_matrix
-        }
-        
-        # Apply weight update safely
-        if (all(dim(grads_matrix) == dim(self$weights[[layer]]))) {
-          self$weights[[layer]] <- self$weights[[layer]] - weight_update
-        } else if (prod(dim(self$weights[[layer]])) == 1) {
-          self$weights[[layer]] <- self$weights[[layer]] - sum(weight_update)
-        } else {
-          self$weights[[layer]] <- self$weights[[layer]] - apply(weight_update, 2, mean)
-        }
-        
-        # --- Optimizer dispatch (ML) ---
-        if (!is.null(optimizer_params_weights[[layer]]) && !is.null(optimizer)) {
-          if (optimizer == "adam") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1,
-              beta2 = beta2,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "rmsprop") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta2 = beta2,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "sgd") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = NA, beta2 = NA, epsilon = NA,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "sgd_momentum") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2, epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "nag") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2, epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "ftrl") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2,
-              alpha = 0.1, lambda1 = 0.01, lambda2 = 0.01,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "lamb") {
-            grads_input <- if (is.list(grads_matrix)) { grads_matrix } 
-            else if (is.null(dim(grads_matrix))) { list(matrix(grads_matrix, nrow = 1, ncol = 1)) } 
-            else if (length(dim(grads_matrix)) == 1) { list(matrix(grads_matrix, nrow = length(grads_matrix), ncol = 1)) } 
-            else { list(grads_matrix) }
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "lookahead") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = weight_gradients[[layer]],
-              lr = lr, beta1 = beta1, beta2 = beta2, epsilon = epsilon,
-              epoch = epoch, self = self, layer = layer,
-              target = "weights", verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "adagrad") {
-            grads_input <- if (is.list(grads_matrix)) { grads_matrix } 
-            else if (is.null(dim(grads_matrix))) { list(matrix(grads_matrix, nrow = 1, ncol = 1)) } 
-            else if (length(dim(grads_matrix)) == 1) { list(matrix(grads_matrix, nrow = 1)) } 
-            else { list(grads_matrix) }
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-            
-          } else if (optimizer == "adadelta") {
-            updated_optimizer <- apply_optimizer_update(
-              optimizer = optimizer,
-              optimizer_params = optimizer_params_weights,
-              grads_matrix = grads_matrix,
-              lr = lr,
-              beta1 = beta1, beta2 = beta2,
-              epsilon = epsilon,
-              epoch = epoch,
-              self = self,
-              layer = layer,
-              target = "weights",
-              verbose = verbose
-            )
-            optimizer_params_weights[[layer]] <- updated_optimizer$updated_optimizer_params
-          }
-        }
-      }
+  .update_parameter_block(self, "weights", optimizer, optimizer_params_weights,
+                          weight_gradients, lr, reg_type, beta1, beta2, epsilon,
+                          epoch, lookahead_step, verbose)
+}
+
+# One shared route for SL/ML weights and biases. learn() already supplies the
+# per-parameter gradients, including activation derivatives for the biases.
+.update_parameter_block <- function(self, target, optimizer, states, gradients,
+                                     lr, reg_type, beta1, beta2, epsilon, epoch,
+                                     lookahead_step, verbose) {
+  parameters <- self[[target]]
+  if (!is.list(parameters)) parameters <- list(parameters)
+  if (is.null(states)) states <- vector("list", length(parameters))
+  length(states) <- length(parameters)
+  if (!is.list(gradients)) gradients <- list(gradients)
+  if (length(gradients) != length(parameters)) stop("Gradient layer count mismatch.", call. = FALSE)
+  # NULL retains the ordinary gradient-descent fallback.
+  method <- if (is.null(optimizer)) "sgd" else optimizer
+  for (layer in seq_along(parameters)) {
+    p <- as.matrix(parameters[[layer]])
+    g <- gradients[[layer]]
+    # learn() emits 1 x units bias gradients; initialized ML biases are units x
+    # 1 and SL biases may be vectors. These are equivalent unit orderings.
+    if (target == "biases" && is.numeric(g) && length(g) == length(p) &&
+        (is.null(dim(g)) || any(dim(g) == 1L)) && any(dim(p) == 1L)) {
+      g <- matrix(g, nrow(p), ncol(p))
     }
-    
-  } else {
-    # =========================
-    # SINGLE-LAYER NN BRANCH
-    # =========================
-    if (!is.null(self$weights) && !is.null(optimizer)) {
-      weights_mat <- if (is.list(self$weights)) {
-        as.matrix(self$weights[[1]])
-      } else {
-        as.matrix(self$weights)
-      }
-      if (is.null(optimizer_params_weights[[1]])) {
-        optimizer_params_weights[[1]] <- initialize_optimizer_params(
-          optimizer,
-          list(dim(weights_mat)),
-          lookahead_step,
-          1L
-        )
-        if (verbose) {
-          message(">>> SL initialize_optimizer_params done for layer 1")
-          for (line in utils::capture.output(str(optimizer_params_weights[[1]]))) message(line)
-          message("Names: ", paste(names(optimizer_params_weights[[1]]), collapse = ", "))
-        }
-      }
-      
-      # Get weight gradients from learn()
-      grads_matrix <- weight_gradients[[1]]
-      
-      # Clip gradient
-      grads_matrix <- clip_gradient_norm(grads_matrix, max_norm = 5.0)
-      
-      # --------- Regularization ---------
-      if (!is.null(reg_type)) {
-        if (reg_type == "L2") {
-          reg_term <- self$lambda * weights_mat
-          weight_update <- lr * grads_matrix + reg_term
-        } else if (reg_type == "L1") {
-          reg_term <- self$lambda * sign(weights_mat)
-          weight_update <- lr * grads_matrix + reg_term
-        } else if (reg_type == "L1_L2") {
-          l1_ratio <- 0.5
-          reg_term <- self$lambda * (l1_ratio * sign(weights_mat) + (1 - l1_ratio) * weights_mat)
-          weight_update <- lr * grads_matrix + reg_term
-        } else if (reg_type == "Group_Lasso") {
-          norm_weights <- sqrt(sum(weights_mat^2, na.rm = TRUE)) + 1e-8
-          reg_term <- self$lambda * (weights_mat / norm_weights)
-          weight_update <- lr * grads_matrix + reg_term
-        } else if (reg_type == "Max_Norm") {
-          max_norm <- 1.0
-          norm_weights <- sqrt(sum(weights_mat^2, na.rm = TRUE))
-          clipped_weights <- if (norm_weights > max_norm) {
-            (weights_mat / norm_weights) * max_norm
-          } else {
-            weights_mat
-          }
-          reg_term <- self$lambda * (weights_mat - clipped_weights)
-          weight_update <- lr * grads_matrix + reg_term
-        } else {
-          if (verbose) message("Warning: Unknown reg_type in SL. No regularization applied.")
-          weight_update <- lr * grads_matrix
-        }
-      } else {
-        weight_update <- lr * grads_matrix
-      }
-      
-      # ------------------- DEBUG -------------------
-      if (verbose) {
-        message(">> SL grads_matrix dim: ", paste(dim(grads_matrix), collapse = " x "))
-        message("SL grads_matrix summary:")
-        for (nm in names(summary(as.vector(grads_matrix)))) {
-          message(nm, ": ", summary(as.vector(grads_matrix))[nm])
-        }
-      }
-      
-      # ------------------- OPTIMIZER DISPATCH (SL) -------------------
-      if (!is.null(optimizer_params_weights[[1]])) {
-        if (optimizer %in% c("adam","rmsprop","sgd","sgd_momentum","nag","ftrl","lamb","lookahead","adagrad","adadelta")) {
-          updated_optimizer <- apply_optimizer_update(
-            optimizer        = optimizer,
-            optimizer_params = optimizer_params_weights,
-            grads_matrix     = grads_matrix,
-            lr               = lr,
-            beta1            = beta1,
-            beta2            = beta2,
-            epsilon          = epsilon,
-            epoch            = epoch,
-            self             = self,
-            layer            = 1L,
-            target           = "weights",
-            verbose = verbose
-          )
-          # Most branches in your ML path assign absolute weights; mirror that:
-          weights_mat <- updated_optimizer$updated_weights_or_biases
-          if (is.list(self$weights)) {
-            self$weights[[1]] <- weights_mat
-          } else {
-            self$weights <- weights_mat
-          }
-          optimizer_params_weights[[1]] <- updated_optimizer$updated_optimizer_params
-          
-          if (verbose) {
-            message(">> SL updated weights summary: min = ", min(weights_mat),
-                    ", mean = ", mean(weights_mat),
-                    ", max = ", max(weights_mat))
-          }
-          
-        } else {
-          # Unknown optimizer → fall back to manual update
-          if (all(dim(grads_matrix) == dim(weights_mat))) {
-            weights_mat <- weights_mat - weight_update
-          } else if (prod(dim(weights_mat)) == 1) {
-            weights_mat <- weights_mat - sum(weight_update)
-          } else {
-            weights_mat <- weights_mat - apply(weight_update, 2, mean)
-          }
-          if (is.list(self$weights)) {
-            self$weights[[1]] <- weights_mat
-          } else {
-            self$weights <- weights_mat
-          }
-        }
-      } else {
-        # Params not initialized (shouldn’t happen) → safe fallback
-        if (all(dim(grads_matrix) == dim(weights_mat))) {
-          weights_mat <- weights_mat - weight_update
-        } else if (prod(dim(weights_mat)) == 1) {
-          weights_mat <- weights_mat - sum(weight_update)
-        } else {
-          weights_mat <- weights_mat - apply(weight_update, 2, mean)
-        }
-        if (is.list(self$weights)) {
-          self$weights[[1]] <- weights_mat
-        } else {
-          self$weights <- weights_mat
-        }
-      }
+    g <- .optimizer_matrix(g, p)
+    g <- clip_gradient_norm(g, max_norm = 5)
+    # Coupled regularization belongs to the gradient, before the sole update.
+    g <- g + .optimizer_regularization(self, p, reg_type, target, layer)
+    if (is.null(states[[layer]])) {
+      states[[layer]] <- initialize_optimizer_params(method, list(dim(p)),
+                          lookahead_step, layer, parameter = p)
     }
+    out <- apply_optimizer_update(method, states, g, lr, beta1, beta2, epsilon,
+                                   epoch, self, layer, target, verbose = verbose)
+    states[[layer]] <- out$updated_optimizer_params
   }
-  
-  return(list(updated_optimizer_params = optimizer_params_weights))
+  list(updated_optimizer_params = states)
+}
+
+.optimizer_regularization <- function(self, p, reg_type, target, layer) {
+  zero <- p * 0
+  if (is.null(reg_type)) return(zero)
+  strength <- if (is.null(self$lambda)) 0 else self$lambda
+  if (reg_type == "L2") return(strength * p)
+  if (reg_type == "L1") return(strength * sign(p))
+  if (reg_type == "L1_L2") return(strength * (.5 * sign(p) + .5 * p))
+  if (reg_type == "Group_Lasso") {
+    groups <- if (target == "weights" && isTRUE(self$ML_NN)) {
+      if (is.null(self$groups) || is.null(self$groups[[layer]])) list(seq_len(ncol(p))) else self$groups[[layer]]
+    } else list(seq_len(ncol(p)))
+    for (group in groups) {
+      block <- p[, group, drop = FALSE]
+      zero[, group] <- block / (sqrt(sum(block^2)) + 1e-8)
+    }
+    return(strength * zero)
+  }
+  if (reg_type == "Max_Norm") {
+    clipped <- p
+    if (target == "weights" && isTRUE(self$ML_NN)) {
+      norms <- sqrt(colSums(p^2))
+      for (j in seq_along(norms)) if (norms[j] > 1) clipped[, j] <- p[, j] / norms[j]
+    } else {
+      norm <- sqrt(sum(p^2))
+      if (norm > 1) clipped <- p / norm
+    }
+    return(strength * (p - clipped))
+  }
+  zero
 }
 
 clip_gradient_norm <- function(gradient, min_norm = 1e-3, max_norm = 5) {
