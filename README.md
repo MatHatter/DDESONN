@@ -23,6 +23,20 @@ Windows use only observations at or before their end row. Training-channel
 scaling and learned encoder parameters are stored in the model and reused after
 save/reload; inference never refits them.
 
+SSM models use joint training by default: every training epoch updates both the
+prediction network and its encoder from the final prediction error. The encoder
+has separate parameters and Adam state; the selected network optimizer is
+unchanged. Each ensemble member retains its own encoder, including when a TEMP
+member is promoted. Best-epoch restoration restores the matching network and
+encoder together. Validation sequences are evaluated without training on them.
+
+To compare with the earlier, separately pretrained and then frozen encoder, pass
+`ssm_training = "pretrain"` to `ddesonn_fit()` (or include it in
+`ddesonn_run(training_overrides = list(ssm_training = "pretrain", ...))`).
+`ssm_lr` optionally controls the encoder learning rate; by default joint training
+uses the network's current learning rate. Per-member `ssm_training_history`
+attributes record completed epochs, encoder gradient norms and parameter changes.
+
 <img src="https://raw.githubusercontent.com/MatHatter/ddesonn-assets/main/DDESONN_brain.png" width="800">
 
 **Documentation structure:**  

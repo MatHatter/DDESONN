@@ -158,3 +158,76 @@ test_that("saved SSM run models predict with newly supplied sequences", {
     "sequence_data is required for SSM prediction"
   )
 })
+
+test_that("binary SSM training persists non-square parameters and Adam state", {
+  skip_if_not_installed("knitr")
+  d <- ssm_bridge_fixture()
+  result <- ddesonn_run(
+    x = d$train_x, y = matrix(rep(0:1, 4L), 8L, 1L),
+    classification_mode = "binary", hidden_sizes = c(4L, 2L), seeds = 111L,
+    validation = list(x = d$validation_x, y = matrix(rep(0:1, 2L), 4L, 1L),
+                      sequence_data = d$validation_s),
+    test = list(x = d$test_x, y = matrix(c(0, 1, 0), 3L, 1L), sequence_data = d$test_s),
+    prediction_data = list(x = d$test_x[1:2, , drop = FALSE],
+                           sequence_data = d$test_s[1:2, , , drop = FALSE]),
+    sequence_encoder = "ssm", sequence_data = d$train_s,
+    sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
+    training_overrides = list(num_epochs = 3L, lr = 0.001,
+      optimizer = "adagrad", loss_type = "CrossEntropy",
+      preprocessScaledData = list(already_scaled = TRUE),
+      batch_normalize_data = FALSE, validation_metrics = TRUE, viewTables = FALSE),
+    save_models = FALSE
+  )
+  model <- result$model
+  enc <- attr(model, "ssm_encoder")
+  expect_equal(enc$optimizer$step, 3L)
+  expect_equal(enc$scale$center, apply(d$train_s, 3L, mean))
+  expect_equal(enc$scale$scale, apply(d$train_s, 3L, sd))
+  for (nm in c("params", "m", "v")) {
+    values <- if (nm == "params") enc$params else enc$optimizer[[nm]]
+    expect_identical(dim(values$W_dt), c(13L, 16L))
+    expect_null(dim(values$b_dt))
+    expect_true(all(vapply(values, function(x) all(is.finite(x)), logical(1L))))
+  }
+  # The moments prove the supervised encoder pass updated the encoder.
+  expect_gt(sum(abs(enc$optimizer$m$conv)), 0)
+  path <- tempfile(fileext = ".rds")
+  on.exit(unlink(path), add = TRUE)
+  saveRDS(model, path)
+  restored <- readRDS(path)
+  expect_equal(attr(restored, "ssm_encoder"), enc)
+  before <- ddesonn_predict(model, d$test_x, sequence_data = d$test_s)$prediction
+  after <- predict(restored, d$test_x, sequence_data = d$test_s)$predicted_output
+  expect_equal(as.numeric(after), as.numeric(before))
+  expect_true(all(is.finite(before)))
+  expect_true(all(before >= 0 & before <= 1))
+  expect_equal(nrow(result$runs[[1L]]$predictions$test), 3L)
+  expect_length(result$runs[[1L]]$main$predictions$prediction, 2L)
+})
+
+test_that("promoted networks retain their own SSM encoder at prediction", {
+  d <- ssm_bridge_fixture()
+  main <- run_ssm_bridge_fixture(d)$model
+  # A different training split gives the candidate a different scaler/encoder.
+  candidate_data <- d
+  candidate_data$train_s <- d$train_s + 5
+  candidate <- run_ssm_bridge_fixture(candidate_data)$model
+  candidate_encoder <- attr(candidate, "ssm_encoder")
+  expect_equal(attr(candidate$ensemble[[1L]], "ssm_encoder"), candidate_encoder)
+  expected <- ddesonn_predict(candidate, d$test_x, sequence_data = d$test_s)$prediction
+  # TEMP promotion replaces the member while MAIN retains its model attributes.
+  main$ensemble[[1L]] <- candidate$ensemble[[1L]]
+  expect_false(identical(attr(main, "ssm_encoder"), candidate_encoder))
+  actual <- ddesonn_predict(main, d$test_x, sequence_data = d$test_s)$prediction
+  expect_equal(actual, expected)
+
+  path <- tempfile(fileext = ".rds")
+  on.exit(unlink(path), add = TRUE)
+  saveRDS(main, path)
+  expect_equal(ddesonn_predict(readRDS(path), d$test_x, sequence_data = d$test_s)$prediction,
+               expected)
+  # Saved models from before member-level pairing still use their model encoder.
+  attr(candidate$ensemble[[1L]], "ssm_encoder") <- NULL
+  expect_equal(ddesonn_predict(candidate, d$test_x, sequence_data = d$test_s)$prediction,
+               expected)
+})

@@ -2,6 +2,35 @@
 .ssm_softplus <- function(x) log1p(exp(-abs(x))) + pmax(x, 0)
 .ssm_sigmoid <- function(x) 1 / (1 + exp(-x))
 
+# Group identical windows without changing sample order or row multiplicities.
+# Hashes only select candidate groups; compare values to handle collisions.
+.ssm_sequence_groups <- function(x) {
+  n <- dim(x)[1L]
+  buckets <- new.env(hash = TRUE, parent = emptyenv())
+  first <- group <- integer(n)
+  count <- 0L
+  for (i in seq_len(n)) {
+    values <- as.numeric(x[i, , , drop = FALSE])
+    key <- digest::digest(values, algo = "xxhash64")
+    candidates <- get0(key, envir = buckets, inherits = FALSE)
+    found <- 0L
+    for (candidate in candidates) {
+      if (identical(values, as.numeric(x[first[candidate], , , drop = FALSE]))) {
+        found <- candidate
+        break
+      }
+    }
+    if (found == 0L) {
+      count <- count + 1L
+      first[count] <- i
+      found <- count
+      assign(key, c(candidates, count), envir = buckets)
+    }
+    group[i] <- found
+  }
+  list(first = first[seq_len(count)], group = group)
+}
+
 .ssm_shape_text <- function(x) {
   if (is.null(dim(x))) paste0("length ", length(x), " vector") else paste(dim(x), collapse = " x ")
 }
@@ -96,14 +125,19 @@ ddesonn_ssm_encode <- function(encoder, sequence_data, fit_scale = FALSE) {
     encoder$scale <- list(center=mu, scale=sd)
   }
   if (is.null(encoder$scale)) stop("Encoder scaling statistics have not been fitted.", call.=FALSE)
-  x <- sequence_data; for(j in seq_len(dim(x)[3])) x[,,j] <- (x[,,j]-encoder$scale$center[j])/encoder$scale$scale[j]
-  ans <- ddesonn_ssm_forward(encoder,x); attr(ans$embedding,"encoder") <- encoder; ans$embedding
+  groups <- .ssm_sequence_groups(sequence_data)
+  x <- sequence_data[groups$first, , , drop = FALSE]
+  for(j in seq_len(dim(x)[3])) x[,,j] <- (x[,,j]-encoder$scale$center[j])/encoder$scale$scale[j]
+  embedding <- ddesonn_ssm_forward(encoder,x)$embedding[groups$group, , drop = FALSE]
+  attr(embedding,"encoder") <- encoder; embedding
 }
 
 #' Back-propagate through the selective recurrence and causal convolution
 #' @param encoder SSM encoder.
 #' @param cache Cache returned by `ddesonn_ssm_forward(..., return_cache=TRUE)`.
-#' @param grad_embedding Gradient of the loss with respect to the final embedding.
+#' @param grad_embedding Per-sample loss gradients with respect to the final
+#'   embedding, before averaging over samples. Returned gradients are averaged
+#'   over the sample dimension.
 #' @return Gradients for every parameter and for the sequence input.
 #' @export
 ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
@@ -125,7 +159,8 @@ ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
     # Adding the entire samples x states matrix here silently flattened gB in
     # outer(zz, gB), making the projection gradient features x (samples*states).
     gst<-go*cc+gs_next[i,]
-    g$D <- g$D + outer(zz,go); gz<-as.numeric(p$D%*%go)
+    # z also drives the output projection C, in addition to the skip path D.
+    g$D <- g$D + outer(zz,go); gz<-as.numeric(p$D%*%go + p$W_C%*%(go*st))
     gB<-gst*rep(zz,length.out=h); gxrep<-gst*bb
     g$W_B<-g$W_B+outer(zz,gB);g$b_B<-g$b_B+gB;gz<-gz+as.numeric(p$W_B%*%gB)
     gda<-gst*prev; gdt<-gda*da*A; gA<-gda*da*dtt
@@ -169,9 +204,23 @@ ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
 }
 
 .ddesonn_ssm_train <- function(encoder, sequence_data, y, epochs=3L, lr=.001) {
-  x<-sequence_data; for(j in seq_len(dim(x)[3]))x[,,j]<-(x[,,j]-encoder$scale$center[j])/encoder$scale$scale[j]
-  target<-matrix(as.numeric(y),nrow=dim(x)[1]);target<-target[,rep(seq_len(ncol(target)),length.out=encoder$config$state_dim),drop=FALSE]
-  if(ncol(target)!=encoder$config$state_dim)target<-matrix(rep(target,length.out=nrow(target)*encoder$config$state_dim),nrow(target))
-  for(ep in seq_len(as.integer(epochs))){fw<-ddesonn_ssm_forward(encoder,x,TRUE);ge<-2*(fw$embedding-target)/(nrow(target)*ncol(target));gr<-ddesonn_ssm_backward(encoder,fw$cache,ge);encoder<-.ddesonn_ssm_update(encoder,gr$params,lr)}
+  groups <- .ssm_sequence_groups(sequence_data)
+  n <- dim(sequence_data)[1L]
+  x <- sequence_data[groups$first, , , drop = FALSE]
+  for(j in seq_len(dim(x)[3])) x[,,j] <- (x[,,j]-encoder$scale$center[j])/encoder$scale$scale[j]
+  target <- matrix(as.numeric(y), nrow = n)
+  target <- target[, rep(seq_len(ncol(target)), length.out = encoder$config$state_dim), drop = FALSE]
+  counts <- tabulate(groups$group, nbins = length(groups$first))
+  # The MSE derivative for a repeated window depends on its mean target.
+  # Keep its original multiplicity, including windows with conflicting labels.
+  target <- rowsum(target, groups$group, reorder = FALSE) / counts
+  weights <- counts * length(counts) / n
+  for(ep in seq_len(as.integer(epochs))) {
+    fw <- ddesonn_ssm_forward(encoder,x,TRUE)
+    # backward averages over unique windows; weights restore the sample mean.
+    ge <- 2*(fw$embedding-target)/ncol(target) * weights
+    gr <- ddesonn_ssm_backward(encoder,fw$cache,ge)
+    encoder <- .ddesonn_ssm_update(encoder,gr$params,lr)
+  }
   encoder
 }

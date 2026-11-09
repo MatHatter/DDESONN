@@ -11,5 +11,12 @@ ddesonn_ssm_reset_state(encoder, state = NULL)
 }
 \description{Initialise, evaluate, differentiate, scale, and reset the optional
 native-R causal selective state-space encoder.}
+\details{The backward pass takes per-sample embedding gradients before sample
+averaging and returns parameter and input gradients averaged over samples.
+For mean squared error across states, supply twice the embedding residual
+divided by the number of states; do not also divide by the sample count.
+Encoding and supervised encoder training reuse identical sequence
+windows. Scaling statistics and the mean-loss gradient retain the original
+sample multiplicities, including different labels attached to the same window.}
 \value{An encoder, forward result, gradient list, or embedding matrix, depending
 on the function called.}

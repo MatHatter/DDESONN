@@ -895,6 +895,8 @@ SONN <- R6::R6Class(
       bias_gradients <- list()
       grads_matrix <- list()
       errors <- list()
+      # [SSM] Per-sample gradient at the network input, before batch averaging.
+      input_gradient <- NULL
       
       ## ---------------------------
       ## Activation functions: show RAW input (exactly as received)
@@ -1136,6 +1138,9 @@ SONN <- R6::R6Class(
           if (layer > 1) {
             weights_t <- t(as.matrix(self$weights[[layer]]))
             error_backprop <- delta %*% weights_t
+          } else {
+            # [SSM] Continue the chain rule into the temporal embedding.
+            input_gradient <- delta %*% t(as.matrix(self$weights[[1L]]))
           }
         }
         
@@ -1241,6 +1246,9 @@ SONN <- R6::R6Class(
           if (isTRUE(verbose)) cat("[Debug] SL : Using derivative-backed delta\n")
         }
         
+        # [SSM] Input dropout belongs on the input gradient, after projection.
+        input_gradient <- delta %*% t(weights_matrix)
+        input_gradient <- self$dropout_backward(input_gradient, mask, rate)
         # Backprop through dropout ONLY if mask matches delta's shape
         if (!is.null(rate) && !is.null(mask) && is.matrix(mask) && all(dim(mask) == dim(delta))) {
           delta <- self$dropout_backward(delta, mask, rate)
@@ -1287,7 +1295,8 @@ SONN <- R6::R6Class(
         hidden_outputs = predicted_output_learn_hidden,
         grads_matrix = grads_matrix,
         bias_gradients = bias_gradients,
-        errors = errors
+        errors = errors,
+        input_gradient = input_gradient # [SSM] No change to head optimizer updates.
       ))
     },
     # Method to perform prediction
@@ -1585,6 +1594,9 @@ SONN <- R6::R6Class(
       # ------------------------------------------------------------------
       if (is.null(X_train)) X_train <- Rdata
       if (is.null(y_train)) y_train <- labels
+      # [SSM] Transient training context; absent for the engineered-only path.
+      ssm_joint <- attr(self, "ssm_joint_context")
+      best_ssm_encoder <- NULL
 
       probs_val <- NULL
       labels_val <- NULL
@@ -1658,6 +1670,13 @@ SONN <- R6::R6Class(
           log_important("Epoch: %d | Learning Rate: %s", epoch, lr_epoch)
           num_epochs_check <<- num_epochs
           
+          # [SSM] Refresh embeddings from this member's current encoder.
+          if (!is.null(ssm_joint)) {
+            joint_inputs <- .ssm_joint_inputs(ssm_joint, Rdata, X_validation, cache = TRUE)
+            Rdata <- joint_inputs$train
+            X_train <- Rdata
+            X_validation <- joint_inputs$validation
+          }
           # 1) Train step
           learn_result <- self$learn(
             Rdata = Rdata,
@@ -1671,6 +1690,15 @@ SONN <- R6::R6Class(
             verboseLow = verboseLow
           )
           
+          # [SSM] Update the encoder with the same prediction error as the head.
+          if (!is.null(ssm_joint)) {
+            .ssm_joint_step(ssm_joint, learn_result$input_gradient, lr_epoch)
+            attr(self, "ssm_encoder") <- ssm_joint$encoder
+            joint_inputs <- .ssm_joint_inputs(ssm_joint, Rdata, X_validation)
+            Rdata <- joint_inputs$train
+            X_train <- Rdata
+            X_validation <- joint_inputs$validation
+          }
           # --- Error debug ---
           if (!is.null(learn_result$error)) {
             log_important(
@@ -2532,9 +2560,11 @@ SONN <- R6::R6Class(
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- lapply(self$biases,  as.matrix)
                   } else {
                     best_weights <- as.matrix(self$weights)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- as.matrix(self$biases)
                   }
                   
@@ -2582,9 +2612,11 @@ SONN <- R6::R6Class(
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- lapply(self$biases,  as.matrix)
                   } else {
                     best_weights <- as.matrix(self$weights)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- as.matrix(self$biases)
                   }
                   if (!is.null(predicted_output_val$prediction_time)) {
@@ -2626,9 +2658,11 @@ SONN <- R6::R6Class(
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- lapply(self$biases,  as.matrix)
                   } else {
                     best_weights <- as.matrix(self$weights)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- as.matrix(self$biases)
                   }
                   if (!is.null(predicted_output_val$prediction_time)) {
@@ -2773,9 +2807,11 @@ SONN <- R6::R6Class(
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- lapply(self$biases,  as.matrix)
                   } else {
                     best_weights <- as.matrix(self$weights)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- as.matrix(self$biases)
                   }
                   
@@ -2798,9 +2834,11 @@ SONN <- R6::R6Class(
                   
                   if (isTRUE(self$ML_NN)) {
                     best_weights <- lapply(self$weights, as.matrix)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- lapply(self$biases,  as.matrix)
                   } else {
                     best_weights <- as.matrix(self$weights)
+                    best_ssm_encoder <- attr(self, "ssm_encoder") # [SSM] Atomic snapshot.
                     best_biases  <- as.matrix(self$biases)
                   }
                   
@@ -2822,6 +2860,16 @@ SONN <- R6::R6Class(
           # -------- FINALIZE WITH BEST SNAPSHOT --------
           use_best <- !is.null(best_weights) && !is.null(best_biases)
           
+          # [SSM] Evaluate saved head weights with their saved encoder, without
+          # replacing the current encoder used by the next training epoch.
+          best_X_train <- X_train
+          best_X_validation <- X_validation
+          if (isTRUE(use_best) && !is.null(ssm_joint) && !is.null(best_ssm_encoder)) {
+            best_inputs <- .ssm_joint_inputs(ssm_joint, X_train, X_validation,
+                                             encoder = best_ssm_encoder)
+            best_X_train <- best_inputs$train
+            best_X_validation <- best_inputs$validation
+          }
           if (isTRUE(use_best)) {
             
             # recompute TRAIN preds with best snapshot
@@ -2831,7 +2879,7 @@ SONN <- R6::R6Class(
               }  
               pred_train_best <- tryCatch(
                 self$predict(
-                  Rdata                = X_train,
+                  Rdata                = best_X_train,
                   weights              = best_weights,
                   biases               = best_biases,
                   activation_functions = activation_functions,
@@ -2851,7 +2899,7 @@ SONN <- R6::R6Class(
               }  
               pred_val_best <- tryCatch(
                 self$predict(
-                  Rdata                = X_validation,
+                  Rdata                = best_X_validation,
                   weights              = best_weights,
                   biases               = best_biases,
                   activation_functions = activation_functions,
@@ -2974,6 +3022,10 @@ SONN <- R6::R6Class(
             predicted_output_train_reg <- predicted_output_train_reg
           }
           
+          # [SSM] A one-epoch run may have no improving best snapshot yet.
+          if (!is.null(attr(self, "ssm_encoder")) && is.null(predicted_output_train_reg$predicted_output)) {
+            predicted_output_train_reg <- if (isTRUE(validation_metrics)) last_val_predict else last_train_predict
+          }
         } # end for epoch
         
         total_learn_time <- total_learn_time + learn_result$learn_time
@@ -2981,6 +3033,8 @@ SONN <- R6::R6Class(
         # mirror the best snapshot onto self for downstream readers
         self$best_weights <- best_weights
         self$best_biases  <- best_biases
+        # [SSM] Keep the final and best encoder states distinct for restoration.
+        if (!is.null(ssm_joint)) ssm_joint$best_encoder <- best_ssm_encoder
         
         ddesonn_console_log(  
           sprintf("Best Training Accuracy: %.2f%% at Epoch %d", 100 * best_train_acc, best_epoch_train),  
@@ -3591,6 +3645,14 @@ DDESONN <- R6::R6Class(
               Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, output_root = output_root
             ))
           
+          # [SSM] Final reports must use the member's latest embeddings too.
+          joint_context <- attr(self$ensemble[[i]], "ssm_joint_context")
+          if (!is.null(joint_context)) {
+            joint_inputs <- .ssm_joint_inputs(joint_context, Rdata, X_validation)
+            Rdata <- joint_inputs$train
+            X_train <- Rdata
+            X_validation <- joint_inputs$validation
+          }
           # Store core model info
           all_ensemble_name_model_name[[i]] <- ensemble_name_model_name
           all_model_iter_num[[i]] <- model_iter_num
