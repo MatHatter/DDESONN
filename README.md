@@ -579,7 +579,7 @@ Subsequent iterations focused on formalizing the architecture, improving reprodu
   Work resumed with renewed focus on correctness, optimizer stability, ensemble reliability, and reproducibility. Significant bug-clearing and mathematical alignment improvements were completed during this period.
 
 - 2025-09 to 2025-10 — Transitional development and benchmark breakthrough (2 months)  
-  A key multi-seed stability breakthrough was achieved during this period. This led to the creation of the comparative benchmark vignette `DDESONNvKeras_1000Seeds.Rmd`, formally documenting 1,000-seed reproducibility experiments and cross-framework evaluation against Keras. Work during this phase focused on validation rigor, controlled seed sweeps, and structured reproducibility reporting.
+  A significant research milestone was the two-batch, 1,000-seed heart-failure comparison with Keras, later documented in the historical benchmark vignette. The results used the legacy custom AdaGrad path and do not establish current standard-AdaGrad superiority. Exact original execution settings are only partially documented.
 
 - 2025-11 to 2025-12 — Reduced development activity (2 months)  
   Development intensity decreased substantially as two new parallel projects required priority. Work during this period was limited.
@@ -610,7 +610,7 @@ DDESONN/
 │   │   ├── train_multiclass_customer_segmentation.csv
 │   │   ├── test_multiclass_customer_segmentation.csv
 │   │   ├── WMT_1970-10-01_2025-03-15.csv
-│   │   └── heart_failure_runs/
+│   │   └── heart_failure_runs/  (Git only; excluded from package)
 │   │       ├── run1/
 │   │       └── run2/
 │   │
@@ -999,9 +999,8 @@ computed from model predictions for reporting/selection at the seed level. They 
 training/orchestration process that builds and evolves ensembles; the Champion/Challenger promotion and pruning 
 flow is handled in the run pipeline.
 
-Availability note: the compact/package-friendly snapshot may not include every large
-vsKeras artifact (especially `DDESONNproof.R` and related full benchmark outputs) to save
-space. Full artifacts are available from the GitHub release/tag bundle **v7.1.7**.
+Availability note: historical benchmark outputs and scripts remain in Git at the verified archive revision linked below; they are excluded from CRAN installations.
+
 ### Vignettes
 
 Start with these vignettes in `vignettes/`:
@@ -1018,27 +1017,25 @@ These cover:
 - Single-run flows  
 - Ensemble scenarios  
 - Logging and diagnostic analysis  
-- Benchmark-oriented multi-seed reproducibility experiments  
+- Historical multi-seed research and future benchmarking guidance
 
-#### Reproducibility Artifacts for 1000 Seeds Vignette
+#### Historical 1,000-seed research
 
-DDESONN includes precomputed `.rds` files under:
+The two 500-seed heart-failure runs and Keras workbook remain available in Git,
+but their generated RDS outputs and historical experiment folder are excluded
+from the CRAN package. The historical vignette is self-contained and does not
+require those files at installation or build time.
 
-`inst/extdata/`
+These results are associated with the legacy custom AdaGrad path, whose
+multilayer implementation applied two weight updates. They are preserved as
+research evidence, not as proof of standard AdaGrad outperforming Keras.
+The committed scripts contain master/per-run seeds, but the exact original
+execution configuration cannot be reconstructed from the saved outputs.
 
-These files contain saved model outputs, metrics, and summaries used specifically for the `DDESONNvsKeras_1000Seeds.Rmd` vignette to:
-
-- Demonstrate large multi-seed experiments (1,000 randomized initializations)
-- Avoid long runtimes during vignette builds
-- Ensure deterministic, reproducible benchmark comparisons
-
-These artifacts are:
-
-- Not loaded automatically  
-- Not part of the public API  
-- Not intended for direct use outside the associated vignette  
-
-They are provided solely to support reproducibility and documentation.
+See [the provenance audit](dev/research/legacy-adagrad-benchmarks.md) for source
+evidence, seed-history limitations, file hashes and archive retrieval commands.
+The verified archive revision is
+[`0d1b557098b56b39ed2357b30716dcddc25871b3`](https://github.com/MatHatter/DDESONN/tree/0d1b557098b56b39ed2357b30716dcddc25871b3).
 
 ---
 
@@ -1173,7 +1170,7 @@ the same helper.
 **Related To-Do:** T-09
 
 The project already includes a major comparative vignette:
-`vignettes/DDESONNvsKeras_1000Seeds.Rmd` (Heart Failure, 1000-seed summary).
+`vignettes/DDESONNvsKeras_1000Seeds.Rmd` (legacy heart-failure research and reproducibility limitations).
 
 Future releases may expand the vignette suite (more datasets, more experiments,
 more reproducible walkthroughs) and optionally explore interactive diagnostics

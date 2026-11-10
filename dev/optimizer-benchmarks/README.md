@@ -83,3 +83,19 @@ are in `selected-metrics.csv`. A selected rate is a seed-specific benchmark
 setting, not a new package default or proof of general optimizer superiority.
 The baseline runner supports `DDESONN_BENCHMARK_LR` for explicit rate overrides;
 its protocol and metric rows record the rate used.
+
+## Future matched DDESONN/Keras studies
+
+Use 10–30 seeds for exploratory comparisons and consider 100 for a more
+substantial stability assessment. Increase the count when estimated variability
+or desired precision warrants it, rather than treating any count as proof.
+Match datasets, train/validation/test splits, training-only preprocessing,
+architectures, training and tuning budgets, metrics and model-selection rules.
+Use corrected implementations and record every seed, software version, source
+revision, optimizer control, stopping rule and failed run. Select settings using
+validation data, never test performance. Report means, sample standard deviations,
+uncertainty intervals and distributions; state the interval method and whether
+variation reflects initialization, split resampling, or both. A small number of
+seeds does not justify a statistical-superiority claim. Legacy 500/1,000-seed
+results remain historical evidence; see dev/research/legacy-adagrad-benchmarks.md.
+Parallel execution is deferred beyond 7.3.0; this release adds none.
