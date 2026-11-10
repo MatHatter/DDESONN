@@ -9,6 +9,19 @@ ddesonn_ssm_backward(encoder, cache, grad_embedding)
 ddesonn_ssm_encode(encoder, sequence_data, fit_scale = FALSE)
 ddesonn_ssm_reset_state(encoder, state = NULL)
 }
+\arguments{
+\item{sequence_features}{Number of input channels in each sequence.}
+\item{state_dim}{Number of encoder state dimensions.}
+\item{conv_width}{Width of the causal convolution.}
+\item{seed}{Optional seed for parameter initialization.}
+\item{encoder}{Encoder returned by \code{ddesonn_ssm_init()}.}
+\item{sequence_data}{Numeric array with dimensions samples by timesteps by channels.}
+\item{return_cache}{Whether to return intermediate values needed by the backward pass.}
+\item{cache}{Forward-pass cache returned with \code{return_cache = TRUE}.}
+\item{grad_embedding}{Per-sample embedding gradients before averaging over samples.}
+\item{fit_scale}{Whether to fit scaling statistics on these sequences.}
+\item{state}{Optional replacement state, or \code{NULL} to clear the stored state.}
+}
 \description{Initialise, evaluate, differentiate, scale, and reset the optional
 native-R causal selective state-space encoder.}
 \details{The backward pass takes per-sample embedding gradients before sample

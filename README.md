@@ -2,19 +2,28 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.2.0 — experimental SSM maintenance
+## Version 7.3.0 — standard optimizer updates
 
-This minor release focuses on ironing out the optional SSM integration:
-correcting gradients, dimensions and Adam-state handling, training the encoder
-from the final prediction error, and keeping encoder/network checkpoints paired.
-SSM remains experimental and off by default. Current exploratory benchmarks do
-not establish a meaningful improvement over the baseline.
+Version 7.3 focuses on the optimizer implementations, uses standard AdaGrad by
+default, and removes the former custom AdaGrad behavior. It also adds numerical
+verification and plain-language explanations of each optimizer.
 
-Separate development checks against Keras and published TimeMachine results
-helped assess the implementation. The Keras check used one seed and is an
-implementation comparison, not evidence that either framework is superior.
-Those development benchmarks and optimizer changes are separate from this
-release. See [release notes](NEWS.md) for scope and verification details.
+The SSM correctness and joint-training fixes from 7.2 are carried forward.
+SSM remains experimental and off by default; this release does not add a new
+SSM algorithm. See [release notes](NEWS.md) for changes and migration guidance.
+
+## Standard AdaGrad replaces legacy AdaGrad
+
+The default `optimizer = "adagrad"` now uses standard AdaGrad. The previous
+custom implementation (called `adagrad_x` on the optimizer development branch)
+has been removed. This changes training behavior, including parameter updates,
+bias gradients, and optimizer initialization. Historical results are unchanged
+but are not directly reproducible with the replacement. This is a maintenance
+decision, not a claim that AdaGrad wins on every task.
+
+Construct a new model for training rather than reusing legacy optimizer state.
+Replace explicit `adagrad_x` configurations with `adagrad`; the removed name
+raises an error rather than silently selecting another algorithm.
 
 ## Optional native-R sequence encoder
 

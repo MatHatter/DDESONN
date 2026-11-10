@@ -1,0 +1,321 @@
+"seed","optimizer","split","row","car","actual","probability","predicted"
+1,"adagrad","train",4,"Hornet 4 Drive",0,0.11069931820322,0
+1,"adagrad","train",9,"Merc 230",0,0.166214905050065,0
+1,"adagrad","train",16,"Lincoln Continental",0,0.00385924031802894,0
+1,"adagrad","train",21,"Toyota Corona",0,0.481495962850647,0
+1,"adagrad","train",14,"Merc 450SLC",0,0.0830690082767889,0
+1,"adagrad","train",15,"Cadillac Fleetwood",0,0.00304718489541356,0
+1,"adagrad","train",7,"Duster 360",0,0.24248702943559,0
+1,"adagrad","train",8,"Merc 240D",0,0.312064614148568,0
+1,"adagrad","train",13,"Merc 450SL",0,0.0911214209002109,0
+1,"adagrad","train",5,"Hornet Sportabout",0,0.106342867172349,0
+1,"adagrad","train",11,"Merc 280C",0,0.346101867373851,0
+1,"adagrad","train",6,"Valiant",0,0.044466100946339,0
+1,"adagrad","train",2,"Mazda RX4 Wag",1,0.665611574845601,1
+1,"adagrad","train",19,"Honda Civic",1,0.506868452912911,1
+1,"adagrad","train",27,"Porsche 914-2",1,0.766746411858779,1
+1,"adagrad","train",31,"Maserati Bora",1,0.823135167514447,1
+1,"adagrad","train",3,"Datsun 710",1,0.619108265933438,1
+1,"adagrad","train",18,"Fiat 128",1,0.577349114946131,1
+1,"adagrad","train",28,"Lotus Europa",1,0.870860368204963,1
+1,"adagrad","train",26,"Fiat X1-9",1,0.606122350090475,1
+1,"adagrad","validation",10,"Merc 280",0,0.329255540880885,0
+1,"adagrad","validation",17,"Chrysler Imperial",0,0.0145075576449329,0
+1,"adagrad","validation",25,"Pontiac Firebird",0,0.0413040259294844,0
+1,"adagrad","validation",32,"Volvo 142E",1,0.523120883750829,1
+1,"adagrad","validation",1,"Mazda RX4",1,0.742520495744046,1
+1,"adagrad","test",23,"AMC Javelin",0,0.10741364918693,0
+1,"adagrad","test",22,"Dodge Challenger",0,0.0296892607666013,0
+1,"adagrad","test",12,"Merc 450SE",0,0.0564423019004569,0
+1,"adagrad","test",24,"Camaro Z28",0,0.562483329702237,1
+1,"adagrad","test",29,"Ford Pantera L",1,0.807201792134723,1
+1,"adagrad","test",20,"Toyota Corolla",1,0.578157226823168,1
+1,"adagrad","test",30,"Ferrari Dino",1,0.846774339679147,1
+1,"adam","train",4,"Hornet 4 Drive",0,0.136579441150918,0
+1,"adam","train",9,"Merc 230",0,0.207763060988825,0
+1,"adam","train",16,"Lincoln Continental",0,0.00882461382238088,0
+1,"adam","train",21,"Toyota Corona",0,0.526578794092385,1
+1,"adam","train",14,"Merc 450SLC",0,0.11892116402343,0
+1,"adam","train",15,"Cadillac Fleetwood",0,0.00613904148157145,0
+1,"adam","train",7,"Duster 360",0,0.478567807988079,0
+1,"adam","train",8,"Merc 240D",0,0.356075698393303,0
+1,"adam","train",13,"Merc 450SL",0,0.135421998620704,0
+1,"adam","train",5,"Hornet Sportabout",0,0.1789478514858,0
+1,"adam","train",11,"Merc 280C",0,0.407747012001038,0
+1,"adam","train",6,"Valiant",0,0.0589769034083229,0
+1,"adam","train",2,"Mazda RX4 Wag",1,0.705394808739704,1
+1,"adam","train",19,"Honda Civic",1,0.593721625390977,1
+1,"adam","train",27,"Porsche 914-2",1,0.818767263189552,1
+1,"adam","train",31,"Maserati Bora",1,0.940556352658355,1
+1,"adam","train",3,"Datsun 710",1,0.643594562130789,1
+1,"adam","train",18,"Fiat 128",1,0.58978998688644,1
+1,"adam","train",28,"Lotus Europa",1,0.871330363876493,1
+1,"adam","train",26,"Fiat X1-9",1,0.63435391365375,1
+1,"adam","validation",10,"Merc 280",0,0.405436089817468,0
+1,"adam","validation",17,"Chrysler Imperial",0,0.033298485933201,0
+1,"adam","validation",25,"Pontiac Firebird",0,0.0795538497700594,0
+1,"adam","validation",32,"Volvo 142E",1,0.562532667411175,1
+1,"adam","validation",1,"Mazda RX4",1,0.785210863120063,1
+1,"adam","test",23,"AMC Javelin",0,0.164017612000148,0
+1,"adam","test",22,"Dodge Challenger",0,0.0521209756148777,0
+1,"adam","test",12,"Merc 450SE",0,0.09351567601672,0
+1,"adam","test",24,"Camaro Z28",0,0.790465196438754,1
+1,"adam","test",29,"Ford Pantera L",1,0.944151965838833,1
+1,"adam","test",20,"Toyota Corolla",1,0.59697743591357,1
+1,"adam","test",30,"Ferrari Dino",1,0.883541274171776,1
+1,"lamb","train",4,"Hornet 4 Drive",0,0.139061359889899,0
+1,"lamb","train",9,"Merc 230",0,0.189905813526742,0
+1,"lamb","train",16,"Lincoln Continental",0,0.00648389719479746,0
+1,"lamb","train",21,"Toyota Corona",0,0.502028965431039,1
+1,"lamb","train",14,"Merc 450SLC",0,0.116166692241105,0
+1,"lamb","train",15,"Cadillac Fleetwood",0,0.00495991121721404,0
+1,"lamb","train",7,"Duster 360",0,0.360105961917107,0
+1,"lamb","train",8,"Merc 240D",0,0.354968499970339,0
+1,"lamb","train",13,"Merc 450SL",0,0.127207682504928,0
+1,"lamb","train",5,"Hornet Sportabout",0,0.156234890631443,0
+1,"lamb","train",11,"Merc 280C",0,0.377688971819379,0
+1,"lamb","train",6,"Valiant",0,0.0549868962695815,0
+1,"lamb","train",2,"Mazda RX4 Wag",1,0.636347029885573,1
+1,"lamb","train",19,"Honda Civic",1,0.505307330089898,1
+1,"lamb","train",27,"Porsche 914-2",1,0.736166541255186,1
+1,"lamb","train",31,"Maserati Bora",1,0.885800916407906,1
+1,"lamb","train",3,"Datsun 710",1,0.601910600697208,1
+1,"lamb","train",18,"Fiat 128",1,0.573134541484064,1
+1,"lamb","train",28,"Lotus Europa",1,0.825783805108644,1
+1,"lamb","train",26,"Fiat X1-9",1,0.599530761731916,1
+1,"lamb","validation",10,"Merc 280",0,0.364108000286312,0
+1,"lamb","validation",17,"Chrysler Imperial",0,0.0229253354026961,0
+1,"lamb","validation",25,"Pontiac Firebird",0,0.0647032113460479,0
+1,"lamb","validation",32,"Volvo 142E",1,0.527082978376393,1
+1,"lamb","validation",1,"Mazda RX4",1,0.71774870707265,1
+1,"lamb","test",23,"AMC Javelin",0,0.150662104239227,0
+1,"lamb","test",22,"Dodge Challenger",0,0.0507254436133165,0
+1,"lamb","test",12,"Merc 450SE",0,0.0826274990470299,0
+1,"lamb","test",24,"Camaro Z28",0,0.640548391569943,1
+1,"lamb","test",29,"Ford Pantera L",1,0.878380285381762,1
+1,"lamb","test",20,"Toyota Corolla",1,0.583172954941269,1
+1,"lamb","test",30,"Ferrari Dino",1,0.833514485007096,1
+1,"sgd","train",4,"Hornet 4 Drive",0,0.201282523088917,0
+1,"sgd","train",9,"Merc 230",0,0.272659678005733,0
+1,"sgd","train",16,"Lincoln Continental",0,0.0356551056142531,0
+1,"sgd","train",21,"Toyota Corona",0,0.504726971791482,1
+1,"sgd","train",14,"Merc 450SLC",0,0.240193352867184,0
+1,"sgd","train",15,"Cadillac Fleetwood",0,0.0291800449146591,0
+1,"sgd","train",7,"Duster 360",0,0.362258419428295,0
+1,"sgd","train",8,"Merc 240D",0,0.363988026332586,0
+1,"sgd","train",13,"Merc 450SL",0,0.262925954146138,0
+1,"sgd","train",5,"Hornet Sportabout",0,0.24356325123269,0
+1,"sgd","train",11,"Merc 280C",0,0.416240759842669,0
+1,"sgd","train",6,"Valiant",0,0.12586956018714,0
+1,"sgd","train",2,"Mazda RX4 Wag",1,0.696264387646922,1
+1,"sgd","train",19,"Honda Civic",1,0.707588018323291,1
+1,"sgd","train",27,"Porsche 914-2",1,0.844072451768227,1
+1,"sgd","train",31,"Maserati Bora",1,0.830508111195396,1
+1,"sgd","train",3,"Datsun 710",1,0.606524126379896,1
+1,"sgd","train",18,"Fiat 128",1,0.59714739037177,1
+1,"sgd","train",28,"Lotus Europa",1,0.859525258737461,1
+1,"sgd","train",26,"Fiat X1-9",1,0.614606231905108,1
+1,"sgd","validation",10,"Merc 280",0,0.405766902976556,0
+1,"sgd","validation",17,"Chrysler Imperial",0,0.0862391143057317,0
+1,"sgd","validation",25,"Pontiac Firebird",0,0.157629776037801,0
+1,"sgd","validation",32,"Volvo 142E",1,0.564988543705027,1
+1,"sgd","validation",1,"Mazda RX4",1,0.78205604943539,1
+1,"sgd","test",23,"AMC Javelin",0,0.259604309995063,0
+1,"sgd","test",22,"Dodge Challenger",0,0.145509458414684,0
+1,"sgd","test",12,"Merc 450SE",0,0.215108859231825,0
+1,"sgd","test",24,"Camaro Z28",0,0.566446689255804,1
+1,"sgd","test",29,"Ford Pantera L",1,0.826521841746176,1
+1,"sgd","test",20,"Toyota Corolla",1,0.601826338374253,1
+1,"sgd","test",30,"Ferrari Dino",1,0.879544631432201,1
+1,"sgd_momentum","train",4,"Hornet 4 Drive",0,0.249242079644527,0
+1,"sgd_momentum","train",9,"Merc 230",0,0.297849934993324,0
+1,"sgd_momentum","train",16,"Lincoln Continental",0,0.12455258179956,0
+1,"sgd_momentum","train",21,"Toyota Corona",0,0.482618053217943,0
+1,"sgd_momentum","train",14,"Merc 450SLC",0,0.352940964893574,0
+1,"sgd_momentum","train",15,"Cadillac Fleetwood",0,0.101077854982281,0
+1,"sgd_momentum","train",7,"Duster 360",0,0.587873278033706,1
+1,"sgd_momentum","train",8,"Merc 240D",0,0.37096742218034,0
+1,"sgd_momentum","train",13,"Merc 450SL",0,0.395331493161975,0
+1,"sgd_momentum","train",5,"Hornet Sportabout",0,0.389759251270926,0
+1,"sgd_momentum","train",11,"Merc 280C",0,0.414326620913754,0
+1,"sgd_momentum","train",6,"Valiant",0,0.171666305577102,0
+1,"sgd_momentum","train",2,"Mazda RX4 Wag",1,0.673325555451267,1
+1,"sgd_momentum","train",19,"Honda Civic",1,0.594171084596996,1
+1,"sgd_momentum","train",27,"Porsche 914-2",1,0.795056940043305,1
+1,"sgd_momentum","train",31,"Maserati Bora",1,0.903568895369353,1
+1,"sgd_momentum","train",3,"Datsun 710",1,0.548815920117868,1
+1,"sgd_momentum","train",18,"Fiat 128",1,0.528371441743643,1
+1,"sgd_momentum","train",28,"Lotus Europa",1,0.80527573652957,1
+1,"sgd_momentum","train",26,"Fiat X1-9",1,0.540164766797935,1
+1,"sgd_momentum","validation",10,"Merc 280",0,0.409105568218664,0
+1,"sgd_momentum","validation",17,"Chrysler Imperial",0,0.228577469239618,0
+1,"sgd_momentum","validation",25,"Pontiac Firebird",0,0.300487273780197,0
+1,"sgd_momentum","validation",32,"Volvo 142E",1,0.5168037588201,1
+1,"sgd_momentum","validation",1,"Mazda RX4",1,0.752123799168664,1
+1,"sgd_momentum","test",23,"AMC Javelin",0,0.371166310865147,0
+1,"sgd_momentum","test",22,"Dodge Challenger",0,0.265970231581044,0
+1,"sgd_momentum","test",12,"Merc 450SE",0,0.355110754931298,0
+1,"sgd_momentum","test",24,"Camaro Z28",0,0.738392531929105,1
+1,"sgd_momentum","test",29,"Ford Pantera L",1,0.89993216715377,1
+1,"sgd_momentum","test",20,"Toyota Corolla",1,0.521071683196915,1
+1,"sgd_momentum","test",30,"Ferrari Dino",1,0.861813934978528,1
+1,"nag","train",4,"Hornet 4 Drive",0,0.186751060093488,0
+1,"nag","train",9,"Merc 230",0,0.279573925882113,0
+1,"nag","train",16,"Lincoln Continental",0,0.0337096147112248,0
+1,"nag","train",21,"Toyota Corona",0,0.530212812026408,1
+1,"nag","train",14,"Merc 450SLC",0,0.237164893933211,0
+1,"nag","train",15,"Cadillac Fleetwood",0,0.0255855520056496,0
+1,"nag","train",7,"Duster 360",0,0.455827512668613,0
+1,"nag","train",8,"Merc 240D",0,0.398937169405839,0
+1,"nag","train",13,"Merc 450SL",0,0.264052251792973,0
+1,"nag","train",5,"Hornet Sportabout",0,0.250324346399776,0
+1,"nag","train",11,"Merc 280C",0,0.453677335807953,0
+1,"nag","train",6,"Valiant",0,0.115405361782528,0
+1,"nag","train",2,"Mazda RX4 Wag",1,0.779634656653852,1
+1,"nag","train",19,"Honda Civic",1,0.794215477676466,1
+1,"nag","train",27,"Porsche 914-2",1,0.91454181698343,1
+1,"nag","train",31,"Maserati Bora",1,0.93091824011006,1
+1,"nag","train",3,"Datsun 710",1,0.650926103376689,1
+1,"nag","train",18,"Fiat 128",1,0.630282120016308,1
+1,"nag","train",28,"Lotus Europa",1,0.901973475353984,1
+1,"nag","train",26,"Fiat X1-9",1,0.664538728865477,1
+1,"nag","validation",10,"Merc 280",0,0.458527192166668,0
+1,"nag","validation",17,"Chrysler Imperial",0,0.0976654943645641,0
+1,"nag","validation",25,"Pontiac Firebird",0,0.153123902091108,0
+1,"nag","validation",32,"Volvo 142E",1,0.602597216908024,1
+1,"nag","validation",1,"Mazda RX4",1,0.85254747102362,1
+1,"nag","test",23,"AMC Javelin",0,0.261546100856198,0
+1,"nag","test",22,"Dodge Challenger",0,0.13774776670754,0
+1,"nag","test",12,"Merc 450SE",0,0.217707406695416,0
+1,"nag","test",24,"Camaro Z28",0,0.747885732874577,1
+1,"nag","test",29,"Ford Pantera L",1,0.95715887514531,1
+1,"nag","test",20,"Toyota Corolla",1,0.640226033720531,1
+1,"nag","test",30,"Ferrari Dino",1,0.9272581748152,1
+1,"rmsprop","train",4,"Hornet 4 Drive",0,0.098853884194196,0
+1,"rmsprop","train",9,"Merc 230",0,0.109474033650342,0
+1,"rmsprop","train",16,"Lincoln Continental",0,0.00237980956301278,0
+1,"rmsprop","train",21,"Toyota Corona",0,0.472851278095451,0
+1,"rmsprop","train",14,"Merc 450SLC",0,0.0657711876321409,0
+1,"rmsprop","train",15,"Cadillac Fleetwood",0,0.00193488418297386,0
+1,"rmsprop","train",7,"Duster 360",0,0.239072931929157,0
+1,"rmsprop","train",8,"Merc 240D",0,0.263013139514296,0
+1,"rmsprop","train",13,"Merc 450SL",0,0.0725753771581875,0
+1,"rmsprop","train",5,"Hornet Sportabout",0,0.097840164866223,0
+1,"rmsprop","train",11,"Merc 280C",0,0.332875411551948,0
+1,"rmsprop","train",6,"Valiant",0,0.0358686649705952,0
+1,"rmsprop","train",2,"Mazda RX4 Wag",1,0.698039024790297,1
+1,"rmsprop","train",19,"Honda Civic",1,0.531204475159963,1
+1,"rmsprop","train",27,"Porsche 914-2",1,0.837990713023752,1
+1,"rmsprop","train",31,"Maserati Bora",1,0.86055248236386,1
+1,"rmsprop","train",3,"Datsun 710",1,0.623505422199918,1
+1,"rmsprop","train",18,"Fiat 128",1,0.574786488688091,1
+1,"rmsprop","train",28,"Lotus Europa",1,0.883607337982039,1
+1,"rmsprop","train",26,"Fiat X1-9",1,0.631055773480598,1
+1,"rmsprop","validation",10,"Merc 280",0,0.339111105035741,0
+1,"rmsprop","validation",17,"Chrysler Imperial",0,0.00952632629431769,0
+1,"rmsprop","validation",25,"Pontiac Firebird",0,0.0368916122113667,0
+1,"rmsprop","validation",32,"Volvo 142E",1,0.515763618909237,1
+1,"rmsprop","validation",1,"Mazda RX4",1,0.794529111575754,1
+1,"rmsprop","test",23,"AMC Javelin",0,0.104107609890461,0
+1,"rmsprop","test",22,"Dodge Challenger",0,0.024066718991743,0
+1,"rmsprop","test",12,"Merc 450SE",0,0.0419701578080203,0
+1,"rmsprop","test",24,"Camaro Z28",0,0.593661960117669,1
+1,"rmsprop","test",29,"Ford Pantera L",1,0.920126634742825,1
+1,"rmsprop","test",20,"Toyota Corolla",1,0.574465793923685,1
+1,"rmsprop","test",30,"Ferrari Dino",1,0.888671778072567,1
+1,"ftrl","train",4,"Hornet 4 Drive",0,0.503074393576552,1
+1,"ftrl","train",9,"Merc 230",0,0.495561091612795,0
+1,"ftrl","train",16,"Lincoln Continental",0,0.498375414200411,0
+1,"ftrl","train",21,"Toyota Corona",0,0.505551400259339,1
+1,"ftrl","train",14,"Merc 450SLC",0,0.502103523956697,1
+1,"ftrl","train",15,"Cadillac Fleetwood",0,0.498486838336224,0
+1,"ftrl","train",7,"Duster 360",0,0.498734794590027,0
+1,"ftrl","train",8,"Merc 240D",0,0.496839948641274,0
+1,"ftrl","train",13,"Merc 450SL",0,0.501711307759002,1
+1,"ftrl","train",5,"Hornet Sportabout",0,0.500523480201644,1
+1,"ftrl","train",11,"Merc 280C",0,0.498677955431846,0
+1,"ftrl","train",6,"Valiant",0,0.502887809437471,1
+1,"ftrl","train",2,"Mazda RX4 Wag",1,0.505840568468589,1
+1,"ftrl","train",19,"Honda Civic",1,0.504474514303015,1
+1,"ftrl","train",27,"Porsche 914-2",1,0.508911112800964,1
+1,"ftrl","train",31,"Maserati Bora",1,0.500412481057688,1
+1,"ftrl","train",3,"Datsun 710",1,0.507246350338536,1
+1,"ftrl","train",18,"Fiat 128",1,0.506722818557139,1
+1,"ftrl","train",28,"Lotus Europa",1,0.510958191810962,1
+1,"ftrl","train",26,"Fiat X1-9",1,0.508030969685009,1
+1,"ftrl","validation",10,"Merc 280",0,0.499100209886718,0
+1,"ftrl","validation",17,"Chrysler Imperial",0,0.498170776971673,0
+1,"ftrl","validation",25,"Pontiac Firebird",0,0.499754374700562,0
+1,"ftrl","validation",32,"Volvo 142E",1,0.50375301855976,1
+1,"ftrl","validation",1,"Mazda RX4",1,0.507631910726766,1
+1,"ftrl","test",23,"AMC Javelin",0,0.501505540022575,1
+1,"ftrl","test",22,"Dodge Challenger",0,0.500609354000457,1
+1,"ftrl","test",12,"Merc 450SE",0,0.501423069307073,1
+1,"ftrl","test",24,"Camaro Z28",0,0.499554704575757,0
+1,"ftrl","test",29,"Ford Pantera L",1,0.502228627916561,1
+1,"ftrl","test",20,"Toyota Corolla",1,0.507853079805048,1
+1,"ftrl","test",30,"Ferrari Dino",1,0.507375746583505,1
+1,"lookahead","train",4,"Hornet 4 Drive",0,0.136579441150918,0
+1,"lookahead","train",9,"Merc 230",0,0.207763060988825,0
+1,"lookahead","train",16,"Lincoln Continental",0,0.00882461382238088,0
+1,"lookahead","train",21,"Toyota Corona",0,0.526578794092385,1
+1,"lookahead","train",14,"Merc 450SLC",0,0.11892116402343,0
+1,"lookahead","train",15,"Cadillac Fleetwood",0,0.00613904148157145,0
+1,"lookahead","train",7,"Duster 360",0,0.478567807988079,0
+1,"lookahead","train",8,"Merc 240D",0,0.356075698393303,0
+1,"lookahead","train",13,"Merc 450SL",0,0.135421998620704,0
+1,"lookahead","train",5,"Hornet Sportabout",0,0.1789478514858,0
+1,"lookahead","train",11,"Merc 280C",0,0.407747012001038,0
+1,"lookahead","train",6,"Valiant",0,0.0589769034083229,0
+1,"lookahead","train",2,"Mazda RX4 Wag",1,0.705394808739704,1
+1,"lookahead","train",19,"Honda Civic",1,0.593721625390977,1
+1,"lookahead","train",27,"Porsche 914-2",1,0.818767263189552,1
+1,"lookahead","train",31,"Maserati Bora",1,0.940556352658355,1
+1,"lookahead","train",3,"Datsun 710",1,0.643594562130789,1
+1,"lookahead","train",18,"Fiat 128",1,0.58978998688644,1
+1,"lookahead","train",28,"Lotus Europa",1,0.871330363876493,1
+1,"lookahead","train",26,"Fiat X1-9",1,0.63435391365375,1
+1,"lookahead","validation",10,"Merc 280",0,0.405436089817468,0
+1,"lookahead","validation",17,"Chrysler Imperial",0,0.033298485933201,0
+1,"lookahead","validation",25,"Pontiac Firebird",0,0.0795538497700594,0
+1,"lookahead","validation",32,"Volvo 142E",1,0.562532667411175,1
+1,"lookahead","validation",1,"Mazda RX4",1,0.785210863120063,1
+1,"lookahead","test",23,"AMC Javelin",0,0.164017612000148,0
+1,"lookahead","test",22,"Dodge Challenger",0,0.0521209756148777,0
+1,"lookahead","test",12,"Merc 450SE",0,0.09351567601672,0
+1,"lookahead","test",24,"Camaro Z28",0,0.790465196438754,1
+1,"lookahead","test",29,"Ford Pantera L",1,0.944151965838833,1
+1,"lookahead","test",20,"Toyota Corolla",1,0.59697743591357,1
+1,"lookahead","test",30,"Ferrari Dino",1,0.883541274171776,1
+1,"adadelta","train",4,"Hornet 4 Drive",0,0.285657248960698,0
+1,"adadelta","train",9,"Merc 230",0,0.180935225404267,0
+1,"adadelta","train",16,"Lincoln Continental",0,0.163723699420396,0
+1,"adadelta","train",21,"Toyota Corona",0,0.318462192926595,0
+1,"adadelta","train",14,"Merc 450SLC",0,0.359648173359991,0
+1,"adadelta","train",15,"Cadillac Fleetwood",0,0.15642735044426,0
+1,"adadelta","train",7,"Duster 360",0,0.278269834081907,0
+1,"adadelta","train",8,"Merc 240D",0,0.225983315496182,0
+1,"adadelta","train",13,"Merc 450SL",0,0.378289625558869,0
+1,"adadelta","train",5,"Hornet Sportabout",0,0.327325468082336,0
+1,"adadelta","train",11,"Merc 280C",0,0.24442338052843,0
+1,"adadelta","train",6,"Valiant",0,0.208249077178312,0
+1,"adadelta","train",2,"Mazda RX4 Wag",1,0.22551901923072,0
+1,"adadelta","train",19,"Honda Civic",1,0.0445585044042281,0
+1,"adadelta","train",27,"Porsche 914-2",1,0.112030916283559,0
+1,"adadelta","train",31,"Maserati Bora",1,0.149784078018416,0
+1,"adadelta","train",3,"Datsun 710",1,0.306767973658263,0
+1,"adadelta","train",18,"Fiat 128",1,0.216629830301279,0
+1,"adadelta","train",28,"Lotus Europa",1,0.342205639123101,0
+1,"adadelta","train",26,"Fiat X1-9",1,0.22095184564631,0
+1,"adadelta","validation",10,"Merc 280",0,0.209094453514021,0
+1,"adadelta","validation",17,"Chrysler Imperial",0,0.199271418055377,0
+1,"adadelta","validation",25,"Pontiac Firebird",0,0.2722161470971,0
+1,"adadelta","validation",32,"Volvo 142E",1,0.194927611951552,0
+1,"adadelta","validation",1,"Mazda RX4",1,0.246325284740323,0
+1,"adadelta","test",23,"AMC Javelin",0,0.339553613605598,0
+1,"adadelta","test",22,"Dodge Challenger",0,0.255229008218721,0
+1,"adadelta","test",12,"Merc 450SE",0,0.3388927279991,0
+1,"adadelta","test",24,"Camaro Z28",0,0.132420927438433,0
+1,"adadelta","test",29,"Ford Pantera L",1,0.0642956464857065,0
+1,"adadelta","test",20,"Toyota Corolla",1,0.187254461588674,0
+1,"adadelta","test",30,"Ferrari Dino",1,0.387209896982895,0

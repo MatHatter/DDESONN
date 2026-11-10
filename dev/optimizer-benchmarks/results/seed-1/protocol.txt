@@ -1,0 +1,10 @@
+Purpose: accuracy and empirical implementation/performance; NOT structural correctness.
+Model seed: 1
+Split seed: 2026; stratified train=20 validation=5 test=7.
+Target: mtcars$am; features: disp,hp,wt,qsec,drat; hidden sizes: 32,16.
+Epoch budget: 300; learning rate .02; fixed rate; no dropout, self-organization or regularization.
+Standard AdaGrad and other supported optimizers; no legacy AdaGrad X.
+Validation selects snapshots. Evaluation threshold is fixed at .5; test labels never tune settings.
+Same initialization and split for all optimizers. Features use training-set means/SDs for all splits; automatic normalization is disabled.
+Shared settings are not equally optimal for every method. Report all seeds, including poor results.
+Accuracy, log loss, Brier score and training seconds are empirical measurements; no pass/fail accuracy threshold.

@@ -1893,38 +1893,8 @@ SONN <- R6::R6Class(
           weight_gradients <- .as_list(weight_gradients_raw, if (isTRUE(self$ML_NN)) self$num_layers else 1L)
           bias_gradients   <- .as_list(bias_gradients_raw,   if (isTRUE(self$ML_NN)) self$num_layers else 1L)
           
-          # Conform gradient shapes to weight shapes
-          for (lyr in seq_along(weight_gradients)) {
-            if (isTRUE(self$ML_NN)) {
-              W <- as.matrix(self$weights[[lyr]])
-            } else {
-              W <- if (is.list(self$weights)) as.matrix(self$weights[[1]]) else as.matrix(self$weights)
-            }
-            if (is.null(weight_gradients[[lyr]])) {
-              weight_gradients[[lyr]] <- matrix(0, nrow = nrow(W), ncol = ncol(W))
-            } else {
-              G <- as.matrix(weight_gradients[[lyr]])
-              if (!all(dim(G) == dim(W))) {
-                G2 <- matrix(0, nrow = nrow(W), ncol = ncol(W))
-                r <- min(nrow(G), nrow(W)); c <- min(ncol(G), ncol(W))
-                G2[seq_len(r), seq_len(c)] <- G[seq_len(r), seq_len(c)]
-                G <- G2
-              }
-              weight_gradients[[lyr]] <- G
-            }
-            
-            if (is.null(bias_gradients[[lyr]])) {
-              bias_gradients[[lyr]] <- matrix(0, nrow = 1, ncol = ncol(W))
-            } else {
-              b <- as.numeric(bias_gradients[[lyr]])
-              if (length(b) != ncol(W)) {
-                b2 <- numeric(ncol(W)); len <- min(length(b), ncol(W)); b2[seq_len(len)] <- b[seq_len(len)]
-                b <- b2
-              }
-              bias_gradients[[lyr]] <- matrix(b, nrow = 1L)
-            }
-          }
-          
+          # Optimizers validate tensor shapes without padding or truncation.
+
           if (isTRUE(verbose)) {  
             cat(sprintf("Grad norm L1 by layer: %s\n",  
                         paste(vapply(weight_gradients, function(G) sum(abs(G), na.rm=TRUE), numeric(1)),  
@@ -3021,15 +2991,26 @@ SONN <- R6::R6Class(
           } else {
             predicted_output_train_reg <- predicted_output_train_reg
           }
-          
+
           # [SSM] A one-epoch run may have no improving best snapshot yet.
           if (!is.null(attr(self, "ssm_encoder")) && is.null(predicted_output_train_reg$predicted_output)) {
             predicted_output_train_reg <- if (isTRUE(validation_metrics)) last_val_predict else last_train_predict
           }
+          # If accuracy did not improve after the update, there may be no best
+          # snapshot. learn_result has learn_output, not predicted_output: return
+          # the already evaluated predictions rather than leaking that object.
+          if (is.null(predicted_output_train_reg$predicted_output)) {
+            if (isTRUE(validation_metrics) && !is.null(last_val_predict)) {
+              predicted_output_train_reg <- last_val_predict
+            } else if (isFALSE(validation_metrics) && !is.null(last_train_predict)) {
+              predicted_output_train_reg <- last_train_predict
+            }
+          }
+
         } # end for epoch
-        
+
         total_learn_time <- total_learn_time + learn_result$learn_time
-        
+
         # mirror the best snapshot onto self for downstream readers
         self$best_weights <- best_weights
         self$best_biases  <- best_biases

@@ -166,6 +166,9 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #' @title Supported optimizer identifiers
 #' @description List the optimizer strings understood by the legacy DDESONN
 #'   training loop.
+#' @details The default is standard `adagrad`. Legacy custom Adagrad (also
+#'   called `adagrad_x` during development) has been removed. Historical
+#'   training results and optimizer state are not interchangeable.
 #'
 #' @return A character vector of supported optimiser identifiers.
 #'
@@ -174,7 +177,7 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #'
 #' @export
 ddesonn_optimizer_options <- function() {
-  c("adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead")
+  c("adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead", "adadelta")
 }
 
 .ddesonn_threshold_default <- function(mode) {
@@ -291,6 +294,11 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_encoder Use `"none"` (default) or the optional `"ssm"` encoder.
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length Number of timesteps per sequence window.
+#' @param ssm_state_dim Number of encoder state dimensions.
+#' @param ssm_conv Width of the encoder's causal convolution.
 #'
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #'
@@ -584,6 +592,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
+  if (identical(cfg$optimizer, "adagrad_x")) {
+    stop('Optimizer adagrad_x has been removed. Use optimizer = "adagrad" with a new model; legacy optimizer state is incompatible.', call. = FALSE)
+  }
   
   cfg$activation_functions <- cfg$activation_functions %||% attr(model, "activation_functions")
   cfg$activation_functions_predict <- cfg$activation_functions_predict %||% attr(model, "activation_functions_predict")
@@ -1557,6 +1568,10 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length Number of timesteps per sequence window.
+#' @param ssm_state_dim Number of encoder state dimensions.
+#' @param ssm_conv Width of the encoder's causal convolution.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.

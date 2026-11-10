@@ -460,84 +460,37 @@ make_fname_prefix <- function(do_ensemble,
 }
 
 #function used in Optimzers.R
+# Lookahead lets a base optimizer take several fast steps, then moves a slower
+# copy halfway toward those weights and restarts the fast weights from there.
 lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, lookahead_step, base_optimizer, epoch, lambda) {
-  updated_params_list <- list()
-  
-  cat(">> Lookahead optimizer running\n")
-  
-  # grads_list is just the matrix for this layer
-  grad_matrix <- if (is.list(grads_list)) grads_list[[1]] else grads_list
-  
-  if (is.null(grad_matrix)) stop("Missing gradient matrix")
-  
-  #Don't double-index
-  param_list <- params
-  
-  param <- param_list$param
-  m <- param_list$m
-  v <- param_list$v
-  r <- param_list$r
-  slow_param <- param_list$slow_weights
-  lookahead_counter <- param_list$lookahead_counter
-  lookahead_step_layer <- param_list$lookahead_step
-  
-  if (is.null(lookahead_counter)) {
-    lookahead_counter <- 0
-    cat("Initialized lookahead_counter = 0\n")
+  if (is.null(params$param)) stop("Lookahead requires the current parameter.", call. = FALSE)
+  parameter <- as.matrix(params$param)
+  if (is.null(params$slow_weights)) params$slow_weights <- parameter
+  params$slow_weights <- .optimizer_matrix(params$slow_weights, parameter, "Lookahead slow parameter")
+  k <- if (is.null(params$lookahead_step)) lookahead_step else params$lookahead_step
+  if (length(k) != 1L || !is.finite(k) || k < 1 || k != as.integer(k))
+    stop("lookahead_step must be a positive integer.", call. = FALSE)
+  method <- switch(base_optimizer, adam_update = "adam", lamb_update = "lamb",
+                   stop("Unsupported base optimizer in lookahead_update()", call. = FALSE))
+  result <- .optimizer_step(params, grads_list, method, lr, beta1, beta2, epsilon,
+                            lambda2 = lambda)
+  state <- result$params
+  fast <- state$param
+  counter <- if (is.null(params$lookahead_counter)) 1L else params$lookahead_counter + 1L
+  if (counter >= k) {
+    # Standard Lookahead interpolation (alpha = 0.5), then reset fast to slow.
+    state$slow_weights <- params$slow_weights + .5 * (fast - params$slow_weights)
+    fast <- state$slow_weights
+    counter <- 0L
   }
-  
-  if (is.null(lookahead_step_layer)) {
-    lookahead_step_layer <- lookahead_step
-  }
-  
-  if (base_optimizer == "adam_update") {
-    m <- beta1 * m + (1 - beta1) * grad_matrix
-    v <- beta2 * v + (1 - beta2) * (grad_matrix^2)
-    
-    m_hat <- m / (1 - beta1^epoch)
-    v_hat <- v / (1 - beta2^epoch)
-    
-    update <- lr * m_hat / (sqrt(v_hat) + epsilon)
-    param <- param - update
-    
-  } else if (base_optimizer == "lamb_update") {
-    m <- beta1 * m + (1 - beta1) * grad_matrix
-    v <- beta2 * v + (1 - beta2) * (grad_matrix^2)
-    
-    m_hat <- m / (1 - beta1^epoch)
-    v_hat <- v / (1 - beta2^epoch)
-    
-    r1 <- sqrt(sum(param^2))
-    r2 <- sqrt(sum((m_hat / (sqrt(v_hat) + epsilon))^2))
-    ratio <- ifelse(r1 == 0 | r2 == 0, 1, r1 / r2)
-    
-    update <- lr * ratio * m_hat / (sqrt(v_hat) + epsilon)
-    param <- param - update
-    
-  } else {
-    stop("Unsupported base optimizer in lookahead_update()")
-  }
-  
-  lookahead_counter <- lookahead_counter + 1
-  if (lookahead_counter >= lookahead_step_layer) {
-    cat(">> Lookahead sync\n")
-    slow_param <- param
-    lookahead_counter <- 0
-  }
-  
-  updated_params_list <- list(
-    param = param,
-    m = m,
-    v = v,
-    r = r,
-    slow_weights = slow_param,
-    lookahead_counter = lookahead_counter,
-    lookahead_step = lookahead_step_layer,
-    weights_update = update
-  )
-  
-  return(updated_params_list)
+  state$param <- fast
+  state$lookahead_counter <- counter
+  state$lookahead_step <- k
+  state$weights_update <- parameter - fast
+  state$biases_update <- state$weights_update
+  state
 }
+
 
 #train_with_l2_regulatization
 
