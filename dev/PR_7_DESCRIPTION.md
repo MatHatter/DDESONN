@@ -1,4 +1,4 @@
-This prepares the optimizer implementation for the future 7.3 release. Standard optimizers now apply one update per parameter tensor using the actual gradients and per-tensor state. The former custom AdaGrad behavior is removed: standard `adagrad` is the default, and `adagrad_x` is rejected with migration guidance rather than retained as a compatibility algorithm. Existing legacy optimizer state must not be reused to resume standard AdaGrad training.
+This prepares DDESONN 7.3.0, focused on the optimizer implementations and carrying forward the completed 7.2 SSM fixes. Standard optimizers now apply one update per parameter tensor using the actual gradients and per-tensor state. The former custom AdaGrad behavior is removed: standard `adagrad` is the default, and `adagrad_x` is rejected with migration guidance rather than retained as a compatibility algorithm. Existing legacy optimizer state must not be reused to resume standard AdaGrad training.
 
 Changes:
 
@@ -14,7 +14,7 @@ Validation:
 - Optimizer, network and SSM suite: 58 cases, 12,392 passing expectations; no failures, errors or skips.
 - Comment-only optimizer edits and API/SSM documentation edits preserve parsed R code exactly.
 - Independent reference fixture regeneration is byte-for-byte reproducible.
-- Package build and `R CMD check --no-manual --ignore-vignettes`: passed, with zero errors, warnings or notes.
+- Package build and `R CMD check --no-manual --ignore-vignettes DDESONN_7.3.0.tar.gz`: passed, with zero errors, warnings or notes.
 - `git diff --check` passes against `release/7.2`.
 
-Scope: this is development toward 7.3. DESCRIPTION remains 7.2.0; no release or PR merge is performed. PDF-manual generation and vignette rendering were not checked in this run (LaTeX is not installed; vignette experiments were excluded).
+Scope: DESCRIPTION is 7.3.0 and NEWS/README describe the optimizer release separately from the historical 7.2 SSM work. No release or PR merge is performed. PDF-manual generation and vignette rendering were not checked in this run (LaTeX is not installed; vignette experiments were excluded).

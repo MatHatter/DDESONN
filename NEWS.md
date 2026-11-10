@@ -1,3 +1,34 @@
+# DDESONN 7.3.0
+
+This release focuses on the optimizer implementations and retains the SSM fixes
+from 7.2.0. It does not introduce a new SSM algorithm or change the default
+`sequence_encoder = "none"` setting.
+
+## Optimizers
+
+- Use standard AdaGrad as the default. Remove the former custom AdaGrad behavior,
+  called `adagrad_x` on the development branch; the removed name raises a
+  migration error rather than silently selecting another algorithm.
+- Apply one update per parameter tensor using actual gradients and separate
+  optimizer state for weights and biases, for single-layer and multilayer models.
+- Correct and verify SGD, momentum, NAG, AdaGrad, RMSprop, Adam, AdaDelta, LAMB,
+  FTRL and Lookahead updates, accumulator shapes and update counts.
+- Add plain-language explanations of gradients and each optimizer, including
+  FTRL's L1 rule that can set weights exactly to zero.
+
+## Compatibility and verification
+
+- Training trajectories and initialization RNG consumption can differ from
+  earlier versions. Construct a new model for training; legacy optimizer state
+  is not interchangeable with standard AdaGrad state.
+- Add independent numerical fixtures and 40-step high-precision reference
+  trajectories, state/resumption checks and end-to-end optimizer dispatch tests.
+- Preserve the 7.2 SSM implementation and rerun its tests with the optimizer suite.
+  Synchronize existing SSM API help signatures and argument descriptions.
+- Keep exploratory mtcars accuracy experiments separate from arithmetic tests.
+  Equal-budget tuning uses one seed and a small held-out set; it does not
+  establish universal optimizer superiority or change global learning rates.
+
 # DDESONN 7.2.0
 
 This minor release focuses on ironing out the experimental SSM integration.
