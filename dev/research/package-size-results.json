@@ -1,0 +1,17 @@
+{
+  "source_tar_bytes": {
+    "before": 6663752,
+    "after": 4860733,
+    "saved": 1803019,
+    "saved_percent": 27.05711437040274
+  },
+  "installed_regular_file_bytes": {
+    "before": 13058007,
+    "after": 10812440,
+    "saved": 2245567,
+    "saved_percent": 17.196858601775908
+  },
+  "excluded_tracked_bytes": 2214321,
+  "excluded_files": 10,
+  "rendered_vignettes": 4
+}

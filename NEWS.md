@@ -4,7 +4,7 @@ This release focuses on the optimizer implementations and retains the SSM fixes
 from 7.2.0. It does not introduce a new SSM algorithm or change the default
 `sequence_encoder = "none"` setting.
 
-## Optimizers
+## Optimizer maintenance
 
 - Use standard AdaGrad as the default. Remove the former custom AdaGrad behavior,
   called `adagrad_x` on the development branch; the removed name raises a
@@ -28,6 +28,38 @@ from 7.2.0. It does not introduce a new SSM algorithm or change the default
 - Keep exploratory mtcars accuracy experiments separate from arithmetic tests.
   Equal-budget tuning uses one seed and a small held-out set; it does not
   establish universal optimizer superiority or change global learning rates.
+
+## Historical benchmark documentation
+
+- Preserve the two 500-seed heart-failure runs and combined 1,000-seed Keras
+  comparison as historical research evidence. Explain the legacy multilayer
+  double-update path and why these results do not establish current standard
+  AdaGrad superiority over Keras.
+- Replace the unsupported categorical assertion that the original runs lacked a
+  master seed with a source-based account: the earliest inspected script already
+  contains master/per-run seed settings, while the exact original execution
+  configuration cannot be reconstructed from the saved outputs.
+- Retain a concise historical vignette with verified summary values and an
+  immutable Git revision for retrieving raw results, workbook and scripts.
+
+## Package-size reduction
+
+- Exclude five generated historical RDS outputs and the historical workbook/
+  experiment-script folder from CRAN source builds and installations, using
+  scoped .Rbuildignore rules. Keep all ten files unchanged in Git and record
+  their hashes and sizes in the development audit.
+- Make the historical vignette self-contained so excluded research files are
+  not installation or rendering dependencies. Preserve current example datasets,
+  scripts and reporting functionality.
+
+## Future benchmarking
+
+- Recommend 10–30 matched seeds for exploration, consider 100 for larger stability
+  studies, and increase the count when variability or precision requirements
+  justify it. Record configurations and report distributions and uncertainty.
+- Match data, splits, preprocessing, metrics and experimental conditions. Small
+  seed counts do not establish statistical superiority.
+- Parallel processing is deferred beyond 7.3.0; none is implemented in this release.
 
 # DDESONN 7.2.0
 

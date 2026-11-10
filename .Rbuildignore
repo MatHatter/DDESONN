@@ -83,3 +83,7 @@
 
 # Dev for side projects
 ^dev$
+
+# Historical research: preserve in Git, do not install experiment outputs.
+^inst/extdata/heart_failure_runs$
+^inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras$
