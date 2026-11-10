@@ -2,7 +2,32 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.2.0 — experimental SSM maintenance
+
+This minor release focuses on ironing out the optional SSM integration:
+correcting gradients, dimensions and Adam-state handling, training the encoder
+from the final prediction error, and keeping encoder/network checkpoints paired.
+SSM remains experimental and off by default. Current exploratory benchmarks do
+not establish a meaningful improvement over the baseline.
+
+Separate development checks against Keras and published TimeMachine results
+helped assess the implementation. The Keras check used one seed and is an
+implementation comparison, not evidence that either framework is superior.
+Those development benchmarks and optimizer changes are separate from this
+release. See [release notes](NEWS.md) for scope and verification details.
+
 ## Optional native-R sequence encoder
+
+> An experimental SSM extension is available separately. Our current benchmarks show no meaningful improvement over the baseline. Independent evaluations and reproducible examples of useful applications are welcome.
+
+The extension is included in this package as an opt-in component;
+`sequence_encoder = "none"` remains the default.
+
+Reproducible SSM evaluations, useful applications, fixes and documentation
+improvements are strongly encouraged through [GitHub issues](https://github.com/MatHatter/DDESONN/issues)
+and [pull requests](https://github.com/MatHatter/DDESONN/pulls).
+You can also [email the author](mailto:quiksilver67213@yahoo.com) or contact him
+on LinkedIn; see [Contact](#contact).
 
 The engineered-feature workflow is unchanged by default (`sequence_encoder =
 "none"`). To add causal temporal context, build aligned windows and enable the
@@ -22,6 +47,20 @@ probability <- ddesonn_predict(model, x_aligned,
 Windows use only observations at or before their end row. Training-channel
 scaling and learned encoder parameters are stored in the model and reused after
 save/reload; inference never refits them.
+
+SSM models use joint training by default: every training epoch updates both the
+prediction network and its encoder from the final prediction error. The encoder
+has separate parameters and Adam state; the selected network optimizer is
+unchanged. Each ensemble member retains its own encoder, including when a TEMP
+member is promoted. Best-epoch restoration restores the matching network and
+encoder together. Validation sequences are evaluated without training on them.
+
+To compare with the earlier, separately pretrained and then frozen encoder, pass
+`ssm_training = "pretrain"` to `ddesonn_fit()` (or include it in
+`ddesonn_run(training_overrides = list(ssm_training = "pretrain", ...))`).
+`ssm_lr` optionally controls the encoder learning rate; by default joint training
+uses the network's current learning rate. Per-member `ssm_training_history`
+attributes record completed epochs, encoder gradient norms and parameter changes.
 
 <img src="https://raw.githubusercontent.com/MatHatter/ddesonn-assets/main/DDESONN_brain.png" width="800">
 
@@ -1290,6 +1329,16 @@ Linked from: **R-12**
 ## Contributing
 
 Contributions are welcome and appreciated. For bugs, feature requests, and collaboration discussion, please use the GitHub issues page: [https://github.com/MatHatter/DDESONN/issues](https://github.com/MatHatter/DDESONN/issues).
+
+Please contribute reproducible examples, benchmark scripts, bug reports and
+fixes with tests. Independent evaluations of the experimental SSM are especially
+welcome, including results that show no benefit. GitHub contributions keep the
+evidence and discussion available for others to inspect and reproduce.
+
+For comparative performance claims, use matched data splits and training
+settings, repeat across seeds (10 or more where practical), and report variability
+alongside averages. A single-seed run is an implementation check, not sufficient
+evidence that one model or framework is better.
 
 ### Workflow
 
