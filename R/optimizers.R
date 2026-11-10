@@ -1,3 +1,6 @@
+# A gradient tells us how the training error changes when a weight changes.
+# Moving against it usually reduces the error. Each optimizer below chooses
+# the size of that move, using the current gradient and sometimes past ones.
 # Standard optimizer helpers return signed deltas; the caller subtracts them once.
 # State belongs to one parameter tensor, never to a layer's weights AND biases.
 
@@ -13,7 +16,7 @@
 
 initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer,
                                         verbose = FALSE, parameter = NULL) {
-  if (!optimizer %in% setdiff(ddesonn_optimizer_options(), "adagrad_x"))
+  if (!optimizer %in% ddesonn_optimizer_options())
     stop("Optimizer ", optimizer, " not supported.", call. = FALSE)
   shape <- if (is.list(dim)) dim[[1L]] else dim
   if (length(shape) != 2L || any(!is.finite(shape)) || any(shape <= 0) ||
@@ -122,6 +125,7 @@ initialize_optimizer_params <- function(optimizer, dim, lookahead_step, layer,
       sigma <- (sqrt(n) - sqrt(params$n[[i]])) / alpha
       z <- params$z[[i]] + g - sigma * p
       next_p <- -(z - sign(z) * lambda1) / ((beta + sqrt(n)) / alpha + lambda2)
+      # L1 soft-thresholding: small accumulated signals produce exact zeros.
       next_p[abs(z) <= lambda1] <- 0
       u <- p - next_p
       params$z[[i]] <- z
@@ -173,30 +177,48 @@ apply_optimizer_update <- function(optimizer, optimizer_params, grads_matrix, lr
 }
 
 # Retain internal helper signatures and return fields used by existing callers.
+# Adam averages recent gradients and their squares, then scales each weight’s
+# step using both averages, correcting their initial bias toward zero.
 adam_update <- function(params, grads, lr, beta1, beta2, epsilon, t) {
   out <- .optimizer_step(params, grads, "adam", lr, beta1, beta2, epsilon, t)
   c(out$params, list(weights_update = out$weights_update, biases_update = out$biases_update))
 }
+# RMSprop divides each gradient by its recent typical size, so weights with
+# large recent gradients take smaller steps.
 rmsprop_update <- function(params, grads, lr, beta2 = .999, epsilon = 1e-8) {
   out <- .optimizer_step(params, grads, "rmsprop", lr, beta2 = beta2, epsilon = epsilon)
   c(out$params, list(updates = out$weights_update))
 }
+# Standard AdaGrad accumulates squared gradients and reduces each weight’s
+# step as that weight receives more updates. Legacy AdaGrad X is not used.
 adagrad_update <- function(params, grads, lr, epsilon) {
   .optimizer_step(params, grads, "adagrad", lr, epsilon = epsilon)
 }
+# AdaDelta compares recent gradient sizes with recent update sizes to choose
+# each step; the learning rate then scales that adaptive step.
 adadelta_update <- function(params, grads, lr, beta1 = .9, beta2 = .999, epsilon = 1e-8, t = 1) {
   .optimizer_step(params, grads, "adadelta", lr, beta1, beta2, epsilon)
 }
+# Momentum carries some of the previous movement into the next step, helping
+# weights keep moving in a consistent direction.
 sgd_momentum_update <- function(params, grads, lr, momentum) {
   .optimizer_step(params, grads, "sgd_momentum", lr, beta1 = momentum)
 }
+# SGD subtracts the current gradient multiplied by the learning rate.
 sgd_update <- function(params, grads, lr) .optimizer_step(params, grads, "sgd", lr)
+# Nesterov momentum combines the current gradient step with an extra push
+# from the updated momentum, anticipating where that momentum is taking us.
 nag_update <- function(params, grads, lr, beta1 = .9) {
   .optimizer_step(params, grads, "nag", lr, beta1 = beta1)
 }
+# FTRL combines past gradients with a penalty on weight size. Its L1 rule
+# makes a weight exactly zero when the accumulated signal is too small to
+# overcome the L1 threshold; a stronger signal can make it nonzero again.
 ftrl_update <- function(params, grads, lr, alpha = .1, beta = 1, lambda1 = .01, lambda2 = .01) {
   .optimizer_step(params, grads, "ftrl", lr, alpha = alpha, beta = beta, lambda1 = lambda1, lambda2 = lambda2)
 }
+# LAMB starts with an Adam-like step and weight decay, then scales the step
+# by the relative sizes of the whole weight tensor and its update direction.
 lamb_update <- function(params, grads, lr, beta1, beta2, eps, lambda) {
   .optimizer_step(params, grads, "lamb", lr, beta1, beta2, eps, lambda2 = lambda)
 }

@@ -33,6 +33,42 @@ optimizer_fixture <- function(ml = TRUE) {
   e
 }
 
+test_that("standard Adagrad is the default and the legacy name is rejected", {
+  for (mode in c("binary", "multiclass", "regression"))
+    expect_identical(ddesonn_training_defaults(mode)$optimizer, "adagrad")
+  expect_false("adagrad_x" %in% ddesonn_optimizer_options())
+  expect_error(DDESONN:::initialize_optimizer_params("adagrad_x", c(2,3), 2, 1),
+               "not supported")
+  set.seed(108)
+  x <- matrix(rnorm(24), 8, 3)
+  y <- matrix(seq(-.3, .4, length.out=8), 8, 1)
+  for (ml in c(FALSE, TRUE)) {
+    model <- ddesonn_model(3, 1, hidden_sizes=if (ml) 3L else NULL,
+                          ML_NN=ml, classification_mode="regression")
+    expect_error(ddesonn_fit(model, x, y, optimizer="adagrad_x"), "has been removed")
+    before <- model$ensemble[[1L]]$weights
+    calls <- character()
+    original <- DDESONN:::apply_optimizer_update
+    # Bind inside a helper so each mode restores the original implementation.
+    fit <- function() {
+      testthat::local_mocked_bindings(apply_optimizer_update=function(optimizer, ...) {
+        calls <<- c(calls, optimizer)
+        original(optimizer, ...)
+      }, .package="DDESONN")
+      capture.output(ddesonn_fit(model, x, y, num_epochs=2L, self_org=FALSE,
+        lr=.001, lr_decay_rate=1, reg_type=NULL, dropout_rates=NULL,
+        validation_metrics=FALSE, batch_normalize_data=FALSE, viewTables=FALSE))
+    }
+    fit()
+    expect_true(length(calls)>0)
+    expect_identical(unique(calls), "adagrad")
+    expect_false(identical(model$ensemble[[1L]]$weights, before))
+    prediction <- ddesonn_predict(model, x)$prediction
+    expect_equal(dim(prediction), c(8L, 1L))
+    expect_true(all(is.finite(prediction)))
+  }
+})
+
 for (method in names(optimizer_examples())) local({
   optimizer <- method
   test_that(paste(optimizer, "updates SL/ML weights and biases exactly once in order"), {
@@ -79,7 +115,7 @@ for (method in names(optimizer_examples())) local({
 test_that("initialization binds real values without changing random state", {
   set.seed(2026); rng <- .Random.seed
   p <- matrix(seq_len(6)/10,2,3)
-  for (method in setdiff(ddesonn_optimizer_options(),"adagrad_x")) {
+  for (method in ddesonn_optimizer_options()) {
     s <- DDESONN:::initialize_optimizer_params(method,list(dim(p)),2L,1L,parameter=p)
     expect_identical(.Random.seed,rng)
     expect_equal(s$param,p)
@@ -170,7 +206,7 @@ test_that("training_overrides selects every optimizer through ddesonn_run", {
     calls <<- c(calls,optimizer)
     original(optimizer,...)
   }, .package="DDESONN")
-  for (ml in c(TRUE,FALSE)) for (method in setdiff(ddesonn_optimizer_options(),"adagrad_x")) {
+  for (ml in c(TRUE,FALSE)) for (method in ddesonn_optimizer_options()) {
     calls <- character()
     capture.output(result <- ddesonn_run(x,y,classification_mode="regression",
       hidden_sizes=if (ml) c(3L,2L) else NULL,seeds=17L,save_models=FALSE,

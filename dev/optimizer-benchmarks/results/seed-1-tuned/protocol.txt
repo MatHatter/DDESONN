@@ -1,0 +1,5 @@
+Validation-only learning-rate search; seed fixed across candidates.
+Methods: ftrl,adadelta. Grid: .001,.02,.1,1. Epoch budget: 300.
+Selection: lowest validation log loss; ties use earlier grid entry.
+Candidate processes do not evaluate the test split. Test evaluated only after selection.
+This is tuning evidence, not a formula change or general accuracy guarantee.

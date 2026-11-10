@@ -23,9 +23,9 @@ List the optimizer strings understood by the legacy DDESONN
 training loop.
 }
 \details{
-The default, \code{adagrad_x}, preserves the custom Adagrad training behavior
-from version 7.1.11 before the optimizer review. Select \code{adagrad}
-explicitly for the corrected standard implementation.
+The default is standard \code{adagrad}. Legacy custom Adagrad (also
+called \code{adagrad_x} during development) has been removed. Historical
+training results and optimizer state are not interchangeable.
 }
 \examples{
 ddesonn_optimizer_options()

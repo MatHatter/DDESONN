@@ -166,9 +166,9 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #' @title Supported optimizer identifiers
 #' @description List the optimizer strings understood by the legacy DDESONN
 #'   training loop.
-#' @details The default, `adagrad_x`, preserves the custom Adagrad training
-#'   behavior from version 7.1.11 before the optimizer review. Select
-#'   `adagrad` explicitly for the corrected standard implementation.
+#' @details The default is standard `adagrad`. Legacy custom Adagrad (also
+#'   called `adagrad_x` during development) has been removed. Historical
+#'   training results and optimizer state are not interchangeable.
 #'
 #' @return A character vector of supported optimiser identifiers.
 #'
@@ -177,7 +177,7 @@ ddesonn_dropout_defaults <- function(hidden_sizes) {
 #'
 #' @export
 ddesonn_optimizer_options <- function() {
-  c("adagrad_x", "adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead", "adadelta")
+  c("adagrad", "adam", "lamb", "sgd", "sgd_momentum", "nag", "rmsprop", "ftrl", "lookahead", "adadelta")
 }
 
 .ddesonn_threshold_default <- function(mode) {
@@ -187,9 +187,6 @@ ddesonn_optimizer_options <- function() {
 #' @title Construct default training controls
 #' @description Build a list of training hyperparameters that mirror the
 #'   expectations of the legacy DDESONN training loop.
-#' @details The optimizer default is `adagrad_x`, which preserves the previous
-#'   custom Adagrad behavior. Set `optimizer = "adagrad"` explicitly in training
-#'   overrides to use corrected standard Adagrad instead.
 #'
 #' @param mode Problem mode used to determine sensible defaults.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -234,8 +231,7 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     activation_functions = NULL,
     activation_functions_predict = NULL,
     dropout_rates = ddesonn_dropout_defaults(hidden_sizes),
-    # Preserve original custom behavior while standard Adagrad is evaluated separately.
-    optimizer = "adagrad_x",
+    optimizer = "adagrad",
     beta1 = 0.9,
     beta2 = 0.8,
     epsilon = 1e-7,
@@ -416,6 +412,15 @@ ddesonn_model <- function(input_size,
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
 #'
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length,ssm_state_dim,ssm_conv Compatibility arguments; an SSM
+#'   model's saved sequence configuration is used during fitting.
+#' @param ssm_training For SSM models, `"joint"` (default) updates the encoder
+#'   from the final prediction loss every epoch. `"pretrain"` retains separate
+#'   supervised embedding pretraining for comparisons.
+#' @param ssm_lr Optional non-negative encoder learning rate. `NULL` uses the
+#'   current head learning rate in joint mode. The encoder has its own Adam state.
+#'
 #' @return The trained model (invisibly). The underlying R6 object is modified
 #'   in-place and the last training result is stored under `model$last_training`.
 #'
@@ -452,7 +457,8 @@ ddesonn_model <- function(input_size,
 #' @export
 ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE,
                         # [SSM] BEGIN: fit-time sequence arguments.
-                        sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
+                        sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
+                        ssm_training = c("joint", "pretrain"), ssm_lr = NULL) {
   # [SSM] END: fit-time sequence arguments.
   if (!inherits(model, "ddesonn_model")) {
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
@@ -463,6 +469,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   # [SSM] BEGIN: train the encoder and augment aligned train/validation data.
   seq_cfg <- attr(model, "sequence_config") %||% list(encoder="none")
+  ssm_training <- match.arg(ssm_training) # [SSM] Joint learning is the default.
+  member_encoders <- if (identical(seq_cfg$encoder, "ssm"))
+    lapply(model$ensemble, attr, "ssm_encoder") else NULL
+  if (identical(seq_cfg$encoder, "ssm") && !is.null(ssm_lr) &&
+      (!is.numeric(ssm_lr) || length(ssm_lr) != 1L || !is.finite(ssm_lr) || ssm_lr < 0))
+    stop("ssm_lr must be one finite non-negative number.", call. = FALSE)
   # Keep raw features for post-fit prediction. The legacy trainer receives
   # SSM-augmented matrices, while ddesonn_predict() performs that augmentation.
   prediction_x <- x
@@ -477,7 +489,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
       "encoder"
     )
     # [SSM] END: validation and later predictions reuse these frozen statistics.
-    enc <- .ddesonn_ssm_train(enc, sequence_data, y, epochs=max(1L,min(10L,list(...)$num_epochs %||% 3L)), lr=min(.01,list(...)$lr %||% .001))
+    if (identical(ssm_training, "pretrain")) { # [SSM] Explicit compatibility path.
+      enc <- .ddesonn_ssm_train(enc, sequence_data, y, epochs=max(1L,min(10L,list(...)$num_epochs %||% 3L)), lr=ssm_lr %||% min(.01,list(...)$lr %||% .001))
+    }
     attr(model,"ssm_encoder") <- enc
     x <- cbind(.as_numeric_matrix(x), ddesonn_ssm_encode(enc, sequence_data))
     if (!is.null(validation)) {
@@ -573,11 +587,22 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
+  if (identical(cfg$optimizer, "adagrad_x")) {
+    stop('Optimizer adagrad_x has been removed. Use optimizer = "adagrad" with a new model; legacy optimizer state is incompatible.', call. = FALSE)
+  }
   
   cfg$activation_functions <- cfg$activation_functions %||% attr(model, "activation_functions")
   cfg$activation_functions_predict <- cfg$activation_functions_predict %||% attr(model, "activation_functions_predict")
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
   cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
+  # [SSM] Embeddings are computed by the encoder at both train and inference;
+  # exclude them from the legacy static-feature normalization/batch norm.
+  if (identical(seq_cfg$encoder, "ssm")) {
+    static_columns <- ncol(data_prep$data) - seq_cfg$state_dim
+    cfg$numeric_columns <- if (is.numeric(cfg$numeric_columns)) {
+      cfg$numeric_columns[cfg$numeric_columns <= static_columns]
+    } else intersect(cfg$numeric_columns, colnames(data_prep$data)[seq_len(static_columns)])
+  }
   
   # ============================================================  
   # SECTION: Final summary formatting control (presentation-only)  
@@ -683,6 +708,26 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   cfg$update_weights <- overrides$update_weights %||% TRUE
   cfg$update_biases  <- overrides$update_biases  %||% TRUE
   
+  if (identical(seq_cfg$encoder, "ssm")) {
+    for (i in seq_along(model$ensemble)) {
+      member_encoder <- if (identical(ssm_training, "joint")) member_encoders[[i]] %||% enc else enc
+      member_encoder$scale <- enc$scale
+      attr(model$ensemble[[i]], "ssm_encoder") <- member_encoder
+    }
+  }
+  # [SSM] Contexts are per-member and transient: raw sequences/caches are not
+  # serialized with the fitted model, including after a failed training call.
+  if (identical(seq_cfg$encoder, "ssm") && identical(ssm_training, "joint")) {
+    for (i in seq_along(model$ensemble)) {
+      attr(model$ensemble[[i]], "ssm_joint_context") <- .ssm_joint_context(
+        attr(model$ensemble[[i]], "ssm_encoder"), sequence_data,
+        if (!is.null(validation)) validation$sequence_data else NULL,
+        engineered_features = ncol(data_prep$data) - seq_cfg$state_dim, lr = ssm_lr)
+    }
+    on.exit({
+      for (i in seq_along(model$ensemble)) attr(model$ensemble[[i]], "ssm_joint_context") <- NULL
+    }, add = TRUE)
+  }
   train_args <- list(
     Rdata = data_prep$data,
     labels = labels,
@@ -754,6 +799,28 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   result <- do.call(model$train, train_args)
   model$last_training <- result
+  # [SSM] Keep each trained network paired with its encoder during TEMP promotion.
+  if (identical(seq_cfg$encoder, "ssm")) {
+    for (i in seq_along(model$ensemble)) {
+      context <- attr(model$ensemble[[i]], "ssm_joint_context")
+      member_encoder <- enc
+      if (!is.null(context)) {
+        member_encoder <- context$encoder
+        if (isTRUE(cfg$best_weights_on_latest_weights_off) && !is.null(context$best_encoder)) {
+          model$ensemble[[i]]$weights <- model$ensemble[[i]]$best_weights
+          model$ensemble[[i]]$biases <- model$ensemble[[i]]$best_biases
+          member_encoder <- context$best_encoder
+        }
+        attr(model$ensemble[[i]], "ssm_training_history") <- list(
+          gradient_norm = context$gradient_norm, parameter_change = context$parameter_change,
+          completed_epochs = length(context$gradient_norm),
+          selected_step = member_encoder$optimizer$step)
+      }
+      attr(model$ensemble[[i]], "ssm_encoder") <- member_encoder
+    }
+    attr(model, "ssm_encoder") <- attr(model$ensemble[[1L]], "ssm_encoder")
+    attr(model, "ssm_training") <- ssm_training
+  }
   attr(model, "threshold") <- cfg$threshold
   
   # ============================================================  
@@ -1572,6 +1639,8 @@ ddesonn_predict <- function(model, new_data,
   type <- match.arg(type)
   
   X <- .as_numeric_matrix(new_data)
+  # [SSM] Preserve raw features for members promoted with a different encoder.
+  prediction_x <- X
   # [SSM] BEGIN: validate and encode the caller's new sequence data.
   seq_cfg <- attr(model,"sequence_config") %||% list(encoder="none")
   if (identical(seq_cfg$encoder,"ssm")) {
@@ -1585,6 +1654,13 @@ ddesonn_predict <- function(model, new_data,
   
   preds <- lapply(seq_along(model$ensemble), function(i) {
     net <- model$ensemble[[i]]
+    # [SSM] Older saved models fall back to the model-level encoder above.
+    member_x <- X
+    member_encoder <- attr(net, "ssm_encoder")
+    if (identical(seq_cfg$encoder, "ssm") && !is.null(member_encoder) &&
+        !identical(member_encoder, enc)) {
+      member_x <- cbind(prediction_x, ddesonn_ssm_encode(member_encoder, sequence_data))
+    }
     
     # ---- choose predict activations (no extra helpers) ----
     acts_raw <- net$activation_functions_predict %||%
@@ -1600,7 +1676,7 @@ ddesonn_predict <- function(model, new_data,
     acts_norm <- .ddesonn_normalize_activations(acts_raw, L)
     
     res <- net$predict(  
-      Rdata = X,
+      Rdata = member_x,
       weights = net$weights,
       biases  = net$biases,
       activation_functions_predict = acts_norm,
@@ -3434,10 +3510,7 @@ ddesonn_predict <- function(model, new_data,
 #'
 #'   training_overrides = list(
 #'     init_method = "he",
-#'     # Preserve the original custom Adagrad behavior with previously reported good results.
-#'     # It was renamed adagrad_x because it differs from standard Adagrad.
-#'     # Keep this choice pending separate evaluation of standard optimizer = "adagrad".
-#'     optimizer = "adagrad_x",
+#'     optimizer = "adagrad",
 #'     lr = 0.125,
 #'     lambda = 0.00028,
 #'

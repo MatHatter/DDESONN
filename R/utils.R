@@ -460,6 +460,8 @@ make_fname_prefix <- function(do_ensemble,
 }
 
 #function used in Optimzers.R
+# Lookahead lets a base optimizer take several fast steps, then moves a slower
+# copy halfway toward those weights and restarts the fast weights from there.
 lookahead_update <- function(params, grads_list, lr, beta1, beta2, epsilon, lookahead_step, base_optimizer, epoch, lambda) {
   if (is.null(params$param)) stop("Lookahead requires the current parameter.", call. = FALSE)
   parameter <- as.matrix(params$param)

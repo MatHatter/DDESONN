@@ -1,11 +1,10 @@
 #' Update weights block (ML + SL) for DDESONN
 #' 
-#' Apply one standard optimizer update per tensor, or dispatch to the preserved
-#' custom Adagrad X implementation.
+#' Apply one standard optimizer update per tensor.
 #' 
 #' @param self R6 model (DDESONN/SONN) – modified in-place
 #' @param update_weights logical
-#' @param optimizer character (adam, rmsprop, sgd, sgd_momentum, nag, ftrl, lamb, lookahead, adagrad, adagrad_x, adadelta)
+#' @param optimizer character (adam, rmsprop, sgd, sgd_momentum, nag, ftrl, lamb, lookahead, adagrad, adadelta)
 #' @param optimizer_params_weights list of per-layer optimizer params (will be returned/updated)
 #' @param weight_gradients list of per-layer dL/dW from learn()
 #' @param lr numeric learning rate
@@ -27,11 +26,6 @@ update_weights_block <- function(
     lr, reg_type, beta1, beta2, epsilon, epoch, lookahead_step, verbose = FALSE
 ) {
   if (!update_weights) return(list(updated_optimizer_params = optimizer_params_weights))
-  if (identical(optimizer, "adagrad_x")) {
-    return(.adagrad_x$weights(self, update_weights, "adagrad",
-      optimizer_params_weights, weight_gradients, lr, reg_type, beta1, beta2,
-      epsilon, epoch, lookahead_step, verbose))
-  }
   .update_parameter_block(self, "weights", optimizer, optimizer_params_weights,
                           weight_gradients, lr, reg_type, beta1, beta2, epsilon,
                           epoch, lookahead_step, verbose)

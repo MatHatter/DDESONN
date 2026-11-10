@@ -16,7 +16,13 @@ ddesonn_fit(
   ...,
   verbose = FALSE,
   verboseLow = FALSE,
-  debug = FALSE
+  debug = FALSE,
+  sequence_data = NULL,
+  sequence_length = 48L,
+  ssm_state_dim = 16L,
+  ssm_conv = 4L,
+  ssm_training = c("joint", "pretrain"),
+  ssm_lr = NULL
 )
 }
 \arguments{
@@ -42,6 +48,15 @@ supervised prediction-loss term.}
 \item{verboseLow}{Logical; emit important progress output when TRUE.}
 
 \item{debug}{Logical; emit debug diagnostics when TRUE.}
+
+\item{sequence_data}{Aligned samples by timesteps by channels sequence array.}
+\item{sequence_length, ssm_state_dim, ssm_conv}{Compatibility arguments;
+SSM models use their saved sequence configuration.}
+\item{ssm_training}{\code{"joint"} updates the encoder from the final prediction
+loss every epoch. \code{"pretrain"} retains separate supervised embedding
+pretraining for comparisons. Ignored for models without an SSM.}
+\item{ssm_lr}{Optional non-negative encoder learning rate. \code{NULL} uses the
+current head learning rate in joint mode. The encoder has its own Adam state.}
 }
 \value{
 Same as \code{\link[=ddesonn_fit]{ddesonn_fit()}}.

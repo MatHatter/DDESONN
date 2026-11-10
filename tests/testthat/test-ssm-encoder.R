@@ -58,7 +58,7 @@ test_that("non-square dimensions survive a complete Adam training cycle", {
   for (nm in names(vector_lengths)) for (value in list(grads[[nm]], e$params[[nm]],
                                                         e$optimizer$m[[nm]], e$optimizer$v[[nm]])) {
     expect_null(dim(value), info=nm)
-    expect_length(value, vector_lengths[[nm]], info=nm)
+    expect_length(value, vector_lengths[[nm]])
   }
   expect_equal(dim(second$embedding), c(2L,16L))
 })
@@ -133,4 +133,95 @@ test_that("training scaling is reused after serialization", {
 test_that("none remains the default", {
   expect_identical(formals(ddesonn_model)$sequence_encoder,"none")
   expect_identical(formals(ddesonn_run)$sequence_encoder,"none")
+})
+
+test_that("all SSM parameter and input gradients match finite differences", {
+  set.seed(820)
+  # Include both non-square orientations and singleton sample/time/channel axes.
+  for (shape in list(c(2L, 3L, 2L, 3L), c(1L, 3L, 3L, 2L),
+                     c(2L, 1L, 1L, 1L))) {
+    n <- shape[1L]; h <- shape[4L]
+    x <- array(rnorm(prod(shape[1:3])), shape[1:3])
+    e <- ddesonn_ssm_init(shape[3L], h, 2L, 43L)
+    upstream <- matrix(rnorm(n * h), n, h)
+    fw <- ddesonn_ssm_forward(e, x, TRUE)
+    analytical <- ddesonn_ssm_backward(e, fw$cache, upstream)
+    loss <- function(candidate, input = x) {
+      sum(ddesonn_ssm_forward(candidate, input)$embedding * upstream) / n
+    }
+    epsilon <- 1e-6
+    for (nm in names(e$params)) {
+      numerical <- e$params[[nm]] * 0
+      for (j in seq_along(numerical)) {
+        plus <- minus <- e
+        plus$params[[nm]][j] <- plus$params[[nm]][j] + epsilon
+        minus$params[[nm]][j] <- minus$params[[nm]][j] - epsilon
+        numerical[j] <- (loss(plus) - loss(minus)) / (2 * epsilon)
+      }
+      expect_equal(analytical$params[[nm]], numerical, tolerance = 2e-5, info = nm)
+    }
+    numerical <- x * 0
+    for (j in seq_along(x)) {
+      plus <- minus <- x
+      plus[j] <- plus[j] + epsilon
+      minus[j] <- minus[j] - epsilon
+      numerical[j] <- (loss(e, plus) - loss(e, minus)) / (2 * epsilon)
+    }
+    expect_equal(analytical$input, numerical, tolerance = 2e-5)
+  }
+})
+
+test_that("SSM training averages the MSE gradient over samples exactly once", {
+  set.seed(821)
+  x <- array(rnorm(2L * 3L * 2L), c(2L, 3L, 2L))
+  y <- matrix(c(-0.2, 0.4), 2L, 1L)
+  e <- ddesonn_ssm_init(2L, 3L, 2L, 47L)
+  e <- attr(ddesonn_ssm_encode(e, x, TRUE), "encoder")
+  scaled <- x
+  for (j in 1:2) scaled[, , j] <- (x[, , j] - e$scale$center[j]) / e$scale$scale[j]
+  fw <- ddesonn_ssm_forward(e, scaled, TRUE)
+  target <- y[, rep(1L, 3L), drop = FALSE]
+  grads <- ddesonn_ssm_backward(e, fw$cache, 2 * (fw$embedding - target) / 3)$params
+  expected <- DDESONN:::.ddesonn_ssm_update(e, grads, lr = 0.001)
+  actual <- DDESONN:::.ddesonn_ssm_train(e, x, y, epochs = 1L)
+  expect_equal(actual, expected)
+
+  # Duplicating a batch leaves a mean-loss gradient and Adam moments unchanged.
+  duplicated <- x[c(1L, 2L, 1L, 2L), , , drop = FALSE]
+  trained <- DDESONN:::.ddesonn_ssm_train(e, x, y, epochs = 3L)
+  repeated <- DDESONN:::.ddesonn_ssm_train(e, duplicated, y[c(1L, 2L, 1L, 2L), , drop = FALSE], epochs = 3L)
+  expect_equal(repeated, trained, tolerance = 1e-12)
+  expect_equal(trained$optimizer$step, 3L)
+  expect_lt(mean((ddesonn_ssm_encode(trained, x) - target)^2),
+            mean((fw$embedding - target)^2))
+})
+
+test_that("repeated-window reuse preserves encoding and weighted training", {
+  set.seed(822)
+  unique_x <- array(rnorm(3L * 4L * 2L), c(3L, 4L, 2L))
+  order <- c(3L, 1L, 3L, 2L, 3L, 1L)
+  x <- unique_x[order, , , drop = FALSE]
+  # Unequal window frequencies and different labels on the same window.
+  y <- matrix(rnorm(12L), 6L, 2L)
+  e <- ddesonn_ssm_init(2L, 3L, 2L, 53L)
+  embedding <- ddesonn_ssm_encode(e, x, TRUE)
+  e <- attr(embedding, "encoder")
+  scaled <- x
+  for (j in 1:2) scaled[, , j] <- (x[, , j] - e$scale$center[j]) / e$scale$scale[j]
+  expect_equal(e$scale$center, apply(x, 3L, mean))
+  expect_equal(e$scale$scale, apply(x, 3L, sd))
+  expect_equal(unname(embedding), unname(structure(
+    ddesonn_ssm_forward(e, scaled)$embedding, encoder = e)))
+
+  expanded <- e
+  target <- y[, c(1L, 2L, 1L), drop = FALSE]
+  for (epoch in 1:3) {
+    fw <- ddesonn_ssm_forward(expanded, scaled, TRUE)
+    grads <- ddesonn_ssm_backward(expanded, fw$cache,
+                                  2 * (fw$embedding - target) / 3)$params
+    expanded <- DDESONN:::.ddesonn_ssm_update(expanded, grads)
+  }
+  compact <- DDESONN:::.ddesonn_ssm_train(e, x, y, epochs = 3L)
+  expect_equal(compact, expanded, tolerance = 1e-12)
+  expect_equal(DDESONN:::.ssm_sequence_groups(x)$group, c(1L, 2L, 1L, 3L, 1L, 2L))
 })

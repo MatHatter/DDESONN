@@ -29,11 +29,6 @@ A named list that can be modified and supplied to \code{\link[=ddesonn_fit]{ddes
 Build a list of training hyperparameters that mirror the
 expectations of the legacy DDESONN training loop.
 }
-\details{
-The optimizer default is \code{adagrad_x}, which preserves the previous custom
-Adagrad behavior. Set \code{optimizer = "adagrad"} explicitly in training
-overrides to use corrected standard Adagrad instead.
-}
 \examples{
 ddesonn_training_defaults("binary", hidden_sizes = c(32, 16))
 
