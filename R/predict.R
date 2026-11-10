@@ -15,6 +15,10 @@
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length Number of timesteps per sequence window.
+#' @param ssm_state_dim Number of encoder state dimensions.
+#' @param ssm_conv Width of the encoder's causal convolution.
 #' @export
 predict.ddesonn_model <- function(object,
                                   newdata,

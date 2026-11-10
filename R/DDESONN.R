@@ -2991,7 +2991,7 @@ SONN <- R6::R6Class(
           } else {
             predicted_output_train_reg <- predicted_output_train_reg
           }
-          
+
           # [SSM] A one-epoch run may have no improving best snapshot yet.
           if (!is.null(attr(self, "ssm_encoder")) && is.null(predicted_output_train_reg$predicted_output)) {
             predicted_output_train_reg <- if (isTRUE(validation_metrics)) last_val_predict else last_train_predict
@@ -3008,9 +3008,9 @@ SONN <- R6::R6Class(
           }
 
         } # end for epoch
-        
+
         total_learn_time <- total_learn_time + learn_result$learn_time
-        
+
         # mirror the best snapshot onto self for downstream readers
         self$best_weights <- best_weights
         self$best_biases  <- best_biases

@@ -62,5 +62,5 @@ for case, initial in [('rectangular',[D(x) for x in ['.2','-.3','.4','-.5','.6',
             rows.append({k:format(v,'.17g') if isinstance(v,D) else v for k,v in row.items()})
 path=Path(__file__).resolve().parents[2]/'tests/testthat/fixtures/optimizer-reference.csv'
 with path.open('w',newline='') as f:
-    writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+    writer=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator="\n");writer.writeheader();writer.writerows(rows)
 print(f'Wrote {len(rows)} rows to {path}')

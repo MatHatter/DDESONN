@@ -294,6 +294,11 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_encoder Use `"none"` (default) or the optional `"ssm"` encoder.
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length Number of timesteps per sequence window.
+#' @param ssm_state_dim Number of encoder state dimensions.
+#' @param ssm_conv Width of the encoder's causal convolution.
 #'
 #' @return A `ddesonn_model` (R6) instance ready for training.
 #'
@@ -1563,6 +1568,10 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param sequence_data Aligned samples by timesteps by channels sequence array.
+#' @param sequence_length Number of timesteps per sequence window.
+#' @param ssm_state_dim Number of encoder state dimensions.
+#' @param ssm_conv Width of the encoder's causal convolution.
 #'
 #' @return A list containing the aggregated prediction matrix and the
 #'   per-model outputs when `aggregate = "none"`.

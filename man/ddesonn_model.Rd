@@ -24,7 +24,12 @@ ddesonn_model(
   ensemble_number = 0L,
   verbose = FALSE,
   verboseLow = FALSE,
-  debug = FALSE
+  debug = FALSE,
+  sequence_encoder = "none",
+  sequence_data = NULL,
+  sequence_length = 48L,
+  ssm_state_dim = 16L,
+  ssm_conv = 4L
 )
 }
 \arguments{
@@ -64,6 +69,16 @@ ddesonn_model(
 \item{verboseLow}{Logical; emit important progress output when TRUE.}
 
 \item{debug}{Logical; emit debug diagnostics when TRUE.}
+
+\item{sequence_encoder}{Use \code{"none"} (default) or the optional \code{"ssm"} encoder.}
+
+\item{sequence_data}{Aligned samples by timesteps by channels sequence array.}
+
+\item{sequence_length}{Number of timesteps per sequence window.}
+
+\item{ssm_state_dim}{Number of encoder state dimensions.}
+
+\item{ssm_conv}{Width of the encoder's causal convolution.}
 }
 \value{
 Same as \code{\link[=ddesonn_model]{ddesonn_model()}}.
