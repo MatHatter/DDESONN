@@ -1,4 +1,6 @@
 # [SSM] This entire source file implements the native SSM encoder.
+# Experimental status: An experimental SSM extension is available separately. Our current benchmarks show no meaningful improvement over the baseline. Independent evaluations and reproducible examples of useful applications are welcome.
+# Included as an opt-in component; sequence_encoder = "none" is the default.
 .ssm_softplus <- function(x) log1p(exp(-abs(x))) + pmax(x, 0)
 .ssm_sigmoid <- function(x) 1 / (1 + exp(-x))
 
