@@ -1,0 +1,12 @@
+{
+  "benchmark_source_revision": "a95bc8dda84c4eb35633ee5a5bb456169c1c54b8",
+  "benchmark_source_version": "7.3.0",
+  "proposed_documentation_release": "7.3.1",
+  "release_published": false,
+  "artifact_bundle": "ddesonn-heart-failure-seeds-1-100.tar.gz",
+  "artifact_bytes": 524910237,
+  "artifact_sha256": "cc2527a5bf6e4a50dda6addabe2f12a6d09638ac3458e804bf56cd203188e6ce",
+  "artifact_manifest_sha256": "907289e5e3a8a35ae85057ec64c04f961b25c89d634445a2c85c9a033a962f66",
+  "raw_artifacts_in_r_package": false,
+  "distribution_note": "dev/ is excluded by existing ^dev$ rule; attach the full bundle separately if publishing the research record"
+}
