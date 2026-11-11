@@ -2,28 +2,62 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.0 — standard optimizer updates
+## Version 7.3.2 — optional Shiny experiment explorer
 
-Version 7.3 focuses on the optimizer implementations, uses standard AdaGrad by
-default, and removes the former custom AdaGrad behavior. It also adds numerical
-verification and plain-language explanations of each optimizer.
-
-The SSM correctness and joint-training fixes from 7.2 are carried forward.
-SSM remains experimental and off by default; this release does not add a new
-SSM algorithm. See [release notes](NEWS.md) for changes and migration guidance.
+Version 7.3.2 adds an optional native R Shiny dashboard for exploring saved
+benchmark results, with CSV uploads, plots, downloads and expandable brain
+artwork. Version 7.3.0 introduced standard AdaGrad; 7.3.1 documented the 100-seed
+follow-up using that unchanged implementation. The SSM correctness and joint-training fixes from 7.2
+are carried forward; SSM remains experimental and off by default.
+See [release notes](NEWS.md) for the version-by-version changes.
 
 ## Standard AdaGrad replaces legacy AdaGrad
 
-The default `optimizer = "adagrad"` now uses standard AdaGrad. The previous
-custom implementation (called `adagrad_x` on the optimizer development branch)
-has been removed. This changes training behavior, including parameter updates,
-bias gradients, and optimizer initialization. Historical results are unchanged
-but are not directly reproducible with the replacement. This is a maintenance
-decision, not a claim that AdaGrad wins on every task.
+The default `optimizer = "adagrad"` uses standard AdaGrad: accumulate squared
+gradients, then apply **one update per parameter tensor per training step**.
+The legacy multilayer path applied both a direct weight update and an adaptive
+weight update to the same weights. That double-update behavior was removed in
+7.3.0. We have retired it in favor of the standard recurrence, verified with
+independent numerical reference tests; no legacy compatibility mode is retained.
 
 Construct a new model for training rather than reusing legacy optimizer state.
 Replace explicit `adagrad_x` configurations with `adagrad`; the removed name
-raises an error rather than silently selecting another algorithm.
+raises an error rather than silently selecting another algorithm. Training
+trajectories, bias updates and initialization can differ from earlier versions.
+
+### What the 100-seed follow-up shows
+
+The completed follow-up observed higher mean test accuracy with standard AdaGrad
+(99.9680% versus 99.9427%), with mixed results across other metrics. The separate
+[research report](dev/research/heart-failure-adagrad-seeds-1-100/README.md) contains
+the tables, error counts, paired-results graph, protocol and limitations.
+
+### How this relates to the historical Keras comparison
+
+The historical 1,000-seed Keras comparison used the legacy DDESONN path. The
+100-seed follow-up is encouraging for accuracy, but is not a new 1,000-seed
+comparison against Keras. A future extension could evaluate seeds 101–1,000
+(the remaining 900 seeds) and revisit the comparison under matched conditions.
+The full accuracy summary could improve, remain similar or worsen; that outcome
+has not been measured. For this release, we are satisfied with the standard
+update rule and completed 100-seed follow-up and are deferring that extension.
+
+Historical results remain available. See [historical research and package-file
+changes](#historical-1000-seed-research) for the affected paths and archive links.
+
+## Optional experiment dashboard
+
+Explore the saved 100-seed benchmark or upload paired results from later runs:
+
+```r
+# Install shiny once if needed: install.packages("shiny")
+shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
+```
+
+From a source checkout, use `shiny::runApp("inst/shiny/benchmark")` instead.
+The native R dashboard provides seed filters, metric summaries, comparison plots
+and CSV downloads. It does not start training. Shiny remains optional.
+See the [dashboard guide](inst/shiny/benchmark/README.md) for CSV format and data provenance.
 
 ## Optional native-R sequence encoder
 
@@ -988,8 +1022,8 @@ rather than as the canonical source used for the numeric per-seed summary merge 
 
 Reference helper scripts and related workflows currently include:
 
-- `inst/extdata/vsKeras/TablesPerSeedMostRecentRunResults.R`
-- `inst/extdata/vsKeras/1000SEEDSRESULTSvsKeras/DDESONNproof.R`
+- `inst/scripts/vsKeras/TablesPerSeedMostRecentRunResults.R`
+- `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/DDESONNproof.R`
 - `inst/scripts/LoadandPredict.R`
 - `R/predict.R`
 
@@ -1036,6 +1070,43 @@ See [the provenance audit](dev/research/legacy-adagrad-benchmarks.md) for source
 evidence, seed-history limitations, file hashes and archive retrieval commands.
 The verified archive revision is
 [`0d1b557098b56b39ed2357b30716dcddc25871b3`](https://github.com/MatHatter/DDESONN/tree/0d1b557098b56b39ed2357b30716dcddc25871b3).
+
+
+#### Files excluded from the package starting in 7.3.0
+
+This is a packaging change recorded for the 7.3 release series. The historical
+outputs are associated with the retired optimizer; they were excluded to reduce
+package size and keep archived experiments separate from current examples.
+**They were not deleted from Git.** The verified archive below is the **7.1.11
+submission-preparation revision**; it should not be confused with version 7.1.1.
+
+The five generated RDS files and the workbook/four scripts listed here are
+excluded from source-package builds and installations by `.Rbuildignore`:
+
+| Path (relative to the repository root) | Available archive |
+| --- | --- |
+| `inst/extdata/heart_failure_runs/run1/SingleRun_Test_Metrics_500_seeds_20251025.rds` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/extdata/heart_failure_runs/run1/SingleRun_Test_Metrics_500_seeds_20251025.rds) |
+| `inst/extdata/heart_failure_runs/run1/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/extdata/heart_failure_runs/run1/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251025.rds) |
+| `inst/extdata/heart_failure_runs/run2/SingleRun_Pretty_Test_Metrics_500_seeds_20251026.rds` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/extdata/heart_failure_runs/run2/SingleRun_Pretty_Test_Metrics_500_seeds_20251026.rds) |
+| `inst/extdata/heart_failure_runs/run2/SingleRun_Test_Metrics_500_seeds_20251026.rds` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/extdata/heart_failure_runs/run2/SingleRun_Test_Metrics_500_seeds_20251026.rds) |
+| `inst/extdata/heart_failure_runs/run2/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/extdata/heart_failure_runs/run2/SingleRun_Train_Acc_Val_Metrics_500_seeds_20251026.rds) |
+| `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/1000seedsKeras.xlsx) |
+| `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/DDESONNproof.R` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/DDESONNproof.R) |
+| `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TablesPerSeedRunResults1000seedsResults.R` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TablesPerSeedRunResults1000seedsResults.R) |
+| `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TestDDESONN_1000seeds.R` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TestDDESONN_1000seeds.R) |
+| `inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TestKeras_1000seeds.py` | [Git archive](https://github.com/MatHatter/DDESONN/blob/0d1b557098b56b39ed2357b30716dcddc25871b3/inst/scripts/vsKeras/1000SEEDSRESULTSvsKeras/TestKeras_1000seeds.py) |
+
+An additional run1 prediction file,
+`inst/extdata/heart_failure_runs/run1/SingleRun_Pretty_Test_Metrics_500_seeds_20251025.rds`,
+was already absent from the verified 7.1.11 archive. It remains recoverable at
+[earlier revision 4bc9944](https://github.com/MatHatter/DDESONN/blob/4bc994462612ce868b90bc70885eb1635eddcdee/inst/extdata/heart_failure_runs/run1/SingleRun_Pretty_Test_Metrics_500_seeds_20251025.rds);
+it is not an additional removal in 7.3.0.
+
+Input datasets, current example scripts and reporting helpers remain in the
+package. The [file inventory](dev/research/legacy-benchmark-inventory.csv) records
+sizes and checksums; the [archive guide](dev/research/legacy-adagrad-benchmarks.md)
+provides retrieval commands. This versioned record remains the reference for
+these exclusions; future release notes need only describe new file changes.
 
 ---
 
