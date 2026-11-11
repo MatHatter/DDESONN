@@ -1,3 +1,22 @@
+# DDESONN 7.3.1
+
+## Research documentation
+
+- Add an exploratory heart-failure comparison of archived legacy AdaGrad and
+  corrected standard AdaGrad across seeds 1–100, using 360 epochs per current
+  run and the fixed historical reconstruction. The benchmark used unchanged
+  7.3.0 source; this patch does not change an optimizer implementation.
+- Record separate and combined summaries, sample SDs, paired differences,
+  initialization uncertainty, arithmetic verification and artifact provenance
+  under `dev/research/heart-failure-adagrad-seeds-1-100/`.
+- Report mixed predictive findings: corrected mean test accuracy is 99.9680%
+  versus 99.9427% legacy, while corrected log loss is higher overall. Original
+  historical initialization is unverified, and 738/750 test rows match training
+  inputs. These observations do not establish performance on new cases or a
+  causal effect of the AdaGrad correction.
+- Keep research documentation under the existing excluded `dev/` tree and raw
+  models, probabilities and checkpoints outside the distributed package.
+
 # DDESONN 7.3.0
 
 This release focuses on the optimizer implementations and retains the SSM fixes
