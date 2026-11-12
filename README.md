@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.6 — centered help icons and equivalent R examples
+
+Version 7.3.6 expands every workbench help popover with equivalent R code and
+improves the alignment of the small circled lowercase i. Examples follow prepared
+settings and saved models where available, with clearly labeled illustrations
+before preparation. Wider, scrollable help stays within desktop and mobile views.
+
 ## Version 7.3.5 — Shiny training feedback and checkpoint controls
 
 Version 7.3.5 refines the guided workbench released in 7.3.4 with state-aware

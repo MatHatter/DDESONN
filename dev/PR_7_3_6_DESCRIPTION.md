@@ -1,0 +1,9 @@
+# DDESONN 7.3.6: Center help icons and expand equivalent R code
+
+Most workbench help previously explained controls without showing their R equivalents. This release adds substantial public-API or base R examples to all 31 help topics, including data inspection, targets/predictors, encoding, splits and scaling, model configuration, checkpoint restoration, evaluation, model bundles, prediction/export, background jobs and warm starts. The code uses the same generators as downloadable recipes. Prepared-data and completed-model examples follow their saved context; iris/default illustrations and required objects/files are labeled explicitly.
+
+The lowercase i is optically centered within its compact circle. Larger code popovers stay within the viewport during scrolling, resizing and mobile rotation. Their text and code regions support keyboard focus and scrolling; Escape closes help and returns focus. New help covers split fractions, regularization and additional epochs. Reading help never starts training or changes model weights.
+
+Validation: 16 relevant workbench/dashboard tests passed with 342 assertions and zero failures, errors, warnings or skips. All 31 snippets parse; preparation/fit/evaluation snippets reproduce model predictions and metrics across binary, multiclass and regression tasks in both checkpoint modes. Installed-app browser checks cover all help topics, current versus saved settings, model immutability, keyboard/touch controls and desktop/mobile placement. Installation of 7.3.6 succeeds. Full research-vignette/PDF package checks were not repeated for this UI-focused patch; prior full-check evidence remains historical.
+
+Version is 7.3.6, based on the released 7.3.5 main branch. No training mathematics, optimizer implementations, release tags, merges or publication are changed by this PR.

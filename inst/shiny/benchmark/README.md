@@ -227,3 +227,27 @@ internal `colMeans()` preprocessing because a matrix dimension is dropped. Use
 two or more numeric predictors as a workaround. The workbench preserves the
 previous completed model and reports a shape-specific error; this UI change does
 not alter the core preprocessing implementation.
+
+
+## Equivalent R inside help (7.3.6)
+
+Every circled lowercase-i control contains an **Equivalent R** section. The
+examples cover data loading/inspection, target and predictor selection, task
+encoding, stratified or ordered splits, fractions, training-only scaling, model
+architecture, epochs, optimizer/rate, regularization, initial self-organization,
+checkpoint restoration, evaluation, model bundles, prediction and additional fits.
+
+Prepared-data examples use the last prepared split and preprocessing. Training
+examples use the current valid fit controls. Before preparation, an explicitly
+labeled iris example supplies context; invalid fit settings show labeled defaults.
+Completed-model help uses its saved recipe, and additional-fit examples retain the
+saved model's settings rather than the next-new-model controls. Examples name the
+required Data/Features panels, trusted bundle or CSV/recipe files. Download the
+complete recipe for a runnable end-to-end workflow; help snippets are contextual
+pieces of that workflow. No private workbench helper functions are required.
+
+The small i remains a real lowercase letter, with centered glyph alignment and a
+visible keyboard focus ring. Press Enter or Space to open help and Escape to close
+it and return focus. Expanded code can scroll vertically and horizontally, and the
+popover repositions on scrolling/resizing to stay within the viewport. Opening,
+reading or selecting help code never trains a model or selects/restores weights.

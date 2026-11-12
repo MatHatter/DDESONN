@@ -288,3 +288,48 @@ test_that("worker wrappers do not disguise numerical or shape errors as installa
   missing <- h$wb_training_error(simpleError("in callr subprocess: there is no package called DDESONN"))
   expect_match(missing$message, "same R library")
 })
+
+test_that("every workbench help topic has public R code without changing model or RNG state", {
+  f <- workbench_fixture(); h <- f$h
+  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001)
+  invisible(capture.output(r <- h$wb_run(p, cfg)))
+  model <- serialize(r$model, NULL)
+  set.seed(791); rng <- .Random.seed
+  topics <- h$wb_help_topics()
+  expect_equal(length(unique(h$wb_help_key(topics))), length(topics))
+  for (topic in topics) {
+    code <- h$wb_help_code(topic, p, cfg, r)
+    expect_true(nchar(code) > 120, info = topic)
+    expect_no_error(parse(text = code))
+    expect_false(grepl("wb_[[:alnum:]_]+\\(", code), info = topic)
+    expect_no_error(parse(text = h$wb_help_code(topic)))
+  }
+  expect_identical(.Random.seed, rng)
+  expect_identical(serialize(r$model, NULL), model)
+  expect_error(h$wb_help_code("unregistered"), "Unknown")
+  expect_match(h$wb_help_code("Target"), "Iris illustration")
+  expect_match(h$wb_help_code("Additional epochs", more_epochs = 0), "Choose")
+})
+
+test_that("help preparation, fit and evaluation snippets reproduce the workbench model", {
+  h <- workbench_fixture()$h
+  for (mode in c("binary", "multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
+    data <- if (mode == "multiclass") iris else mtcars
+    target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
+    features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
+    p <- h$wb_prepare(data, target, features, mode, train_fraction = .55, validation_fraction = .25)
+    cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001, checkpoint = checkpoint,
+      reg = "L2", lambda = .001)
+    invisible(capture.output(r <- h$wb_run(p, cfg)))
+    e <- new.env(parent = globalenv()); e$data <- data
+    invisible(capture.output(eval(parse(text = h$wb_help_code("Predictors", p, cfg)), e)))
+    expect_equal(e$parts, p$parts)
+    invisible(capture.output(eval(parse(text = h$wb_help_code("Regularization strength", p, cfg)), e)))
+    invisible(capture.output(eval(parse(text = h$wb_help_code("Evaluation split", p, cfg,
+      evaluation_split = "validation")), e)))
+    expect_equal(e$selected_epoch, r$selected_epoch)
+    expect_equal(e$probabilities, h$wb_predictions(r$model, p, p$parts$validation))
+    expect_equal(unname(e$metrics), r$evaluation$validation$metrics$Value)
+  }
+})

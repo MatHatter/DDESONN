@@ -73,7 +73,28 @@ ui <- shiny::fluidPage(
     Shiny.addCustomMessageHandler('wb-action-states', function(states) {
       wbActionStates = states; wbApplyActionStates();
     });
-    $(document).on('shiny:value shiny:bound', function() { setTimeout(wbApplyActionStates, 0); });
+    $(document).on('shiny:value shiny:bound', function() {
+      setTimeout(function() { wbApplyActionStates(); wbPositionOpenHelp(); }, 0);
+    });
+    function wbPositionHelp(details) {
+      var copy = details.querySelector('.wb-help-copy');
+      var anchor = details.querySelector('summary').getBoundingClientRect();
+      copy.style.position = 'fixed'; copy.style.right = 'auto';
+      var below = window.innerHeight - anchor.bottom - 20;
+      var above = anchor.top - 20;
+      var useAbove = below < 160 && above > below;
+      copy.style.maxHeight = Math.max(80, Math.min(560, window.innerHeight * .65, useAbove ? above : below)) + 'px';
+      var box = copy.getBoundingClientRect();
+      copy.style.left = Math.max(12, Math.min(anchor.right - box.width, window.innerWidth - box.width - 12)) + 'px';
+      var top = useAbove ? anchor.top - box.height - 8 : anchor.bottom + 8;
+      copy.style.top = Math.max(12, Math.min(top, window.innerHeight - box.height - 12)) + 'px';
+    }
+    document.addEventListener('toggle', function(event) {
+      if (event.target.matches('.wb-inline-help') && event.target.open) wbPositionHelp(event.target);
+    }, true);
+    function wbPositionOpenHelp() { document.querySelectorAll('.wb-inline-help[open]').forEach(wbPositionHelp); }
+    window.addEventListener('resize', wbPositionOpenHelp);
+    document.addEventListener('scroll', wbPositionOpenHelp, true);
     document.addEventListener('click', function(event) {
       if (event.target.closest('[aria-disabled=true]')) { event.preventDefault(); event.stopImmediatePropagation(); }
     }, true);
@@ -148,16 +169,19 @@ ui <- shiny::fluidPage(
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
     .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
       cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:16px; height:16px;
-      font:normal 12px/1 Arial,sans-serif; background:white; }
+      font:normal 12px/1 Arial,sans-serif; background:white; padding:0; box-sizing:border-box; }
+    .wb-help-glyph { display:block; width:100%; text-align:center; line-height:1; transform:translate(.35px,.25px); }
     .wb-inline-help > summary::-webkit-details-marker { display:none; }
     .wb-inline-help > summary:focus-visible { outline:3px solid #6f9daa; outline-offset:3px; }
     .wb-inline-help[open] > summary { background:#087f8c; border-color:#087f8c; color:white; }
-    .wb-help-copy { position:absolute; display:block; right:0; top:24px; width:280px; max-width:78vw;
+    .wb-help-copy { position:absolute; display:block; right:0; top:24px; width:520px; max-width:calc(100vw - 36px);
       background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
-      font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:360px; overflow:auto; }
+      font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:min(560px,65vh); overflow:auto; overscroll-behavior:contain; }
     .wb-code-panel { margin-top:16px; }
     .wb-code-panel > summary { color:#155b63; cursor:pointer; font-weight:600; }
     .wb-code-panel pre { margin-top:10px; max-height:380px; overflow:auto; font-size:12px; }
+    .wb-help-code-label { margin-top:12px; font-weight:600; color:#b5eee8; }
+    .wb-help-prerequisites { font-size:12px; margin:10px 0 0; color:#d0e1eb; }
     .wb-help-code { color:white; background:#102b3c; border:0; margin:10px 0 0; white-space:pre; word-break:normal; overflow-x:auto; font-size:11px; }
     .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
     .wb-step-intro { margin:18px 0; color:#526b7a; }
