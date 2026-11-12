@@ -1,3 +1,23 @@
+# DDESONN 7.3.3
+
+## Interactive model workbench
+
+- Expand the optional Shiny app with Data, Build & train, Evaluate and Models
+  pages using the public model, fit and prediction API. Support binary and
+  multiclass classification and regression with finite numeric predictors.
+- Fit preprocessing on training rows only and retain the split, class mapping
+  and scaling in downloaded model bundles for evaluation and new predictions.
+- Run training in an isolated callr worker with logged epoch progress, loss
+  curves and cancellation. Failed/cancelled jobs retain the completed model;
+  temporary files and active jobs are cleaned up when a session ends.
+- Support additional fits from saved weights. Explain that optimizer accumulators
+  and epoch schedules restart; this is a warm start, not an exact resume.
+- Retain the benchmark viewer as Experiments. Explain legacy/standard AdaGrad and
+  metric means, align its summary cards with the controls, and remove the visible
+  artwork-enlargement caption while retaining the clickable image.
+- Keep Shiny and callr optional. Advanced ensembles, sequence encoders and
+  orchestration remain available through the R API rather than this first UI.
+
 # DDESONN 7.3.2
 
 ## Optional experiment dashboard

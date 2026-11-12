@@ -73,6 +73,14 @@ dashboard_server <- function(default_data) {
       dialog$attribs$`aria-label` <- "DDESONN brain artwork"
       shiny::showModal(dialog)
     })
+    explain <- function() shiny::showModal(shiny::modalDialog(
+      title = "Understand this comparison", easyClose = TRUE,
+      shiny::p("Legacy AdaGrad is DDESONN's earlier custom implementation. Its multilayer path applied a direct weight update followed by an adaptive update to the same weights. Historical experiments reported strong results, but the update rule differed from classic AdaGrad."),
+      shiny::p("Standard AdaGrad is the classic algorithm: one adaptive update per parameter tensor per step. It replaced the legacy behavior in version 7.3.0."),
+      shiny::p("Mean is the average of the selected metric over the selected seed runs. The 100-seed follow-up had slightly higher average accuracy, but not every metric improved. These are descriptive benchmark results, not universal superiority."),
+      footer = shiny::modalButton("Close")))
+    shiny::observeEvent(input$legacy_help, explain())
+    shiny::observeEvent(input$standard_help, explain())
     current <- shiny::reactiveVal(default_data)
     source_name <- shiny::reactiveVal("Included heart-failure benchmark · seeds 1–100")
     upload_error <- shiny::reactiveVal(NULL)
@@ -124,9 +132,9 @@ dashboard_server <- function(default_data) {
       unit <- if (m == "accuracy") " percentage points" else ""
       shiny::div(class = "cards",
         shiny::div(class = "stat", shiny::span("SELECTED SEEDS"), shiny::strong(nrow(data))),
-        shiny::div(class = "stat", shiny::span("LEGACY MEAN"),
+        shiny::div(class = "stat", shiny::actionLink("legacy_help", "LEGACY ADAGRAD MEAN"),
           shiny::strong(sprintf("%.6f", mean(data[[paste0(m, "_legacy")]])))),
-        shiny::div(class = "stat", shiny::span("STANDARD MEAN"),
+        shiny::div(class = "stat", shiny::actionLink("standard_help", "STANDARD ADAGRAD MEAN"),
           shiny::strong(sprintf("%.6f", mean(data[[paste0(m, "_corrected")]])))),
         shiny::div(class = "stat", shiny::span("STANDARD − LEGACY"),
           shiny::strong(sprintf("%+.6f", delta * scale)), shiny::tags$small(unit)))
