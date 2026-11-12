@@ -60,17 +60,43 @@ Artwork SHA-256: `751d6675a10c8318b69268eb9c5e013d94508ab4e4870f82005c46f4b75dc1
 
 ## Model workbench
 
-The app now opens on **Data**, with **Build & train**, **Evaluate**, **Models**
-and **Experiments** pages. Both `shiny` and `callr` are optional dependencies:
+The app opens on **1. Data**, followed by **2. Features**, **3. Build & Train**
+and **4. Model / Results**. These four steps share a color treatment;
+**Experiments** is separate. Model / Results contains **Performance** and
+**Saved models & predictions** tabs. Both `shiny` and `callr` are optional dependencies:
 
 ```r
 install.packages(c("shiny", "callr"))
 shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
 ```
 
-For a first run, keep the included iris data and multiclass task, click
-**Prepare data**, then **Train new model**. Evaluate the completed model, save a
-model bundle, or upload new rows for prediction on Models.
+For a first run:
+
+1. Keep the included iris example on **Data**, inspect the preview, and click
+   **Next: choose features**.
+2. On **Features**, keep Species as the target, the four numeric predictors and
+   the multiclass task. Choose the split and click **Prepare data**.
+3. On **Build & Train**, configure the model and click **Train new model**.
+4. Click **Next: review results** to inspect **Performance**. Use **Saved models &
+   predictions** to save/load a bundle or predict on new rows.
+
+The circled **i** beside a heading or control offers a short explanation. Hover
+for the description, or click to open it. Keyboard users can Tab to the icon,
+press Enter or Space to open it, and Escape to close it and return focus.
+Clicking outside also closes the help. Help uses native HTML disclosures and
+local styling, without another package dependency.
+
+### What callr does
+
+`callr` is used inside the Shiny app. When you click **Train new model** or
+**Continue from saved weights**, it starts another R process and runs the public
+DDESONN training API there. Shiny keeps handling the interface and reads the
+worker's epoch logs to show progress. Cancel stops that worker; the previous
+completed model remains available.
+
+It is not a package-build monitor or another machine-learning framework. Both
+processes run R, and training still uses DDESONN's native implementation. The
+base package does not require callr; the optional model workbench does.
 
 ### Supported training workflow
 
@@ -97,7 +123,7 @@ model bundle, or upload new rows for prediction on Models.
   mean sum of squared class-probability errors; binary Brier uses the positive
   class. R squared is unavailable for a constant target.
 
-Changing Data settings invalidates preparation. Changing training controls affects
+Changing data or selections on Features invalidates preparation. Changing training controls affects
 only the next new model. Existing evaluation always belongs to the completed
 model's original split. A saved bundle contains the model, preprocessing, split
 data, labels, configuration and evaluation. It can contain private source data.

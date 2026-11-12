@@ -1,3 +1,18 @@
+# DDESONN 7.3.4
+
+## Guided Shiny workflow
+
+- Group the core workbench into four numbered steps: Data, Features, Build & Train,
+  and Model / Results, with a shared color treatment and short next-step guidance.
+- Separate dataset loading from feature selection. Group performance, saved
+  models and predictions within Model / Results; retain Experiments separately.
+- Add compact circled-i help beside section headings and important controls,
+  including target, predictors, task, split, optimizer and model performance.
+  Hover shows a description; click or keyboard activation opens inline help.
+- Add next-step buttons and explain how earlier choices affect training and
+  evaluation. Existing model training, cancellation and persistence are retained.
+- Clarify callr's role as the optional background training process for Shiny.
+
 # DDESONN 7.3.3
 
 ## Interactive model workbench

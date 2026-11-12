@@ -53,6 +53,20 @@ benchmark_ui <- shiny::sidebarLayout(
 
 ui <- shiny::fluidPage(
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
+  shiny::tags$script(shiny::HTML("
+    document.addEventListener('click', function(event) {
+      document.querySelectorAll('.wb-inline-help[open]').forEach(function(help) {
+        if (!help.contains(event.target)) help.open = false;
+      });
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        var opened = Array.from(document.querySelectorAll('.wb-inline-help[open]'));
+        opened.forEach(function(help) { help.open = false; });
+        if (opened.length) { event.preventDefault(); opened[opened.length - 1].querySelector('summary').focus(); }
+      }
+    });
+  ")),
   shiny::tags$head(shiny::tags$style(shiny::HTML("
     body { background:#f4f7fa; color:#233247; font-family:system-ui,sans-serif; }
     .container-fluid { max-width:1500px; margin:auto; padding:28px; }
@@ -79,6 +93,36 @@ ui <- shiny::fluidPage(
     .context { border-left:3px solid #087f8c; padding:12px 16px; background:#eaf5f4; margin:16px 0; }
     .error { color:#a52736; }
     .nav-tabs>li.active>a { color:#087f8c; font-weight:650; }
+    .wb-workflow-guide { color:#53677b; margin:0 0 14px; line-height:1.7; }
+    .wb-workflow-guide strong { color:#155b63; margin-right:8px; }
+    #workspace > li > a[data-value='data'], #workspace > li > a[data-value='features'],
+    #workspace > li > a[data-value='train'], #workspace > li > a[data-value='results'] {
+      background:#e8f3f2; color:#185963; border:1px solid #c9dfdc; margin-right:5px; font-weight:600;
+    }
+    #workspace > li.active > a[data-value='data'], #workspace > li.active > a[data-value='features'],
+    #workspace > li.active > a[data-value='train'], #workspace > li.active > a[data-value='results'] {
+      background:#087f8c; color:white; border-color:#087f8c;
+    }
+    #workspace > li > a:focus-visible { outline:3px solid #527d9b; outline-offset:2px; }
+    .wb-title-row, .wb-control-title { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    .wb-title-row { margin:0 0 14px; }
+    .wb-title-row h3, .wb-title-row h4 { margin:0; line-height:1.4; }
+    .wb-control-title { margin-bottom:5px; }
+    .wb-control-title label { margin:0; }
+    .wb-field .shiny-input-container { width:100%; }
+    .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
+    .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
+      cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:20px; height:20px;
+      font:italic bold 14px Georgia,serif; background:white; }
+    .wb-inline-help > summary::-webkit-details-marker { display:none; }
+    .wb-inline-help > summary:focus-visible { outline:3px solid #6f9daa; outline-offset:3px; }
+    .wb-inline-help[open] > summary { background:#087f8c; border-color:#087f8c; color:white; }
+    .wb-help-copy { position:absolute; display:block; right:0; top:28px; width:280px; max-width:78vw;
+      background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
+      font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; }
+    .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
+    .wb-step-intro { margin:18px 0; color:#526b7a; }
+    @media(max-width:700px) { #workspace > li { margin-bottom:5px; } }
     .btn { border-radius:7px; }
     @media(max-width:900px) { .cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media(max-width:700px) { .masthead { flex-direction:column; align-items:flex-start; } }
@@ -92,6 +136,8 @@ ui <- shiny::fluidPage(
     shiny::actionButton("brain_art", label = shiny::tagList(
       shiny::tags$img(src = "DDESONN_brain.png", alt = "DDESONN brain artwork with glowing neural connections and equations")), class = "brain-preview",
       title = "Open enlarged brain artwork", `aria-label` = "Enlarge DDESONN brain artwork")),
+  shiny::div(class = "wb-workflow-guide", shiny::strong("Your workflow"),
+    "Start with Data → choose target and predictors in Features → build and train → review Model / Results."),
   do.call(shiny::tabsetPanel, c(list(id = "workspace"), wb_ui(),
     list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui)))))
 
