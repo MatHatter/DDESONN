@@ -195,3 +195,84 @@ test_that("preprocessing code also matches ordered splits and unscaled inputs", 
     expect_equal(env$parts, p$parts)
   }
 })
+
+test_that("checkpoint summaries report the selected tensors and validation criterion", {
+  h <- workbench_fixture()$h
+  for (mode in c("multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
+    p <- if (mode == "multiclass") h$wb_prepare(iris, "Species", names(iris)[1:4], mode) else
+      h$wb_prepare(mtcars, "mpg", c("wt", "hp"), mode)
+    invisible(capture.output(r <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 3,
+      lr = .001, checkpoint = checkpoint))))
+    selected <- h$wb_checkpoint(r)
+    if (mode == "regression") {
+      prediction <- h$wb_predictions(r$model, p, p$parts$validation)
+      expect_equal(selected$score, mean((prediction - p$parts$validation$y)^2))
+      if (checkpoint == "best_validation")
+        expect_equal(selected$score, r$model$last_training$predicted_outputAndTime$best_val_loss)
+    } else expect_equal(selected$score, r$evaluation$validation$metrics$Value[1])
+    text <- h$wb_checkpoint_summary(r)
+    expect_match(text, paste("Epoch", r$selected_epoch, "of 3"), fixed = TRUE)
+    expect_match(text, if (mode == "regression") "validation loss (MSE)" else "validation accuracy", fixed = TRUE)
+    expect_match(text, if (checkpoint == "final") "final epoch" else "Best validation checkpoint", fixed = TRUE)
+  }
+})
+
+test_that("session action states and failed/cancelled workers preserve completed results", {
+  skip_if_not_installed("shiny"); skip_if_not_installed("callr")
+  f <- workbench_fixture(); h <- f$h
+  sys.source(system.file("shiny", "benchmark", "workbench.R", package = "DDESONN"), h)
+  server <- h$wb_server
+  formals(server)$helper <- f$path
+  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  invisible(capture.output(completed <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 2))))
+  failure <- tempfile(fileext = ".R")
+  writeLines('wb_run <- function(...) stop("non-finite predictions from worker")', failure)
+  on.exit(unlink(failure), add = TRUE)
+  start <- h$wb_start
+  shiny::testServer(server, {
+    session$flushReact()
+    expect_false(action_states()$wb_start)
+    expect_false(action_states()$wb_cancel)
+    expect_false(action_states()$wb_save)
+    prepared(p); result(completed); session$flushReact()
+    expect_true(action_states()$wb_start)
+    expect_true(action_states()$wb_save)
+    expect_true(action_states()$wb_continue)
+    original <- serialize(result(), NULL)
+    # Launch a real failing callr worker, exercising the completion error path.
+    h$wb_start <- function(helper, ...) start(failure, ...)
+    launch(p, completed$config)
+    session$flushReact()
+    expect_false(action_states()$wb_start)
+    expect_true(action_states()$wb_cancel)
+    expect_false(action_states()$wb_continue)
+    expect_false(action_states()$wb_load)
+    expect_true(action_states()$wb_save) # Previous immutable model can still be saved.
+    job()$process$wait(30000); session$elapse(400)
+    expect_null(job())
+    expect_identical(serialize(result(), NULL), original)
+    expect_match(output$wb_train_error$html, "Technical details")
+    expect_match(output$wb_train_error$html, "smaller learning rate")
+    expect_match(output$wb_train_error$html, "non-finite")
+    # A cancelled real worker cannot mutate the saved R6 model in this session.
+    h$wb_start <- start
+    cfg <- completed$config; cfg$epochs <- 5000L
+    launch(p, cfg, result()); session$flushReact()
+    session$setInputs(wb_cancel = 1)
+    expect_null(job())
+    expect_true(action_states()$wb_start)
+    expect_false(action_states()$wb_cancel)
+    expect_identical(serialize(result(), NULL), original)
+    expect_match(status(), "cancelled")
+    prepared(NULL); session$flushReact()
+    expect_false(action_states()$wb_start)
+    expect_true(action_states()$wb_save)
+  })
+  # A second session starts with no data preparation or completed-model state.
+  shiny::testServer(server, {
+    session$flushReact()
+    expect_null(result()); expect_null(job()); expect_null(prepared())
+    expect_false(action_states()$wb_save)
+    expect_false(action_states()$wb_start)
+  })
+})

@@ -1,5 +1,18 @@
 # DDESONN 7.3.4
 
+## Training feedback and action states
+
+- Enable Train only for prepared data while idle, Cancel only for an active job,
+  and model downloads only for completed results. Gate warm starts, uploads and
+  prediction downloads according to the current session state.
+- Show checkpoint mode, selected epoch, validation criterion and score in
+  Training and Model / Results. Final-epoch summaries describe the final tensors;
+  best-validation summaries describe the restored checkpoint.
+- Present actionable training errors with expandable technical details. Keep the
+  previous completed model after failed or cancelled jobs.
+- Inspect epoch and training loss by hovering near chart points or expanding a
+  keyboard-accessible values table. Inspection never selects or restores weights.
+
 ## Explicit weight choice and switches
 
 - Replace the checkpoint checkbox with a dropdown naming both choices: best

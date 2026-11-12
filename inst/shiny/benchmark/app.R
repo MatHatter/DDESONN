@@ -54,6 +54,29 @@ benchmark_ui <- shiny::sidebarLayout(
 ui <- shiny::fluidPage(
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
   shiny::tags$script(shiny::HTML("
+    var wbActionStates = {};
+    function wbApplyActionStates() {
+      Object.keys(wbActionStates).forEach(function(id) {
+        var element = document.getElementById(id);
+        if (!element) return;
+        var enabled = wbActionStates[id] && (element.tagName !== 'A' || !!element.getAttribute('href'));
+        element.disabled = !enabled;
+        element.setAttribute('aria-disabled', String(!enabled));
+        element.classList.toggle('disabled', !enabled);
+        if (element.tagName === 'A') element.setAttribute('tabindex', enabled ? '0' : '-1');
+        if (element.type === 'file') {
+          var button = element.closest('.btn');
+          if (button) { button.classList.toggle('disabled', !enabled); button.setAttribute('aria-disabled', String(!enabled)); }
+        }
+      });
+    }
+    Shiny.addCustomMessageHandler('wb-action-states', function(states) {
+      wbActionStates = states; wbApplyActionStates();
+    });
+    $(document).on('shiny:value shiny:bound', function() { setTimeout(wbApplyActionStates, 0); });
+    document.addEventListener('click', function(event) {
+      if (event.target.closest('[aria-disabled=true]')) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, true);
     document.addEventListener('click', function(event) {
       document.querySelectorAll('.wb-inline-help[open]').forEach(function(help) {
         if (!help.contains(event.target)) help.open = false;
@@ -139,7 +162,12 @@ ui <- shiny::fluidPage(
     .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
     .wb-step-intro { margin:18px 0; color:#526b7a; }
     @media(max-width:700px) { #workspace > li { margin-bottom:5px; } }
+    .wb-loss-values { max-height:300px; overflow:auto; }
+    .wb-training-error { margin-top:18px; }
+    .wb-training-error pre { max-height:240px; overflow:auto; white-space:pre-wrap; }
     .btn { border-radius:7px; }
+    .btn:focus-visible, details > summary:focus-visible { outline:3px solid #527d9b; outline-offset:2px; }
+    .btn.disabled, .btn:disabled { opacity:.55; cursor:not-allowed; }
     @media(max-width:900px) { .cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media(max-width:700px) { .masthead { flex-direction:column; align-items:flex-start; } }
     @media(max-width:500px) { .cards { grid-template-columns:1fr; } .container-fluid { padding:12px; } }

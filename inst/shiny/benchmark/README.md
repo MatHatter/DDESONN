@@ -188,3 +188,34 @@ Binary options use right-aligned on/off switches. Standardization starts on;
 initial self-organization starts off. The switches support mouse, touch and the
 Space key, and their text labels and circled-i help remain available. Weight
 selection is a dropdown because both alternatives need an explicit name.
+
+
+## Training feedback and available actions
+
+Train becomes available after data preparation and is disabled while a job is
+running. Cancel is available only during a job. Save and evaluated-prediction
+downloads require a completed model; prediction downloads require successfully
+scored new rows. An existing completed model remains available to evaluate, save
+and predict with while the next model trains. Warm starts, model loading and
+training-data replacement wait until the active job finishes or is cancelled.
+Changing Features invalidates preparation, without discarding the completed model.
+
+The checkpoint summary reports the selected epoch **within the latest fit**, its
+requested epoch count, selection mode, validation criterion and score. For example,
+`Epoch 12 of 50 · best validation accuracy: 92% · Best validation checkpoint`.
+Regression reports validation loss as mean squared error (MSE). Final-epoch mode
+reports the validation score of the final weights, without suggesting it was the
+best score. All requested epochs run in either mode. Test is never used to select
+weights. Older bundles without a recorded epoch say so rather than inventing one.
+
+Hover near a training-loss point to inspect its epoch and logged loss. On touch
+screens or with a keyboard, expand **Training loss values (epoch and loss)** to
+read the same observations as a table. Neither inspection method selects weights
+or changes predictions. The checkpoint dropdown affects the next fit only.
+
+Training errors offer next steps, such as checking settings, lowering the learning
+rate, preparing standardized data again or disabling initial self-organization.
+Expand **Technical details** for the underlying error and worker diagnostics.
+Failed and cancelled runs preserve the previous completed model and its recipe;
+a later successful fit replaces it. Each browser session keeps its own model,
+job, predictions and action states.

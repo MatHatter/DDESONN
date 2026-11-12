@@ -182,6 +182,41 @@ wb_run <- function(prepared, config, previous = NULL) {
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }
 
+# Scores describe the tensors actually used for inference, including final mode.
+wb_checkpoint <- function(bundle) {
+  regression <- identical(bundle$prepared$mode, "regression")
+  metrics <- bundle$evaluation$validation$metrics
+  score <- metrics$Value[match(if (regression) "RMSE" else "Accuracy", metrics$Metric)]
+  list(mode = if (is.null(bundle$config$checkpoint)) "final" else bundle$config$checkpoint,
+    epoch = bundle$selected_epoch, epochs = bundle$config$epochs,
+    criterion = if (regression) "validation loss (MSE)" else "validation accuracy",
+    score = if (regression) score^2 else score)
+}
+
+wb_checkpoint_summary <- function(bundle) {
+  if (is.null(bundle)) return("No completed checkpoint yet.")
+  checkpoint <- wb_checkpoint(bundle)
+  score <- if (length(checkpoint$score) != 1 || !is.finite(checkpoint$score)) "not recorded" else
+    if (identical(bundle$prepared$mode, "regression")) format(signif(checkpoint$score, 6), trim = TRUE) else
+      paste0(format(round(100 * checkpoint$score, 2), trim = TRUE), "%")
+  epoch <- if (length(checkpoint$epoch) == 1 && is.finite(checkpoint$epoch)) checkpoint$epoch else "not recorded"
+  if (identical(checkpoint$mode, "best_validation"))
+    sprintf("Epoch %s of %s · best %s: %s · Best validation checkpoint", epoch,
+      checkpoint$epochs, checkpoint$criterion, score) else
+    sprintf("Epoch %s of %s · final epoch · %s: %s", epoch,
+      checkpoint$epochs, checkpoint$criterion, score)
+}
+
+wb_training_error <- function(error, stderr = character()) {
+  details <- conditionMessage(error)
+  guidance <- if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
+    "Training could not produce a usable model. Try a smaller learning rate, enable standardization on Features and prepare again, or turn off initial self-organization." else
+    if (grepl("callr|process|worker|connection|package", details, ignore.case = TRUE))
+      "The training worker could not finish. Try training again; if this repeats, check that DDESONN and the optional callr package are installed in the same R library." else
+      "Training could not start or finish. Check the model settings (hidden sizes, epochs and learning rate), then try again. A smaller model or learning rate may help."
+  list(message = guidance, details = paste(c(details, utils::tail(stderr, 40)), collapse = "\n"))
+}
+
 wb_validate_bundle <- function(bundle) {
   if (!is.list(bundle) || !identical(bundle$format, "DDESONN-workbench-1") ||
       !inherits(bundle$model, "ddesonn_model") || !is.list(bundle$prepared) ||
