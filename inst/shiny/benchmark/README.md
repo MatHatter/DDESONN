@@ -1,12 +1,13 @@
-# DDESONN experiment explorer
+# DDESONN model workbench
 
-Introduced in DDESONN 7.3.2. An optional native R Shiny app for comparing paired legacy/standard AdaGrad
-benchmark results. It reads saved CSV results; it does not train models.
+An optional native R interface for training, evaluation, saved models and
+experiment comparisons. The benchmark viewer was introduced in 7.3.2; model
+training pages were added in 7.3.3.
 
 From an installed package:
 
 ```r
-install.packages("shiny") # once, if needed
+install.packages(c("shiny", "callr")) # once, if needed
 shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
 ```
 
@@ -16,10 +17,11 @@ From the repository root:
 shiny::runApp("inst/shiny/benchmark")
 ```
 
-The app opens with the compact 100-seed benchmark, supports seed-range and metric
-filters, plots individual values and paired differences, and downloads selected
-rows or calculated summaries. All UI assets are local. Shiny is a suggested
-package, not a required import.
+The app opens on Data with an iris example ready to prepare. Experiments retains
+the compact 100-seed benchmark with metric/seed filters, plots and downloads.
+All UI assets are local. Shiny and callr are suggested packages, not imports.
+
+## Experiment CSV format
 
 Upload CSV files up to 10 MB with one row per seed: a unique positive integer
 `seed` and at least one complete pair of `METRIC_legacy` / `METRIC_corrected`.
@@ -55,3 +57,68 @@ The artwork is bundled locally as `www/DDESONN_brain.png`, copied unchanged from
 It is project artwork rather than a diagram of an individual model.
 
 Artwork SHA-256: `751d6675a10c8318b69268eb9c5e013d94508ab4e4870f82005c46f4b75dc1e5`.
+
+## Model workbench
+
+The app now opens on **Data**, with **Build & train**, **Evaluate**, **Models**
+and **Experiments** pages. Both `shiny` and `callr` are optional dependencies:
+
+```r
+install.packages(c("shiny", "callr"))
+shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
+```
+
+For a first run, keep the included iris data and multiclass task, click
+**Prepare data**, then **Train new model**. Evaluate the completed model, save a
+model bundle, or upload new rows for prediction on Models.
+
+### Supported training workflow
+
+- Binary and multiclass classification, and regression; finite numeric predictors.
+  Class targets may be strings or numbers. Binary probabilities use the second
+  sorted training class as positive and a fixed 0.5 threshold. Multiclass uses
+  one-hot targets, softmax output and the highest probability for prediction.
+- Deterministic random splits (stratified for classification) or ordered splits.
+  All splits are disjoint row indices. Means/SDs are fitted on training rows only;
+  constant features use scale 1. Grouped or duplicate inputs require an externally
+  prepared split; random row splitting does not establish subject independence.
+- A single model, zero to five hidden layers, task-appropriate default activations,
+  AdaGrad/Adam/RMSprop/SGD, fixed learning rate, optional L1/L2 regularization.
+  No self-organization, dropout, batch normalization, sequence encoder, early
+  stopping or ensemble orchestration in this first interface.
+- One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
+  plot and progress use actual epoch log records; log delivery can lag training.
+  Final-epoch weights are evaluated. Test results never select checkpoints.
+- Cancel terminates the worker and discards its incomplete result. A previous
+  completed model remains intact. Disconnecting the session stops its active
+  worker and removes temporary job files. Session models are not shared.
+- Evaluation includes accuracy/log loss/Brier and a confusion matrix for
+  classification, or RMSE/MAE/R squared for regression. Multiclass Brier is the
+  mean sum of squared class-probability errors; binary Brier uses the positive
+  class. R squared is unavailable for a constant target.
+
+Changing Data settings invalidates preparation. Changing training controls affects
+only the next new model. Existing evaluation always belongs to the completed
+model's original split. A saved bundle contains the model, preprocessing, split
+data, labels, configuration and evaluation. It can contain private source data.
+Only trusted workbench bundles are supported for loading.
+
+**Continue from saved weights** starts another API fit on the model's original
+prepared data with its original settings and the requested extra epochs. The
+API creates new optimizer accumulators and restarts epoch schedules on each fit;
+this is a warm start, not exact continuation of an interrupted optimizer state.
+To change architecture, optimizer or data, train a new model.
+
+Prediction CSVs must contain the saved predictor names; column order is restored
+and training preprocessing is reused without refitting. New-data scoring is
+synchronous; use the R API for large batch-scoring jobs. CSV uploads are limited
+to 10 MB; trusted model-bundle uploads to 50 MB. This is a local development
+workbench, not a multi-user training service with resource quotas.
+
+### API scope
+
+The UI calls `ddesonn_model()`, `ddesonn_fit()` and `ddesonn_predict()` directly.
+`TestDDESONN.R` also orchestrates data preparation, plots, ensembles and research
+runs; it is not equivalent to one API call. More advanced workflows remain
+available through the R API and scripts rather than being silently approximated
+in the interface. No optimizer implementation was changed for this workbench.

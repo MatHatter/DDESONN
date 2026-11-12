@@ -2,13 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.2 — optional Shiny experiment explorer
+## Version 7.3.3 — interactive Shiny model workbench
 
-Version 7.3.2 adds an optional native R Shiny dashboard for exploring saved
-benchmark results, with CSV uploads, plots, downloads and expandable brain
-artwork. Version 7.3.0 introduced standard AdaGrad; 7.3.1 documented the 100-seed
-follow-up using that unchanged implementation. The SSM correctness and joint-training fixes from 7.2
-are carried forward; SSM remains experimental and off by default.
+Version 7.3.3 expands the optional native R Shiny app into a model workbench for
+training, evaluation, saved models and experiment comparisons. Version 7.3.0
+introduced standard AdaGrad; 7.3.1 documented the 100-seed follow-up using that
+unchanged implementation. The SSM fixes from 7.2 are carried forward; SSM remains
+experimental and off by default.
 See [release notes](NEWS.md) for the version-by-version changes.
 
 ## Standard AdaGrad replaces legacy AdaGrad
@@ -45,19 +45,24 @@ update rule and completed 100-seed follow-up and are deferring that extension.
 Historical results remain available. See [historical research and package-file
 changes](#historical-1000-seed-research) for the affected paths and archive links.
 
-## Optional experiment dashboard
+## Optional Shiny model workbench
 
-Explore the saved 100-seed benchmark or upload paired results from later runs:
+Build and train a single model, evaluate it, save/load model bundles, and predict
+on new data through a native R interface. The Experiments page retains the saved
+AdaGrad benchmark viewer.
 
 ```r
-# Install shiny once if needed: install.packages("shiny")
+# Once if needed: install.packages(c("shiny", "callr"))
 shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
 ```
 
-From a source checkout, use `shiny::runApp("inst/shiny/benchmark")` instead.
-The native R dashboard provides seed filters, metric summaries, comparison plots
-and CSV downloads. It does not start training. Shiny remains optional.
-See the [dashboard guide](inst/shiny/benchmark/README.md) for CSV format and data provenance.
+From a source checkout, use `shiny::runApp("inst/shiny/benchmark")`.
+Start with the included iris example: Prepare data, then Train new model.
+Training runs in a cancellable background R process. The first workflow supports
+binary/multiclass classification and regression with numeric predictors; advanced
+ensemble and sequence workflows remain available through the R API.
+See the [workbench guide](inst/shiny/benchmark/README.md) for supported settings,
+saved model contents and warm-start limitations. Shiny and callr remain optional.
 
 ## Optional native-R sequence encoder
 
