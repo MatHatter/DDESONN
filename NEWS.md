@@ -1,3 +1,20 @@
+# DDESONN 7.3.2
+
+## Optional experiment dashboard
+
+- Add a native R Shiny explorer for paired seed metrics, with a compact 100-seed
+  benchmark, CSV uploads, seed filters, metric summaries, plots and downloads.
+- Include the project brain artwork locally, with a clickable enlarged view.
+- Keep Shiny optional; no Python or external deep-learning backend is required.
+
+
+## Documentation
+
+- Keep detailed benchmark tables and figures in the separate research report;
+  retain a concise result summary and link in the README.
+- Add a path-by-path archive index for the ten files excluded from package builds
+  starting in 7.3.0. Files remain in Git at the verified 7.1.11 archive.
+
 # DDESONN 7.3.1
 
 ## Research documentation

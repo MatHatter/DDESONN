@@ -6,6 +6,27 @@ Research documentation for **7.3.1**. All current training used the unchanged **
 
 Across all 100 seeds, mean test accuracy is 99.968000% corrected versus 99.942667% legacy (+0.025333 percentage points). Corrected log loss is higher overall (0.02100163 versus 0.02008249), while Brier score is lower overall (0.00317881 versus 0.00358520). In the new 51–100 batch, corrected log loss is higher and Brier score is higher. The findings are mixed across metrics; the accuracy difference does not establish a uniform predictive improvement or better performance on new cases.
 
+## Classification counts
+
+Across the 100 benchmark runs, standard AdaGrad had higher accuracy in 25 seeds,
+equal accuracy in 58 and lower accuracy in 17. Aggregate classification errors
+fell from 43 to 24: **19 fewer errors**, or 0.19 fewer per run on average.
+These counts sum errors over runs on the fixed test split; they do not count
+additional distinct patients. Equal accuracy need not mean identical predictions.
+
+## Release decision and possible extension
+
+The project is satisfied with the completed 100-seed follow-up for this release
+and will continue with standard AdaGrad. The observed accuracy improvement is
+encouraging; adopting the standard recurrence also removes the verified legacy
+multilayer double-update behavior. This is a maintenance decision supported by
+arithmetic verification, not a claim that every predictive metric improved.
+
+A possible future extension would evaluate seeds 101–1,000, adding the remaining
+900 seed IDs from the historical study. It is deferred. The historical Keras
+comparison has not been rerun under the corrected implementation, so improved
+full-study results remain a possibility rather than an established finding.
+
 ## Scope and interpretation
 
 Compare archived legacy AdaGrad observations with corrected standard AdaGrad under the fixed reconstruction described in the full bundle’s PROTOCOL.md. Seeds 1–50 were reused after checksum and checkpoint validation; seeds 51–100 ran sequentially at 360 epochs each. No tuning or model/seed selection used test results. The extension was requested after inspecting the first 50 seeds, so it is not a preregistered confirmatory experiment.
