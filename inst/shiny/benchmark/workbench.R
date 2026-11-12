@@ -1,80 +1,123 @@
+# Native disclosure controls keep help available without another JavaScript package.
+wb_help <- function(topic, text) {
+  shiny::tags$details(class = "wb-inline-help",
+    shiny::tags$summary(title = text, `aria-label` = paste("Help:", topic), "i"),
+    shiny::span(class = "wb-help-copy", text))
+}
+
+wb_heading <- function(title, help, level = 3) {
+  shiny::div(class = "wb-title-row",
+    if (level == 3) shiny::h3(title) else shiny::h4(title), wb_help(title, help))
+}
+
+wb_field <- function(id, title, help, control) {
+  shiny::div(class = "wb-field",
+    shiny::div(class = "wb-control-title",
+      shiny::tags$label(id = paste0(id, "-label"), `for` = id, title), wb_help(title, help)), control)
+}
+
 wb_ui <- function() {
+  performance <- shiny::tabPanel("Performance", value = "evaluate",
+    shiny::div(class = "panel-body-custom",
+      wb_heading("Model performance", "Performance measures how well the completed model predicts known outcomes. These results use its saved data split and preprocessing, not any new selections on Features."),
+      shiny::p(class = "wb-guidance", "Finally, review results and outputs. Use validation to compare your choices, and reserve test results for your final assessment."),
+      wb_field("wb_eval_split", "Evaluation split", "Training measures fit to examples the model learned from. Validation helps you assess settings. Test is held aside for a final assessment; repeatedly choosing settings from it weakens that assessment.",
+        shiny::selectInput("wb_eval_split", NULL, c("Validation" = "validation", "Test" = "test", "Training" = "train"))),
+      shiny::tableOutput("wb_metrics"),
+      wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
+      shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
+      shiny::downloadButton("wb_predictions_download", "Download evaluated predictions"),
+      shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))
+  models <- shiny::tabPanel("Saved models & predictions", value = "models",
+    shiny::fluidRow(
+      shiny::column(6, shiny::div(class = "panel-body-custom",
+        wb_heading("Save or restore", "A model bundle contains the completed model plus the settings and preprocessing it needs to make consistent predictions later."),
+        shiny::textOutput("wb_saved_info"), shiny::downloadButton("wb_save", "Download model bundle (.rds)"),
+        shiny::p("The bundle also contains split data and labels. Store it as you would the source dataset."),
+        shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds"),
+        shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
+        wb_heading("Another fit from saved weights", "This starts another training run using the saved weights, data and settings. Optimizer accumulators and epoch schedules restart, so it is a warm start rather than an exact resume."),
+        shiny::numericInput("wb_more_epochs", "Additional epochs", 10, min = 1, max = 5000, step = 1),
+        shiny::actionButton("wb_continue", "Continue from saved weights"),
+        shiny::p("Uses the original data, preprocessing and settings. Changes on Build & Train are ignored here."))),
+      shiny::column(6, shiny::div(class = "panel-body-custom",
+        wb_heading("Predict on new rows", "Use the completed model to predict outcomes for rows it has not seen. Include the saved predictor columns; the target column is optional. Training preprocessing is reused."),
+        shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
+        shiny::downloadButton("wb_new_download", "Download new predictions"),
+        shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview")),
+        shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error"))))))
   list(
-    shiny::tabPanel("Data", value = "data",
+    shiny::tabPanel("1. Data", value = "data",
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          shiny::h3("Start with your data"),
+          wb_heading("Start with Data", "This is where you load a CSV dataset or choose the included example. Each row is an observation and each column is a variable. Choosing what to predict comes next, on Features."),
           shiny::fileInput("wb_data", "Training data (CSV, up to 10 MB)", accept = ".csv"),
           shiny::actionButton("wb_demo", "Use iris example"),
-          shiny::p("The example is ready for multiclass training. For binary classification choose data with two target classes."),
+          shiny::p(class = "wb-guidance", "Start with Data. Inspect the rows, then choose the target and predictors in Features."),
+          shiny::actionButton("wb_next_features", "Next: choose features", class = "btn-primary")),
+        shiny::mainPanel(
+          shiny::div(class = "panel-body-custom",
+            wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. The preview shows the first ten rows; the full dataset is used when you prepare it."),
+            shiny::textOutput("wb_data_source"),
+            shiny::p("Predictors must be numeric. Encode categories and handle missing values before training. A classification target can contain class labels."),
+            shiny::div(class = "scroll-table", shiny::tableOutput("wb_preview"))),
+          shiny::div(class = "error", role = "alert", shiny::textOutput("wb_data_error"))))),
+    shiny::tabPanel("2. Features", value = "features",
+      shiny::sidebarLayout(
+        shiny::sidebarPanel(
+          wb_heading("Choose what the model learns", "The target is the answer you want to predict. Predictors supply the evidence. Task type determines the kind of answer the model produces and the metrics used to assess it."),
           shiny::uiOutput("wb_columns"),
-          shiny::selectInput("wb_mode", "Task", c("Multiclass classification" = "multiclass", "Binary classification" = "binary", "Regression" = "regression")),
-          shiny::selectInput("wb_split", "Split method", c("Random (stratified for classification)" = "random", "Ordered (preserve row order)" = "ordered")),
+          wb_field("wb_mode", "Task", "Regression predicts a number, such as price. Binary classification chooses between two classes. Multiclass classification chooses among several classes. Choose a task that matches your target.",
+            shiny::selectInput("wb_mode", NULL, c("Multiclass classification" = "multiclass", "Binary classification" = "binary", "Regression" = "regression"))),
+          wb_field("wb_split", "Train / validation / test split", "Training rows teach the model. Validation rows help you assess development choices. Test rows are held aside for a final assessment. The fractions below allocate training and validation; remaining rows become test data.",
+            shiny::selectInput("wb_split", NULL, c("Random (stratified for classification)" = "random", "Ordered (preserve row order)" = "ordered"))),
           shiny::numericInput("wb_train_fraction", "Training fraction", .6, min = .1, max = .9, step = .05),
           shiny::numericInput("wb_val_fraction", "Validation fraction", .2, min = .05, max = .4, step = .05),
-          shiny::numericInput("wb_seed", "Random seed", 42, min = 0, max = 2147483646, step = 1),
+          wb_field("wb_seed", "Random seed", "A seed makes random splitting and model initialization repeatable with the same data, settings and software. Changing it can change results.",
+            shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
           shiny::checkboxInput("wb_scale", "Standardize using training means and SDs", TRUE),
           shiny::actionButton("wb_prepare", "Prepare data", class = "btn-primary")),
         shiny::mainPanel(
-          shiny::div(class = "panel-body-custom", shiny::h3("Inspect before training"),
-            shiny::p("Numeric predictors only. Encode categorical predictors and handle missing values before uploading. The target may be a class label or a numeric regression value."),
-            shiny::textOutput("wb_data_source"),
-            shiny::div(class = "scroll-table", shiny::tableOutput("wb_preview"))),
-          shiny::div(class = "panel-body-custom", shiny::h3("Prepared split"),
+          shiny::div(class = "panel-body-custom",
+            wb_heading("Prepare for training", "Prepare data validates your choices, creates the three row splits, and fits any scaling using training rows only. The same scaling is then reused for validation, test and new data."),
+            shiny::p(class = "wb-guidance", "Next, choose the target and predictors. Click Prepare data to continue to Build & Train."),
             shiny::textOutput("wb_prepared"),
-            shiny::p("Any change to data, columns, task, split or seed requires Prepare data again. Preprocessing is fitted only on training rows and reused for validation, test and new predictions. Random splits do not keep duplicate inputs or related subjects together; prepare grouped data separately when needed.")),
+            shiny::p("Target + predictors determine what the model learns from. Task determines its output and evaluation metrics. Changing any selection here requires Prepare data again.")),
+          shiny::div(class = "panel-body-custom",
+            wb_heading("About your split", "Random classification splits keep examples from each class in each split. Ordered splitting preserves row order, which can be useful for time-based data. Neither option groups duplicate inputs or related subjects automatically."),
+            shiny::p("Preprocessing is fitted only on training rows. Prepare grouped data separately when related subjects or duplicate inputs must stay together.")),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_error"))))),
-    shiny::tabPanel("Build & train", value = "train",
+    shiny::tabPanel("3. Build & Train", value = "train",
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          shiny::h3("Build a single model"),
-          shiny::textInput("wb_hidden", "Hidden-layer sizes", "16,8"),
-          shiny::p("Comma-separated units; leave blank for no hidden layer. Task-appropriate activations are selected by the API."),
-          shiny::numericInput("wb_epochs", "Epochs", 50, min = 1, max = 5000, step = 1),
-          shiny::selectInput("wb_optimizer", "Optimizer", c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd")),
-          shiny::numericInput("wb_lr", "Learning rate", .01, min = .000001, max = 1, step = .001),
+          wb_heading("Build & Train", "Configure the model and how it learns, then start a new training run on your prepared data. Architecture controls model capacity; optimizer, learning rate and epochs control how weights are updated."),
+          wb_field("wb_hidden", "Hidden-layer sizes", "Hidden layers transform the predictors before the output. Enter units separated by commas, such as 16,8 for two layers. Leave blank for no hidden layer. Larger models can take longer and may overfit.",
+            shiny::textInput("wb_hidden", NULL, "16,8")),
+          wb_field("wb_epochs", "Epochs", "An epoch is one pass through the training data. More epochs give the model more opportunities to learn, but do not guarantee better predictions on new data.",
+            shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
+          wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
+            shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
+          wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling.",
+            shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           shiny::tags$details(shiny::tags$summary("Advanced settings"),
             shiny::selectInput("wb_reg", "Regularization", c("None" = "none", "L1", "L2")),
             shiny::numericInput("wb_lambda", "Regularization strength", 0, min = 0, step = .0001)),
           shiny::actionButton("wb_start", "Train new model", class = "btn-primary"),
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training")),
         shiny::mainPanel(
-          shiny::div(class = "panel-body-custom", shiny::h3("Training progress"),
-            shiny::textOutput("wb_status"), shiny::uiOutput("wb_progress"),
-            shiny::plotOutput("wb_loss", height = "280px")),
-          shiny::div(class = "context", "Training uses the public DDESONN API in a separate R process. Final-epoch weights are retained; no early stopping or test-based selection. Self-organization, dropout and batch normalization are off for this first workflow. Cancelled or failed runs do not replace a previously completed model."),
-          shiny::div(class = "panel-body-custom", shiny::h3("Current completed model"),
+          shiny::div(class = "panel-body-custom",
+            wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. Lower training loss alone does not establish better performance on held-out data."),
+            shiny::p(class = "wb-guidance", "Then configure and train the model. When it finishes, review Model / Results."),
+            shiny::textOutput("wb_status"), shiny::uiOutput("wb_progress"), shiny::plotOutput("wb_loss", height = "280px")),
+          shiny::div(class = "context", "Final-epoch weights are retained; no early stopping or test-based selection. Self-organization, dropout and batch normalization are off for this workflow. Cancelled or failed runs retain any previous completed model."),
+          shiny::div(class = "panel-body-custom",
+            wb_heading("Current completed model", "This is the most recent successfully trained or loaded model. Changing controls affects the next new model, not this completed model or its results."),
             shiny::textOutput("wb_model_info"),
-            shiny::p("Settings above apply to the next new model. They do not alter a completed model. To start another fit from its weights, use Models.")),
+            shiny::actionButton("wb_review_results", "Next: review results")),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_train_error"))))),
-    shiny::tabPanel("Evaluate", value = "evaluate",
-      shiny::div(class = "panel-body-custom",
-        shiny::h3("Evaluate the completed model"),
-        shiny::p("These results belong to the saved model and its original split, even if you have since changed the Data page. Use validation for development; repeated test inspection can influence model selection."),
-        shiny::selectInput("wb_eval_split", "Evaluation split", c("Validation" = "validation", "Test" = "test", "Training" = "train")),
-        shiny::tableOutput("wb_metrics"),
-        shiny::h4("Confusion matrix (classification)"), shiny::tableOutput("wb_confusion"),
-        shiny::plotOutput("wb_diagnostics", height = "300px"),
-        shiny::downloadButton("wb_predictions_download", "Download evaluated predictions"),
-        shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview")))),
-    shiny::tabPanel("Models", value = "models",
-      shiny::fluidRow(
-        shiny::column(6, shiny::div(class = "panel-body-custom", shiny::h3("Save or restore"),
-          shiny::textOutput("wb_saved_info"),
-          shiny::downloadButton("wb_save", "Download model bundle (.rds)"),
-          shiny::p("Includes the model, training configuration, split data, labels and fitted preprocessing. Store it as you would the source dataset."),
-          shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds"),
-          shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
-          shiny::h3("Another fit from saved weights"),
-          shiny::numericInput("wb_more_epochs", "Additional epochs", 10, min = 1, max = 5000, step = 1),
-          shiny::actionButton("wb_continue", "Continue from saved weights"),
-          shiny::p("Uses the model's original data, preprocessing and settings. The API restarts optimizer accumulators and epoch schedules on each fit; this is a warm start, not an exact interrupted-run resume. Changes on Build & train are ignored here."))),
-        shiny::column(6, shiny::div(class = "panel-body-custom", shiny::h3("Predict on new rows"),
-          shiny::p("Provide the saved numeric predictor columns. The target is optional; saved preprocessing is reused without refitting."),
-          shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
-          shiny::downloadButton("wb_new_download", "Download new predictions"),
-          shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview")),
-          shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error"))))))
+    shiny::tabPanel("4. Model / Results", value = "results",
+      shiny::p(class = "wb-step-intro", "Finally, review performance and outputs, save the model, or use it for new predictions. Results reflect the saved choices from the earlier steps."),
+      shiny::tabsetPanel(id = "wb_results_tabs", performance, models))
   )
 }
 
@@ -100,9 +143,19 @@ wb_server <- function(input, output, session, helper) {
   }
   output$wb_columns <- shiny::renderUI({
     cols <- names(raw())
-    shiny::tagList(shiny::selectInput("wb_target", "Target", cols, selected = tail(cols, 1)),
-      shiny::selectizeInput("wb_features", "Predictors", cols, selected = head(cols, -1), multiple = TRUE))
+    shiny::tagList(
+      wb_field("wb_target", "Target", "The target is the variable you want the model to predict, such as a class label or a numeric outcome. It is kept out of the predictors.",
+        shiny::selectInput("wb_target", NULL, cols, selected = tail(cols, 1))),
+      wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. Select numeric columns available when you will make future predictions; do not include the target or information derived from the answer.",
+        shiny::selectizeInput("wb_features", NULL, cols, selected = head(cols, -1), multiple = TRUE)))
   })
+  shiny::observeEvent(input$wb_next_features,
+    shiny::updateTabsetPanel(session, "workspace", selected = "features"))
+  shiny::observeEvent(input$wb_review_results, attempt({
+    if (is.null(result())) stop("Train or load a completed model before reviewing results.")
+    shiny::updateTabsetPanel(session, "workspace", selected = "results")
+    shiny::updateTabsetPanel(session, "wb_results_tabs", selected = "evaluate")
+  }))
   shiny::observeEvent(input$wb_target, {
     shiny::updateSelectizeInput(session, "wb_features", selected = setdiff(names(raw()), input$wb_target))
   })
@@ -135,7 +188,7 @@ wb_server <- function(input, output, session, helper) {
     status("Starting training in a separate R process…")
   }
   shiny::observeEvent(input$wb_start, attempt({
-    if (is.null(prepared())) stop("Prepare data on the Data page before training.")
+    if (is.null(prepared())) stop("Choose target and predictors on Features, then click Prepare data before training.")
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr, input$wb_optimizer,
       input$wb_lambda, input$wb_reg)
     launch(prepared(), cfg)
@@ -200,6 +253,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_model_info <- shiny::renderText(model_info())
   output$wb_saved_info <- shiny::renderText(model_info())
   output$wb_error <- shiny::renderText(error())
+  output$wb_data_error <- shiny::renderText(error())
   output$wb_train_error <- shiny::renderText(error())
   output$wb_model_error <- shiny::renderText(model_error())
   output$wb_data_source <- shiny::renderText(data_source())

@@ -2,11 +2,11 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.4 — Shiny workbench follow-up
+## Version 7.3.4 — guided Shiny model workbench
 
-Version 7.3.4 follows the 7.3.3 model workbench release and clarifies its optional
-training-process dependency. The native R Shiny app supports training, evaluation,
-saved models and experiment comparisons. Version 7.3.0
+Version 7.3.4 makes the workbench easier to learn with numbered Data, Features,
+Build & Train, and Model / Results steps, contextual help and workflow guidance.
+The training workbench introduced in 7.3.3 remains native R. Version 7.3.0
 introduced standard AdaGrad; 7.3.1 documented the 100-seed follow-up using that
 unchanged implementation. The SSM fixes from 7.2 are carried forward; SSM remains
 experimental and off by default.
@@ -58,7 +58,7 @@ shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
 ```
 
 From a source checkout, use `shiny::runApp("inst/shiny/benchmark")`.
-Start with the included iris example: Prepare data, then Train new model.
+Start with the included iris example: Data, Features, Prepare data, then Train new model.
 Training runs in a cancellable background R process. The first workflow supports
 binary/multiclass classification and regression with numeric predictors; advanced
 ensemble and sequence workflows remain available through the R API.

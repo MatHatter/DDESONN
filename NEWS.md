@@ -1,12 +1,17 @@
 # DDESONN 7.3.4
 
-## Release follow-up
+## Guided Shiny workflow
 
-- Advance the package version after the existing 7.3.3 workbench changes.
-- Clarify that callr is an optional Shiny runtime dependency: it runs training in
-  a separate R process so the interface can show progress and cancel the job.
-  It does not monitor package builds. The model and optimizer implementations
-  are unchanged in this follow-up.
+- Group the core workbench into four numbered steps: Data, Features, Build & Train,
+  and Model / Results, with a shared color treatment and short next-step guidance.
+- Separate dataset loading from feature selection. Group performance, saved
+  models and predictions within Model / Results; retain Experiments separately.
+- Add compact circled-i help beside section headings and important controls,
+  including target, predictors, task, split, optimizer and model performance.
+  Hover shows a description; click or keyboard activation opens inline help.
+- Add next-step buttons and explain how earlier choices affect training and
+  evaluation. Existing model training, cancellation and persistence are retained.
+- Clarify callr's role as the optional background training process for Shiny.
 
 # DDESONN 7.3.3
 
