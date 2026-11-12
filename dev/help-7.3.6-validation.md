@@ -57,5 +57,7 @@ No localhost preview links are published.
 
 The existing release tags, including v7.3.5, are preserved. This is a separate
 7.3.6 review branch; no merge, release tag or release publication is performed.
-PR creation will be attempted after pushing; GitHub API access was previously
-Forbidden. The exact proposed title/body are in `dev/PR_7_3_6_DESCRIPTION.md`.
+The branch was pushed successfully. The public open-PR list was empty before
+creation was attempted. `gh pr create` returned Forbidden from GitHub GraphQL,
+so no PR was created. The exact proposed 7.3.6 title/body are in
+`dev/PR_7_3_6_DESCRIPTION.md`. The branch is ready for a PR against main.
