@@ -112,12 +112,12 @@ ui <- shiny::fluidPage(
     .wb-field .shiny-input-container { width:100%; }
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
     .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
-      cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:20px; height:20px;
-      font:italic bold 14px Georgia,serif; background:white; }
+      cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:16px; height:16px;
+      font:normal 12px/1 Arial,sans-serif; background:white; }
     .wb-inline-help > summary::-webkit-details-marker { display:none; }
     .wb-inline-help > summary:focus-visible { outline:3px solid #6f9daa; outline-offset:3px; }
     .wb-inline-help[open] > summary { background:#087f8c; border-color:#087f8c; color:white; }
-    .wb-help-copy { position:absolute; display:block; right:0; top:28px; width:280px; max-width:78vw;
+    .wb-help-copy { position:absolute; display:block; right:0; top:24px; width:280px; max-width:78vw;
       background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
       font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; }
     .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
