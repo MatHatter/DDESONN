@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.8 — explicit learning-rate comments
+
+Version 7.3.8 explains the learning-rate multiplier and minimum floor directly
+in the focused help and generated R recipes. A multiplier of 1 keeps 100% of
+the rate; it does not subtract 1 or reduce the rate to 1. The workbench continues
+to use a fixed learning rate.
+
 ## Version 7.3.7 — focused help and full R code
 
 Version 7.3.7 gives each help title its own short R fragment. The **Show full R

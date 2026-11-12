@@ -341,6 +341,20 @@ wb_features_code <- function(p) {
     "  y = y[i, , drop = FALSE], actual = data[[target]][i], row = i))")
 }
 
+# Shared explanation for the focused help and every newly generated fit recipe.
+wb_lr_comments <- function(lr) {
+  paste(
+    "# lr_decay_rate multiplies; it is not an amount subtracted.",
+    paste0("# 1 keeps 100%: ", wb_literal(lr), " * 1 = ", wb_literal(lr), " (no decay)."),
+    "# Before the floor: 0.5 halves the rate; 0.9 keeps 90%.",
+    "# Every lr_decay_epoch epochs the factor is applied again.",
+    "# API default interval: classification 1 epoch; regression 20.",
+    "# lr_min is the floor; setting it to lr also prevents decay.",
+    "# To decay: 0 < lr_decay_rate < 1 AND lr_min < lr.",
+    "# Formula: max(lr_min,",
+    "#   lr * lr_decay_rate^floor(epoch / lr_decay_epoch))", sep = "\n")
+}
+
 wb_fit_code <- function(p, cfg, create = TRUE) {
   best <- identical(cfg$checkpoint, "best_validation")
   start <- paste0("set.seed(", p$seed, ")\n")
@@ -349,7 +363,7 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
     if (p$mode == "multiclass") "length(classes)" else "1", ",\n",
     "  hidden_sizes = ", wb_literal(cfg$hidden), ", classification_mode = mode,\n",
     "  ML_NN = ", wb_literal(length(cfg$hidden) > 0), ", lambda = ", wb_literal(cfg$lambda), ", num_networks = 1)\n")
-  code <- paste0(start,
+  code <- paste0(start, wb_lr_comments(cfg$lr), "\n",
     "ddesonn_fit(model, parts$train$x, parts$train$y, validation = parts$validation,\n",
     "  num_epochs = ", cfg$epochs, ", optimizer = ", wb_literal(cfg$optimizer), ", lr = ", wb_literal(cfg$lr), ",\n",
     "  lr_decay_rate = 1, lr_min = ", wb_literal(cfg$lr), ", self_org = ", wb_literal(create && isTRUE(cfg$self_org)), ",\n",
@@ -487,7 +501,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "\nML_NN <- length(hidden_sizes) > 0\n# Arguments to ddesonn_model(); integer(0) means no hidden layers."),
     "Epochs" = paste0("num_epochs <- ", cfg$epochs, "L\n# ddesonn_fit(..., num_epochs = num_epochs)\n# Both checkpoint modes run this full budget; no automatic early stopping."),
     "Optimizer" = paste0("optimizer <- ", value(cfg$optimizer), "\n# Pass optimizer to ddesonn_fit(); compare choices using Validation."),
-    "Learning rate" = paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n# Fixed-rate arguments to ddesonn_fit()."),
+    "Learning rate" = paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n", wb_lr_comments(cfg$lr)),
     "Self-organize before initial training" = paste0("self_org <- ", value(isTRUE(cfg$self_org)),
       "\n# New fit: ddesonn_fit(..., self_org = self_org)\n# Additional fit from saved weights: self_org = FALSE"),
     "Weights used for results" = if (identical(cfg$checkpoint, "best_validation")) paste(

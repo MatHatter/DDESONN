@@ -1,3 +1,16 @@
+# DDESONN 7.3.8
+
+## Explain learning-rate multipliers in generated code
+
+- State directly in the Learning rate help and newly generated R recipes that
+  lr_decay_rate is a multiplier, not an amount subtracted. A value of 1 keeps
+  100% of the starting rate, so it disables decay.
+- Explain the task-specific default intervals, scheduler formula and minimum
+  floor. Actual decay requires both a multiplier below 1 and a minimum below
+  the starting rate; the workbench intentionally fixes both to prevent decay.
+- Include before-floor examples for factors 0.5 and 0.9, and clarify the same
+  semantics beside the scheduler implementation. Training behavior is unchanged.
+
 # DDESONN 7.3.7
 
 ## Focused help and a separate full-code viewer
