@@ -2,10 +2,11 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.3 — interactive Shiny model workbench
+## Version 7.3.4 — Shiny workbench follow-up
 
-Version 7.3.3 expands the optional native R Shiny app into a model workbench for
-training, evaluation, saved models and experiment comparisons. Version 7.3.0
+Version 7.3.4 follows the 7.3.3 model workbench release and clarifies its optional
+training-process dependency. The native R Shiny app supports training, evaluation,
+saved models and experiment comparisons. Version 7.3.0
 introduced standard AdaGrad; 7.3.1 documented the 100-seed follow-up using that
 unchanged implementation. The SSM fixes from 7.2 are carried forward; SSM remains
 experimental and off by default.

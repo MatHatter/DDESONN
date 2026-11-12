@@ -1,3 +1,13 @@
+# DDESONN 7.3.4
+
+## Release follow-up
+
+- Advance the package version after the existing 7.3.3 workbench changes.
+- Clarify that callr is an optional Shiny runtime dependency: it runs training in
+  a separate R process so the interface can show progress and cancel the job.
+  It does not monitor package builds. The model and optimizer implementations
+  are unchanged in this follow-up.
+
 # DDESONN 7.3.3
 
 ## Interactive model workbench

@@ -72,6 +72,18 @@ For a first run, keep the included iris data and multiclass task, click
 **Prepare data**, then **Train new model**. Evaluate the completed model, save a
 model bundle, or upload new rows for prediction on Models.
 
+### What callr does
+
+`callr` is used inside the Shiny app. When you click **Train new model** or
+**Continue from saved weights**, it starts another R process and runs the public
+DDESONN training API there. Shiny keeps handling the interface and reads the
+worker's epoch logs to show progress. Cancel stops that worker; the previous
+completed model remains available.
+
+It is not a package-build monitor or another machine-learning framework. Both
+processes run R, and training still uses DDESONN's native implementation. The
+base package does not require callr; the optional model workbench does.
+
 ### Supported training workflow
 
 - Binary and multiclass classification, and regression; finite numeric predictors.
