@@ -40,5 +40,7 @@ documentation revision. No executable scheduler or generated-program changes occ
 ## Review status
 
 The exact 7.3.8 title/body are in `dev/PR_7_3_8_DESCRIPTION.md`.
-Push and PR-creation status: pending. Existing tags are preserved; no merge,
-release tag or publication is performed.
+Branch `codex/lr-comments-7.3.8` is pushed to origin. The public open-PR page
+showed no existing PR for this branch. `gh pr create` failed with
+`Post "https://api.github.com/graphql": Forbidden`; no PR was created.
+Existing tags are preserved; no merge, release tag or publication is performed.
