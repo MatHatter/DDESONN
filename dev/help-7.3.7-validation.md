@@ -54,5 +54,8 @@ No localhost previews are published.
 ## Review status
 
 The exact 7.3.7 PR title/body are in `dev/PR_7_3_7_DESCRIPTION.md`.
-Push and PR-creation status: pending. Existing tags are preserved; no merge,
-release tag or release publication is performed.
+The branch is pushed. The public open-PR list was empty before creation was
+attempted. Both GitHub GraphQL (`gh pr create`) and REST POST creation returned
+Forbidden, so no PR was created. The branch and exact title/body are ready for
+a PR against main. Existing tags are preserved; no merge, release tag or release
+publication is performed.
