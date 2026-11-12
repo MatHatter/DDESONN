@@ -1,3 +1,18 @@
+# DDESONN 7.3.6
+
+## Centered help icons and equivalent R examples
+
+- Optically center the lowercase i inside its circle while keeping the compact
+  help controls accessible by keyboard, mouse and touch.
+- Add equivalent public-API or base R code to every workbench help popover,
+  covering data preparation, splits/scaling, training settings, checkpoint
+  restoration, evaluation, model bundles, prediction and warm starts.
+- Follow prepared settings and completed-model recipes where available; label
+  iris/default illustrations and prerequisites explicitly before preparation.
+- Add help beside split fractions, regularization and additional epochs.
+- Keep expanded code readable in wider, scrollable popovers positioned within
+  the viewport; inspection never starts training or changes model weights.
+
 # DDESONN 7.3.5
 
 ## Training feedback and action states

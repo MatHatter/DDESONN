@@ -1,8 +1,15 @@
 # Native disclosure controls keep help available without another JavaScript package.
 wb_help <- function(topic, text, api = NULL) {
   shiny::tags$details(class = "wb-inline-help",
-    shiny::tags$summary(title = text, `aria-label` = paste("Help:", topic), "i"),
-    shiny::div(class = "wb-help-copy", text, if (!is.null(api)) shiny::tags$pre(class = "wb-help-code", api)))
+    shiny::tags$summary(title = text, `aria-label` = paste("Help:", topic),
+      shiny::span(class = "wb-help-glyph", `aria-hidden` = "true", "i")),
+    shiny::div(class = "wb-help-copy", tabindex = "0", role = "region",
+      `aria-label` = paste(topic, "help and equivalent R"), text,
+      shiny::div(class = "wb-help-code-label", "Equivalent R"),
+      shiny::tags$pre(id = wb_help_key(topic), class = "shiny-text-output wb-help-code",
+        tabindex = "0", `aria-label` = paste("Equivalent R code:", topic),
+        if (is.null(api)) "# Open help to load the equivalent R example." else api),
+      shiny::p(class = "wb-help-prerequisites", "Examples name their required objects or files. For a complete runnable script, use the R recipe download.")))
 }
 
 wb_heading <- function(title, help, level = 3) {
@@ -69,7 +76,8 @@ wb_ui <- function() {
         shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds"),
         shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
         wb_heading("Another fit from saved weights", "This starts another training run using the saved weights, data and settings. Optimizer accumulators and epoch schedules restart, so it is a warm start rather than an exact resume."),
-        shiny::numericInput("wb_more_epochs", "Additional epochs", 10, min = 1, max = 5000, step = 1),
+        wb_field("wb_more_epochs", "Additional epochs", "Run another fit from saved weights. The saved settings and preprocessing are retained; optimizer schedules restart.",
+          shiny::numericInput("wb_more_epochs", NULL, 10, min = 1, max = 5000, step = 1)),
         shiny::actionButton("wb_continue", "Continue from saved weights", disabled = "disabled", `aria-disabled` = "true"),
         shiny::p("Uses the original data, preprocessing and settings, without repeating initial self-organization. Changes on Build & Train are ignored here."))),
       shiny::column(6, shiny::div(class = "panel-body-custom",
@@ -105,8 +113,10 @@ wb_ui <- function() {
             shiny::selectInput("wb_mode", NULL, c("Multiclass classification" = "multiclass", "Binary classification" = "binary", "Regression" = "regression"))),
           wb_field("wb_split", "Train / validation / test split", "Training rows teach the model. Validation rows help you assess development choices. Test rows are held aside for a final assessment. The fractions below allocate training and validation; remaining rows become test data.",
             shiny::selectInput("wb_split", NULL, c("Random (stratified for classification)" = "random", "Ordered (preserve row order)" = "ordered"))),
-          shiny::numericInput("wb_train_fraction", "Training fraction", .6, min = .1, max = .9, step = .05),
-          shiny::numericInput("wb_val_fraction", "Validation fraction", .2, min = .05, max = .4, step = .05),
+          wb_field("wb_train_fraction", "Training fraction", "Fraction of rows allocated to training. Classification random splits allocate within each class.",
+            shiny::numericInput("wb_train_fraction", NULL, .6, min = .1, max = .9, step = .05)),
+          wb_field("wb_val_fraction", "Validation fraction", "Fraction of rows held for validation; remaining rows become Test. Test is not used to select checkpoints.",
+            shiny::numericInput("wb_val_fraction", NULL, .2, min = .05, max = .4, step = .05)),
           wb_field("wb_seed", "Random seed", "A seed makes random splitting and model initialization repeatable with the same data, settings and software. Changing it can change results.",
             shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
           wb_switch("wb_scale", "Standardize using training means and SDs",
@@ -151,8 +161,10 @@ wb_ui <- function() {
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
           shiny::tags$details(shiny::tags$summary("Advanced settings"),
-            shiny::selectInput("wb_reg", "Regularization", c("None" = "none", "L1", "L2")),
-            shiny::numericInput("wb_lambda", "Regularization strength", 0, min = 0, step = .0001)),
+            wb_field("wb_reg", "Regularization", "Choose no penalty, L1 or L2. The example shows the selected reg_type and model lambda together.",
+              shiny::selectInput("wb_reg", NULL, c("None" = "none", "L1", "L2"))),
+            wb_field("wb_lambda", "Regularization strength", "Controls the penalty strength when L1 or L2 is selected; none leaves the penalty off.",
+              shiny::numericInput("wb_lambda", NULL, 0, min = 0, step = .0001))),
           shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true")),
         shiny::mainPanel(
@@ -336,6 +348,18 @@ wb_server <- function(input, output, session, helper) {
       if (is.null(r$selected_epoch)) "not recorded" else r$selected_epoch, r$config$epochs,
       if (isTRUE(r$config$self_org)) "on" else "off",
       r$fit_runs, r$package_version, r$completed)
+  })
+  # Each disclosure is an independent, lazily rendered code output. Reading help
+  # never launches a fit or mutates a completed model.
+  for (topic in wb_help_topics()) local({
+    selected_topic <- topic
+    output[[wb_help_key(selected_topic)]] <- shiny::renderText({
+      wb_help_code(selected_topic, prepared = prepared(),
+        config = tryCatch(next_config(), error = function(e) NULL),
+        completed = result(), source = code_source(),
+        evaluation_split = if (is.null(input$wb_eval_split)) "test" else input$wb_eval_split,
+        more_epochs = if (is.null(input$wb_more_epochs)) 10L else input$wb_more_epochs)
+    })
   })
   output$wb_data_code <- shiny::renderText(wb_data_code(code_source()))
   output$wb_features_code <- shiny::renderText({

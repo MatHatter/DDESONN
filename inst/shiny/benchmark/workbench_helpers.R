@@ -423,3 +423,117 @@ wb_resume_recipe <- function(p, cfg) {
     "mode <- bundle$prepared$mode", "classes <- bundle$prepared$classes",
     wb_fit_code(p, cfg, FALSE), wb_evaluation_code(p), sep = "\n\n")
 }
+
+# Code in help uses the same public-API generators as downloadable recipes.
+wb_help_topics <- function() c(
+  "Model performance", "Evaluation split", "Confusion matrix (classification)",
+  "Save or restore", "Another fit from saved weights", "Additional epochs",
+  "Predict on new rows", "Start with Data", "Inspect your dataset",
+  "Choose what the model learns", "Task", "Train / validation / test split",
+  "Training fraction", "Validation fraction", "Random seed",
+  "Standardize using training means and SDs", "Prepare for training", "About your split",
+  "Build & Train", "Hidden-layer sizes", "Epochs", "Optimizer", "Learning rate",
+  "Self-organize before initial training", "Weights used for results",
+  "Regularization", "Regularization strength", "Training progress",
+  "Current completed model", "Target", "Predictors")
+
+wb_help_key <- function(topic) paste0("wb_help_", gsub("[^a-z0-9]+", "_", tolower(topic)))
+
+wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL,
+                         source = list(example = "iris"), evaluation_split = "test",
+                         more_epochs = 10L) {
+  if (!topic %in% wb_help_topics()) stop("Unknown workbench help topic: ", topic)
+  example <- is.null(prepared)
+  p <- if (example) wb_prepare(datasets::iris, "Species", names(datasets::iris)[1:4], "multiclass") else prepared
+  cfg <- if (is.null(config)) wb_config() else config
+  context <- if (example) "# Iris illustration: Prepare data to use your chosen split and scaling." else
+    "# Uses the last prepared data, split and training-only preprocessing."
+  prerequisites <- "# Run the Data and Features code panels first, or download the complete R recipe."
+  data_code <- paste(wb_data_code(source), "stopifnot(is.data.frame(data), !anyDuplicated(names(data)))",
+    "str(data)", "head(data, 10)", "names(data)", "summary(data)",
+    "colSums(is.na(data))", "vapply(data, is.numeric, logical(1))", sep = "\n")
+  features_code <- paste(context,
+    if (example) "library(DDESONN)\ndata <- datasets::iris" else "# Run the Data code panel first with your original dataset.",
+    wb_features_code(p), "vapply(parts, function(part) nrow(part$x), integer(1))", sep = "\n")
+  fit_code <- paste(context, prerequisites,
+    if (is.null(config)) "# Default fit settings shown; correct invalid controls to see their equivalent code.",
+    wb_fit_code(p, cfg), sep = "\n")
+  bundle <- paste("library(DDESONN)", "# Requires the trusted model bundle downloaded from this workbench.",
+    "bundle <- readRDS('ddesonn-workbench-model.rds')", "model <- bundle$model",
+    "parts <- bundle$prepared$parts", "mode <- bundle$prepared$mode",
+    "classes <- bundle$prepared$classes", sep = "\n")
+  if (topic %in% c("Start with Data", "Inspect your dataset")) return(data_code)
+  if (topic %in% c("Choose what the model learns", "Task", "Train / validation / test split",
+      "Training fraction", "Validation fraction", "Random seed", "Standardize using training means and SDs",
+      "Prepare for training", "About your split", "Target", "Predictors")) {
+    note <- switch(topic,
+      "Target" = "# target identifies the outcome; it is never included in features.",
+      "Predictors" = "# features controls the numeric predictor columns and their order.",
+      "Task" = "# mode determines numeric, binary (0/1), or one-hot target encoding below.",
+      "Random seed" = "# set.seed() fixes random split membership; the fit recipe resets the same seed for initialization.",
+      "Standardize using training means and SDs" = "# Fit center/scale on training rows only; reuse them on every other split and new data.",
+      "Training fraction" = "# The first split boundary uses the chosen training fraction within each group.",
+      "Validation fraction" = "# The second allocation uses the chosen validation fraction; remaining rows are Test.",
+      "# Random classification splits are stratified; ordered splits keep source row order.")
+    return(paste(note, features_code, sep = "\n"))
+  }
+  if (topic %in% c("Build & Train", "Hidden-layer sizes", "Epochs", "Optimizer", "Learning rate",
+      "Self-organize before initial training", "Weights used for results", "Regularization", "Regularization strength")) {
+    note <- switch(topic,
+      "Hidden-layer sizes" = "# hidden_sizes sets layer widths; integer(0) uses a single-layer model (ML_NN = FALSE).",
+      "Epochs" = "# num_epochs is the full fit budget in either checkpoint mode; no automatic early stopping.",
+      "Optimizer" = "# optimizer selects the update rule; compare choices with Validation, not Test.",
+      "Learning rate" = "# lr, lr_min and lr_decay_rate below keep this workbench fit's learning rate fixed.",
+      "Self-organize before initial training" = "# self_org applies only to a new model. Warm-start code always passes self_org = FALSE.",
+      "Weights used for results" = "# Best validation selection restores BOTH weights and biases; final mode leaves the last tensors active.",
+      "Regularization" = "# reg_type selects NULL (none), L1 or L2; lambda is passed when creating the model.",
+      "Regularization strength" = "# lambda controls the penalty strength; reg_type chooses the type (none ignores the strength).",
+      "# Construct a new model, run one public API fit, and restore the chosen checkpoint.")
+    return(paste(note, fit_code, sep = "\n"))
+  }
+  if (topic %in% c("Model performance", "Evaluation split", "Confusion matrix (classification)")) {
+    selected <- if (is.null(completed)) p else completed$prepared
+    note <- if (is.null(completed)) paste(context, "# Run the Data, Features and Build & Train snippets before evaluation.", sep = "\n") else bundle
+    return(paste(note, "# Test is the default evaluation split; it never selects weights.",
+      wb_evaluation_code(selected, evaluation_split), sep = "\n"))
+  }
+  if (topic == "Save or restore") return(paste(bundle,
+    "# Save the WHOLE bundle to retain preprocessing, split data, settings and recipe.",
+    "saveRDS(bundle, 'my-workbench-model.rds')", "bundle$package_version",
+    "bundle$config", "bundle$selected_epoch", "cat(bundle$recipe)", sep = "\n"))
+  if (topic == "Predict on new rows") return(paste(wb_bundle_code(),
+    "scores <- as.matrix(probabilities)",
+    "if (settings$mode == 'regression') {",
+    "  predictions <- data.frame(prediction = scores[, 1])",
+    "} else {",
+    "  chosen <- if (settings$mode == 'binary') ifelse(scores[, 1] >= 0.5, 2L, 1L) else",
+    "    max.col(scores, ties.method = 'first')",
+    "  predictions <- data.frame(predicted = settings$classes[chosen])",
+    "}", "write.csv(predictions, 'new-predictions.csv', row.names = FALSE)", sep = "\n"))
+  if (topic %in% c("Another fit from saved weights", "Additional epochs")) {
+    selected <- if (is.null(completed)) p else completed$prepared
+    next_cfg <- if (is.null(completed)) cfg else completed$config
+    epochs <- tryCatch(wb_config(epochs = more_epochs)$epochs, error = function(e) NULL)
+    if (is.null(epochs)) return("# Choose 1–5,000 additional epochs to generate a warm-start example.")
+    next_cfg$epochs <- epochs
+    if (is.null(next_cfg$checkpoint)) next_cfg$checkpoint <- "final"
+    return(paste("# Warm start: keep the saved data/settings and selected weights; reset optimizer schedules.",
+      "# Initial self-organization is NOT repeated.", wb_resume_recipe(selected, next_cfg), sep = "\n"))
+  }
+  if (topic == "Current completed model") return(if (!is.null(completed$recipe))
+    paste("# Completed model's saved recipe (unaffected by later control changes).", completed$recipe, sep = "\n") else
+      paste("# No saved replay recipe yet; train a model or load a recent bundle.", bundle,
+        "# Download a complete next-model recipe to train from your original CSV.", sep = "\n"))
+  if (topic == "Training progress") return(paste(
+    "# Run the downloaded recipe in an isolated optional callr worker:",
+    "job <- callr::r_bg(function(recipe) source(recipe),",
+    "  args = list(recipe = normalizePath('ddesonn-next-model.R')),",
+    "  libpath = .libPaths(), stdout = 'training.log', stderr = 'training-errors.log')",
+    "job$is_alive()", "if (!job$is_alive()) job$get_result()",
+    "# Optional cancellation while running: job$kill_tree()",
+    "# After completion, inspect the saved workbench bundle's actual epoch history:",
+    "bundle <- readRDS('ddesonn-workbench-model.rds')", "history <- bundle$history",
+    "plot(history$epoch, history$loss, type = 'b', xlab = 'Epoch', ylab = 'Training loss')",
+    "abline(v = bundle$selected_epoch, lty = 2)",
+    "# Inspection only: plotting never selects or restores weights.", sep = "\n"))
+}
