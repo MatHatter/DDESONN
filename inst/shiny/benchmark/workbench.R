@@ -10,14 +10,21 @@ wb_heading <- function(title, help, level = 3) {
     if (level == 3) shiny::h3(title) else shiny::h4(title), wb_help(title, help))
 }
 
-wb_field <- function(id, title, help, control) {
+wb_field <- function(id, title, help, control, api = NULL) {
   shiny::div(class = "wb-field",
     shiny::div(class = "wb-control-title",
-      shiny::tags$label(id = paste0(id, "-label"), `for` = id, title), wb_help(title, help)), control)
+      shiny::tags$label(id = paste0(id, "-label"), `for` = id, title), wb_help(title, help, api)), control)
 }
 
-wb_checkbox <- function(id, title, help, value = FALSE, api = NULL) {
-  shiny::div(class = "wb-checkbox-row", shiny::checkboxInput(id, title, value), wb_help(title, help, api))
+wb_switch <- function(id, title, help, value = FALSE, api = NULL) {
+  shiny::div(class = "wb-switch-row shiny-input-container",
+    shiny::tags$label(id = paste0(id, "-label"), `for` = id, title),
+    shiny::div(class = "wb-switch-actions",
+      shiny::tags$label(class = "wb-switch",
+        shiny::tags$input(id = id, type = "checkbox", role = "switch",
+          `aria-labelledby` = paste0(id, "-label"), checked = if (value) "checked" else NULL),
+        shiny::span(class = "wb-switch-track", `aria-hidden` = "true")),
+      wb_help(title, help, api)))
 }
 
 wb_code_panel <- function(output_id, title = "Equivalent R code") {
@@ -90,7 +97,7 @@ wb_ui <- function() {
           shiny::numericInput("wb_val_fraction", "Validation fraction", .2, min = .05, max = .4, step = .05),
           wb_field("wb_seed", "Random seed", "A seed makes random splitting and model initialization repeatable with the same data, settings and software. Changing it can change results.",
             shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
-          wb_checkbox("wb_scale", "Standardize using training means and SDs",
+          wb_switch("wb_scale", "Standardize using training means and SDs",
             "Subtracts each predictor's training average and divides by its training standard deviation (SD, a measure of spread). This puts inputs on comparable scales. Validation, test and new rows reuse those same training values; the target is unchanged.", TRUE,
             api = paste("center <- colMeans(x_train)", "spread <- apply(x_train, 2, sd)",
               "spread[!is.finite(spread) | spread == 0] <- 1",
@@ -119,11 +126,13 @@ wb_ui <- function() {
             shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
           wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
-          wb_checkbox("wb_self_org", "Self-organize before initial training",
+          wb_switch("wb_self_org", "Self-organize before initial training",
             "Runs DDESONN's input-space self-organization phase before supervised training. It organizes neighborhood structure, rather than directly minimizing prediction loss. This optional phase is off by default and runs only for a new model. Warm starts preserve the organized weights without repeating it. It can destabilize training; a smaller learning rate may help.",
             api = "ddesonn_fit(model, x_train, y_train, self_org = TRUE)"),
-          wb_checkbox("wb_best_validation", "Use best validation weights",
-            "On selects the best validation checkpoint within this fit: highest validation accuracy for classification, or lowest validation loss for regression. Off keeps the final epoch. Both run all requested epochs; this is not early stopping. Test results never select the checkpoint.", TRUE,
+          wb_field("wb_checkpoint", "Weights used for results",
+            "Best validation checkpoint uses the highest validation accuracy for classification or lowest validation loss for regression within this fit. Final epoch uses the last weights after the loop finishes. Both run all requested epochs; this is not early stopping. Test never selects a checkpoint. The equivalent code below follows your choice.",
+            shiny::selectInput("wb_checkpoint", NULL,
+              c("Best validation checkpoint" = "best_validation", "Final epoch (last weights)" = "final")),
             api = paste("ddesonn_fit(model, x, y, validation = list(x = x_val, y = y_val),",
               "  validation_metrics = TRUE, best_weights_on_latest_weights_off = TRUE)",
               "# Restore BOTH tensors before prediction:",
@@ -139,7 +148,7 @@ wb_ui <- function() {
             wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. The selected epoch is marked after a completed fit; selection uses validation, not this training curve. Lower training loss alone does not establish better performance on held-out data."),
             shiny::p(class = "wb-guidance", "Then configure and train the model. When it finishes, review Model / Results."),
             shiny::textOutput("wb_status"), shiny::uiOutput("wb_progress"), shiny::plotOutput("wb_loss", height = "280px")),
-          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the checkbox. Automatic early stopping is not implemented. Self-organization is optional; dropout and batch normalization are off in this workbench. Cancelled or failed runs retain any previous completed model."),
+          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; dropout and batch normalization are off in this workbench. Cancelled or failed runs retain any previous completed model."),
           shiny::div(class = "panel-body-custom",
             wb_heading("Current completed model", "This is the most recent successfully trained or loaded model. Changing controls affects the next new model, not this completed model or its results."),
             shiny::textOutput("wb_model_info"),
@@ -194,7 +203,7 @@ wb_server <- function(input, output, session, helper) {
   })
   next_config <- shiny::reactive(wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
     input$wb_optimizer, input$wb_lambda, input$wb_reg, self_org = isTRUE(input$wb_self_org),
-    checkpoint = if (isTRUE(input$wb_best_validation)) "best_validation" else "final"))
+    checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint))
   shiny::observeEvent(input$wb_target, {
     shiny::updateSelectizeInput(session, "wb_features", selected = setdiff(names(raw()), input$wb_target))
   })

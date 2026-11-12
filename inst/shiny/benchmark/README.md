@@ -116,10 +116,10 @@ base package does not require callr; the optional model workbench does.
   stopping and ensemble orchestration are not exposed in this interface.
 - One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
   plot and progress use actual epoch log records; log delivery can lag training.
-  The default **Use best validation weights** checkbox selects the highest
+  The **Weights used for results** dropdown defaults to **Best validation checkpoint**, selecting the highest
   validation accuracy for classification or lowest validation loss for regression
   within that fit. Both weights and biases are restored before prediction and
-  evaluation. Uncheck it to use the final epoch. Both modes run all requested
+  evaluation. Choose **Final epoch (last weights)** to use the last weights after the loop. Both modes run all requested
   epochs; automatic early stopping is not implemented. Test never selects a
   checkpoint. The selected epoch is recorded and marked on the loss chart.
 - Cancel terminates the worker and discards its incomplete result. A previous
@@ -183,3 +183,8 @@ strictly best validation accuracy; regression uses validation loss. Warm starts
 retain the saved selection mode and select within the additional fit, rather
 than comparing every checkpoint from every previous fit. Older bundles missing
 the new setting keep their original final-epoch behavior.
+
+Binary options use right-aligned on/off switches. Standardization starts on;
+initial self-organization starts off. The switches support mouse, touch and the
+Space key, and their text labels and circled-i help remain available. Weight
+selection is a dropdown because both alternatives need an explicit name.

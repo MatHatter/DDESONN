@@ -1,5 +1,13 @@
 # DDESONN 7.3.4
 
+## Explicit weight choice and switches
+
+- Replace the checkpoint checkbox with a dropdown naming both choices: best
+  validation checkpoint or final epoch (the last weights after the loop).
+- Use right-aligned, keyboard-accessible switches for binary options such as
+  standardization and initial self-organization, retaining their help icons.
+
+
 ## Checkpoint selection and equivalent R code
 
 - Default new workbench fits to best-validation checkpoint selection, with a
@@ -17,7 +25,7 @@
 ## Workbench controls and layout
 
 - Use smaller help circles with a plain lowercase i and explain training-only
-  standardization beside its checkbox.
+  standardization beside its switch.
 - Align the first content panels with their sidebar controls across the pages.
 - Add an off-by-default initial self-organization control on Build & Train,
   forwarded to the existing API for new models. Save its setting; warm starts

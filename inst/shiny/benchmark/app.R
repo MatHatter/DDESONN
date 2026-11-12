@@ -110,8 +110,17 @@ ui <- shiny::fluidPage(
     .wb-control-title { margin-bottom:5px; }
     .wb-control-title label { margin:0; }
     .wb-field .shiny-input-container { width:100%; }
-    .wb-checkbox-row { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:15px; }
-    .wb-checkbox-row .shiny-input-container { flex:1; min-width:0; width:auto; margin-bottom:0; }
+    .wb-switch-row { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; width:100%; }
+    .wb-switch-row > label { flex:1; min-width:0; margin:0; font-weight:normal; }
+    .wb-switch-actions { display:flex; align-items:center; gap:12px; flex-shrink:0; }
+    .wb-switch { display:inline-block; position:relative; width:34px; height:20px; margin:0; }
+    .wb-switch input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; z-index:1; cursor:pointer; }
+    .wb-switch-track { display:block; width:34px; height:20px; border-radius:12px; background:#83909b; transition:background .15s; }
+    .wb-switch-track::after { content:''; position:absolute; width:14px; height:14px; left:3px; top:3px; border-radius:50%; background:white; transition:transform .15s; }
+    .wb-switch input:checked + .wb-switch-track { background:#087f8c; }
+    .wb-switch input:checked + .wb-switch-track::after { transform:translateX(14px); }
+    .wb-switch input:focus-visible + .wb-switch-track { outline:3px solid #6f9daa; outline-offset:3px; }
+    @media(prefers-reduced-motion:reduce) { .wb-switch-track, .wb-switch-track::after { transition:none; } }
     .tab-pane > .row > [class*='col-'] > .panel-body-custom:first-child { margin-top:0; }
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
     .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
