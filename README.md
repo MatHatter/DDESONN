@@ -2,14 +2,19 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.4 — guided Shiny model workbench
+## Version 7.3.5 — Shiny training feedback and checkpoint controls
 
-Version 7.3.4 makes the workbench easier to learn with numbered Data, Features,
-Build & Train, and Model / Results steps, contextual help and workflow guidance.
-The training workbench introduced in 7.3.3 remains native R. Version 7.3.0
-introduced standard AdaGrad; 7.3.1 documented the 100-seed follow-up using that
-unchanged implementation. The SSM fixes from 7.2 are carried forward; SSM remains
-experimental and off by default.
+Version 7.3.5 refines the guided workbench released in 7.3.4 with state-aware
+buttons, explicit best-validation or final-epoch checkpoint selection, checkpoint
+summaries, actionable training errors, loss inspection and reproducible R recipes.
+Both checkpoint modes run all requested epochs. Initial self-organization is
+optional for new models and is not repeated during warm starts.
+
+Version 7.3.4 introduced the numbered Data, Features, Build & Train, and Model /
+Results workflow and contextual help. The training workbench introduced in 7.3.3
+remains native R. Version 7.3.0 introduced standard AdaGrad; 7.3.1 documented the
+100-seed follow-up using that unchanged implementation. The SSM fixes from 7.2
+are carried forward; SSM remains experimental and off by default.
 See [release notes](NEWS.md) for the version-by-version changes.
 
 ## Standard AdaGrad replaces legacy AdaGrad

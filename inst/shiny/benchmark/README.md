@@ -2,7 +2,9 @@
 
 An optional native R interface for training, evaluation, saved models and
 experiment comparisons. The benchmark viewer was introduced in 7.3.2; model
-training pages were added in 7.3.3.
+training pages were added in 7.3.3. The guided workflow was released in 7.3.4;
+checkpoint selection, recipes, state-aware actions and improved training feedback
+are the 7.3.5 follow-up.
 
 From an installed package:
 
@@ -110,16 +112,24 @@ base package does not require callr; the optional model workbench does.
   prepared split; random row splitting does not establish subject independence.
 - A single model, zero to five hidden layers, task-appropriate default activations,
   AdaGrad/Adam/RMSprop/SGD, fixed learning rate, optional L1/L2 regularization.
-  No self-organization, dropout, batch normalization, sequence encoder, early
-  stopping or ensemble orchestration in this first interface.
+  Optional initial self-organization runs before a new model's supervised training and is off by
+  default. Self-organization can destabilize training; smaller learning rates
+  may help. Dropout, batch normalization, sequence encoding, automatic early
+  stopping and ensemble orchestration are not exposed in this interface.
 - One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
   plot and progress use actual epoch log records; log delivery can lag training.
-  Final-epoch weights are evaluated. Test results never select checkpoints.
+  The **Weights used for results** dropdown defaults to **Best validation checkpoint**, selecting the highest
+  validation accuracy for classification or lowest validation loss for regression
+  within that fit. Both weights and biases are restored before prediction and
+  evaluation. Choose **Final epoch (last weights)** to use the last weights after the loop. Both modes run all requested
+  epochs; automatic early stopping is not implemented. Test never selects a
+  checkpoint. The selected epoch is recorded and marked on the loss chart.
 - Cancel terminates the worker and discards its incomplete result. A previous
   completed model remains intact. Disconnecting the session stops its active
   worker and removes temporary job files. Session models are not shared.
 - Evaluation includes accuracy/log loss/Brier and a confusion matrix for
-  classification, or RMSE/MAE/R squared for regression. Multiclass Brier is the
+  classification, or RMSE/MAE/R squared for regression. Test is the initial
+  performance view; validation and training remain available in the selector. Multiclass Brier is the
   mean sum of squared class-probability errors; binary Brier uses the positive
   class. R squared is unavailable for a constant target.
 
@@ -130,7 +140,8 @@ data, labels, configuration and evaluation. It can contain private source data.
 Only trusted workbench bundles are supported for loading.
 
 **Continue from saved weights** starts another API fit on the model's original
-prepared data with its original settings and the requested extra epochs. The
+prepared data with its original settings and the requested extra epochs. Initial
+self-organization is not repeated; the warm start keeps the learned weights. The
 API creates new optimizer accumulators and restarts epoch schedules on each fit;
 this is a warm start, not exact continuation of an interrupted optimizer state.
 To change architecture, optimizer or data, train a new model.
@@ -148,3 +159,71 @@ The UI calls `ddesonn_model()`, `ddesonn_fit()` and `ddesonn_predict()` directly
 runs; it is not equivalent to one API call. More advanced workflows remain
 available through the R API and scripts rather than being silently approximated
 in the interface. No optimizer implementation was changed for this workbench.
+
+## Learn the equivalent R API
+
+Expandable **Equivalent R code** panels accompany dataset loading, prepared
+features/splits/scaling, the next new model, displayed evaluation and saved-model
+prediction. Help for checkpoint selection, scaling and self-organization includes
+API or base R examples. Code is selectable; the training/model panels also offer
+full `.R` recipe downloads. No private workbench helpers are needed to run them.
+
+**Next-model** code follows the current controls and prepared split. **Completed-
+model** code stays attached to the model's saved configuration, even when you
+change controls later. Use the same package version and original CSV in the same
+row order; the example recipe uses `datasets::iris`. Recipes replay preprocessing,
+training, checkpoint restoration and Test evaluation. Additional fits append to
+the previous recipe; an older bundle without a recipe instead requires the
+previous saved bundle as an explicit input. No prior weights are fabricated.
+
+For best validation selection, the generated code enables `validation_metrics`
+and `best_weights_on_latest_weights_off` in `ddesonn_fit()`, then explicitly
+assigns the member's `best_weights` and `best_biases` back to its active weights
+and biases before `ddesonn_predict()`. The reporting flag alone is not treated as
+proof that later inference uses those tensors. Classification uses the first
+strictly best validation accuracy; regression uses validation loss. Warm starts
+retain the saved selection mode and select within the additional fit, rather
+than comparing every checkpoint from every previous fit. Older bundles missing
+the new setting keep their original final-epoch behavior.
+
+Binary options use right-aligned on/off switches. Standardization starts on;
+initial self-organization starts off. The switches support mouse, touch and the
+Space key, and their text labels and circled-i help remain available. Weight
+selection is a dropdown because both alternatives need an explicit name.
+
+
+## Training feedback and available actions
+
+Train becomes available after data preparation and is disabled while a job is
+running. Cancel is available only during a job. Save and evaluated-prediction
+downloads require a completed model; prediction downloads require successfully
+scored new rows. An existing completed model remains available to evaluate, save
+and predict with while the next model trains. Warm starts, model loading and
+training-data replacement wait until the active job finishes or is cancelled.
+Changing Features invalidates preparation, without discarding the completed model.
+
+The checkpoint summary reports the selected epoch **within the latest fit**, its
+requested epoch count, selection mode, validation criterion and score. For example,
+`Epoch 12 of 50 · best validation accuracy: 92% · Best validation checkpoint`.
+Regression reports validation loss as mean squared error (MSE). Final-epoch mode
+reports the validation score of the final weights, without suggesting it was the
+best score. All requested epochs run in either mode. Test is never used to select
+weights. Older bundles without a recorded epoch say so rather than inventing one.
+
+Hover near a training-loss point to inspect its epoch and logged loss. On touch
+screens or with a keyboard, expand **Training loss values (epoch and loss)** to
+read the same observations as a table. Neither inspection method selects weights
+or changes predictions. The checkpoint dropdown affects the next fit only.
+
+Training errors offer next steps, such as checking settings, lowering the learning
+rate, preparing standardized data again or disabling initial self-organization.
+Expand **Technical details** for the underlying error and worker diagnostics.
+Failed and cancelled runs preserve the previous completed model and its recipe;
+a later successful fit replaces it. Each browser session keeps its own model,
+job, predictions and action states.
+
+Known core limitation: a fit with only one predictor can fail in the model's
+internal `colMeans()` preprocessing because a matrix dimension is dropped. Use
+two or more numeric predictors as a workaround. The workbench preserves the
+previous completed model and reports a shape-specific error; this UI change does
+not alter the core preprocessing implementation.

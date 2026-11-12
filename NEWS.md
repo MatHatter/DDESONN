@@ -1,3 +1,51 @@
+# DDESONN 7.3.5
+
+## Training feedback and action states
+
+- Enable Train only for prepared data while idle, Cancel only for an active job,
+  and model downloads only for completed results. Gate warm starts, uploads and
+  prediction downloads according to the current session state.
+- Show checkpoint mode, selected epoch, validation criterion and score in
+  Training and Model / Results. Final-epoch summaries describe the final tensors;
+  best-validation summaries describe the restored checkpoint.
+- Present actionable training errors with expandable technical details. Keep the
+  previous completed model after failed or cancelled jobs.
+- Inspect epoch and training loss by hovering near chart points or expanding a
+  keyboard-accessible values table. Inspection never selects or restores weights.
+
+## Explicit weight choice and switches
+
+- Replace the checkpoint checkbox with a dropdown naming both choices: best
+  validation checkpoint or final epoch (the last weights after the loop).
+- Use right-aligned, keyboard-accessible switches for binary options such as
+  standardization and initial self-organization, retaining their help icons.
+
+
+## Checkpoint selection and equivalent R code
+
+- Default new workbench fits to best-validation checkpoint selection, with a
+  final-epoch alternative. Restore both weights and biases before evaluation,
+  record the selected epoch and mark it on the loss chart. Both modes train for
+  all requested epochs; selection is not early stopping and never uses Test.
+- Add API examples under help icons, expandable equivalent-code panels across
+  the workflow, and downloadable next-fit and completed-model R recipes. Keep
+  completed recipes tied to saved settings rather than later UI changes.
+- Retain final-epoch behavior for older model bundles without a checkpoint field.
+- Restrict the legacy binary-only report tuning block to binary tasks so enabling
+  validation reporting also works for multiclass and regression models.
+
+
+## Workbench controls and layout
+
+- Use smaller help circles with a plain lowercase i and explain training-only
+  standardization beside its switch.
+- Align the first content panels with their sidebar controls across the pages.
+- Add an off-by-default initial self-organization control on Build & Train,
+  forwarded to the existing API for new models. Save its setting; warm starts
+  preserve the organized weights without repeating the phase.
+- Show Test first in model performance while retaining validation and training
+  views. Explain checkpoint selection separately from automatic early stopping.
+
 # DDESONN 7.3.4
 
 ## Guided Shiny workflow
