@@ -289,3 +289,21 @@ To enable decay through the R API, choose both a positive factor below 1 and a m
 below the starting rate. Existing saved recipes remain historical snapshots;
 newly generated recipes include the explanation. No scheduler values or behavior
 change in this release.
+
+### Readable examples (7.3.9)
+
+Help fragments stay specific to their titles. Blank lines separate logical blocks,
+and full scripts label data preparation, model fitting, checkpoint selection and
+evaluation. Display and download use the same generated code.
+
+**R example: load a saved model and predict new rows** uses the `.rds` file from
+**Save model**. That bundle contains the trained model and preprocessing settings.
+Replace the bundle and CSV paths; the CSV needs the original predictor columns,
+not target labels. Reuse the saved feature order, means and SDs. No training runs:
+classification produces class probabilities and regression produces numeric
+predictions. Saving another bundle or exporting only the API model is optional;
+the latter omits preprocessing. Historical completed recipes are preserved.
+
+The intention comes from the original standalone script, written before the
+package API existed: reload a saved model with its original settings and use it
+again. The example here expresses that workflow through the current API.

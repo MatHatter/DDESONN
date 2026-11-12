@@ -295,8 +295,8 @@ wb_stop <- function(job) {
 wb_literal <- function(value) paste(capture.output(dput(value)), collapse = "\n")
 
 wb_data_code <- function(source = NULL) {
-  if (identical(source$example, "iris")) "library(DDESONN)\ndata <- datasets::iris" else
-    paste0("library(DDESONN)\ndata <- read.csv(",
+  if (identical(source$example, "iris")) "library(DDESONN)\n\n# Read the training data.\ndata <- datasets::iris" else
+    paste0("library(DDESONN)\n\n# Read the training data.\ndata <- read.csv(",
       wb_literal(if (is.null(source$file)) "training-data.csv" else source$file),
       ", check.names = FALSE)\n# Use the original CSV with the same rows and row order.")
 }
@@ -336,7 +336,9 @@ wb_features_code <- function(p) {
     multiclass = paste0("classes <- sort(unique(as.character(data[[target]][split_rows$train])))\n",
       "y <- matrix(0, nrow = nrow(data), ncol = length(classes))\n",
       "y[cbind(seq_len(nrow(data)), match(as.character(data[[target]]), classes))] <- 1\n"))
-  paste0(header, split_code, scale_code, labels,
+  paste0("# Choose predictors, target and task.\n", header, "\n# Split rows before learning preprocessing.\n", split_code,
+    "\n# Scale using training rows only.\n", scale_code, "\n# Encode the target.\n", labels,
+    "\n# Assemble the three data partitions.\n",
     "parts <- lapply(split_rows, function(i) list(x = x[i, , drop = FALSE],\n",
     "  y = y[i, , drop = FALSE], actual = data[[target]][i], row = i))")
 }
@@ -348,22 +350,22 @@ wb_lr_comments <- function(lr) {
     paste0("# 1 keeps 100%: ", wb_literal(lr), " * 1 = ", wb_literal(lr), " (no decay)."),
     "# Before the floor: 0.5 halves the rate; 0.9 keeps 90%.",
     "# Every lr_decay_epoch epochs the factor is applied again.",
-    "# API default interval: classification 1 epoch; regression 20.",
+    "# API default interval: classification 1 epoch; regression 20.", "",
     "# lr_min is the floor; setting it to lr also prevents decay.",
-    "# To decay: 0 < lr_decay_rate < 1 AND lr_min < lr.",
+    "# To decay: 0 < lr_decay_rate < 1 AND lr_min < lr.", "",
     "# Formula: max(lr_min,",
     "#   lr * lr_decay_rate^floor(epoch / lr_decay_epoch))", sep = "\n")
 }
 
 wb_fit_code <- function(p, cfg, create = TRUE) {
   best <- identical(cfg$checkpoint, "best_validation")
-  start <- paste0("set.seed(", p$seed, ")\n")
+  start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
-    "model <- ddesonn_model(input_size = length(features), output_size = ",
+    "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = length(features), output_size = ",
     if (p$mode == "multiclass") "length(classes)" else "1", ",\n",
     "  hidden_sizes = ", wb_literal(cfg$hidden), ", classification_mode = mode,\n",
     "  ML_NN = ", wb_literal(length(cfg$hidden) > 0), ", lambda = ", wb_literal(cfg$lambda), ", num_networks = 1)\n")
-  code <- paste0(start, wb_lr_comments(cfg$lr), "\n",
+  code <- paste0(start, "\n# Train with a fixed learning rate.\n", wb_lr_comments(cfg$lr), "\n\n",
     "ddesonn_fit(model, parts$train$x, parts$train$y, validation = parts$validation,\n",
     "  num_epochs = ", cfg$epochs, ", optimizer = ", wb_literal(cfg$optimizer), ", lr = ", wb_literal(cfg$lr), ",\n",
     "  lr_decay_rate = 1, lr_min = ", wb_literal(cfg$lr), ", self_org = ", wb_literal(create && isTRUE(cfg$self_org)), ",\n",
@@ -372,19 +374,19 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
     "  validation_metrics = ", wb_literal(best), ", best_weights_on_latest_weights_off = ", wb_literal(best), ",\n",
     "  viewTables = FALSE, verboseLow = TRUE)\n")
   if (best) paste0(code,
-    "# Explicitly restore both checkpoint tensors before inference.\n",
+    "\n# Explicitly restore both checkpoint tensors before inference.\n",
     "network <- model$ensemble[[1]]\n",
     "selected_epoch <- model$last_training$predicted_outputAndTime$",
     if (p$mode == "regression") "best_val_epoch_loss" else "best_val_epoch", "\n",
     "stopifnot(length(selected_epoch) == 1, is.finite(selected_epoch),\n",
     "  !is.null(network$best_weights), !is.null(network$best_biases))\n",
     "network$weights <- network$best_weights\nnetwork$biases <- network$best_biases\n") else
-    paste0(code, "selected_epoch <- ", cfg$epochs, "L # final epoch\n")
+    paste0(code, "\n# Keep the weights from the final requested epoch.\nselected_epoch <- ", cfg$epochs, "L # final epoch\n")
 }
 
 wb_evaluation_code <- function(p, split = "test") {
   stopifnot(split %in% c("train", "validation", "test"))
-  start <- paste0("part <- parts[[", wb_literal(split), "]]\n",
+  start <- paste0("# Predict the selected evaluation rows with the trained model.\npart <- parts[[", wb_literal(split), "]]\n",
     "probabilities <- as.matrix(ddesonn_predict(model, part$x)$prediction)\n")
   code <- switch(p$mode,
     regression = paste0("actual <- as.numeric(part$y)\nprediction <- probabilities[, 1]\n",
@@ -407,7 +409,8 @@ wb_evaluation_code <- function(p, split = "test") {
       "  Brier_score = mean(rowSums((probabilities - part$y)^2)))\n",
       "confusion <- table(Actual = factor(classes[actual], levels = classes),\n",
       "  Predicted = factor(classes[prediction], levels = classes))"))
-  paste(start, code, "print(metrics)", sep = "\n")
+  paste(start, paste("# Compare predictions with known outcomes.", code, sep = "\n"),
+    "# Display the evaluation scores.\nprint(metrics)", sep = "\n\n")
 }
 
 wb_recipe <- function(p, cfg) {
@@ -417,16 +420,15 @@ wb_recipe <- function(p, cfg) {
 }
 
 wb_bundle_code <- function() {
-  paste0("library(DDESONN)\n# Use the bundle downloaded from this workbench.\n",
-    "bundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model\n",
-    "new_data <- read.csv('new-data.csv', check.names = FALSE)\n",
-    "settings <- bundle$prepared\nx_new <- as.matrix(new_data[settings$features])\n",
-    "x_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')\n",
-    "probabilities <- ddesonn_predict(model, x_new)$prediction\n",
-    "# Preserve the workbench bundle (model + preprocessing + split + settings):\n",
-    "saveRDS(bundle, 'my-workbench-model.rds')\n",
-    "# A standalone API model is also possible; keep its preprocessing separately:\n",
-    "saveRDS(model, 'api-model.rds')")
+  paste(
+    "# Purpose: reload a saved model with its original settings and use it again.\n# This began as a standalone script before the package API existed.\n# This example uses the current API; no training runs here.\n# A bundle is the .rds file from Save model in this workbench.\n# It contains the model, feature names and training preprocessing settings.",
+    "library(DDESONN)",
+    "# 1. Load the saved bundle (replace this path with your downloaded file).\nbundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model",
+    "# 2. Read new rows to predict (replace this path with your CSV).\n# Include the original predictor column names; the target is not required.\nnew_data <- read.csv('new-data.csv', check.names = FALSE)",
+    "# 3. Select predictors in saved order and reuse training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nsettings <- bundle$prepared\nx_new <- as.matrix(new_data[settings$features])\nx_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')",
+    "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\nprobabilities <- ddesonn_predict(model, x_new)$prediction\nprint(probabilities)",
+    "# Optional: save a copy of the whole bundle for use again later.\n# This retains the model AND its preprocessing, split and settings.\nsaveRDS(bundle, 'my-workbench-model.rds')",
+    "# Optional: export only the API model.\n# This file omits preprocessing; keep the bundle for this workflow.\nsaveRDS(model, 'api-model.rds')", sep = "\n\n")
 }
 
 
@@ -436,6 +438,18 @@ wb_resume_recipe <- function(p, cfg) {
     "model <- bundle$model", "parts <- bundle$prepared$parts",
     "mode <- bundle$prepared$mode", "classes <- bundle$prepared$classes",
     wb_fit_code(p, cfg, FALSE), wb_evaluation_code(p), sep = "\n\n")
+}
+
+# Separate explanatory blocks without expanding every individual statement.
+wb_space_comments <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  out <- character()
+  for (line in lines) {
+    if (grepl("^#", line) && length(out) && nzchar(tail(out, 1)) &&
+        !grepl("^#", tail(out, 1))) out <- c(out, "")
+    out <- c(out, line)
+  }
+  paste(out, collapse = "\n")
 }
 
 # Code in help uses the same public-API generators as downloadable recipes.
@@ -462,7 +476,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
   value <- wb_literal
   snippet <- switch(topic,
     "Start with Data" = wb_data_code(source),
-    "Inspect your dataset" = "head(data, 10)\nstr(data)\ncolSums(is.na(data))",
+    "Inspect your dataset" = "# Preview rows.\nhead(data, 10)\n\n# Check column types.\nstr(data)\n\n# Count missing values in each column.\ncolSums(is.na(data))",
     "Choose what the model learns" = paste0("target <- ", value(p$target), "\nfeatures <- ", value(p$features),
       "\nstopifnot(!target %in% features)"),
     "Target" = paste0("target <- ", value(p$target), "\noutcome <- data[[target]]"),
@@ -501,7 +515,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "\nML_NN <- length(hidden_sizes) > 0\n# Arguments to ddesonn_model(); integer(0) means no hidden layers."),
     "Epochs" = paste0("num_epochs <- ", cfg$epochs, "L\n# ddesonn_fit(..., num_epochs = num_epochs)\n# Both checkpoint modes run this full budget; no automatic early stopping."),
     "Optimizer" = paste0("optimizer <- ", value(cfg$optimizer), "\n# Pass optimizer to ddesonn_fit(); compare choices using Validation."),
-    "Learning rate" = paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n", wb_lr_comments(cfg$lr)),
+    "Learning rate" = paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n\n", wb_lr_comments(cfg$lr)),
     "Self-organize before initial training" = paste0("self_org <- ", value(isTRUE(cfg$self_org)),
       "\n# New fit: ddesonn_fit(..., self_org = self_org)\n# Additional fit from saved weights: self_org = FALSE"),
     "Weights used for results" = if (identical(cfg$checkpoint, "best_validation")) paste(
@@ -527,12 +541,12 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
         "table(Actual = factor(classes[actual_index], levels = classes),",
         "      Predicted = factor(classes[predicted_index], levels = classes))", sep = "\n")
     },
-    "Save or restore" = "# The trusted workbench bundle retains model, preprocessing and settings.\nbundle <- readRDS('ddesonn-workbench-model.rds')\nsaveRDS(bundle, 'my-workbench-model.rds')",
-    "Predict on new rows" = paste("# Requires the saved workbench bundle and a new CSV:",
+    "Save or restore" = "# Load the .rds file downloaded with Save model.\n# The bundle contains the trained model and preprocessing settings.\nbundle <- readRDS('ddesonn-workbench-model.rds')\n\n# Save a copy for later; this does not train or predict.\nsaveRDS(bundle, 'my-workbench-model.rds')",
+    "Predict on new rows" = paste("# First load bundle using Save or restore; no retraining occurs here.",
       "settings <- bundle$prepared", "new_data <- read.csv('new-data.csv', check.names = FALSE)",
-      "x_new <- as.matrix(new_data[settings$features])",
+      "\n# Reuse the saved predictor order and training scaling.\nx_new <- as.matrix(new_data[settings$features])",
       "x_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')",
-      "predictions <- ddesonn_predict(bundle$model, x_new)$prediction", sep = "\n"),
+      "\n# Class probabilities for classification; numeric values for regression.\npredictions <- ddesonn_predict(bundle$model, x_new)$prediction", sep = "\n"),
     "Another fit from saved weights" = "model <- bundle$model\nparts <- bundle$prepared$parts\n# Reuse saved data/settings; restart optimizer schedules.\nself_org <- FALSE",
     "Additional epochs" = {
       epochs <- tryCatch(wb_config(epochs = more_epochs)$epochs, error = function(e) NULL)
@@ -549,7 +563,8 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "Learning rate", "Self-organize before initial training", "Weights used for results",
       "Regularization", "Regularization strength"))
     prefix <- paste0(prefix, "# Default example values; correct invalid model settings for current values.\n")
-  paste0(prefix, snippet)
+  paste0(if (nzchar(prefix)) paste0(prefix, "\n") else "",
+    wb_space_comments(snippet))
 }
 
 # Complete scripts live in one explicit viewer, not in individual help icons.
@@ -562,7 +577,11 @@ wb_full_code <- function(prepared = NULL, config = NULL, completed = NULL,
       notice = "Saved model recipe, including its original settings and Test evaluation. Later control changes do not affect it."))
   }
   if (which == "prediction") return(list(code = wb_bundle_code(), filename = "ddesonn-saved-prediction.R",
-    notice = "Requires the trusted downloaded workbench bundle and new-data.csv. This loads and predicts with an existing model."))
+    notice = paste("Purpose: reload a saved model with its original settings and use it again. This began as a standalone script before the package API existed.",
+      "This R example uses the current API to predict with an already trained model in a new session; it does not train again.",
+      "A bundle is the .rds file downloaded with Save model, containing the model and preprocessing settings.",
+      "Replace the two input paths with your saved bundle and a CSV of new rows containing the same predictor columns.",
+      "The output is class probabilities for classification or numeric predictions for regression; saving copies is optional.", sep = "\n\n")))
   example <- is.null(prepared)
   if (!example && is.null(config)) stop("Correct the model settings to generate the full script.")
   p <- if (example) wb_prepare(datasets::iris, "Species", names(datasets::iris)[1:4], "multiclass") else prepared

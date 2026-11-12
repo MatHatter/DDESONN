@@ -1,3 +1,17 @@
+# DDESONN 7.3.9
+
+## Readable R examples and explicit saved-model instructions
+
+- Separate code into logical blocks with blank lines, section comments and more
+  comfortable line spacing in help, code panels and the full-script viewer.
+- Label the saved-model example as R code for loading an existing model and
+  predicting new rows without retraining. Explain what a bundle contains,
+  which file paths to replace, predictor requirements and prediction outputs.
+- Explain the original intention: a standalone script, predating the package
+  API, for reloading a saved model with its original settings and using it again.
+- Mark saving copies and exporting the standalone API model as optional steps.
+  Existing completed-model recipes remain unchanged historical records.
+
 # DDESONN 7.3.8
 
 ## Explain learning-rate multipliers in generated code

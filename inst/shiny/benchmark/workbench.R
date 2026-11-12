@@ -87,7 +87,7 @@ wb_ui <- function() {
         wb_heading("Predict on new rows", "Use the completed model to predict outcomes for rows it has not seen. Include the saved predictor columns; the target column is optional. Training preprocessing is reused."),
         shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
         wb_download_button("wb_new_download", "Download new predictions"),
-        wb_code_panel("wb_model_code", "Equivalent R code — saved model and prediction"),
+        wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"),
         shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview")),
         shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error"))))))
   list(
@@ -374,7 +374,7 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_show_full_code, {
     choices <- c("Next model / iris illustration" = "next")
     if (!is.null(result()$recipe)) choices <- c(choices, "Completed model's saved recipe" = "completed")
-    choices <- c(choices, "Load and predict with a saved bundle" = "prediction")
+    choices <- c(choices, "R example: load a saved model and predict new rows" = "prediction")
     selected <- if (!is.null(result()$recipe)) "completed" else if (!is.null(result())) "prediction" else "next"
     full_choice(selected)
     shiny::showModal(shiny::modalDialog(title = "Full R code", size = "l", easyClose = TRUE,
