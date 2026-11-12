@@ -26,7 +26,11 @@ are unchanged. Historical completed-model recipe text is not rewritten.
 - Generated saved-bundle scripts executed for all six combinations with real
   saved models and new-row CSVs, including optional exports; predictions matched
   the saved model's public predict API with its saved preprocessing.
-- Focused workbench/dashboard test results: pending completion.
+- Focused tests passed: workbench 372 assertions and dashboard 26 assertions
+  (398 total), with zero failures, errors, warnings or skips. These cover
+  checkpoint choices, background cancellation, preserved completed models,
+  warm starts, saved models and executable recipe reproduction. The subsequent
+  intention-only comments were validated in the final installed-app browser run.
 - `git diff --check` passed.
 
 Evidence: `/workspace/.setup/readable-739/` contains installation logs,
@@ -40,5 +44,7 @@ is claimed for this readability update. Historical passes are not new validation
 
 Open PRs were inspected through the public GitHub page; no existing PR for this
 branch was visible. The proposed 7.3.9 title and body are in
-`dev/PR_7_3_9_DESCRIPTION.md`. Push/PR status pending. No merge, publication or
-release-tag creation/movement is performed.
+`dev/PR_7_3_9_DESCRIPTION.md`. Branch `codex/readable-code-7.3.9` is pushed.
+`gh pr create` failed with `Post "https://api.github.com/graphql": Forbidden`;
+no PR was created. No merge, publication or release-tag creation/movement is
+performed.
