@@ -72,11 +72,12 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
     actual = y[i], row = i))
   list(parts = parts, features = features, target = target, mode = mode,
     classes = classes, center = center, scale = scale, seed = seed,
-    split = split, standardize = standardize, rows = nrow(data))
+    split = split, standardize = standardize, train_fraction = train_fraction,
+    validation_fraction = validation_fraction, rows = nrow(data))
 }
 
 wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
-                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE) {
+                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation") {
   h <- if (!nzchar(trimws(hidden))) integer() else suppressWarnings(as.numeric(strsplit(hidden, ",", fixed = TRUE)[[1]]))
   if (length(h) > 5 || any(!is.finite(h) | h < 1 | h > 512 | h %% 1 != 0))
     stop("Use up to five hidden layers, each 1–512 units, separated by commas; leave blank for a single-layer model.")
@@ -87,8 +88,9 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   if (!is.finite(lambda) || lambda < 0 || !reg %in% c("none", "L1", "L2")) stop("Invalid regularization.")
   if (!is.logical(self_org) || length(self_org) != 1 || is.na(self_org))
     stop("Self-organization must be TRUE or FALSE.")
+  checkpoint <- match.arg(checkpoint, c("best_validation", "final"))
   list(hidden = as.integer(h), epochs = as.integer(epochs), lr = lr,
-    optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org)
+    optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org, checkpoint = checkpoint)
 }
 
 wb_predictions <- function(model, prepared, part) {
@@ -135,6 +137,9 @@ wb_run <- function(prepared, config, previous = NULL) {
   set.seed(prepared$seed)
   # Older workbench bundles predate the checkbox and used FALSE.
   config$self_org <- isTRUE(config$self_org)
+  if (is.null(config$checkpoint)) config$checkpoint <- "final" # Older bundles used final weights.
+  config$checkpoint <- match.arg(config$checkpoint, c("best_validation", "final"))
+  use_best <- identical(config$checkpoint, "best_validation")
   model <- if (is.null(previous)) DDESONN::ddesonn_model(
     input_size = length(prepared$features),
     output_size = if (prepared$mode == "multiclass") length(prepared$classes) else 1,
@@ -149,13 +154,30 @@ wb_run <- function(prepared, config, previous = NULL) {
     lr_decay_rate = 1, lr_min = config$lr, self_org = self_org_applied,
     reg_type = if (config$reg == "none") NULL else config$reg,
     dropout_rates = NULL, numeric_columns = NULL, batch_normalize_data = FALSE,
-    validation_metrics = FALSE, best_weights_on_latest_weights_off = FALSE,
+    validation_metrics = use_best, best_weights_on_latest_weights_off = use_best,
+    threshold = .5,
     viewTables = FALSE, verboseLow = TRUE)
+  selected_epoch <- config$epochs
+  if (use_best) {
+    network <- model$ensemble[[1]]
+    summary <- model$last_training$predicted_outputAndTime
+    selected_epoch <- if (prepared$mode == "regression") summary$best_val_epoch_loss else summary$best_val_epoch
+    if (is.null(network$best_weights) || is.null(network$best_biases) ||
+        length(selected_epoch) != 1 || !is.finite(selected_epoch))
+      stop("No valid validation checkpoint was recorded; no completed model was replaced.")
+    # Reporting a best checkpoint is not enough: inference must use its tensors.
+    network$weights <- network$best_weights
+    network$biases <- network$best_biases
+  }
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_predictions(model, prepared, part)))
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = model, prepared = prepared, config = config, self_org_applied = self_org_applied,
-    evaluation = evaluation,
+    evaluation = evaluation, selected_epoch = as.integer(selected_epoch),
+    recipe = if (!is.null(previous$recipe)) paste(previous$recipe,
+      "\n# Additional fit from the previously selected weights\n", wb_fit_code(prepared, config, FALSE),
+      wb_evaluation_code(prepared, "test"), sep = "\n") else if (!is.null(previous))
+      wb_resume_recipe(prepared, config) else wb_recipe(prepared, config),
     completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }
@@ -165,6 +187,9 @@ wb_validate_bundle <- function(bundle) {
       !inherits(bundle$model, "ddesonn_model") || !is.list(bundle$prepared) ||
       !is.list(bundle$config) || !all(c("train", "validation", "test") %in% names(bundle$evaluation)))
     stop("Load a completed model bundle saved by this workbench.")
+  if (is.null(bundle$config$checkpoint)) bundle$config$checkpoint <- "final"
+  if (is.null(bundle$selected_epoch) && identical(bundle$config$checkpoint, "final"))
+    bundle$selected_epoch <- bundle$config$epochs
   p <- bundle$prepared
   if (!p$mode %in% c("binary", "multiclass", "regression") ||
       !length(p$features) || length(p$center) != length(p$features) ||
@@ -227,4 +252,137 @@ wb_stop <- function(job) {
     unlink(job$dir, recursive = TRUE)
   }
   invisible(NULL)
+}
+
+# Public-API recipes use base R preprocessing; no private workbench helpers needed.
+wb_literal <- function(value) paste(capture.output(dput(value)), collapse = "\n")
+
+wb_data_code <- function(source = NULL) {
+  if (identical(source$example, "iris")) "library(DDESONN)\ndata <- datasets::iris" else
+    paste0("library(DDESONN)\ndata <- read.csv(",
+      wb_literal(if (is.null(source$file)) "training-data.csv" else source$file),
+      ", check.names = FALSE)\n# Use the original CSV with the same rows and row order.")
+}
+
+wb_features_code <- function(p) {
+  header <- paste0("features <- ", wb_literal(p$features), "\ntarget <- ", wb_literal(p$target),
+    "\nmode <- ", wb_literal(p$mode), "\nstopifnot(nrow(data) == ", p$rows,
+    ", all(c(features, target) %in% names(data)))\n")
+  if (!is.null(p$train_fraction) && !is.null(p$validation_fraction)) {
+    split_code <- paste0("set.seed(", p$seed, ")\n",
+      if (p$mode == "regression" || p$split == "ordered")
+        "groups <- list(seq_len(nrow(data)))\n" else
+        "groups <- unname(split(seq_len(nrow(data)), as.character(data[[target]])))\n",
+      "split_rows <- list(train = integer(), validation = integer(), test = integer())\n",
+      "for (g in groups) {\n",
+      if (p$split == "random") "  g <- sample(g, length(g))\n" else "",
+      "  a <- max(1L, floor(length(g) * ", wb_literal(p$train_fraction), "))\n",
+      "  b <- max(1L, floor(length(g) * ", wb_literal(p$validation_fraction), "))\n",
+      "  split_rows$train <- c(split_rows$train, g[seq_len(a)])\n",
+      "  split_rows$validation <- c(split_rows$validation, g[a + seq_len(b)])\n",
+      "  split_rows$test <- c(split_rows$test, g[seq.int(a + b + 1L, length(g))])\n}\n")
+  } else {
+    split_code <- paste0("# Frozen row indices from an older bundle\nsplit_rows <- ",
+      wb_literal(lapply(p$parts, `[[`, "row")), "\n")
+  }
+  scale_code <- paste0("x <- as.matrix(data[features])\n",
+    if (isTRUE(p$standardize)) paste0(
+      "center <- colMeans(x[split_rows$train, , drop = FALSE])\n",
+      "scale <- apply(x[split_rows$train, , drop = FALSE], 2, sd)\n",
+      "scale[!is.finite(scale) | scale == 0] <- 1\n") else
+      "center <- rep(0, length(features))\nscale <- rep(1, length(features))\n",
+    "x <- sweep(sweep(x, 2, center, '-'), 2, scale, '/')\n")
+  labels <- switch(p$mode,
+    regression = "y <- matrix(as.numeric(data[[target]]), ncol = 1)\n",
+    binary = paste0("classes <- sort(unique(as.character(data[[target]][split_rows$train])))\n",
+      "y <- matrix(match(as.character(data[[target]]), classes) - 1L, ncol = 1)\n"),
+    multiclass = paste0("classes <- sort(unique(as.character(data[[target]][split_rows$train])))\n",
+      "y <- matrix(0, nrow = nrow(data), ncol = length(classes))\n",
+      "y[cbind(seq_len(nrow(data)), match(as.character(data[[target]]), classes))] <- 1\n"))
+  paste0(header, split_code, scale_code, labels,
+    "parts <- lapply(split_rows, function(i) list(x = x[i, , drop = FALSE],\n",
+    "  y = y[i, , drop = FALSE], actual = data[[target]][i], row = i))")
+}
+
+wb_fit_code <- function(p, cfg, create = TRUE) {
+  best <- identical(cfg$checkpoint, "best_validation")
+  start <- paste0("set.seed(", p$seed, ")\n")
+  if (create) start <- paste0(start,
+    "model <- ddesonn_model(input_size = length(features), output_size = ",
+    if (p$mode == "multiclass") "length(classes)" else "1", ",\n",
+    "  hidden_sizes = ", wb_literal(cfg$hidden), ", classification_mode = mode,\n",
+    "  ML_NN = ", wb_literal(length(cfg$hidden) > 0), ", lambda = ", wb_literal(cfg$lambda), ", num_networks = 1)\n")
+  code <- paste0(start,
+    "ddesonn_fit(model, parts$train$x, parts$train$y, validation = parts$validation,\n",
+    "  num_epochs = ", cfg$epochs, ", optimizer = ", wb_literal(cfg$optimizer), ", lr = ", wb_literal(cfg$lr), ",\n",
+    "  lr_decay_rate = 1, lr_min = ", wb_literal(cfg$lr), ", self_org = ", wb_literal(create && isTRUE(cfg$self_org)), ",\n",
+    "  reg_type = ", wb_literal(if (cfg$reg == "none") NULL else cfg$reg), ", dropout_rates = NULL,\n",
+    "  numeric_columns = NULL, batch_normalize_data = FALSE, threshold = 0.5,\n",
+    "  validation_metrics = ", wb_literal(best), ", best_weights_on_latest_weights_off = ", wb_literal(best), ",\n",
+    "  viewTables = FALSE, verboseLow = TRUE)\n")
+  if (best) paste0(code,
+    "# Explicitly restore both checkpoint tensors before inference.\n",
+    "network <- model$ensemble[[1]]\n",
+    "selected_epoch <- model$last_training$predicted_outputAndTime$",
+    if (p$mode == "regression") "best_val_epoch_loss" else "best_val_epoch", "\n",
+    "stopifnot(length(selected_epoch) == 1, is.finite(selected_epoch),\n",
+    "  !is.null(network$best_weights), !is.null(network$best_biases))\n",
+    "network$weights <- network$best_weights\nnetwork$biases <- network$best_biases\n") else
+    paste0(code, "selected_epoch <- ", cfg$epochs, "L # final epoch\n")
+}
+
+wb_evaluation_code <- function(p, split = "test") {
+  stopifnot(split %in% c("train", "validation", "test"))
+  start <- paste0("part <- parts[[", wb_literal(split), "]]\n",
+    "probabilities <- as.matrix(ddesonn_predict(model, part$x)$prediction)\n")
+  code <- switch(p$mode,
+    regression = paste0("actual <- as.numeric(part$y)\nprediction <- probabilities[, 1]\n",
+      "metrics <- c(RMSE = sqrt(mean((actual - prediction)^2)),\n",
+      "  MAE = mean(abs(actual - prediction)),\n",
+      "  R_squared = if (sum((actual - mean(actual))^2) > 0)\n",
+      "    1 - sum((actual - prediction)^2) / sum((actual - mean(actual))^2) else NA_real_)"),
+    binary = paste0("p <- probabilities[, 1]\nactual <- part$y[, 1]\nprediction <- as.integer(p >= 0.5)\n",
+      "correct_probability <- ifelse(actual == 1, p, 1 - p)\n",
+      "metrics <- c(Accuracy = mean(prediction == actual),\n",
+      "  Log_loss = -mean(log(pmax(correct_probability, 1e-15))),\n",
+      "  Brier_score = mean((p - actual)^2))\n",
+      "confusion <- table(Actual = factor(classes[actual + 1], levels = classes),\n",
+      "  Predicted = factor(classes[prediction + 1], levels = classes))"),
+    multiclass = paste0("actual <- max.col(part$y, ties.method = 'first')\n",
+      "prediction <- max.col(probabilities, ties.method = 'first')\n",
+      "correct_probability <- probabilities[cbind(seq_along(actual), actual)]\n",
+      "metrics <- c(Accuracy = mean(prediction == actual),\n",
+      "  Log_loss = -mean(log(pmax(correct_probability, 1e-15))),\n",
+      "  Brier_score = mean(rowSums((probabilities - part$y)^2)))\n",
+      "confusion <- table(Actual = factor(classes[actual], levels = classes),\n",
+      "  Predicted = factor(classes[prediction], levels = classes))"))
+  paste(start, code, "print(metrics)", sep = "\n")
+}
+
+wb_recipe <- function(p, cfg) {
+  paste("# Equivalent R recipe for this prepared data and fit configuration.",
+    wb_data_code(p$source), wb_features_code(p), wb_fit_code(p, cfg),
+    wb_evaluation_code(p), sep = "\n\n")
+}
+
+wb_bundle_code <- function() {
+  paste0("library(DDESONN)\n# Use the bundle downloaded from this workbench.\n",
+    "bundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model\n",
+    "new_data <- read.csv('new-data.csv', check.names = FALSE)\n",
+    "settings <- bundle$prepared\nx_new <- as.matrix(new_data[settings$features])\n",
+    "x_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')\n",
+    "probabilities <- ddesonn_predict(model, x_new)$prediction\n",
+    "# Preserve the workbench bundle (model + preprocessing + split + settings):\n",
+    "saveRDS(bundle, 'my-workbench-model.rds')\n",
+    "# A standalone API model is also possible; keep its preprocessing separately:\n",
+    "saveRDS(model, 'api-model.rds')")
+}
+
+
+wb_resume_recipe <- function(p, cfg) {
+  paste("# Requires the workbench bundle saved BEFORE this additional fit.",
+    "library(DDESONN)", "bundle <- readRDS('previous-workbench-model.rds')",
+    "model <- bundle$model", "parts <- bundle$prepared$parts",
+    "mode <- bundle$prepared$mode", "classes <- bundle$prepared$classes",
+    wb_fit_code(p, cfg, FALSE), wb_evaluation_code(p), sep = "\n\n")
 }

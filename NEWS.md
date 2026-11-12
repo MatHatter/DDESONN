@@ -1,5 +1,19 @@
 # DDESONN 7.3.4
 
+## Checkpoint selection and equivalent R code
+
+- Default new workbench fits to best-validation checkpoint selection, with a
+  final-epoch alternative. Restore both weights and biases before evaluation,
+  record the selected epoch and mark it on the loss chart. Both modes train for
+  all requested epochs; selection is not early stopping and never uses Test.
+- Add API examples under help icons, expandable equivalent-code panels across
+  the workflow, and downloadable next-fit and completed-model R recipes. Keep
+  completed recipes tied to saved settings rather than later UI changes.
+- Retain final-epoch behavior for older model bundles without a checkpoint field.
+- Restrict the legacy binary-only report tuning block to binary tasks so enabling
+  validation reporting also works for multiclass and regression models.
+
+
 ## Workbench controls and layout
 
 - Use smaller help circles with a plain lowercase i and explain training-only
@@ -9,7 +23,7 @@
   forwarded to the existing API for new models. Save its setting; warm starts
   preserve the organized weights without repeating the phase.
 - Show Test first in model performance while retaining validation and training
-  views. Clarify final-epoch weights and the absence of automatic early stopping.
+  views. Explain checkpoint selection separately from automatic early stopping.
 
 
 ## Guided Shiny workflow

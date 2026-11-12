@@ -119,3 +119,79 @@ test_that("self-organization is optional, affects the fit, and is retained in mo
     expect_equal(h$wb_new_predictions(legacy_config, data), h$wb_new_predictions(baseline, data))
   }
 })
+
+test_that("best-validation restores both tensors and test labels cannot choose the checkpoint", {
+  h <- workbench_fixture()$h
+  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  p$source <- list(example = "iris")
+  cfg <- h$wb_config(hidden = "4", epochs = 3, lr = .001)
+  expect_identical(cfg$checkpoint, "best_validation")
+  invisible(capture.output(best <- h$wb_run(p, cfg)))
+  expect_equal(best$selected_epoch, best$model$last_training$predicted_outputAndTime$best_val_epoch)
+  expect_lt(best$selected_epoch, cfg$epochs)
+  expect_equal(best$model$ensemble[[1]]$weights, best$model$ensemble[[1]]$best_weights)
+  expect_equal(best$model$ensemble[[1]]$biases, best$model$ensemble[[1]]$best_biases)
+  changed <- p
+  changed$parts$test$actual <- rev(changed$parts$test$actual)
+  changed$parts$test$y <- changed$parts$test$y[nrow(changed$parts$test$y):1, , drop = FALSE]
+  invisible(capture.output(same <- h$wb_run(changed, cfg)))
+  expect_equal(same$selected_epoch, best$selected_epoch)
+  expect_equal(same$model$ensemble[[1]]$weights, best$model$ensemble[[1]]$weights)
+  cfg$checkpoint <- "final"
+  invisible(capture.output(final <- h$wb_run(p, cfg)))
+  expect_equal(final$selected_epoch, cfg$epochs)
+  expect_false(isTRUE(all.equal(best$model$ensemble[[1]]$weights, final$model$ensemble[[1]]$weights)))
+  cfg$checkpoint <- NULL # Older saved configurations used final weights.
+  invisible(capture.output(old <- h$wb_run(p, cfg)))
+  expect_identical(old$config$checkpoint, "final")
+  expect_equal(old$model$ensemble[[1]]$weights, final$model$ensemble[[1]]$weights)
+})
+
+test_that("exported public-API recipes reproduce preprocessing, predictions and metrics", {
+  h <- workbench_fixture()$h
+  for (mode in c("binary", "multiclass", "regression")) {
+    data <- if (mode == "multiclass") iris else mtcars
+    target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
+    features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
+    source <- tempfile("training data ", fileext = ".csv")
+    utils::write.csv(data, source, row.names = FALSE)
+    data <- utils::read.csv(source, check.names = FALSE)
+    p <- h$wb_prepare(data, target, features, mode)
+    p$source <- list(file = source)
+    cfg <- h$wb_config(hidden = "4", epochs = 3, lr = .001)
+    invisible(capture.output(r <- h$wb_run(p, cfg)))
+    replay <- new.env(parent = globalenv())
+    invisible(capture.output(eval(parse(text = r$recipe), envir = replay)))
+    expect_equal(replay$parts$train$x, p$parts$train$x)
+    expect_equal(replay$parts$test$y, p$parts$test$y)
+    expect_equal(replay$selected_epoch, r$selected_epoch)
+    expect_equal(replay$probabilities, h$wb_predictions(r$model, p, p$parts$test))
+    expect_equal(unname(replay$metrics), r$evaluation$test$metrics$Value)
+    expect_false(grepl("wb_run|wb_prepare", r$recipe))
+    if (mode == "multiclass") {
+      cfg$epochs <- 2L
+      invisible(capture.output(warm <- h$wb_run(p, cfg, r)))
+      replay2 <- new.env(parent = globalenv())
+      invisible(capture.output(eval(parse(text = warm$recipe), envir = replay2)))
+      expect_equal(replay2$probabilities, h$wb_predictions(warm$model, p, p$parts$test))
+      expect_equal(replay2$selected_epoch, warm$selected_epoch)
+    }
+    cfg$checkpoint <- "final"
+    invisible(capture.output(final <- h$wb_run(p, cfg)))
+    replay_final <- new.env(parent = globalenv())
+    invisible(capture.output(eval(parse(text = final$recipe), envir = replay_final)))
+    expect_equal(replay_final$probabilities, h$wb_predictions(final$model, p, p$parts$test))
+    unlink(source)
+  }
+})
+
+test_that("preprocessing code also matches ordered splits and unscaled inputs", {
+  h <- workbench_fixture()$h
+  for (split in c("ordered", "random")) for (standardize in c(TRUE, FALSE)) {
+    p <- h$wb_prepare(mtcars, "mpg", c("wt", "hp"), "regression", seed = 7,
+      train_fraction = .55, validation_fraction = .25, split = split, standardize = standardize)
+    env <- new.env(parent = globalenv()); env$data <- mtcars
+    eval(parse(text = h$wb_features_code(p)), envir = env)
+    expect_equal(env$parts, p$parts)
+  }
+})

@@ -4084,7 +4084,7 @@ DDESONN <- R6::R6Class(
           tuned <- NULL
           best_threshold <- NA_real_
           
-          if (!is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
+          if (identical(CLASSIFICATION_MODE, "binary") && !is.null(X_validation) && !is.null(y_validation) && isTRUE(validation_metrics)) {
             
             if (!is.null(best_val_probs) && !is.null(best_val_labels)) {
               probs_for_tuning  <- as.matrix(best_val_probs)

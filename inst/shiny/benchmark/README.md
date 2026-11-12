@@ -116,8 +116,12 @@ base package does not require callr; the optional model workbench does.
   stopping and ensemble orchestration are not exposed in this interface.
 - One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
   plot and progress use actual epoch log records; log delivery can lag training.
-  Final-epoch weights are evaluated; no optimal epoch is selected or restored.
-  Automatic early stopping is not implemented. Test results never select checkpoints.
+  The default **Use best validation weights** checkbox selects the highest
+  validation accuracy for classification or lowest validation loss for regression
+  within that fit. Both weights and biases are restored before prediction and
+  evaluation. Uncheck it to use the final epoch. Both modes run all requested
+  epochs; automatic early stopping is not implemented. Test never selects a
+  checkpoint. The selected epoch is recorded and marked on the loss chart.
 - Cancel terminates the worker and discards its incomplete result. A previous
   completed model remains intact. Disconnecting the session stops its active
   worker and removes temporary job files. Session models are not shared.
@@ -153,3 +157,29 @@ The UI calls `ddesonn_model()`, `ddesonn_fit()` and `ddesonn_predict()` directly
 runs; it is not equivalent to one API call. More advanced workflows remain
 available through the R API and scripts rather than being silently approximated
 in the interface. No optimizer implementation was changed for this workbench.
+
+## Learn the equivalent R API
+
+Expandable **Equivalent R code** panels accompany dataset loading, prepared
+features/splits/scaling, the next new model, displayed evaluation and saved-model
+prediction. Help for checkpoint selection, scaling and self-organization includes
+API or base R examples. Code is selectable; the training/model panels also offer
+full `.R` recipe downloads. No private workbench helpers are needed to run them.
+
+**Next-model** code follows the current controls and prepared split. **Completed-
+model** code stays attached to the model's saved configuration, even when you
+change controls later. Use the same package version and original CSV in the same
+row order; the example recipe uses `datasets::iris`. Recipes replay preprocessing,
+training, checkpoint restoration and Test evaluation. Additional fits append to
+the previous recipe; an older bundle without a recipe instead requires the
+previous saved bundle as an explicit input. No prior weights are fabricated.
+
+For best validation selection, the generated code enables `validation_metrics`
+and `best_weights_on_latest_weights_off` in `ddesonn_fit()`, then explicitly
+assigns the member's `best_weights` and `best_biases` back to its active weights
+and biases before `ddesonn_predict()`. The reporting flag alone is not treated as
+proof that later inference uses those tensors. Classification uses the first
+strictly best validation accuracy; regression uses validation loss. Warm starts
+retain the saved selection mode and select within the additional fit, rather
+than comparing every checkpoint from every previous fit. Older bundles missing
+the new setting keep their original final-epoch behavior.
