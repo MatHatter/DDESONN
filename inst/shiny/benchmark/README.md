@@ -273,3 +273,19 @@ The icon uses an SVG circle inside a fixed square button, with a real lowercase 
 The circle is not a CSS border that can stretch or clip. The existing accessible
 help labels, keyboard focus, Escape dismissal, scrolling and touch behavior remain.
 The full-code dialog is read-only; opening it does not train or change weights.
+
+
+## Learning-rate comments (7.3.8)
+
+The focused Learning rate fragment and all newly generated fit recipes explain
+that `lr_decay_rate` is a multiplicative retention factor. `1` keeps 100% of the
+rate: `0.01 * 1 = 0.01`. Before the minimum floor is applied, `0.5` halves the
+rate and `0.9` retains 90% at each interval (`lr_decay_epoch`). The public API
+default is one epoch for classification and 20 epochs for regression.
+
+The scheduled rate is `max(lr_min, lr * lr_decay_rate^floor(epoch / lr_decay_epoch))`.
+The workbench sets `lr_decay_rate = 1` and `lr_min = lr`, so the rate stays fixed.
+To enable decay through the R API, choose both a positive factor below 1 and a minimum
+below the starting rate. Existing saved recipes remain historical snapshots;
+newly generated recipes include the explanation. No scheduler values or behavior
+change in this release.

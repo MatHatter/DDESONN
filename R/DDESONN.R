@@ -5570,6 +5570,8 @@ lr_scheduler <- function(epoch,
     stop("min_lr must be a single non-negative finite numeric value.", call. = FALSE)
   }
 
+  # decay_rate is a multiplier, not a subtraction: 1 retains 100% (no decay).
+  # Apply it once per decay_epoch interval, then clamp at the min_lr floor.
   decayed_lr <- initial_lr * decay_rate ^ floor(epoch / decay_epoch)
   max(min_lr, decayed_lr)
 }

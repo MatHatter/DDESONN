@@ -149,7 +149,7 @@ wb_ui <- function() {
             shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
           wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
             shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
-          wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling.",
+          wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. This workbench keeps it fixed: the decay multiplier is 1 and the minimum equals the starting rate.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           wb_switch("wb_self_org", "Self-organize before initial training",
             "Runs DDESONN's input-space self-organization phase before supervised training. It organizes neighborhood structure, rather than directly minimizing prediction loss. This optional phase is off by default and runs only for a new model. Warm starts preserve the organized weights without repeating it. It can destabilize training; a smaller learning rate may help.",
