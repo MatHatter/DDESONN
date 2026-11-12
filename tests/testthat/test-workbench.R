@@ -289,47 +289,68 @@ test_that("worker wrappers do not disguise numerical or shape errors as installa
   expect_match(missing$message, "same R library")
 })
 
-test_that("every workbench help topic has public R code without changing model or RNG state", {
+test_that("help fragments are distinct, focused and do not change model or RNG state", {
   f <- workbench_fixture(); h <- f$h
   p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
   cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001)
   invisible(capture.output(r <- h$wb_run(p, cfg)))
-  model <- serialize(r$model, NULL)
+  model <- serialize(r, NULL)
   set.seed(791); rng <- .Random.seed
   topics <- h$wb_help_topics()
+  codes <- vapply(topics, function(t) h$wb_help_code(t, p, cfg, r), character(1))
   expect_equal(length(unique(h$wb_help_key(topics))), length(topics))
+  canonical <- vapply(codes, function(code) paste(deparse(parse(text = code)), collapse = "\n"), character(1))
+  expect_length(unique(canonical), length(topics))
   for (topic in topics) {
-    code <- h$wb_help_code(topic, p, cfg, r)
-    expect_true(nchar(code) > 120, info = topic)
-    expect_no_error(parse(text = code))
+    code <- codes[[topic]]
+    expect_true(nzchar(code), info = topic)
+    expect_true(length(strsplit(code, "\n")[[1]]) <= 14, info = topic)
+    expect_false(grepl("ddesonn_fit\\(", canonical[[topic]]), info = topic)
     expect_false(grepl("wb_[[:alnum:]_]+\\(", code), info = topic)
     expect_no_error(parse(text = h$wb_help_code(topic)))
   }
+  expect_match(codes[["Epochs"]], "num_epochs <- 2L", fixed = TRUE)
+  expect_false(grepl("optimizer|lambda|hidden_sizes", codes[["Epochs"]]))
+  expect_match(codes[["Optimizer"]], 'optimizer <- "adagrad"', fixed = TRUE)
+  expect_false(grepl("num_epochs|lambda|hidden_sizes", codes[["Optimizer"]]))
+  expect_match(codes[["Regularization strength"]], "lambda <- 0", fixed = TRUE)
+  for (which in c("next", "completed", "prediction"))
+    expect_no_error(parse(text = h$wb_full_code(p, cfg, r, which)$code))
+  expect_identical(h$wb_full_code(p, cfg, r, "completed")$code, r$recipe)
   expect_identical(.Random.seed, rng)
-  expect_identical(serialize(r$model, NULL), model)
+  expect_identical(serialize(r, NULL), model)
   expect_error(h$wb_help_code("unregistered"), "Unknown")
-  expect_match(h$wb_help_code("Target"), "Iris illustration")
+  expect_match(h$wb_help_code("Target"), "Iris/default illustration")
   expect_match(h$wb_help_code("Additional epochs", more_epochs = 0), "Choose")
+  expect_match(h$wb_full_code()$notice, "Iris illustration")
+  expect_error(h$wb_full_code(p), "Correct the model settings")
+  old <- r; old$recipe <- NULL
+  expect_error(h$wb_full_code(completed = old, which = "completed"), "no saved full")
 })
 
-test_that("help preparation, fit and evaluation snippets reproduce the workbench model", {
+test_that("the separate full-code viewer reproduces the workbench model", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
     data <- if (mode == "multiclass") iris else mtcars
+    file <- tempfile(fileext = ".csv"); utils::write.csv(data, file, row.names = FALSE)
+    data <- utils::read.csv(file)
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     p <- h$wb_prepare(data, target, features, mode, train_fraction = .55, validation_fraction = .25)
+    p$source <- list(file = file)
     cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001, checkpoint = checkpoint,
       reg = "L2", lambda = .001)
     invisible(capture.output(r <- h$wb_run(p, cfg)))
-    e <- new.env(parent = globalenv()); e$data <- data
-    invisible(capture.output(eval(parse(text = h$wb_help_code("Predictors", p, cfg)), e)))
+    script <- h$wb_full_code(p, cfg)$code
+    expect_match(script, "ddesonn_fit(", fixed = TRUE)
+    e <- new.env(parent = globalenv())
+    invisible(capture.output(eval(parse(text = script), e)))
     expect_equal(e$parts, p$parts)
-    invisible(capture.output(eval(parse(text = h$wb_help_code("Regularization strength", p, cfg)), e)))
-    invisible(capture.output(eval(parse(text = h$wb_help_code("Evaluation split", p, cfg,
-      evaluation_split = "validation")), e)))
     expect_equal(e$selected_epoch, r$selected_epoch)
-    expect_equal(e$probabilities, h$wb_predictions(r$model, p, p$parts$validation))
-    expect_equal(unname(e$metrics), r$evaluation$validation$metrics$Value)
+    expect_equal(e$probabilities, h$wb_predictions(r$model, p, p$parts$test))
+    expect_equal(unname(e$metrics), r$evaluation$test$metrics$Value)
+    changed <- cfg; changed$epochs <- 4L
+    expect_identical(h$wb_full_code(p, changed, r, "completed")$code, r$recipe)
+    unlink(file)
   }
 })

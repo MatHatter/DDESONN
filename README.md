@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.7 — focused help and full R code
+
+Version 7.3.7 gives each help title its own short R fragment. The **Show full R
+code** button at the bottom of the workbench opens the complete workflow for
+viewing or downloading, instead of repeating it in each help icon. A fixed SVG
+circle keeps the lowercase i's outline round and fully visible.
+
 ## Version 7.3.6 — centered help icons and equivalent R examples
 
 Version 7.3.6 expands every workbench help popover with equivalent R code and
