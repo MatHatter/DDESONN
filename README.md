@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.9 — readable R examples
+
+R snippets now separate logical steps with blank lines and explanatory comments.
+The saved-model example explains the downloaded bundle, required CSV columns,
+prediction output and optional exports. It uses an existing model without training
+again. Code viewers also use more comfortable line spacing.
+
 ## Version 7.3.8 — explicit learning-rate comments
 
 Version 7.3.8 explains the learning-rate multiplier and minimum floor directly

@@ -304,7 +304,7 @@ test_that("help fragments are distinct, focused and do not change model or RNG s
   for (topic in topics) {
     code <- codes[[topic]]
     expect_true(nzchar(code), info = topic)
-    expect_true(length(strsplit(code, "\n")[[1]]) <= 14, info = topic)
+    expect_true(sum(nzchar(trimws(strsplit(code, "\n")[[1]]))) <= 14, info = topic)
     expect_false(grepl("ddesonn_fit\\(", canonical[[topic]]), info = topic)
     expect_false(grepl("wb_[[:alnum:]_]+\\(", code), info = topic)
     expect_no_error(parse(text = h$wb_help_code(topic)))

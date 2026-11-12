@@ -182,13 +182,14 @@ ui <- shiny::fluidPage(
       font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:min(560px,65vh); overflow:auto; overscroll-behavior:contain; }
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
     .wb-full-code-bar p { margin:8px 0 0; }
-    .wb-full-script { max-height:60vh; overflow:auto; white-space:pre; word-break:normal; margin-top:12px; }
+    #wb_full_notice { white-space:pre-line; }
+    .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
     .wb-code-panel > summary { color:#155b63; cursor:pointer; font-weight:600; }
-    .wb-code-panel pre { margin-top:10px; max-height:380px; overflow:auto; font-size:12px; }
+    .wb-code-panel pre { white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; line-height:1.6; margin-top:10px; max-height:380px; overflow:auto; font-size:12px; }
     .wb-help-code-label { margin-top:12px; font-weight:600; color:#b5eee8; }
     .wb-help-prerequisites { font-size:12px; margin:10px 0 0; color:#d0e1eb; }
-    .wb-help-code { color:white; background:#102b3c; border:0; margin:10px 0 0; white-space:pre; word-break:normal; overflow-x:auto; font-size:11px; }
+    .wb-help-code { line-height:1.6; color:white; background:#102b3c; border:0; margin:10px 0 0; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; overflow-x:auto; font-size:11px; }
     .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
     .wb-step-intro { margin:18px 0; color:#526b7a; }
     @media(max-width:700px) { #workspace > li { margin-bottom:5px; } }
