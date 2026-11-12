@@ -276,3 +276,15 @@ test_that("session action states and failed/cancelled workers preserve completed
     expect_false(action_states()$wb_start)
   })
 })
+
+
+test_that("worker wrappers do not disguise numerical or shape errors as installation errors", {
+  h <- workbench_fixture()$h
+  shape <- h$wb_training_error(simpleError("in callr subprocess: colMeans: x must be an array of at least two dimensions"))
+  expect_match(shape$message, "two or more numeric predictors")
+  expect_match(shape$details, "colMeans")
+  numerical <- h$wb_training_error(simpleError("in callr subprocess: non-finite predictions"))
+  expect_match(numerical$message, "smaller learning rate")
+  missing <- h$wb_training_error(simpleError("in callr subprocess: there is no package called DDESONN"))
+  expect_match(missing$message, "same R library")
+})

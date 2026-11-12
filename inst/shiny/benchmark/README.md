@@ -219,3 +219,9 @@ Expand **Technical details** for the underlying error and worker diagnostics.
 Failed and cancelled runs preserve the previous completed model and its recipe;
 a later successful fit replaces it. Each browser session keeps its own model,
 job, predictions and action states.
+
+Known core limitation: a fit with only one predictor can fail in the model's
+internal `colMeans()` preprocessing because a matrix dimension is dropped. Use
+two or more numeric predictors as a workaround. The workbench preserves the
+previous completed model and reports a shape-specific error; this UI change does
+not alter the core preprocessing implementation.

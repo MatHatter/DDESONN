@@ -211,7 +211,9 @@ wb_training_error <- function(error, stderr = character()) {
   details <- conditionMessage(error)
   guidance <- if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
     "Training could not produce a usable model. Try a smaller learning rate, enable standardization on Features and prepare again, or turn off initial self-organization." else
-    if (grepl("callr|process|worker|connection|package", details, ignore.case = TRUE))
+    if (grepl("colMeans|two dimensions|non-conformable|dimension", details, ignore.case = TRUE))
+      "Training could not use this data shape. Try two or more numeric predictors; if this repeats, share the technical details when reporting the model-shape problem." else
+    if (grepl("there is no package|not installed|could not start|failed to start|cannot open.*connection", details, ignore.case = TRUE))
       "The training worker could not finish. Try training again; if this repeats, check that DDESONN and the optional callr package are installed in the same R library." else
       "Training could not start or finish. Check the model settings (hidden sizes, epochs and learning rate), then try again. A smaller model or learning rate may help."
   list(message = guidance, details = paste(c(details, utils::tail(stderr, 40)), collapse = "\n"))
