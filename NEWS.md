@@ -1,5 +1,17 @@
 # DDESONN 7.3.4
 
+## Workbench controls and layout
+
+- Use smaller help circles with a plain lowercase i and explain training-only
+  standardization beside its checkbox.
+- Align the first content panels with their sidebar controls across the pages.
+- Add an off-by-default initial self-organization control on Build & Train,
+  forwarded to the existing API for new models. Save its setting; warm starts
+  preserve the organized weights without repeating the phase.
+- Show Test first in model performance while retaining validation and training
+  views. Clarify final-epoch weights and the absence of automatic early stopping.
+
+
 ## Guided Shiny workflow
 
 - Group the core workbench into four numbered steps: Data, Features, Build & Train,

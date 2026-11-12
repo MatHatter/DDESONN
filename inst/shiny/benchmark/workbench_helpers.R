@@ -76,7 +76,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
 }
 
 wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
-                      optimizer = "adagrad", lambda = 0, reg = "none") {
+                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE) {
   h <- if (!nzchar(trimws(hidden))) integer() else suppressWarnings(as.numeric(strsplit(hidden, ",", fixed = TRUE)[[1]]))
   if (length(h) > 5 || any(!is.finite(h) | h < 1 | h > 512 | h %% 1 != 0))
     stop("Use up to five hidden layers, each 1–512 units, separated by commas; leave blank for a single-layer model.")
@@ -85,8 +85,10 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   if (!is.finite(lr) || lr <= 0 || lr > 1) stop("Learning rate must be greater than zero and at most 1.")
   if (!optimizer %in% c("adagrad", "adam", "rmsprop", "sgd")) stop("Unsupported optimizer.")
   if (!is.finite(lambda) || lambda < 0 || !reg %in% c("none", "L1", "L2")) stop("Invalid regularization.")
+  if (!is.logical(self_org) || length(self_org) != 1 || is.na(self_org))
+    stop("Self-organization must be TRUE or FALSE.")
   list(hidden = as.integer(h), epochs = as.integer(epochs), lr = lr,
-    optimizer = optimizer, lambda = lambda, reg = reg)
+    optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org)
 }
 
 wb_predictions <- function(model, prepared, part) {
@@ -131,6 +133,8 @@ wb_evaluate <- function(prepared, part, p) {
 wb_run <- function(prepared, config, previous = NULL) {
   # callr isolates RNG, package globals, graphics and all mutable model state.
   set.seed(prepared$seed)
+  # Older workbench bundles predate the checkbox and used FALSE.
+  config$self_org <- isTRUE(config$self_org)
   model <- if (is.null(previous)) DDESONN::ddesonn_model(
     input_size = length(prepared$features),
     output_size = if (prepared$mode == "multiclass") length(prepared$classes) else 1,
@@ -138,9 +142,11 @@ wb_run <- function(prepared, config, previous = NULL) {
     ML_NN = length(config$hidden) > 0, lambda = config$lambda,
     num_networks = 1) else previous$model
   tr <- prepared$parts$train; va <- prepared$parts$validation
+  # Warm starts preserve the learned organization instead of organizing again.
+  self_org_applied <- is.null(previous) && config$self_org
   DDESONN::ddesonn_fit(model, tr$x, tr$y, validation = va,
     num_epochs = config$epochs, optimizer = config$optimizer, lr = config$lr,
-    lr_decay_rate = 1, lr_min = config$lr, self_org = FALSE,
+    lr_decay_rate = 1, lr_min = config$lr, self_org = self_org_applied,
     reg_type = if (config$reg == "none") NULL else config$reg,
     dropout_rates = NULL, numeric_columns = NULL, batch_normalize_data = FALSE,
     validation_metrics = FALSE, best_weights_on_latest_weights_off = FALSE,
@@ -148,7 +154,8 @@ wb_run <- function(prepared, config, previous = NULL) {
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_predictions(model, prepared, part)))
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
-    model = model, prepared = prepared, config = config, evaluation = evaluation,
+    model = model, prepared = prepared, config = config, self_org_applied = self_org_applied,
+    evaluation = evaluation,
     completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }

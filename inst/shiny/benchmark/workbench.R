@@ -16,13 +16,17 @@ wb_field <- function(id, title, help, control) {
       shiny::tags$label(id = paste0(id, "-label"), `for` = id, title), wb_help(title, help)), control)
 }
 
+wb_checkbox <- function(id, title, help, value = FALSE) {
+  shiny::div(class = "wb-checkbox-row", shiny::checkboxInput(id, title, value), wb_help(title, help))
+}
+
 wb_ui <- function() {
   performance <- shiny::tabPanel("Performance", value = "evaluate",
     shiny::div(class = "panel-body-custom",
       wb_heading("Model performance", "Performance measures how well the completed model predicts known outcomes. These results use its saved data split and preprocessing, not any new selections on Features."),
       shiny::p(class = "wb-guidance", "Finally, review results and outputs. Use validation to compare your choices, and reserve test results for your final assessment."),
       wb_field("wb_eval_split", "Evaluation split", "Training measures fit to examples the model learned from. Validation helps you assess settings. Test is held aside for a final assessment; repeatedly choosing settings from it weakens that assessment.",
-        shiny::selectInput("wb_eval_split", NULL, c("Validation" = "validation", "Test" = "test", "Training" = "train"))),
+        shiny::selectInput("wb_eval_split", NULL, c("Test" = "test", "Validation" = "validation", "Training" = "train"))),
       shiny::tableOutput("wb_metrics"),
       wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
@@ -39,7 +43,7 @@ wb_ui <- function() {
         wb_heading("Another fit from saved weights", "This starts another training run using the saved weights, data and settings. Optimizer accumulators and epoch schedules restart, so it is a warm start rather than an exact resume."),
         shiny::numericInput("wb_more_epochs", "Additional epochs", 10, min = 1, max = 5000, step = 1),
         shiny::actionButton("wb_continue", "Continue from saved weights"),
-        shiny::p("Uses the original data, preprocessing and settings. Changes on Build & Train are ignored here."))),
+        shiny::p("Uses the original data, preprocessing and settings, without repeating initial self-organization. Changes on Build & Train are ignored here."))),
       shiny::column(6, shiny::div(class = "panel-body-custom",
         wb_heading("Predict on new rows", "Use the completed model to predict outcomes for rows it has not seen. Include the saved predictor columns; the target column is optional. Training preprocessing is reused."),
         shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
@@ -75,7 +79,8 @@ wb_ui <- function() {
           shiny::numericInput("wb_val_fraction", "Validation fraction", .2, min = .05, max = .4, step = .05),
           wb_field("wb_seed", "Random seed", "A seed makes random splitting and model initialization repeatable with the same data, settings and software. Changing it can change results.",
             shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
-          shiny::checkboxInput("wb_scale", "Standardize using training means and SDs", TRUE),
+          wb_checkbox("wb_scale", "Standardize using training means and SDs",
+            "Subtracts each predictor's training average and divides by its training standard deviation (SD, a measure of spread). This puts inputs on comparable scales. Validation, test and new rows reuse those same training values; the target is unchanged.", TRUE),
           shiny::actionButton("wb_prepare", "Prepare data", class = "btn-primary")),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
@@ -99,6 +104,8 @@ wb_ui <- function() {
             shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
           wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
+          wb_checkbox("wb_self_org", "Self-organize before initial training",
+            "Runs DDESONN's input-space self-organization phase before supervised training. It organizes neighborhood structure, rather than directly minimizing prediction loss. This optional phase is off by default and runs only for a new model. Warm starts preserve the organized weights without repeating it. It can destabilize training; a smaller learning rate may help."),
           shiny::tags$details(shiny::tags$summary("Advanced settings"),
             shiny::selectInput("wb_reg", "Regularization", c("None" = "none", "L1", "L2")),
             shiny::numericInput("wb_lambda", "Regularization strength", 0, min = 0, step = .0001)),
@@ -106,10 +113,10 @@ wb_ui <- function() {
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training")),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
-            wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. Lower training loss alone does not establish better performance on held-out data."),
+            wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. It does not select or restore an earlier model. Lower training loss alone does not establish better performance on held-out data."),
             shiny::p(class = "wb-guidance", "Then configure and train the model. When it finishes, review Model / Results."),
             shiny::textOutput("wb_status"), shiny::uiOutput("wb_progress"), shiny::plotOutput("wb_loss", height = "280px")),
-          shiny::div(class = "context", "Final-epoch weights are retained; no early stopping or test-based selection. Self-organization, dropout and batch normalization are off for this workflow. Cancelled or failed runs retain any previous completed model."),
+          shiny::div(class = "context", "Training runs for the requested number of epochs and retains the final-epoch weights. Automatic early stopping is not implemented. Self-organization is optional; dropout and batch normalization are off in this workbench. Cancelled or failed runs retain any previous completed model."),
           shiny::div(class = "panel-body-custom",
             wb_heading("Current completed model", "This is the most recent successfully trained or loaded model. Changing controls affects the next new model, not this completed model or its results."),
             shiny::textOutput("wb_model_info"),
@@ -190,7 +197,7 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_start, attempt({
     if (is.null(prepared())) stop("Choose target and predictors on Features, then click Prepare data before training.")
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr, input$wb_optimizer,
-      input$wb_lambda, input$wb_reg)
+      input$wb_lambda, input$wb_reg, self_org = isTRUE(input$wb_self_org))
     launch(prepared(), cfg)
   }))
   shiny::observeEvent(input$wb_continue, attempt({
@@ -245,10 +252,11 @@ wb_server <- function(input, output, session, helper) {
   model_info <- shiny::reactive({
     r <- result()
     if (is.null(r)) return("No completed model yet.")
-    sprintf("%s · %s predictors → %s · hidden layers: %s · %s · %s fit run(s) · saved package %s · completed %s",
+    sprintf("%s · %s predictors → %s · hidden layers: %s · %s · initial self-organization %s · %s fit run(s) · saved package %s · completed %s",
       r$prepared$mode, length(r$prepared$features), r$prepared$target,
       if (length(r$config$hidden)) paste(r$config$hidden, collapse = ", ") else "none",
-      r$config$optimizer, r$fit_runs, r$package_version, r$completed)
+      r$config$optimizer, if (isTRUE(r$config$self_org)) "on" else "off",
+      r$fit_runs, r$package_version, r$completed)
   })
   output$wb_model_info <- shiny::renderText(model_info())
   output$wb_saved_info <- shiny::renderText(model_info())
@@ -280,7 +288,7 @@ wb_server <- function(input, output, session, helper) {
   })
   evaluation <- shiny::reactive({
     shiny::validate(shiny::need(!is.null(result()), "Train or load a completed model first."))
-    part <- if (is.null(input$wb_eval_split)) "validation" else input$wb_eval_split
+    part <- if (is.null(input$wb_eval_split)) "test" else input$wb_eval_split
     result()$evaluation[[part]]
   })
   output$wb_metrics <- shiny::renderTable(evaluation()$metrics, digits = 6)

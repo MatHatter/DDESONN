@@ -83,3 +83,39 @@ test_that("background training returns a completed model and cancellation discar
   continuation$process$wait(30000)
   expect_equal(continuation$process$get_result()$fit_runs, 2L)
 })
+
+test_that("self-organization is optional, affects the fit, and is retained in model bundles", {
+  h <- workbench_fixture()$h
+  expect_false(h$wb_config()$self_org)
+  expect_error(h$wb_config(self_org = "yes"), "TRUE or FALSE")
+  for (mode in c("binary", "multiclass", "regression")) {
+    data <- if (mode == "multiclass") iris else mtcars
+    target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
+    features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
+    p <- h$wb_prepare(data, target, features, mode)
+    cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 2, lr = .001)
+    capture.output(baseline <- h$wb_run(p, cfg))
+    cfg$self_org <- TRUE
+    capture.output(organized <- h$wb_run(p, cfg))
+    expect_true(organized$config$self_org)
+    expect_true(organized$self_org_applied)
+    # An additional fit should not reorganize already learned weights.
+    copy <- unserialize(serialize(organized, NULL))
+    capture.output(continued <- h$wb_run(p, cfg, copy))
+    expect_true(continued$config$self_org)
+    expect_false(continued$self_org_applied)
+    expect_equal(continued$fit_runs, 2L)
+    expect_false(isTRUE(all.equal(organized$model$ensemble[[1]]$weights,
+      baseline$model$ensemble[[1]]$weights)))
+    file <- tempfile(fileext = ".rds"); saveRDS(organized, file)
+    restored <- h$wb_validate_bundle(readRDS(file))
+    expect_true(restored$config$self_org)
+    expect_equal(h$wb_new_predictions(restored, data), h$wb_new_predictions(organized, data))
+    unlink(file)
+    # Models saved before the checkbox should keep their original off behavior.
+    cfg$self_org <- NULL
+    capture.output(legacy_config <- h$wb_run(p, cfg))
+    expect_false(legacy_config$config$self_org)
+    expect_equal(h$wb_new_predictions(legacy_config, data), h$wb_new_predictions(baseline, data))
+  }
+})

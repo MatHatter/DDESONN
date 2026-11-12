@@ -110,16 +110,20 @@ base package does not require callr; the optional model workbench does.
   prepared split; random row splitting does not establish subject independence.
 - A single model, zero to five hidden layers, task-appropriate default activations,
   AdaGrad/Adam/RMSprop/SGD, fixed learning rate, optional L1/L2 regularization.
-  No self-organization, dropout, batch normalization, sequence encoder, early
-  stopping or ensemble orchestration in this first interface.
+  Optional initial self-organization runs before a new model's supervised training and is off by
+  default. Self-organization can destabilize training; smaller learning rates
+  may help. Dropout, batch normalization, sequence encoding, automatic early
+  stopping and ensemble orchestration are not exposed in this interface.
 - One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
   plot and progress use actual epoch log records; log delivery can lag training.
-  Final-epoch weights are evaluated. Test results never select checkpoints.
+  Final-epoch weights are evaluated; no optimal epoch is selected or restored.
+  Automatic early stopping is not implemented. Test results never select checkpoints.
 - Cancel terminates the worker and discards its incomplete result. A previous
   completed model remains intact. Disconnecting the session stops its active
   worker and removes temporary job files. Session models are not shared.
 - Evaluation includes accuracy/log loss/Brier and a confusion matrix for
-  classification, or RMSE/MAE/R squared for regression. Multiclass Brier is the
+  classification, or RMSE/MAE/R squared for regression. Test is the initial
+  performance view; validation and training remain available in the selector. Multiclass Brier is the
   mean sum of squared class-probability errors; binary Brier uses the positive
   class. R squared is unavailable for a constant target.
 
@@ -130,7 +134,8 @@ data, labels, configuration and evaluation. It can contain private source data.
 Only trusted workbench bundles are supported for loading.
 
 **Continue from saved weights** starts another API fit on the model's original
-prepared data with its original settings and the requested extra epochs. The
+prepared data with its original settings and the requested extra epochs. Initial
+self-organization is not repeated; the warm start keeps the learned weights. The
 API creates new optimizer accumulators and restarts epoch schedules on each fit;
 this is a warm start, not exact continuation of an interrupted optimizer state.
 To change architecture, optimizer or data, train a new model.

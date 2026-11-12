@@ -110,6 +110,9 @@ ui <- shiny::fluidPage(
     .wb-control-title { margin-bottom:5px; }
     .wb-control-title label { margin:0; }
     .wb-field .shiny-input-container { width:100%; }
+    .wb-checkbox-row { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:15px; }
+    .wb-checkbox-row .shiny-input-container { flex:1; min-width:0; width:auto; margin-bottom:0; }
+    .tab-pane > .row > [class*='col-'] > .panel-body-custom:first-child { margin-top:0; }
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
     .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
       cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:16px; height:16px;
