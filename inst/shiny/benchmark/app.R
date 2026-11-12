@@ -167,16 +167,22 @@ ui <- shiny::fluidPage(
     @media(prefers-reduced-motion:reduce) { .wb-switch-track, .wb-switch-track::after { transition:none; } }
     .tab-pane > .row > [class*='col-'] > .panel-body-custom:first-child { margin-top:0; }
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
-    .wb-inline-help > summary { display:flex; align-items:center; justify-content:center; list-style:none;
-      cursor:pointer; border:1px solid #6e8f9e; color:#315e6b; border-radius:50%; width:16px; height:16px;
-      font:normal 12px/1 Arial,sans-serif; background:white; padding:0; box-sizing:border-box; }
-    .wb-help-glyph { display:block; width:100%; text-align:center; line-height:1; transform:translate(.35px,.25px); }
+    .wb-inline-help > summary { display:inline-grid; place-items:center; list-style:none;
+      cursor:pointer; width:20px; height:20px; min-width:20px; flex:none; padding:0;
+      border:0; border-radius:50%; background:transparent; box-sizing:border-box; }
+    .wb-help-icon { display:block; width:20px; height:20px; overflow:visible; }
+    .wb-help-ring { fill:white; stroke:#6e8f9e; stroke-width:1.1; }
+    .wb-help-letter { fill:#315e6b; font:normal 12px Arial,sans-serif; }
     .wb-inline-help > summary::-webkit-details-marker { display:none; }
-    .wb-inline-help > summary:focus-visible { outline:3px solid #6f9daa; outline-offset:3px; }
-    .wb-inline-help[open] > summary { background:#087f8c; border-color:#087f8c; color:white; }
+    .wb-inline-help > summary:focus-visible { outline:3px solid #6f9daa; outline-offset:2px; }
+    .wb-inline-help[open] .wb-help-ring { fill:#087f8c; stroke:#087f8c; }
+    .wb-inline-help[open] .wb-help-letter { fill:white; }
     .wb-help-copy { position:absolute; display:block; right:0; top:24px; width:520px; max-width:calc(100vw - 36px);
       background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
       font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:min(560px,65vh); overflow:auto; overscroll-behavior:contain; }
+    .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
+    .wb-full-code-bar p { margin:8px 0 0; }
+    .wb-full-script { max-height:60vh; overflow:auto; white-space:pre; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
     .wb-code-panel > summary { color:#155b63; cursor:pointer; font-weight:600; }
     .wb-code-panel pre { margin-top:10px; max-height:380px; overflow:auto; font-size:12px; }
@@ -207,7 +213,10 @@ ui <- shiny::fluidPage(
   shiny::div(class = "wb-workflow-guide", shiny::strong("Your workflow"),
     "Start with Data → choose target and predictors in Features → build and train → review Model / Results."),
   do.call(shiny::tabsetPanel, c(list(id = "workspace"), wb_ui(),
-    list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui)))))
+    list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui)))),
+  shiny::div(class = "wb-full-code-bar",
+    shiny::actionButton("wb_show_full_code", "Show full R code"),
+    shiny::p("Help icons show one topic at a time. View or download the complete workflow here.")))
 
 shiny::shinyApp(ui, function(input, output, session) {
   dashboard_server(default_data)(input, output, session)

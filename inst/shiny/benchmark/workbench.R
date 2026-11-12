@@ -2,14 +2,17 @@
 wb_help <- function(topic, text, api = NULL) {
   shiny::tags$details(class = "wb-inline-help",
     shiny::tags$summary(title = text, `aria-label` = paste("Help:", topic),
-      shiny::span(class = "wb-help-glyph", `aria-hidden` = "true", "i")),
+      shiny::tags$svg(class = "wb-help-icon", viewBox = "0 0 20 20", width = "20", height = "20",
+        `aria-hidden` = "true", focusable = "false",
+        shiny::tags$circle(class = "wb-help-ring", cx = "10", cy = "10", r = "8.4"),
+        shiny::tags$text(class = "wb-help-letter", x = "10", y = "14.25", `text-anchor` = "middle", "i"))),
     shiny::div(class = "wb-help-copy", tabindex = "0", role = "region",
       `aria-label` = paste(topic, "help and equivalent R"), text,
       shiny::div(class = "wb-help-code-label", "Equivalent R"),
       shiny::tags$pre(id = wb_help_key(topic), class = "shiny-text-output wb-help-code",
         tabindex = "0", `aria-label` = paste("Equivalent R code:", topic),
         if (is.null(api)) "# Open help to load the equivalent R example." else api),
-      shiny::p(class = "wb-help-prerequisites", "Examples name their required objects or files. For a complete runnable script, use the R recipe download.")))
+      shiny::p(class = "wb-help-prerequisites", "This fragment covers only this topic. Show full R code at the bottom of the page for the complete workflow and required objects.")))
 }
 
 wb_heading <- function(title, help, level = 3) {
@@ -361,6 +364,37 @@ wb_server <- function(input, output, session, helper) {
         more_epochs = if (is.null(input$wb_more_epochs)) 10L else input$wb_more_epochs)
     })
   })
+  full_choice <- shiny::reactiveVal("next")
+  shiny::observeEvent(input$wb_full_source, full_choice(input$wb_full_source))
+  full_script <- shiny::reactive({
+    selected <- full_choice()
+    tryCatch(wb_full_code(prepared(), tryCatch(next_config(), error = function(e) NULL), result(), selected),
+      error = function(e) { shiny::validate(shiny::need(FALSE, conditionMessage(e))) })
+  })
+  shiny::observeEvent(input$wb_show_full_code, {
+    choices <- c("Next model / iris illustration" = "next")
+    if (!is.null(result()$recipe)) choices <- c(choices, "Completed model's saved recipe" = "completed")
+    choices <- c(choices, "Load and predict with a saved bundle" = "prediction")
+    selected <- if (!is.null(result()$recipe)) "completed" else if (!is.null(result())) "prediction" else "next"
+    full_choice(selected)
+    shiny::showModal(shiny::modalDialog(title = "Full R code", size = "l", easyClose = TRUE,
+      shiny::radioButtons("wb_full_source", "Code for", choices, selected = selected),
+      shiny::textOutput("wb_full_notice"),
+      shiny::tags$pre(id = "wb_full_code", class = "shiny-text-output wb-full-script", tabindex = "0",
+        `aria-label` = "Complete R script"),
+      shiny::uiOutput("wb_full_download_button"),
+      footer = shiny::modalButton("Close")))
+  })
+  output$wb_full_notice <- shiny::renderText(full_script()$notice)
+  output$wb_full_code <- shiny::renderText(full_script()$code)
+  output$wb_full_download_button <- shiny::renderUI({
+    script <- tryCatch(full_script(), error = function(e) NULL)
+    if (is.null(script)) shiny::tags$button(type = "button", class = "btn btn-default disabled",
+      disabled = "disabled", `aria-disabled` = "true", "Download full R script") else
+      shiny::downloadButton("wb_full_download", "Download full R script")
+  })
+  output$wb_full_download <- shiny::downloadHandler(filename = function() full_script()$filename,
+    content = function(file) writeLines(full_script()$code, file))
   output$wb_data_code <- shiny::renderText(wb_data_code(code_source()))
   output$wb_features_code <- shiny::renderText({
     shiny::validate(shiny::need(!is.null(prepared()), "Choose features and click Prepare data first."))

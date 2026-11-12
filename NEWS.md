@@ -1,3 +1,17 @@
+# DDESONN 7.3.7
+
+## Focused help and a separate full-code viewer
+
+- Replace repeated preparation/training programs in help with short, distinct
+  fragments specific to each title or setting.
+- Add Show full R code at the end of the workbench. View and download a complete
+  next-model script, a completed model's saved recipe, or saved-bundle usage code.
+- Keep current prepared settings separate from completed-model snapshots and
+  label the iris illustration used before preparation.
+- Draw the help circle as a fixed SVG circle with a real lowercase i, keeping
+  its outline round and unclipped across layouts and display scaling.
+- Retain keyboard/touch access, scrolling, viewport placement and model immutability.
+
 # DDESONN 7.3.6
 
 ## Centered help icons and equivalent R examples

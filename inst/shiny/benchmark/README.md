@@ -251,3 +251,25 @@ visible keyboard focus ring. Press Enter or Space to open help and Escape to clo
 it and return focus. Expanded code can scroll vertically and horizontally, and the
 popover repositions on scrolling/resizing to stay within the viewport. Opening,
 reading or selecting help code never trains a model or selects/restores weights.
+
+
+## Focused snippets and full code (7.3.7)
+
+Each help title now shows only its own operation or setting: Epochs shows the
+epoch budget, Optimizer the update-rule argument, and Regularization strength
+the model's penalty strength. The snippets are contextual fragments, not standalone
+programs. Their required objects come from the complete workflow; they do not repeat
+all preparation and training steps inside each icon.
+
+Use **Show full R code** at the bottom of any workbench page to open a separate
+viewer and download its displayed script. Choose the next model's prepared data
+and current valid settings, the completed model's saved recipe, or loading and
+predicting with a saved bundle. Before data preparation, the next-model view is
+explicitly labeled as an iris illustration. Completed-model code keeps its saved
+settings after controls change. Older bundles without a recipe do not fabricate a
+training replay; their load/predict code remains available.
+
+The icon uses an SVG circle inside a fixed square button, with a real lowercase i.
+The circle is not a CSS border that can stretch or clip. The existing accessible
+help labels, keyboard focus, Escape dismissal, scrolling and touch behavior remain.
+The full-code dialog is read-only; opening it does not train or change weights.
