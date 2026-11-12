@@ -1,11 +1,4 @@
-# Finish 7.3.4 Shiny training feedback and checkpoint controls
+# Superseded PR description
 
-The workbench now guides users through Data, Features, Build & Train, and Model / Results, with Experiments retained separately. Training and downloads follow the state of the current browser session: Train requires prepared data and no active job, Cancel requires a job, Save requires a completed model, and new-prediction downloads require scored rows. Existing completed models remain usable while another model trains. Warm starts and model/data replacement wait for the current job to finish or be cancelled.
-
-New fits default to the best validation checkpoint (classification accuracy or regression MSE), restoring both weights and biases before inference; final-epoch weights remain an explicit alternative. Both choices run all requested epochs. Summaries identify the selected epoch, fit budget, selection mode, criterion and validation score. Initial self-organization runs only for new models. Equivalent R panels and downloaded recipes retain the completed model's choices and append warm starts without repeating initial self-organization.
-
-Training failures offer actionable guidance and expandable worker diagnostics. Failed and cancelled jobs retain the previous completed model. Loss-chart hover reports epoch and loss without selecting weights; an expandable table supports keyboards and touch screens. Small lowercase-i help controls and right-aligned switches remain keyboard accessible.
-
-Validation: 72 tests and 12,580 assertions passed with no failures, errors, warnings or skips. Installed-app desktop/mobile checks cover both checkpoint choices, training, cancellation, model persistence, prediction, warm starts, session isolation and keyboard/touch controls. Downloaded best, final and warm-start recipes reproduce their models. A normal package build rendered all four vignettes. Full `R CMD check` passed with `Status: OK`, including vignette rebuilding and the PDF manual, using `R_RD4PDF=times,hyper` for the installed Times/Courier fonts. The default font configuration produces one environment warning because `inconsolata.sty` is missing. Details are in `dev/workbench-7.3.4-validation.md`. This remains version 7.3.4. No optimizer implementations, automatic early stopping, release tags, merges or publication are part of this change.
-
-A pre-existing single-predictor core preprocessing error remains. The workbench now explains the shape failure and preserves the prior model; two or more numeric predictors are the verified workaround.
+The follow-up is version **7.3.5**, not another 7.3.4 release.
+Use [the 7.3.5 PR title and description](PR_7_3_5_DESCRIPTION.md).

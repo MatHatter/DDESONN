@@ -1,4 +1,4 @@
-# DDESONN 7.3.4
+# DDESONN 7.3.5
 
 ## Training feedback and action states
 
@@ -46,6 +46,7 @@
 - Show Test first in model performance while retaining validation and training
   views. Explain checkpoint selection separately from automatic early stopping.
 
+# DDESONN 7.3.4
 
 ## Guided Shiny workflow
 

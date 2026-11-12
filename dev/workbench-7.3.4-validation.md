@@ -1,5 +1,10 @@
 # DDESONN 7.3.4 workbench validation
 
+> Historical pre-bump validation record: the reviewed follow-up is now **7.3.5**.
+> See [the release-description audit](release-description-audit.md) for the version
+> change and post-bump checks. The results below were recorded as 7.3.4 and are
+> deliberately not relabeled as a new 7.3.5 full package check.
+
 ## Source and scope
 
 The review branch is `codex/workbench-readiness-7.3.4`, based on

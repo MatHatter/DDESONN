@@ -1,7 +1,7 @@
 Package: DDESONN
 Type: Package
 Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
-Version: 7.3.4
+Version: 7.3.5
 Authors@R: c(person("Mathew William Armitage", "Fok", email = "quiksilver67213@yahoo.com", role = c("aut", "cre")))
 Description: Provides a fully native R deep learning framework for
     constructing, training, evaluating, and inspecting Deep Dynamic Ensemble
@@ -39,6 +39,11 @@ Description: Provides a fully native R deep learning framework for
     capturing seeds, configuration states, thresholds, metrics, ensemble
     transitions, fused evaluation artifacts, and model identifiers, as well as
     reproducible scripts and vignettes documenting end to end experiments.
+    An optional Shiny workbench provides guided data preparation, background
+    training, validation checkpoint or final epoch weight selection, model
+    inspection, saved model prediction, and reproducible R recipes. Best validation
+    checkpoint selection restores both weights and biases for inference;
+    both selection modes run the requested training epochs.
     Kingma and Ba (2015) <doi:10.48550/arXiv.1412.6980> "Adam: A Method for Stochastic Optimization".
     Hinton et al. (2012) <https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf> "Neural Networks for Machine Learning (RMSprop lecture notes)".
     Duchi et al. (2011) <https://jmlr.org/papers/v12/duchi11a.html> "Adaptive Subgradient Methods for Online Learning and Stochastic Optimization".

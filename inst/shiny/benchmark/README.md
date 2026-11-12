@@ -2,7 +2,9 @@
 
 An optional native R interface for training, evaluation, saved models and
 experiment comparisons. The benchmark viewer was introduced in 7.3.2; model
-training pages were added in 7.3.3.
+training pages were added in 7.3.3. The guided workflow was released in 7.3.4;
+checkpoint selection, recipes, state-aware actions and improved training feedback
+are the 7.3.5 follow-up.
 
 From an installed package:
 
