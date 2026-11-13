@@ -2,6 +2,14 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.14 — Custom help and download previews
+
+Custom controls now have focused lowercase-i help and equivalent R fragments,
+including all four run structures, MAIN/TEMP roles and separate member/seed
+combination. A segmented Basic/Custom selector, a short Custom briefing and a
+clear diagnostics switch keep the form compact. Download help identifies exact
+contents; bundle, recipe and prediction previews make exports inspectable.
+
 ## Version 7.3.12 — Basic / Custom workbench foundation
 
 Basic keeps the familiar workflow. Custom adds expandable controls for run

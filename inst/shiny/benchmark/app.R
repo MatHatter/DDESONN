@@ -19,8 +19,8 @@ benchmark_ui <- shiny::sidebarLayout(
       shiny::actionButton("reset", "Restore included benchmark"),
       shiny::hr(), shiny::uiOutput("seed_filter"), shiny::uiOutput("metric_filter"),
       shiny::p("Accuracy, precision, recall, F1, ROC AUC and Brier score use values from 0 to 1. Lower log loss and Brier score are better."),
-      shiny::hr(), shiny::downloadButton("download", "Download selected rows"),
-      shiny::br(), shiny::br(), shiny::downloadButton("download_summary", "Download summary")),
+      shiny::hr(), wb_download_info("download", shiny::downloadButton("download", "Download selected rows")),
+      shiny::br(), shiny::br(), wb_download_info("download_summary", shiny::downloadButton("download_summary", "Download summary"))),
     shiny::mainPanel(width = 9,
       shiny::uiOutput("cards"),
       shiny::tabsetPanel(
@@ -188,6 +188,14 @@ ui <- shiny::fluidPage(
     #wb_full_notice { white-space:pre-line; }
     .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
+    .wb-workflow-pills .shiny-input-container { width:100%; margin-bottom:0; }
+    .wb-workflow-pills .shiny-options-group { display:flex; padding:4px; gap:4px; background:#e5ecef; border-radius:999px; }
+    .wb-workflow-pills label.radio-inline { flex:1; margin:0; padding:9px 12px; text-align:center; border-radius:999px; cursor:pointer; position:relative; transition:background .15s,color .15s; }
+    .wb-workflow-pills input { position:absolute; opacity:0; width:1px; height:1px; }
+    .wb-workflow-pills label:has(input:checked) { color:#124452; background:white; box-shadow:0 1px 4px #18344726; font-weight:600; }
+    .wb-workflow-pills label:has(input:focus-visible) { outline:3px solid #527d9b; outline-offset:2px; }
+    .wb-custom-brief { font-size:13px; color:#526b7a; line-height:1.55; margin:12px 0 18px; }
+    .wb-download-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:8px 0; }
     .wb-settings-section { border-top:1px solid #d8e2e8; margin-top:10px; padding-top:8px; }
     .wb-settings-section > summary { cursor:pointer; color:#155b63; font-weight:600; padding:4px 0; }
     .wb-settings-section > summary::before { content:'▸ '; }

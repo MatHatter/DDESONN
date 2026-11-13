@@ -489,7 +489,11 @@ wb_help_topics <- function() c(
   "Build & Train", "Hidden-layer sizes", "Epochs", "Optimizer", "Learning rate",
   "Self-organize before initial training", "Weights used for results",
   "Regularization", "Regularization strength", "Training progress",
-  "Current completed model", "Target", "Predictors")
+  "Current completed model", "Target", "Predictors",
+  "Workflow", "Run structure", "Members per model", "TEMP iterations", "Training seeds",
+  "Hidden activation", "Weight initialization", "Enable regularization", "Enable dropout", "Dropout rate",
+  "Enable learning-rate scheduling", "Schedule", "Minimum rate", "Decay multiplier", "Decay interval (epochs)",
+  "Combine members within each training seed", "Combine across training seeds", "Detailed training diagnostics")
 
 wb_help_key <- function(topic) paste0("wb_help_", gsub("[^a-z0-9]+", "_", tolower(topic)))
 
@@ -499,8 +503,30 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
   if (!topic %in% wb_help_topics()) stop("Unknown workbench help topic: ", topic)
   p <- if (is.null(prepared)) wb_prepare(datasets::iris, "Species", names(datasets::iris)[1:4], "multiclass") else prepared
   cfg <- if (is.null(config)) wb_config() else config
+  custom <- if (identical(cfg$workflow, "custom")) cfg else wb_custom_config(cfg)
   value <- wb_literal
   snippet <- switch(topic,
+    "Workflow" = "# Basic: create and fit a model with ddesonn_model() and ddesonn_fit().\n# Custom: orchestrate members/seeds/MAIN/TEMP with ddesonn_run().\n# Both use the same native R engine; Keras is not used.",
+    "Run structure" = paste0("# Single: 1 member, no orchestration; members: several, no MAIN/TEMP.\n# MAIN: incumbent/champion; TEMP: challenger/candidate/competitor.\ndo_ensemble <- ", value(custom$structure %in% c("main", "temp")),
+      "\nnum_networks <- ", custom$members, "L\nnum_temp_iterations <- ", custom$temp,
+      "L\n# ddesonn_run(..., do_ensemble = do_ensemble,\n#   num_networks = num_networks, num_temp_iterations = num_temp_iterations)"),
+    "Members per model" = paste0("num_networks <- ", custom$members, "L\n# Members inside each model; independent of length(seeds)."),
+    "TEMP iterations" = paste0("num_temp_iterations <- ", custom$temp, "L\n# Each TEMP model supplies challengers to the MAIN incumbent ensemble.\n# A warm start does not repeat this search."),
+    "Training seeds" = paste0("seeds <- ", value(custom$seeds), "\n# Pass the same prepared parts$train and parts$validation for every seed.\n# Do not split or fit scaling again inside the seed loop."),
+    "Hidden activation" = paste0("hidden_activation <- get(", value(custom$activation), ", asNamespace('DDESONN'))\noutput_name <- switch(mode, binary = 'sigmoid', multiclass = 'softmax', regression = 'identity')\noutput_activation <- get(output_name, asNamespace('DDESONN'))\nactivation_functions <- c(rep(list(hidden_activation), length(hidden_sizes)), list(output_activation))\nactivation_functions_predict <- activation_functions"),
+    "Weight initialization" = paste0("init_method <- ", value(custom$init), "\n# ddesonn_model(..., init_method = init_method)\n# Warm starts retain the saved weights and biases."),
+    "Enable regularization" = paste0("regularization_enabled <- ", value(cfg$reg != "none"), "\nreg_type <- ", value(if (cfg$reg == "none") NULL else cfg$reg), "\n# Off: NULL penalty and zero effective strength."),
+    "Enable dropout" = paste0("dropout_enabled <- ", value(custom$dropout > 0), "\n# Off passes zero dropout to the training configuration."),
+    "Dropout rate" = paste0("dropout_rate <- ", value(custom$dropout), "\ndropout_rates <- as.list(rep(dropout_rate, max(1L, length(hidden_sizes))))\n# Training only; prediction uses the full network."),
+    "Enable learning-rate scheduling" = paste0("schedule_enabled <- ", value(custom$schedule != "fixed"), "\n# Off: lr_decay_rate = 1 and lr_min = lr.\n# On: use the selected Schedule and its decay controls."),
+    "Schedule" = paste0("initial_lr <- ", value(custom$lr), "\nminimum_rate <- ", value(custom$minimum), "\nmultiplier <- ", value(custom$decay), "\ninterval <- ", custom$interval,
+      "L\n# At epoch: max(minimum_rate, initial_lr * multiplier^floor(epoch / interval))"),
+    "Minimum rate" = paste0("lr_min <- ", value(custom$minimum), "\n# Positive floor, at most the initial learning rate."),
+    "Decay multiplier" = paste0("lr_decay_rate <- ", value(custom$decay), "\n# Retained fraction per interval, before applying lr_min."),
+    "Decay interval (epochs)" = paste0("lr_decay_epoch <- ", custom$interval, "L\n# The engine exponent is floor(epoch / lr_decay_epoch)."),
+    "Combine members within each training seed" = paste0("# Requires a completed Custom bundle and its prepared parts.\npayload <- attr(bundle$model, 'workbench_custom')\nmodel <- payload$models[[1]]\nmembers <- ddesonn_predict(model, parts$test$x, aggregate = 'none')$per_model\nmember_prediction <- DDESONN:::.ddesonn_combine_predictions(\n  members, mode, method = ", value(custom$fusion), ", weights = payload$weights[[1]])\n# Saved member weights came from validation, not test labels."),
+    "Combine across training seeds" = paste0("# seed_predictions contains one already-combined N x K matrix per seed.\nseed_method <- ", value(custom$seed_aggregate), "\nprediction <- DDESONN:::.ddesonn_combine_predictions(\n  seed_predictions, mode, method = seed_method)\n# This stage combines seeds equally, after within-seed member combination."),
+    "Detailed training diagnostics" = paste0("verbose <- ", value(isTRUE(custom$diagnostics)), "\nverboseLow <- TRUE\n# verbose adds tensor, gradient/error and optimizer summaries.\n# verboseLow retains ordinary epoch progress.\n# The app shows the most recent 2,000 lines under Training log.\n# Completed bundle$training_log retains the displayed log excerpts."),
     "Start with Data" = wb_data_code(source),
     "Inspect your dataset" = "# Preview rows.\nhead(data, 10)\n\n# Check column types.\nstr(data)\n\n# Count missing values in each column.\ncolSums(is.na(data))",
     "Choose what the model learns" = paste0("target <- ", value(p$target), "\nfeatures <- ", value(p$features),
@@ -782,4 +808,18 @@ wb_clone_model <- function(model) {
   # list. Serialization preserves API attributes AND isolates nested R6 state,
   # matching the worker boundary used by the app.
   unserialize(serialize(model, NULL))
+}
+
+wb_bundle_manifest <- function(bundle) {
+  p <- bundle$prepared; cfg <- bundle$config
+  data.frame(Component = c("Saved run", "Task and predictors", "Trained parameters", "Prepared records", "Preprocessing", "Settings", "Results and history", "Logs", "Recipe", "Top-level fields"),
+    Contents = c(paste("DDESONN", bundle$package_version, "completed", bundle$completed),
+      paste(p$mode, "·", paste(p$features, collapse = ", ")),
+      if (identical(cfg$workflow, "custom")) paste(length(cfg$seeds), "seeds ×", cfg$members, if (cfg$structure %in% c("main", "temp")) "MAIN members; complete weights and biases; saved member/seed combination and weights" else "members per model; complete weights and biases; saved member/seed combination and weights") else "Selected model's complete weights and biases",
+      paste(paste(names(p$parts), vapply(p$parts, function(part) nrow(part$x), integer(1)), sep = ": "), collapse = "; "),
+      "Predictor order, training centers/scales, row indices, split data and labels",
+      paste(vapply(names(cfg), function(name) paste0(name, " = ", paste(cfg[[name]], collapse = ",")), character(1)), collapse = "; "), paste(length(bundle$evaluation), "evaluation splits;", if (is.data.frame(bundle$history)) nrow(bundle$history) else 0L, "recorded loss rows"),
+      paste(length(bundle$training_log), "retained log lines"),
+      if (is.null(bundle$recipe)) "No saved replay recipe in this older bundle" else paste(length(strsplit(bundle$recipe, "\n")[[1]]), "lines of saved R code"),
+      paste(names(bundle), collapse = ", ")), stringsAsFactors = FALSE)
 }
