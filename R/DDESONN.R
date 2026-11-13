@@ -3342,8 +3342,8 @@ DDESONN <- R6::R6Class(
     # Function to normalize specific columns in the data
     normalize_data = function(Rdata, numeric_columns, verbose = FALSE) {
       # Calculate mean and standard deviation for each numeric feature
-      means <- colMeans(Rdata[, numeric_columns])
-      std_devs <- apply(Rdata[, numeric_columns], 2, sd)
+      means <- colMeans(Rdata[, numeric_columns, drop = FALSE])
+      std_devs <- apply(Rdata[, numeric_columns, drop = FALSE], 2, sd)
 
       # Print mean and standard deviation before normalization
       if (isTRUE(verbose)) print(paste("Before normalization - Mean: ", means))
@@ -3351,11 +3351,11 @@ DDESONN <- R6::R6Class(
 
       # Normalize the numeric data
       normalized_Rdata <- Rdata
-      normalized_Rdata[, numeric_columns] <- scale(Rdata[, numeric_columns], center = means, scale = std_devs)
+      normalized_Rdata[, numeric_columns] <- scale(Rdata[, numeric_columns, drop = FALSE], center = means, scale = std_devs)
 
       # Calculate mean and standard deviation after normalization
-      normalized_means <- colMeans(normalized_Rdata[, numeric_columns])
-      normalized_std_devs <- apply(normalized_Rdata[, numeric_columns], 2, sd)
+      normalized_means <- colMeans(normalized_Rdata[, numeric_columns, drop = FALSE])
+      normalized_std_devs <- apply(normalized_Rdata[, numeric_columns, drop = FALSE], 2, sd)
 
       # Print mean and standard deviation after normalization
       if (isTRUE(verbose)) print(paste("After normalization - Mean: ", normalized_means))

@@ -11,11 +11,11 @@ dashboard_vignette_dir <- function(app_dir = getwd()) {
 
 dashboard_vignettes <- function(doc_dir = "") {
   guides <- data.frame(
-    file = c("heart-failure-standard-adagrad-1000-seeds",
+    file = c("packaged-data-workbench", "heart-failure-standard-adagrad-1000-seeds",
       "plot-controls_scenario1-2_single-run_scenarioA",
       "plot-contols_scenario1_ensemble-runs_scenarioC-D",
       "logs_main-change-movement_ensemble_runs_scenarioD"),
-    title = c("New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
+    title = c("Packaged datasets and your first model", "New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
       "Plot controls: single-run scenarios 1 and 2",
       "Plot controls: ensemble scenarios C and D",
       "Main, change and movement logs: ensemble scenario D"),

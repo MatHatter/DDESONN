@@ -1,5 +1,25 @@
 # DDESONN model workbench
 
+## Packaged examples, guide links and blue workflow pill (7.3.22)
+
+Data now offers iris and mtcars from R plus all four CSVs already shipped in
+DDESONN's `inst/extdata`. Load the selected example, inspect its original rows
+and columns, or download it. CSVs are read with `system.file()` from the installed
+package; there is no automatic network fallback. A source-directory link opens
+GitHub manually. Generated recipes use the installed filename and CSV SHA256.
+
+Examples suggest task, target and complete numeric predictors. Categories and
+missing values are not silently encoded, imputed or removed; ID and answer-derived
+fields are not preselected in the relevant presets. The customer test file has
+no Segmentation labels: it is for inspection/prediction, not automatic training
+or accuracy evaluation. Its prediction action requires a compatible completed
+model and reuses the existing saved-preprocessing prediction path.
+
+Contextual links on Data, Features, Build & Train, prediction and Experiments
+switch to the Vignettes tab without resetting your work. The new packaged-data
+guide joins the four existing guides. The centered Basic/Custom pill now uses
+light blue for the track and a darker blue with white text for the selected mode.
+
 An optional native R interface for training, evaluation, saved models and
 experiment comparisons. The benchmark viewer was introduced in 7.3.2; model
 training pages were added in 7.3.3. The guided workflow was released in 7.3.4;

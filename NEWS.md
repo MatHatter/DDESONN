@@ -1,3 +1,17 @@
+# DDESONN 7.3.22
+
+- Select, inspect and download all four installed extdata CSVs plus R's iris and
+  mtcars examples. Read locally from the installed package; no automatic GitHub
+  downloads. Generated R recipes retain installed CSV paths and SHA256 checks.
+- Suggest suitable targets and complete numeric predictors without deleting or
+  encoding data. Label the unlabeled customer test file for prediction; reuse
+  the existing completed-model prediction path with compatibility checks.
+- Add a packaged-data guide and contextual links into the Vignettes tab from
+  data, features, training, prediction and experiment sections.
+- Preserve matrix dimensions when normalizing a single predictor, allowing the
+  customer example to train with Age alone. Optimizer updates are unchanged.
+- Give the centered Basic/Custom pill a blue inactive/active color scheme.
+
 # DDESONN 7.3.21
 
 - Distinguish Data-split seed from Training-run seed values, with visible
