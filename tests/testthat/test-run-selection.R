@@ -69,6 +69,13 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_match(output$wb_train_error$html, "No usable validation checkpoint")
     expect_match(output$wb_train_error$html, "Final epoch")
     expect_match(output$wb_attempt_history$html, "Run 3")
+    # Preparing data again must not relabel the latest failed attempt.
+    last_status <- status()
+    session$setInputs(wb_target = "Species", wb_features = names(iris)[1:4],
+      wb_mode = "multiclass", wb_seed = 42, wb_train_fraction = .6,
+      wb_val_fraction = .2, wb_scale = TRUE, wb_split = "random")
+    session$setInputs(wb_prepare = 1)
+    expect_identical(status(), last_status)
     # Cancellation leaves both completed snapshots and the selected chart intact.
     h$wb_start <- start
     long <- best$config; long$epochs <- 5000L

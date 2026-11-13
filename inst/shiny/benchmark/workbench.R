@@ -342,7 +342,8 @@ wb_server <- function(input, output, session, helper) {
     p <- wb_prepare(raw(), input$wb_target, input$wb_features, input$wb_mode,
       input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split)
     p$source <- code_source()
-    prepared(p); status("Data prepared. Ready to train a new model.")
+    prepared(p)
+    if (is.null(latest_attempt())) status("Data prepared. Ready to train a new model.")
     shiny::updateTabsetPanel(session, "workspace", selected = "train")
   }))
   launch <- function(p, cfg, old = NULL) {
