@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.10 — completed-run selection
+
+Select successful training runs and loaded models in the existing completed-model
+panel. Their settings, loss chart, results and downloads follow the selection.
+Latest-attempt status and attempt history distinguish failures from usable saved
+models. Hover enlarges an epoch dot and shows its loss without changing weights.
+
 ## Version 7.3.9 — readable R examples
 
 R snippets now separate logical steps with blank lines and explanatory comments.

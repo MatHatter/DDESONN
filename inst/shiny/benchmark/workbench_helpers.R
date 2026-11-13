@@ -209,7 +209,9 @@ wb_checkpoint_summary <- function(bundle) {
 
 wb_training_error <- function(error, stderr = character()) {
   details <- conditionMessage(error)
-  guidance <- if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
+  guidance <- if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
+    "No usable validation checkpoint was recorded. Review the technical details and validation data. Try a smaller learning rate, or choose Final epoch explicitly for a separate run; it may succeed with its last weights. No checkpoint is substituted automatically." else
+    if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
     "Training could not produce a usable model. Try a smaller learning rate, enable standardization on Features and prepare again, or turn off initial self-organization." else
     if (grepl("colMeans|two dimensions|non-conformable|dimension", details, ignore.case = TRUE))
       "Training could not use this data shape. Try two or more numeric predictors; if this repeats, share the technical details when reporting the model-shape problem." else

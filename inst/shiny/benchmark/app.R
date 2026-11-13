@@ -70,6 +70,9 @@ ui <- shiny::fluidPage(
         }
       });
     }
+    Shiny.addCustomMessageHandler('wb-clear-loss-hover', function(message) {
+      Shiny.setInputValue('wb_loss_hover', null);
+    });
     Shiny.addCustomMessageHandler('wb-action-states', function(states) {
       wbActionStates = states; wbApplyActionStates();
     });
@@ -193,6 +196,21 @@ ui <- shiny::fluidPage(
     .wb-guidance { color:#526b7a; font-size:14px; line-height:1.6; }
     .wb-step-intro { margin:18px 0; color:#526b7a; }
     @media(max-width:700px) { #workspace > li { margin-bottom:5px; } }
+    .wb-latest-attempt { background:#f0f6f8; border-left:3px solid #6f9daa; padding:10px 12px; margin-bottom:12px; }
+    .wb-latest-attempt:has(.wb-training-error) { background:#fff5df; border-left-color:#d68b20; }
+    #wb_selected_run .radio { padding:10px; border:1px solid #d8e5ec; border-radius:7px; margin-bottom:8px; }
+    #wb_selected_run .radio:has(input:checked) { background:#e8f3f2; border-color:#087f8c; }
+    #wb_selected_run input { width:19px; height:19px; margin-top:0; margin-left:-25px; }
+    #wb_selected_run label { padding-left:27px; min-height:24px; }
+    .wb-run-summary { display:block; margin-top:4px; }
+    .wb-attempt-history { margin-top:18px; }
+    .wb-attempt-row { padding:10px 0; border-bottom:1px solid #d8e5ec; }
+    .wb-attempt-row pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+    .wb-loss-chart { position:relative; }
+    #wb_loss, #wb_loss img { cursor:default !important; }
+    #wb_loss_marker { position:absolute; inset:0; pointer-events:none; }
+    .wb-loss-dot { position:absolute; width:13px; height:13px; border:2px solid white; border-radius:50%; background:#087f8c; box-shadow:0 0 0 1px #087f8c; transform:translate(-50%,-50%); }
+    .wb-loss-tooltip { position:absolute; bottom:18px; left:0; transform:translateX(-50%); background:#183447; color:white; border-radius:4px; padding:4px 7px; white-space:nowrap; font-size:12px; }
     .wb-loss-values { max-height:300px; overflow:auto; }
     .wb-training-error { margin-top:18px; }
     .wb-training-error pre { max-height:240px; overflow:auto; white-space:pre-wrap; }
@@ -201,7 +219,8 @@ ui <- shiny::fluidPage(
     .btn.disabled, .btn:disabled { opacity:.55; cursor:not-allowed; }
     @media(max-width:900px) { .cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media(max-width:700px) { .masthead { flex-direction:column; align-items:flex-start; } }
-    @media(max-width:500px) { .cards { grid-template-columns:1fr; } .container-fluid { padding:12px; } }
+    @media(max-width:500px) { .cards { grid-template-columns:1fr; } .container-fluid { padding:12px; }
+      .tab-content > .tab-pane > .row { margin-left:-12px; margin-right:-12px; } }
   "))),
   shiny::div(class = "masthead",
     shiny::div(
