@@ -1,0 +1,95 @@
+---
+title: "Packaged datasets and your first model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Packaged datasets and your first model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Choose an example
+
+On **1. Data**, choose a **Packaged example** and click **Load selected example**.
+Loading or downloading data does not train a model. The app reads files from
+the installed package, using `system.file("extdata", ..., package = "DDESONN")`.
+Iris and mtcars come from R's datasets package. These choices work offline;
+the GitHub source link is for browsing, not an automatic download fallback.
+
+| Example | Suggested task / target | Starting predictors | Important context |
+|---|---|---|---|
+| Iris | Multiclass / Species | Four numeric measurements | Small first example, 150 rows. |
+| mtcars | Regression / mpg | wt, hp | Small regression example, 32 rows. |
+| Heart failure | Binary / DEATH_EVENT | All 12 numeric predictors | Repeated inputs limit evaluation; see the research vignette. |
+| WMT prices | Regression / close | open, high, low, volume | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
+| Customer training data | Multiclass / Segmentation | Age | Other columns contain categories or missing values; ID is not preselected. |
+| Customer test data | Unlabeled prediction rows | Must match a completed model | No Segmentation labels, so no segmentation-accuracy evaluation is possible. |
+
+The full original rows and columns remain available for inspection and download.
+The suggested predictors are complete numeric columns. No rows are silently
+deleted, categories encoded, or missing values imputed. Prepare additional
+predictors yourself before selecting them. In WMT, the date is nonnumeric and
+adjusted close derives from close, so neither is preselected for this illustration.
+
+## A first iris model
+
+1. Keep Iris on Data; inspect its preview.
+2. On **2. Features**, use target **Species**, the four measurement predictors,
+   and **Multiclass classification**. Review the split and click **Prepare data**.
+3. On **3. Build & Train**, keep **Basic**, try hidden-layer sizes `8` and
+   **Epochs per model fit** `2`, then click **Train new model**.
+4. On **4. Model / Results**, inspect the evaluations and predictions. Results
+   depend on settings and seed; this is a small workflow example, not a performance claim.
+
+For mtcars, load its example instead. The suggested target is mpg, predictors wt
+and hp, and task Regression. You can change the suggestions on Features.
+**Show full R code** follows your actual prepared data and settings after preparation.
+
+## Read the same data in R
+
+```{r load-r-examples, eval=FALSE}
+data <- datasets::iris
+# Or use the regression example:
+data <- datasets::mtcars
+```
+
+```{r load-package-csv, eval=FALSE}
+path <- system.file("extdata", "heart_failure_clinical_records.csv",
+                    package = "DDESONN")
+stopifnot(nzchar(path))
+data <- read.csv(path, check.names = FALSE)
+```
+
+The app's generated recipes use the corresponding installed filename and record
+a SHA256 check for packaged CSVs, so changed data is detected when reproducing a
+recipe. Original packaged CSV downloads preserve their bytes. Iris/mtcars CSV
+exports contain the dataset columns; R row names are not exported as predictors.
+The existing data files are reused; no external datasets are added by this change.
+
+## Predict using the unlabeled customer file
+
+Train a customer model first, or load your compatible saved workbench bundle.
+The customer training preset uses Age as a complete numeric starting predictor;
+the matching test file also contains Age. On Data select **Customer segmentation —
+unlabeled prediction data**. Inspect/download it or click **Predict with completed
+model** to use the existing prediction flow on Model / Results. No pretrained
+model is bundled or automatically loaded. The saved predictor names and finite
+numeric values must match; incompatible data produces an error rather than
+changing the trained model. Additional categorical or incomplete predictors
+require the same preparation in both training and prediction data.
+
+Loading another dataset clears preparation for a new model while preserving
+completed models. A raw file without target labels is not automatically assigned
+a fake target. The original CSV upload and prediction-upload paths remain available.
+
+## Seeds, evaluation and related guides
+
+A seed value of 42 is not 42 runs. Basic uses the Features seed for one run.
+Custom's training seed list repeats complete training runs on the same prepared
+split: `42,43` with Single model and 100 epochs means two 100-epoch runs, 200 total.
+Neither random nor ordered splitting automatically groups duplicate inputs or
+related subjects. The heart-failure split correction remains separate future work.
+
+The app's contextual links take you to **Vignettes** for this guide, the
+standard-AdaGrad research record, single-run/ensemble plot controls and ensemble
+logs. Installed HTML guides open locally when present; otherwise the links open
+their online source. All guide navigation preserves your current session.

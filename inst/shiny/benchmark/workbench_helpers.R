@@ -1,4 +1,68 @@
 # Model-workbench helpers. Training mathematics stays in the public package API.
+wb_example_catalog <- function() list(
+  iris = list(label = "Iris — flower classification", builtin = TRUE,
+    target = "Species", mode = "multiclass", features = names(datasets::iris)[1:4],
+    note = "Target: Species. Four numeric flower measurements. Ready to prepare on Features."),
+  mtcars = list(label = "mtcars — fuel-economy regression", builtin = TRUE,
+    target = "mpg", mode = "regression", features = c("wt", "hp"),
+    note = "Target: mpg. Suggested predictors: wt and hp, matching the small R example. You can choose other columns on Features."),
+  heart_failure = list(label = "Heart failure — binary classification",
+    file = "heart_failure_clinical_records.csv", target = "DEATH_EVENT", mode = "binary",
+    note = "Target: DEATH_EVENT. Uses the 12 numeric predictors. This CSV has repeated inputs; read the benchmark limitations in Vignettes. Loading it does not run or reproduce the research benchmark."),
+  wmt = list(label = "WMT prices — packaged stock snapshot",
+    file = "WMT_1970-10-01_2025-03-15.csv", target = "close", mode = "regression",
+    features = c("open", "high", "low", "volume"), split = "ordered",
+    note = "Same-row price regression illustration, not a validated forecast. Target: close; date and adjusted close are not preselected as predictors. Ordered splitting is suggested."),
+  customer_train = list(label = "Customer segmentation — labeled training data",
+    file = "train_multiclass_customer_segmentation.csv", target = "Segmentation", mode = "multiclass",
+    features = "Age", exclude = "ID",
+    note = "Target: Segmentation. Age is a complete numeric starting predictor. Other columns include categories or missing values and need preprocessing; ID is not preselected. No rows or columns are removed."),
+  customer_test = list(label = "Customer segmentation — unlabeled prediction data",
+    file = "test_multiclass_customer_segmentation.csv", features = "Age", exclude = "ID",
+    prediction_only = TRUE,
+    note = "This file has no Segmentation labels. Inspect or download it, or predict with a compatible model you have trained or loaded. It cannot evaluate segmentation accuracy without true labels."))
+
+wb_example_choices <- function() {
+  catalog <- wb_example_catalog()
+  stats::setNames(names(catalog), vapply(catalog, `[[`, character(1), "label"))
+}
+
+wb_example <- function(id) {
+  catalog <- wb_example_catalog()
+  if (length(id) != 1L || is.na(id) || !id %in% names(catalog)) stop("Choose a packaged example.")
+  entry <- catalog[[id]]
+  if (isTRUE(entry$builtin)) {
+    entry$data <- if (id == "iris") datasets::iris else datasets::mtcars
+    entry$source <- list(example = id)
+    entry$path <- NULL
+  } else {
+    path <- system.file("extdata", entry$file, package = "DDESONN")
+    if (!nzchar(path)) stop("This example is missing from the installed package. Reinstall DDESONN with its data or inspect the dataset source link.")
+    entry$data <- utils::read.csv(path, check.names = FALSE)
+    entry$path <- path
+    entry$source <- list(package_file = entry$file,
+      sha256 = digest::digest(file = path, algo = "sha256"),
+      package_version = as.character(utils::packageVersion("DDESONN")))
+  }
+  entry$id <- id
+  entry
+}
+
+wb_default_features <- function(data, target, preset = NULL) {
+  numeric <- names(data)[vapply(data, function(x) is.numeric(x) && all(is.finite(x)), logical(1))]
+  if (!is.null(preset$features) && (is.null(preset$target) || identical(target, preset$target)))
+    numeric <- intersect(preset$features, numeric)
+  setdiff(numeric, c(target, preset$exclude))
+}
+
+wb_write_example <- function(id, file) {
+  example <- wb_example(id)
+  if (!is.null(example$path)) {
+    if (!file.copy(example$path, file, overwrite = TRUE)) stop("Could not copy the packaged CSV.")
+  } else utils::write.csv(example$data, file, row.names = FALSE)
+  invisible(file)
+}
+
 wb_seed <- function(seed, code) {
   present <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
   if (present) old <- get(".Random.seed", envir = .GlobalEnv)
@@ -310,8 +374,15 @@ wb_stop <- function(job) {
 wb_literal <- function(value) paste(capture.output(dput(value)), collapse = "\n")
 
 wb_data_code <- function(source = NULL) {
-  if (identical(source$example, "iris")) "library(DDESONN)\n\n# Read the training data.\ndata <- datasets::iris" else
-    paste0("library(DDESONN)\n\n# Read the training data.\ndata <- read.csv(",
+  if (identical(source$example, "iris")) return("library(DDESONN)\n\n# Read the training data.\ndata <- datasets::iris")
+  if (identical(source$example, "mtcars")) return("library(DDESONN)\n\n# Read the training data.\ndata <- datasets::mtcars")
+  if (!is.null(source$package_file)) return(paste0(
+    "library(DDESONN)\n\n# Read the same CSV from the installed package.\n",
+    "data_path <- system.file('extdata', ", wb_literal(source$package_file), ", package = 'DDESONN')\n",
+    "stopifnot(nzchar(data_path))\n",
+    if (!is.null(source$sha256)) paste0("stopifnot(identical(digest::digest(file = data_path, algo = 'sha256'), ", wb_literal(source$sha256), "))\n") else "",
+    "data <- read.csv(data_path, check.names = FALSE)"))
+  paste0("library(DDESONN)\n\n# Read the training data.\ndata <- read.csv(",
       wb_literal(if (is.null(source$file)) "training-data.csv" else source$file),
       ", check.names = FALSE)\n# Use the original CSV with the same rows and row order.")
 }

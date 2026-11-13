@@ -72,6 +72,10 @@ wb_download_info <- function(id, button) {
   shiny::div(class = "wb-download-row", button, wb_help(title, info[[1]], info[[2]]))
 }
 
+wb_vignette_link <- function(id, label = "See related vignettes") {
+  shiny::div(class = "wb-vignette-link", shiny::actionLink(id, label))
+}
+
 wb_optimizer_choices <- function() {
   values <- DDESONN::ddesonn_optimizer_options()
   labels <- c(adagrad = "Standard AdaGrad", adam = "Adam", lamb = "LAMB",
@@ -117,6 +121,7 @@ wb_ui <- function() {
       shiny::column(6, shiny::div(class = "panel-body-custom",
         wb_heading("Predict on new rows", "Use the completed model to predict outcomes for rows it has not seen. Include the saved predictor columns; the target column is optional. Training preprocessing is reused."),
         shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
+        wb_vignette_link("wb_prediction_vignettes", "Packaged-data and prediction guide in Vignettes"),
         wb_download_button("wb_new_download", "Download new predictions"),
         wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"),
         shiny::tags$details(shiny::tags$summary("Preview new-prediction CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview"))),
@@ -125,9 +130,16 @@ wb_ui <- function() {
     shiny::tabPanel("1. Data", value = "data",
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          wb_heading("Start with Data", "This is where you load a CSV dataset or choose the included example. Each row is an observation and each column is a variable. Choosing what to predict comes next, on Features."),
-          shiny::fileInput("wb_data", "Training data (CSV, up to 10 MB)", accept = ".csv"),
-          shiny::actionButton("wb_demo", "Use iris example"),
+          wb_heading("Start with Data", "Choose an installed example or upload a CSV. Each row is an observation and each column is a variable. Loading data does not train a model. Choose the target and predictors next, on Features."),
+          shiny::selectInput("wb_example", "Packaged example", wb_example_choices(), selected = "iris", selectize = FALSE),
+          shiny::div(class = "wb-guidance", shiny::textOutput("wb_example_note")),
+          shiny::actionButton("wb_demo", "Load selected example"),
+          shiny::downloadButton("wb_example_download", "Download example CSV"),
+          shiny::conditionalPanel("input.wb_example === 'customer_test'",
+            shiny::actionButton("wb_example_predict", "Predict with completed model")),
+          wb_vignette_link("wb_data_vignettes", "Packaged-data guide in Vignettes"),
+          shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/inst/extdata", target = "_blank", rel = "noopener noreferrer", "Browse dataset source on GitHub"),
+          shiny::fileInput("wb_data", "Or upload training data (CSV, up to 10 MB)", accept = ".csv"),
           shiny::p(class = "wb-guidance", "Start with Data. Inspect the rows, then choose the target and predictors in Features."),
           shiny::div(class = "wb-action-right", shiny::actionButton("wb_next_features", "Next: choose features", class = "btn-primary"))),
         shiny::mainPanel(
@@ -170,7 +182,8 @@ wb_ui <- function() {
             wb_code_panel("wb_features_code", "Equivalent R code — prepared split and scaling")),
           shiny::div(class = "panel-body-custom",
             wb_heading("About your split", "Random classification splits keep examples from each class in each split. Ordered splitting preserves row order, which can be useful for time-based data. Neither option groups duplicate inputs or related subjects automatically."),
-            shiny::p("Preprocessing is fitted only on training rows. Prepare grouped data separately when related subjects or duplicate inputs must stay together.")),
+            shiny::p("Preprocessing is fitted only on training rows. Prepare grouped data separately when related subjects or duplicate inputs must stay together."),
+            wb_vignette_link("wb_features_vignettes", "Data preparation and limitations in Vignettes")),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_error"))))),
     shiny::tabPanel("3. Build & Train", value = "train",
       shiny::sidebarLayout(
@@ -252,6 +265,7 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
               wb_switch("wb_diagnostics", "Detailed training diagnostics", "Off shows ordinary epoch progress and genuine warnings/errors. On also emits detailed tensor, gradient/error, optimizer and training summaries. Read the Training log disclosure under the chart: it shows the most recent 2,000 lines, retained with completed bundles. These are diagnostic logs, not extra training, a model-quality guarantee or a separate file export."))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'", shiny::div(class = "wb-workload-explanation", shiny::textOutput("wb_workload"))),
+          wb_vignette_link("wb_training_vignettes", "Training and plotting guides in Vignettes"),
           shiny::div(class = "wb-training-actions",
             shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true"),
             shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
@@ -304,6 +318,8 @@ wb_ui <- function() {
 wb_server <- function(input, output, session, helper) {
   raw <- shiny::reactiveVal(datasets::iris)
   data_source <- shiny::reactiveVal("Included iris example · 150 rows")
+  data_origin <- shiny::reactiveVal(list(example = "iris"))
+  dataset_preset <- shiny::reactiveVal(wb_example("iris"))
   prepared <- shiny::reactiveVal(NULL)
   result <- shiny::reactiveVal(NULL)
   completed_runs <- shiny::reactiveVal(list())
@@ -406,9 +422,10 @@ wb_server <- function(input, output, session, helper) {
       wb_review_results = completed, wb_predictions_download = completed,
       wb_new_download = !is.null(new_predictions()), wb_new_data = completed,
       wb_load = !running,
-      wb_prepare = !running && length(input$wb_target) == 1 &&
+      wb_prepare = !running && length(input$wb_target) == 1 && nzchar(input$wb_target) && input$wb_target %in% names(raw()) &&
         length(input$wb_features) > 0 && !input$wb_target %in% input$wb_features,
-      wb_data = !running, wb_demo = !running)
+      wb_data = !running, wb_demo = !running, wb_example = !running,
+      wb_example_predict = completed && !running)
   })
   shiny::observe(session$sendCustomMessage("wb-action-states", action_states()))
   busy <- function() if (!is.null(job())) stop("Finish or cancel the running job first.")
@@ -419,11 +436,17 @@ wb_server <- function(input, output, session, helper) {
   }
   output$wb_columns <- shiny::renderUI({
     cols <- names(raw())
+    preset <- dataset_preset()
+    target <- if (is.null(preset)) tail(cols, 1) else if (is.null(preset$target)) "" else preset$target
     shiny::tagList(
       wb_field("wb_target", "Target", "The target is the variable you want the model to predict, such as a class label or a numeric outcome. It is kept out of the predictors.",
-        shiny::selectInput("wb_target", NULL, cols, selected = tail(cols, 1))),
+        shiny::selectInput("wb_target", NULL, c("Choose a target" = "", stats::setNames(cols, cols)), selected = target)),
       wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. Select numeric columns available when you will make future predictions; do not include the target or information derived from the answer.",
-        shiny::selectizeInput("wb_features", NULL, cols, selected = head(cols, -1), multiple = TRUE)))
+        shiny::selectizeInput("wb_features", NULL, cols, selected = wb_default_features(raw(), target, preset), multiple = TRUE)))
+  })
+  for (id in c("wb_data_vignettes", "wb_features_vignettes", "wb_training_vignettes", "wb_prediction_vignettes", "wb_experiment_vignettes")) local({
+    link_id <- id
+    shiny::observeEvent(input[[link_id]], shiny::updateTabsetPanel(session, "workspace", selected = "vignettes"))
   })
   shiny::observeEvent(input$wb_next_features,
     shiny::updateTabsetPanel(session, "workspace", selected = "features"))
@@ -432,10 +455,7 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateTabsetPanel(session, "workspace", selected = "results")
     shiny::updateTabsetPanel(session, "wb_results_tabs", selected = "evaluate")
   }))
-  code_source <- shiny::reactive({
-    if (startsWith(data_source(), "Included iris")) list(example = "iris") else
-      list(file = basename(input$wb_data$name))
-  })
+  code_source <- shiny::reactive(data_origin())
   shiny::observeEvent(input$wb_remembered_workflow, {
     if (input$wb_remembered_workflow %in% c("basic", "custom"))
       shiny::updateRadioButtons(session, "wb_workflow", selected = input$wb_remembered_workflow)
@@ -469,19 +489,34 @@ wb_server <- function(input, output, session, helper) {
   output$wb_seed_comparison <- shiny::renderTable({ shiny::req(result()); result()$seed_comparison })
   output$wb_member_weights <- shiny::renderPrint({ shiny::req(result()); result()$member_weights })
   shiny::observeEvent(input$wb_target, {
-    shiny::updateSelectizeInput(session, "wb_features", selected = setdiff(names(raw()), input$wb_target))
+    shiny::updateSelectizeInput(session, "wb_features", selected = wb_default_features(raw(), input$wb_target, dataset_preset()))
   })
   shiny::observeEvent(input$wb_data, attempt({
     busy(); candidate <- read_csv(input$wb_data)
     if (nrow(candidate) < 10 || anyDuplicated(names(candidate))) stop("Use at least 10 rows and unique column names.")
-    raw(candidate); prepared(NULL); data_source(paste("Uploaded:", basename(input$wb_data$name)))
+    dataset_preset(NULL); raw(candidate); prepared(NULL)
+    data_origin(list(file = basename(input$wb_data$name)))
+    data_source(paste("Uploaded:", basename(input$wb_data$name)))
   }))
+  example_id <- shiny::reactive(if (is.null(input$wb_example)) "iris" else input$wb_example)
+  output$wb_example_note <- shiny::renderText(wb_example_catalog()[[example_id()]]$note)
   shiny::observeEvent(input$wb_demo, attempt({
-    busy(); raw(datasets::iris); prepared(NULL); data_source("Included iris example · 150 rows")
-    shiny::updateSelectInput(session, "wb_mode", selected = "multiclass")
-    shiny::updateSelectInput(session, "wb_target", selected = "Species")
-    shiny::updateSelectizeInput(session, "wb_features", selected = names(datasets::iris)[1:4])
+    busy(); example <- wb_example(example_id())
+    dataset_preset(example); raw(example$data); prepared(NULL); data_origin(example$source)
+    data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
+    if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
+    if (!is.null(example$split)) shiny::updateSelectInput(session, "wb_split", selected = example$split)
   }))
+  output$wb_example_download <- shiny::downloadHandler(
+    filename = function() paste0("DDESONN-", example_id(), ".csv"),
+    content = function(file) wb_write_example(example_id(), file))
+  shiny::observeEvent(input$wb_example_predict, attempt({
+    busy(); new_predictions(NULL)
+    shiny::updateTabsetPanel(session, "workspace", selected = "results")
+    shiny::updateTabsetPanel(session, "wb_results_tabs", selected = "models")
+    if (is.null(result())) stop("Train or load a compatible model before predicting.")
+    new_predictions(wb_new_predictions(result(), wb_example(example_id())$data))
+  }, model_error))
   # Invalidate only preparation. The immutable completed model is still usable.
   signature <- shiny::reactive(list(input$wb_target, input$wb_features, input$wb_mode,
     input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split))

@@ -45,6 +45,7 @@ benchmark_ui <- shiny::sidebarLayout(
             shiny::p("Supported prefixes: accuracy, precision, recall, f1, roc_auc, log_loss, brier. Each requires both _legacy and _corrected columns. Here, corrected means standard AdaGrad. Difference columns are recomputed. Additional columns are retained in downloads."),
             shiny::p("The included record already covers seeds 1–1,000. Uploads replace the current data; they do not append or start training. Invalid uploads leave the previous dataset available."),
             shiny::h3("Included research record"),
+            wb_vignette_link("wb_experiment_vignettes", "Read the research context in Vignettes"),
             shiny::p("The included CSV pairs all 1,000 fresh standard-AdaGrad heart-failure runs with archived legacy observations, using frozen 7.3.0 training source. It supersedes the intermediate 100-seed record. Keras was not rerun. Correcting AdaGrad does not repair the repeating inputs across the historical splits; this remains a descriptive, overlap-compromised comparison."),
             shiny::p("The same test split is evaluated across seeds. Original historical initialization is unverified. Of the 750 test inputs, 738 also occur in training; this limits conclusions about unseen cases. Seed variability is not a patient-population confidence interval."),
             shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000", "Read the protocol, results and artifact provenance", target = "_blank", rel = "noopener"),
@@ -225,12 +226,13 @@ ui <- shiny::fluidPage(
     .wb-training-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px; }
     .wb-training-actions .btn { white-space:normal; }
     .wb-workflow-pills .shiny-input-container { width:100%; margin-bottom:0; }
-    .wb-workflow-pills .shiny-options-group { display:flex; padding:4px; gap:4px; background:#e5ecef; border-radius:999px; }
-    .wb-workflow-pills label.radio-inline { flex:1; margin:0; padding:9px 12px; text-align:center; border-radius:999px; cursor:pointer; position:relative; transition:background .15s,color .15s; }
+    .wb-workflow-pills .shiny-options-group { display:flex; padding:4px; gap:4px; background:#dce9f6; border:1px solid #b3cae1; border-radius:999px; }
+    .wb-workflow-pills label.radio-inline { flex:1; margin:0; padding:9px 12px; text-align:center; color:#28527b; border-radius:999px; cursor:pointer; position:relative; transition:background .15s,color .15s; }
     .wb-workflow-pills input { position:absolute; opacity:0; width:1px; height:1px; }
-    .wb-workflow-pills label:has(input:checked) { color:#124452; background:white; box-shadow:0 1px 4px #18344726; font-weight:600; }
+    .wb-workflow-pills label:has(input:checked) { color:white; background:#326ea5; box-shadow:0 1px 4px #1c3d5f30; font-weight:600; }
     .wb-workflow-pills label:has(input:focus-visible) { outline:3px solid #527d9b; outline-offset:2px; }
     .wb-custom-brief { font-size:13px; color:#526b7a; line-height:1.55; margin:12px 0 18px; }
+    .wb-vignette-link { margin:12px 0; }
     .wb-download-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:8px 0; }
     .wb-settings-section { border-top:1px solid #d8e2e8; margin-top:10px; padding-top:8px; }
     .wb-settings-section > summary { cursor:pointer; color:#155b63; font-weight:600; padding:4px 0; }

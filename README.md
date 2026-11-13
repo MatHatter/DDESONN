@@ -2,6 +2,15 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.22 — packaged examples, guide links and blue workflow selector
+
+Choose iris, mtcars, heart failure, WMT prices or the customer train/test CSVs
+directly from Data. Existing package files are read locally, with suggested
+settings, previews, downloads and reproducible R source code. The unlabeled
+customer file can use a compatible completed model for prediction. Contextual
+links open Vignettes, including a new packaged-data guide. The centered
+Basic/Custom pill now has a blue color scheme.
+
 ## Version 7.3.21 — explicit training runs and epochs
 
 Shiny distinguishes the Data-split seed from Training-run seed values. A seed
