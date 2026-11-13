@@ -2,7 +2,7 @@ dashboard_fixture <- function() {
   path <- system.file("shiny", "benchmark", package = "DDESONN")
   helper <- new.env(parent = globalenv())
   sys.source(file.path(path, "helpers.R"), envir = helper)
-  list(helper = helper, data = utils::read.csv(file.path(path, "data", "heart-failure-100.csv")))
+  list(helper = helper, data = utils::read.csv(file.path(path, "data", "heart-failure-1000.csv")))
 }
 
 test_that("dashboard validates paired inputs and recomputes uploaded differences", {
@@ -26,14 +26,15 @@ test_that("dashboard validates paired inputs and recomputes uploaded differences
 test_that("dashboard reproduces benchmark summaries and metric direction", {
   f <- dashboard_fixture(); h <- f$helper
   d <- h$dashboard_validate(f$data)
+  expect_identical(as.integer(d$seed), 1:1000)
   s <- h$dashboard_summary(d)
   accuracy <- s[s$Metric == "Accuracy", ]
-  expect_equal(accuracy$Standard, .99968, tolerance = 1e-10)
-  expect_equal(accuracy$Legacy, .9994266666666667, tolerance = 1e-10)
+  expect_equal(accuracy$Standard, .9997053333333333, tolerance = 1e-10)
+  expect_equal(accuracy$Legacy, .9992186666666667, tolerance = 1e-10)
   expect_equal(unlist(accuracy[c("Improved", "Tied", "Worsened")], use.names = FALSE),
-    c(25, 58, 17))
-  expect_equal(sum(round((1 - d$accuracy_legacy) * 750)), 43)
-  expect_equal(sum(round((1 - d$accuracy_corrected) * 750)), 24)
+    c(329, 540, 131))
+  expect_equal(sum(round((1 - d$accuracy_legacy) * 750)), 586)
+  expect_equal(sum(round((1 - d$accuracy_corrected) * 750)), 221)
   one <- data.frame(seed = 1, log_loss_legacy = .2, log_loss_corrected = .1)
   s <- h$dashboard_summary(h$dashboard_validate(one))
   expect_equal(s$Improved, 1)
@@ -62,8 +63,9 @@ test_that("dashboard filters, replaces valid uploads and retains data after inva
       size = file.info(bad)$size))
     expect_match(upload_error(), "Include both")
     expect_equal(current()$seed, 101)
-    session$setInputs(reset = 1, seeds = c(1, 100))
-    expect_equal(nrow(selected()), 100)
+    session$setInputs(reset = 1, seeds = c(1, 1000))
+    expect_equal(nrow(selected()), 1000)
+    expect_match(output$source, "seeds 1–1,000", fixed = TRUE)
     expect_null(upload_error())
     unlink(c(csv, bad))
   })

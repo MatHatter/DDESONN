@@ -1,6 +1,6 @@
 # New reconstructed standard-AdaGrad heart-failure benchmark: seeds 1–1000
 
-All 1,000 seeds ran fresh at 360 epochs with frozen 7.3.0 source revision `a95bc8dda84c4eb35633ee5a5bb456169c1c54b8`. This is a new reconstructed experiment, not a verified continuation of the 100-seed record. Existing research and earlier artifacts remain unchanged. No release was published and no optimizer code changed.
+All 1,000 seeds ran fresh at 360 epochs with frozen 7.3.0 source revision `a95bc8dda84c4eb35633ee5a5bb456169c1c54b8`. This is a new reconstructed experiment, not a verified continuation of the 100-seed record. Earlier records and raw artifacts are preserved in Git history and the standalone archive; current documentation is consolidated here. No release was published and no optimizer code changed.
 
 Mean fixed-split test accuracy: **0.999705333333333**; sample SD: **0.000631588309487722**. Total repeated seed-by-row errors: **221** (188 FP, 33 FN); 15 of 750 test rows were misclassified at least once. Full precision/recall/F1/ROC AUC/log-loss/Brier summaries, every seed, row errors, graphs, pilot evidence and source are in the standalone report and bundle identified in ARTIFACTS.json.
 
@@ -19,8 +19,26 @@ That no-overlap matched study is future work and was not launched here. See the 
 ## Browse the results
 
 - [Full report](REPORT.md), including every seed and the historical comparison.
-- [Per-seed test metrics](per-seed-test-metrics.csv) and [metric summaries](metric-summary.csv).
+- [Per-seed test metrics](per-seed-test-metrics.csv), [paired explorer data](paired-test-metrics.csv) and [metric summaries](metric-summary.csv).
 - [Errors by test row](test-row-errors.csv), [graphs](graphs/) and [validation evidence](evidence/).
 - [Reproduce or resume](REPRODUCE.md); [bundle size, checksum and current retrieval location](ARTIFACTS.json).
 
 The corrected **standard AdaGrad** (not automatic differentiation) is compared descriptively with archived legacy DDESONN and Keras evidence from the same overlap-heavy historical heart-failure dataset. The shared defect does not become a clean evaluation just because the optimizer is corrected: repeated feature vectors across training and testing compromise both sides of that historical comparison. Historical Keras execution conditions are not fully verified, and Keras was not rerun here. This is not a leakage-free or fully matched comparison. The overlap fix and a new matched evaluation belong to a separate PR/task.
+
+The superseded standalone 100-seed directory and historical Keras/DDESONN vignette were retired from the current tree in 7.3.19. Their historical evidence remains in Git history and the verified standalone bundle.
+
+## 7.3.19 explorer consolidation
+
+The paired CSV is byte-identical to `inst/shiny/benchmark/data/heart-failure-1000.csv`:
+SHA256 `b66d55ccde005e67ac115ee54d8b24e6356a83b0bffb38dfe4e20affcf5912ad`.
+It joins all 1,000 seed IDs from the validated archived legacy probabilities and
+new standard-AdaGrad test results. `training_seconds` retains the export schema
+and contains the new worker's elapsed status time, not pure optimizer time.
+
+The 7.3.19 package installs/builds successfully. All 37 targeted dashboard and
+vignette-link assertions pass. A fresh installed-package Shiny process serves
+the four current guides and the rendered consolidated guide with HTTP 200.
+Package inspection verifies the exact full-seed CSV, four vignette sources,
+absence of the retired CSV/vignette, and exclusion of dev/raw experiment files.
+No training, optimizer, historical split or frozen reproducibility-bundle changes
+were made for this consolidation.

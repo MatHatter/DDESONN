@@ -2,6 +2,17 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.19 — consolidated research and full-seed explorer
+
+The completed 1,000-seed report is now the current research entry point. The
+superseded standalone 100-seed report and historical Keras/DDESONN vignette have
+been removed from the active tree; Git history and the standalone archive retain
+them. Shiny now explores all 1,000 new standard-AdaGrad seeds against archived
+legacy observations and links the four current vignettes. The historical
+statistics and overlap caveats remain in the consolidated report. Correcting
+AdaGrad does not fix the historical split; the split fix and matched rerun remain
+separate future work.
+
 ## Version 7.3.18 — new 1,000-seed research record and vignette links
 
 The new reconstructed heart-failure experiment completed all 1,000 fresh seeds
@@ -15,7 +26,7 @@ Read the [new research record](dev/research/heart-failure-adagrad-new-seeds-1-10
 and [benchmark vignette](vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd).
 The Shiny workbench now has a **Vignettes** tab for all package guides, opening
 installed HTML when available and online source otherwise. The existing
-100-seed record is preserved separately; raw models and the large reproducibility
+100-seed record is preserved in Git history and the archive; raw models and the large reproducibility
 bundle remain outside the distributed R package. The no-overlap matched study
 is future work.
 
@@ -142,12 +153,18 @@ Replace explicit `adagrad_x` configurations with `adagrad`; the removed name
 raises an error rather than silently selecting another algorithm. Training
 trajectories, bias updates and initialization can differ from earlier versions.
 
-### What the 100-seed follow-up shows
+### What the completed 1,000-seed reconstruction shows
 
-The completed follow-up observed higher mean test accuracy with standard AdaGrad
-(99.9680% versus 99.9427%), with mixed results across other metrics. The separate
-[research report](dev/research/heart-failure-adagrad-seeds-1-100/README.md) contains
-the tables, error counts, paired-results graph, protocol and limitations.
+The new standard-AdaGrad reconstruction completed all 1,000 fresh seeds at 360
+epochs using frozen 7.3.0 source. Mean fixed-split test accuracy is 99.970533%,
+versus 99.921867% for probability-recomputed archived legacy results. Repeated
+seed-by-row errors total 221 versus 586. This descriptive comparison retains
+substantial train/test feature overlap and does not isolate the optimizer's
+causal effect or establish performance on new patients.
+See the [consolidated report](dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
+for every seed, all metrics, graphs, provenance and limitations. The earlier
+100-seed intermediate report is superseded; it remains in Git history and the
+standalone archive rather than as a separate current guide.
 
 ### How this relates to the historical Keras comparison
 
@@ -756,7 +773,7 @@ DDESONN/
 ├── R/
 ├── man/
 ├── vignettes/
-│   ├── DDESONNvsKeras_1000Seeds.Rmd
+│   ├── heart-failure-standard-adagrad-1000-seeds.Rmd
 │   ├── logs_main-change-movement_ensemble_runs_scenarioD.Rmd
 │   ├── plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd
 │   └── plot-controls_scenario1-2_single-run_scenarioA.Rmd
@@ -1165,7 +1182,7 @@ Start with these vignettes in `vignettes/`:
 - `plot-controls_scenario1-2_single-run_scenarioA.Rmd`
 - `plot-contols_scenario1_ensemble-runs_scenarioC-D.Rmd`
 - `logs_main-change-movement_ensemble_runs_scenarioD.Rmd`
-- `DDESONNvsKeras_1000Seeds.Rmd`
+- `heart-failure-standard-adagrad-1000-seeds.Rmd`
 
 Naming clarification: in these vignette filenames, "Scenario 1/2" indicates plot-control style only, while "Scenario A/B/C/D" indicates run orchestration family. Refer to section: Run terminology.
 
@@ -1363,8 +1380,8 @@ the same helper.
 **Status:** Forward-looking consideration  
 **Related To-Do:** T-09
 
-The project already includes a major comparative vignette:
-`vignettes/DDESONNvsKeras_1000Seeds.Rmd` (legacy heart-failure research and reproducibility limitations).
+The project includes a consolidated research vignette:
+`vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd` (new standard-AdaGrad results, historical comparison and overlap limitations).
 
 Future releases may expand the vignette suite (more datasets, more experiments,
 more reproducible walkthroughs) and optionally explore interactive diagnostics
@@ -1500,7 +1517,7 @@ consistency sweep, not a redesign
 #### T-09 - Expand vignettes and research demos  
 Linked from: **R-08**
 
-- Add additional polished vignettes for guided exploration (beyond `DDESONNvsKeras_1000Seeds.Rmd`)
+- Add additional polished vignettes for guided exploration (beyond `heart-failure-standard-adagrad-1000-seeds.Rmd`)
 - Keep demos reproducible and artifact-backed
 - Treat vignettes as the primary-user education layer for v1+ releases
 

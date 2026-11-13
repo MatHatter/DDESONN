@@ -90,7 +90,8 @@ This iteration deliberately retains the historical split.
 ## Full record and reproducibility
 
 [Read the full report, per-seed CSVs, graphs and evidence](https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000).
-The prior 100-seed record is preserved separately. Raw models and the standalone
+This is the consolidated current research guide. The superseded 100-seed record
+and standalone historical vignette are preserved in Git history and the archive. Raw models and the standalone
 2,332,318,464-byte bundle remain outside the distributed R package. Bundle SHA256:
 `44508777bd48332b23e7bba77cde1c464174cb00e85d5f8f52a99ba0fcc807db`.
 All 22,336 archive members and the whole archive were verified. ARTIFACTS.json

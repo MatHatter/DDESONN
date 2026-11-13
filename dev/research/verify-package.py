@@ -1,4 +1,9 @@
-"""Verify exclusions and measure real built/installed sizes.
+"""Historical 7.3.0 package-size audit (retained as provenance).
+Run this script from its original historical checkout. Its legacy raw-file and
+vignette expectations intentionally describe that earlier tree, not the current
+7.3.19 consolidated guide. This is not a current release-validation command.
+
+Verify exclusions and measure real built/installed sizes.
 Usage: python dev/research/verify-package.py BEFORE_TAR AFTER_TAR BEFORE_LIB_PACKAGE AFTER_LIB_PACKAGE
 Library arguments point to the installed DDESONN directory, not its parent.
 """

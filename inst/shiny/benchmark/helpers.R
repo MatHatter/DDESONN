@@ -11,12 +11,11 @@ dashboard_vignette_dir <- function(app_dir = getwd()) {
 
 dashboard_vignettes <- function(doc_dir = "") {
   guides <- data.frame(
-    file = c("heart-failure-standard-adagrad-1000-seeds", "DDESONNvsKeras_1000Seeds",
+    file = c("heart-failure-standard-adagrad-1000-seeds",
       "plot-controls_scenario1-2_single-run_scenarioA",
       "plot-contols_scenario1_ensemble-runs_scenarioC-D",
       "logs_main-change-movement_ensemble_runs_scenarioD"),
     title = c("New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
-      "Historical DDESONN/Keras heart-failure experiments",
       "Plot controls: single-run scenarios 1 and 2",
       "Plot controls: ensemble scenarios C and D",
       "Main, change and movement logs: ensemble scenario D"),
@@ -116,12 +115,12 @@ dashboard_server <- function(default_data) {
       title = "Understand this comparison", easyClose = TRUE,
       shiny::p("Legacy AdaGrad is DDESONN's earlier custom implementation. Its multilayer path applied a direct weight update followed by an adaptive update to the same weights. Historical experiments reported strong results, but the update rule differed from classic AdaGrad."),
       shiny::p("Standard AdaGrad is the classic algorithm: one adaptive update per parameter tensor per step. It replaced the legacy behavior in version 7.3.0."),
-      shiny::p("Mean is the average of the selected metric over the selected seed runs. The 100-seed follow-up had slightly higher average accuracy, but not every metric improved. These are descriptive benchmark results, not universal superiority."),
+      shiny::p("Mean is the average of the selected metric over the selected seed runs. The included record covers all 1,000 new standard-AdaGrad seeds compared descriptively with archived legacy observations. The historical split has repeated inputs across training and testing; correcting AdaGrad does not remove that overlap or establish a fully matched Keras comparison."),
       footer = shiny::modalButton("Close")))
     shiny::observeEvent(input$legacy_help, explain())
     shiny::observeEvent(input$standard_help, explain())
     current <- shiny::reactiveVal(default_data)
-    source_name <- shiny::reactiveVal("Included heart-failure benchmark · seeds 1–100")
+    source_name <- shiny::reactiveVal("Included heart-failure benchmark · seeds 1–1,000")
     upload_error <- shiny::reactiveVal(NULL)
     shiny::observeEvent(input$upload, {
       tryCatch({
@@ -136,7 +135,7 @@ dashboard_server <- function(default_data) {
     })
     shiny::observeEvent(input$reset, {
       current(default_data)
-      source_name("Included heart-failure benchmark · seeds 1–100")
+      source_name("Included heart-failure benchmark · seeds 1–1,000")
       upload_error(NULL)
     })
     output$upload_error <- shiny::renderText(upload_error())
