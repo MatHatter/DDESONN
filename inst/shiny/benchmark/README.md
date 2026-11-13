@@ -111,7 +111,8 @@ base package does not require callr; the optional model workbench does.
   constant features use scale 1. Grouped or duplicate inputs require an externally
   prepared split; random row splitting does not establish subject independence.
 - Basic: a single model, zero to five hidden layers, task-appropriate default activations,
-  AdaGrad/Adam/RMSprop/SGD, fixed learning rate, optional L1/L2 regularization.
+  AdaGrad/Adam/RMSprop/SGD and a fixed learning rate. Optional penalties are
+  configured in Custom.
   Optional initial self-organization runs before a new model's supervised training and is off by
   default. Self-organization can destabilize training; smaller learning rates
   may help. Custom additionally exposes dropout and ensemble orchestration.
@@ -450,3 +451,18 @@ button remains in its green panel. That panel follows the visible control
 container width on Data, Features, Build & Train and Experiments, the full Model
 performance width, and the Save or restore width on Saved models & predictions.
 The alignment updates on tab changes and responsive window resizing.
+
+
+### Compact Basic controls and Custom separation (7.3.16)
+
+Basic ends with its prepared-split epoch summary and a shared training action
+row. Custom reveals an Advanced Custom settings divider below the shared
+controls, followed by optional regularization and the remaining Custom sections.
+Regularization is off by default and hidden in Basic. Switching a new run to
+Basic removes any hidden Custom penalty; existing completed models and warm
+starts continue to use their saved configurations.
+
+The Basic/Custom pill is one-third narrower. Prepare data and Train new model
+are slightly wider; Cancel and Train share one row with Train at the far right.
+Show full R code is wider, using its original 14px font and standard button
+height. Its green panel retains the page-specific widths introduced in 7.3.15.

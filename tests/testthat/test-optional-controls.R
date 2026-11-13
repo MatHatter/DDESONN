@@ -22,6 +22,12 @@ test_that("optional controls disable their backend effects and restore saved ena
     expect_identical(on$reg, "L2"); expect_equal(on$lambda, .002)
     expect_equal(on$dropout, .25); expect_identical(on$schedule, "exponential")
     expect_equal(on$decay, .8); expect_equal(on$minimum, .0001)
+    # Returning to Basic cannot retain hidden Custom regularization.
+    session$setInputs(wb_workflow = "basic")
+    expect_identical(next_config()$reg, "none")
+    expect_equal(next_config()$lambda, 0)
+    session$setInputs(wb_workflow = "custom")
+    expect_equal(next_config(), on)
     messages <- new.env()
     session$sendInputMessage <- function(inputId, message) messages[[inputId]] <- message
     sync_controls(on, "multiclass")
