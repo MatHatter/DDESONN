@@ -1,3 +1,11 @@
+# DDESONN 7.3.23
+
+- Limit the Data example selector to labeled datasets, and clarify that Features
+  divides a single dataset into training, validation and test sets.
+- Rename the customer training example to "labeled dataset". Move its optional
+  unlabeled counterpart to Predict on new rows, with prediction and CSV download
+  actions. Keep all packaged CSVs unchanged.
+
 # DDESONN 7.3.22
 
 - Select, inspect and download all four installed extdata CSVs plus R's iris and

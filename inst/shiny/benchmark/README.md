@@ -1,5 +1,14 @@
 # DDESONN model workbench
 
+## Separate training and optional prediction examples (7.3.23)
+
+Data offers five labeled datasets. Provide one dataset and use Features to split
+it into training, validation and test sets. The customer example is labeled
+"labeled dataset" to distinguish it from a preassigned training split.
+The optional unlabeled customer CSV remains packaged and is now available under
+Predict on new rows, with prediction and download actions. It is not needed to
+train or evaluate the model.
+
 ## Packaged examples, guide links and blue workflow pill (7.3.22)
 
 Data now offers iris and mtcars from R plus all four CSVs already shipped in
