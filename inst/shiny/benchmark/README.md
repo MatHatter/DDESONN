@@ -307,3 +307,30 @@ the latter omits preprocessing. Historical completed recipes are preserved.
 The intention comes from the original standalone script, written before the
 package API existed: reload a saved model with its original settings and use it
 again. The example here expresses that workflow through the current API.
+
+### Completed runs and attempt history (7.3.10)
+
+The original layout is retained: Build & Train on the left, Training progress at
+the upper right and Current completed model below it. Radio buttons list each
+successful run and loaded bundle for this session. Selecting one restores its
+Build & Train controls and activates its saved chart, checkpoint summary,
+evaluation, prediction, warm-start source, saved recipe and model downloads.
+Changing controls configures the next **new** run on the currently prepared data;
+it does not edit a completed model or change Features/data preparation. Warm
+starts use the selected model's own saved data and configuration.
+
+Latest attempt reports running/completed/failed/cancelled status with a run number.
+Errors belong there, with guidance and expandable technical details. Starting a
+new attempt clears the prior active error; later successes leave that warning in
+Attempt history. Failed/cancelled attempts never replace completed models and are
+not offered as usable model choices. Loaded bundles add completed entries too.
+Models and history are per session and kept in memory; download bundles you need
+to retain before closing the session. A bundle stores its selected model, not all
+models in the session's history.
+
+The chart and loss table show only the selected completed model, even while a
+later job runs. With no completed model yet, live loss is shown during a job.
+An older bundle without loss history has an explicit empty-state message.
+Hover uses a normal cursor, enlarges the nearest dot and shows epoch/loss. It
+never selects/restores weights; the selected checkpoint remains marked separately.
+The loss table provides the same epoch/loss values without requiring hover.

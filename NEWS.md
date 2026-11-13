@@ -1,3 +1,24 @@
+# DDESONN 7.3.10
+
+## Select completed runs without mixing their status or results
+
+- Keep Build & Train on the left, Training progress at the upper right and the
+  completed-model panel below it. Add large radio buttons for successful runs
+  and loaded bundles in the current session.
+- Selecting a completed run restores its Build & Train settings and makes its
+  saved loss chart, checkpoint summary, results, predictions and downloads active.
+  Edits apply to the next run on the currently prepared data; saved runs stay intact.
+- Report the latest attempt separately. Failed and cancelled runs retain every
+  completed model. A later success clears the active warning; attempt history
+  retains earlier outcomes and expandable technical details.
+- Keep the selected model's loss chart visible during a later attempt. Before
+  any completion, show live loss while training. Legacy bundles without loss
+  history say so rather than showing another run's curve.
+- Use a normal chart cursor, enlarged hovered epoch dot and loss tooltip without
+  redrawing the plot, selecting a run or restoring weights.
+- Give missing-validation-checkpoint failures specific guidance and keep the
+  user's checkpoint choice explicit; no silent fallback is introduced.
+
 # DDESONN 7.3.9
 
 ## Readable R examples and explicit saved-model instructions

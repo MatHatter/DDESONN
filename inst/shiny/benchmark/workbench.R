@@ -174,20 +174,31 @@ wb_ui <- function() {
           shiny::div(class = "panel-body-custom",
             wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. The selected epoch is marked after a completed fit; selection uses validation, not this training curve. Lower training loss alone does not establish better performance on held-out data."),
             shiny::p(class = "wb-guidance", "Then configure and train the model. When it finishes, review Model / Results."),
-            shiny::textOutput("wb_status"), shiny::uiOutput("wb_progress"), shiny::plotOutput("wb_loss", height = "280px",
-              hover = shiny::hoverOpts("wb_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
+            shiny::div(class = "wb-latest-attempt", role = "status",
+              shiny::strong("Latest attempt"), shiny::textOutput("wb_status"),
+              shiny::uiOutput("wb_train_error"), shiny::uiOutput("wb_progress")),
+            shiny::textOutput("wb_chart_model"),
+            shiny::div(class = "wb-loss-chart",
+              shiny::plotOutput("wb_loss", height = "280px",
+                hover = shiny::hoverOpts("wb_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
+              shiny::uiOutput("wb_loss_marker")),
             shiny::div(`aria-live` = "polite", shiny::textOutput("wb_loss_inspection")),
             shiny::tags$details(shiny::tags$summary("Training loss values (epoch and loss)"),
               shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values")))),
           shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; dropout and batch normalization are off in this workbench. Cancelled or failed runs retain any previous completed model."),
           shiny::div(class = "panel-body-custom",
-            wb_heading("Current completed model", "This is the most recent successfully trained or loaded model. Changing controls affects the next new model, not this completed model or its results."),
+            wb_heading("Current completed model", "Select a successful training run or loaded model below. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
+            shiny::p("Select a completed run to show its settings, chart and results."),
+            shiny::uiOutput("wb_run_choices"),
+            shiny::textOutput("wb_settings_origin"),
             shiny::textOutput("wb_model_info"),
             shiny::textOutput("wb_checkpoint_summary"),
             wb_code_panel("wb_training_code", "Equivalent R code — next new model"),
             shiny::uiOutput("wb_next_recipe_button"),
-            shiny::br(), shiny::br(), shiny::actionButton("wb_review_results", "Next: review results", disabled = "disabled", `aria-disabled` = "true")),
-          shiny::uiOutput("wb_train_error")))),
+            shiny::br(), shiny::br(), shiny::actionButton("wb_review_results", "View selected results", disabled = "disabled", `aria-disabled` = "true"),
+            shiny::uiOutput("wb_selected_save"),
+            shiny::tags$details(class = "wb-attempt-history", shiny::tags$summary("Attempt history"),
+              shiny::uiOutput("wb_attempt_history")))))),
     shiny::tabPanel("4. Model / Results", value = "results",
       shiny::p(class = "wb-step-intro", "Finally, review performance and outputs, save the model, or use it for new predictions. Results reflect the saved choices from the earlier steps."),
       shiny::tabsetPanel(id = "wb_results_tabs", performance, models))
@@ -199,6 +210,10 @@ wb_server <- function(input, output, session, helper) {
   data_source <- shiny::reactiveVal("Included iris example · 150 rows")
   prepared <- shiny::reactiveVal(NULL)
   result <- shiny::reactiveVal(NULL)
+  completed_runs <- shiny::reactiveVal(list())
+  selected_run <- shiny::reactiveVal(NULL)
+  attempts <- shiny::reactiveVal(list())
+  latest_attempt <- shiny::reactiveVal(NULL)
   job <- shiny::reactiveVal(NULL)
   status <- shiny::reactiveVal("Prepare data, then train a new model.")
   error <- shiny::reactiveVal(NULL)
@@ -209,9 +224,60 @@ wb_server <- function(input, output, session, helper) {
   attempt <- function(code, destination = error) {
     tryCatch({ force(code); destination(NULL) }, error = function(e) destination(conditionMessage(e)))
   }
-  training_attempt <- function(code) attempt(code, function(e) {
-    training_error(if (is.null(e)) NULL else wb_training_error(simpleError(e)))
-  })
+  begin_attempt <- function(cfg = NULL, kind = "New training") {
+    id <- as.character(length(attempts()) + 1L)
+    records <- attempts()
+    records[[id]] <- list(id = id, kind = kind, state = "Running", config = cfg,
+      started = format(Sys.time(), tz = "UTC", usetz = TRUE), error = NULL)
+    attempts(records); latest_attempt(id); training_error(NULL)
+    id
+  }
+  finish_attempt <- function(state, detail = NULL) {
+    id <- latest_attempt()
+    if (is.null(id)) return(invisible(NULL))
+    records <- attempts(); record <- records[[id]]
+    record$state <- state; record$error <- detail
+    records[[id]] <- record; attempts(records)
+    training_error(detail)
+    status(paste0("Run ", id, " · ", if (state == "Cancelled") "Training cancelled" else state, " · ", record$kind,
+      if (!is.null(record$config)) paste0(" · ",
+        if (identical(record$config$checkpoint, "best_validation")) "Best validation checkpoint" else "Final epoch") else ""))
+  }
+  sync_controls <- function(cfg) {
+    shiny::updateTextInput(session, "wb_hidden", value = paste(cfg$hidden, collapse = ","))
+    shiny::updateNumericInput(session, "wb_epochs", value = cfg$epochs)
+    shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
+    shiny::updateSelectInput(session, "wb_optimizer", selected = cfg$optimizer)
+    shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
+    shiny::updateSelectInput(session, "wb_reg", selected = cfg$reg)
+    shiny::updateNumericInput(session, "wb_lambda", value = cfg$lambda)
+    shiny::updateCheckboxInput(session, "wb_self_org", value = isTRUE(cfg$self_org))
+  }
+  select_completed <- function(id) {
+    r <- completed_runs()[[id]]
+    if (is.null(r)) return(invisible(NULL))
+    # Rebinding the radio list echoes the already selected value. Do not let
+    # that echo overwrite settings the user has started editing for the next fit.
+    if (identical(selected_run(), id) && identical(result(), r)) return(invisible(NULL))
+    selected_run(id); result(r)
+    new_predictions(NULL); model_error(NULL)
+    sync_controls(r$config)
+    session$sendCustomMessage("wb-clear-loss-hover", list())
+  }
+  add_completed <- function(bundle) {
+    records <- completed_runs(); records[[latest_attempt()]] <- bundle
+    completed_runs(records); select_completed(latest_attempt())
+  }
+  training_attempt <- function(code) {
+    tryCatch(force(code), error = function(e) {
+      # A rejected duplicate click must not relabel or replace a running job.
+      if (!is.null(job())) { training_error(wb_training_error(e)); return(invisible(NULL)) }
+      records <- attempts(); id <- latest_attempt()
+      if (is.null(id) || !identical(records[[id]]$state, "Running")) begin_attempt()
+      finish_attempt("Failed", wb_training_error(e))
+    })
+  }
+  shiny::observeEvent(input$wb_selected_run, select_completed(input$wb_selected_run), ignoreInit = TRUE)
   # Per-session states are also enforced by server guards, not just the browser.
   action_states <- shiny::reactive({
     running <- !is.null(job()); completed <- !is.null(result())
@@ -281,9 +347,12 @@ wb_server <- function(input, output, session, helper) {
   }))
   launch <- function(p, cfg, old = NULL) {
     busy()
+    id <- begin_attempt(cfg, if (is.null(old)) "New training" else
+      paste0("Warm start from Run ", if (is.null(selected_run())) "loaded model" else selected_run()))
     next_job <- wb_start(helper, p, cfg, old)
+    next_job$run_id <- id
     job(next_job); history(data.frame(epoch = integer(), loss = numeric()))
-    status("Starting training in a separate R process…")
+    status(paste0("Run ", id, " · Starting training in a separate R process…"))
   }
   shiny::observeEvent(input$wb_start, training_attempt({
     if (is.null(prepared())) stop("Choose target and predictors on Features, then click Prepare data before training.")
@@ -299,7 +368,7 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_cancel, training_attempt({
     if (!is.null(job())) {
       wb_stop(job()); job(NULL)
-      status("Training cancelled. The previous completed model, if any, was retained.")
+      finish_attempt("Cancelled")
     }
   }))
   shiny::observe({
@@ -308,20 +377,18 @@ wb_server <- function(input, output, session, helper) {
     if (!is.null(active)) {
       h <- wb_log_history(active$log); history(h)
       elapsed <- as.integer(difftime(Sys.time(), active$started, units = "secs"))
-      status(sprintf("Running · %s seconds · %s of %s epochs logged", elapsed,
+      status(sprintf("Run %s · Running · %s seconds · %s of %s epochs logged", active$run_id, elapsed,
         if (nrow(h)) max(h$epoch) else 0L, active$epochs))
       if (!active$process$is_alive()) {
         tryCatch({
           complete <- active$process$get_result()
           complete$history <- h
           complete <- wb_validate_bundle(complete)
-          result(complete); new_predictions(NULL); model_error(NULL); error(NULL)
-          training_error(NULL)
-          status(paste(wb_checkpoint_summary(complete), "· Model ready to evaluate or save."))
+          add_completed(complete); error(NULL)
+          finish_attempt("Completed")
         }, error = function(e) {
-          training_error(wb_training_error(e, if (file.exists(active$error))
+          finish_attempt("Failed", wb_training_error(e, if (file.exists(active$error))
             readLines(active$error, warn = FALSE) else character()))
-          status("Training failed. Any previous completed model was retained.")
         })
         wb_stop(active); job(NULL)
       }
@@ -332,9 +399,8 @@ wb_server <- function(input, output, session, helper) {
     busy()
     if (input$wb_load$size > 50 * 1024^2) stop("Model bundle exceeds 50 MB.")
     candidate <- wb_validate_bundle(readRDS(input$wb_load$datapath))
-    result(candidate); new_predictions(NULL); training_error(NULL)
-    history(if (is.data.frame(candidate$history)) candidate$history else data.frame(epoch = integer(), loss = numeric()))
-    status("Completed model loaded. Its original split and preprocessing are retained.")
+    begin_attempt(candidate$config, "Loaded saved model")
+    add_completed(candidate); finish_attempt("Completed")
   }, model_error))
   shiny::observeEvent(input$wb_new_data, attempt({
     new_predictions(NULL)
@@ -344,13 +410,14 @@ wb_server <- function(input, output, session, helper) {
   model_info <- shiny::reactive({
     r <- result()
     if (is.null(r)) return("No completed model yet.")
-    sprintf("%s · %s predictors → %s · hidden layers: %s · %s · %s checkpoint, epoch %s of %s · initial self-organization %s · %s fit run(s) · saved package %s · completed %s",
+    info <- sprintf("%s · %s predictors → %s · hidden layers: %s · %s · %s checkpoint, epoch %s of %s · initial self-organization %s · %s fit run(s) · saved package %s · completed %s",
       r$prepared$mode, length(r$prepared$features), r$prepared$target,
       if (length(r$config$hidden)) paste(r$config$hidden, collapse = ", ") else "none",
       r$config$optimizer, if (identical(r$config$checkpoint, "best_validation")) "best validation" else "final",
       if (is.null(r$selected_epoch)) "not recorded" else r$selected_epoch, r$config$epochs,
       if (isTRUE(r$config$self_org)) "on" else "off",
       r$fit_runs, r$package_version, r$completed)
+    paste0(if (!is.null(selected_run())) paste0("Run ", selected_run(), " · ") else "", info)
   })
   # Each disclosure is an independent, lazily rendered code output. Reading help
   # never launches a fit or mutates a completed model.
@@ -424,6 +491,34 @@ wb_server <- function(input, output, session, helper) {
     content = function(file) { shiny::req(prepared()); writeLines(wb_recipe(prepared(), next_config()), file) })
   output$wb_completed_recipe <- shiny::downloadHandler(filename = function() "ddesonn-completed-model.R",
     content = function(file) { shiny::req(result()$recipe); writeLines(result()$recipe, file) })
+  output$wb_run_choices <- shiny::renderUI({
+    runs <- completed_runs()
+    if (!length(runs)) return(shiny::p("No completed models yet. Train a model or load a saved bundle."))
+    ids <- rev(names(runs)); records <- shiny::isolate(attempts())
+    shiny::radioButtons("wb_selected_run", "Completed runs", width = "100%", selected = selected_run(),
+      choiceValues = ids, choiceNames = lapply(ids, function(id) shiny::tagList(
+        shiny::strong(paste0("Run ", id, " · ", records[[id]]$kind)),
+        shiny::tags$span(class = "wb-run-summary", wb_checkpoint_summary(runs[[id]])))))
+  })
+  output$wb_settings_origin <- shiny::renderText({
+    if (is.null(selected_run())) return(NULL)
+    paste0("Settings from Run ", selected_run(),
+      " · edits apply to the next new run on the currently prepared data. Saved model settings remain unchanged.")
+  })
+  output$wb_selected_save <- shiny::renderUI({
+    if (!is.null(result())) shiny::downloadButton("wb_save_selected", "Save selected model")
+  })
+  output$wb_attempt_history <- shiny::renderUI({
+    records <- attempts()
+    if (!length(records)) return(shiny::p("No attempts in this session yet."))
+    shiny::tagList(lapply(rev(records), function(record) shiny::div(class = "wb-attempt-row",
+      shiny::strong(paste0("Run ", record$id, " · ", record$state, " · ", record$kind)),
+      shiny::p(record$started),
+      if (!is.null(record$config)) shiny::p(
+        if (identical(record$config$checkpoint, "best_validation")) "Best validation checkpoint" else "Final epoch"),
+      if (!is.null(record$error)) shiny::tagList(shiny::p(record$error$message),
+        shiny::tags$details(shiny::tags$summary("Technical details"), shiny::tags$pre(record$error$details))))))
+  })
   output$wb_selected_model <- shiny::renderText(model_info())
   output$wb_model_info <- shiny::renderText(model_info())
   output$wb_saved_info <- shiny::renderText(model_info())
@@ -433,7 +528,7 @@ wb_server <- function(input, output, session, helper) {
     e <- training_error(); if (is.null(e)) return(NULL)
     shiny::div(class = "wb-training-error",
       shiny::div(class = "error", role = "alert", e$message,
-        shiny::p("Any previous completed model is still available. Failed runs never replace it.")),
+        shiny::p("Completed models remain available below. This message belongs to the latest attempt, not the selected model.")),
       shiny::tags$details(shiny::tags$summary("Technical details"), shiny::tags$pre(e$details)))
   })
   output$wb_checkpoint_summary <- shiny::renderText(wb_checkpoint_summary(result()))
@@ -454,25 +549,56 @@ wb_server <- function(input, output, session, helper) {
     h <- history(); n <- if (nrow(h)) max(h$epoch) else 0
     shiny::tags$progress(value = n, max = active$epochs, style = "width:100%;", `aria-label` = "Logged training epochs")
   })
-  output$wb_loss_inspection <- shiny::renderText({
-    h <- history()
-    if (is.null(input$wb_loss_hover) || !nrow(h))
-      return("Hover near a point to inspect epoch and loss, or expand Training loss values. Inspection does not change model weights.")
+  plot_history <- shiny::reactive({
+    r <- result()
+    if (!is.null(r)) {
+      if (is.data.frame(r$history)) r$history else data.frame(epoch = integer(), loss = numeric())
+    } else if (!is.null(job())) history() else data.frame(epoch = integer(), loss = numeric())
+  })
+  output$wb_chart_model <- shiny::renderText({
+    if (!is.null(result())) paste0("Showing selected model: Run ",
+      if (is.null(selected_run())) "(loaded)" else selected_run(), " · ", wb_checkpoint_summary(result())) else
+      if (!is.null(job())) "Live training loss · no completed model selected yet" else "No completed model selected."
+  })
+  inspected_point <- shiny::reactive({
+    h <- plot_history()
+    if (is.null(input$wb_loss_hover) || !nrow(h)) return(NULL)
     point <- shiny::nearPoints(h, input$wb_loss_hover, xvar = "epoch", yvar = "loss",
       threshold = 20, maxpoints = 1)
-    if (!nrow(point)) return("Move closer to a point to inspect its epoch and loss.")
+    if (nrow(point)) point else NULL
+  })
+  output$wb_loss_inspection <- shiny::renderText({
+    point <- inspected_point()
+    if (is.null(point)) return("Hover near a point to inspect epoch and loss, or expand Training loss values. Inspection does not change model weights.")
     sprintf("Epoch %s · training loss: %.8g", point$epoch, point$loss)
   })
-  output$wb_loss_values <- shiny::renderTable(history(), digits = 8)
+  output$wb_loss_marker <- shiny::renderUI({
+    point <- inspected_point(); hover <- input$wb_loss_hover
+    if (is.null(point) || is.null(hover$domain) || is.null(hover$range)) return(NULL)
+    x <- (point$epoch - hover$domain$left) / (hover$domain$right - hover$domain$left) *
+      (hover$range$right - hover$range$left) + hover$range$left
+    y <- (point$loss - hover$domain$bottom) / (hover$domain$top - hover$domain$bottom) *
+      (hover$range$top - hover$range$bottom) + hover$range$bottom
+    ratio <- hover$img_css_ratio
+    if (is.null(ratio)) ratio <- list(x = 1, y = 1)
+    shiny::div(class = "wb-loss-dot", style = sprintf("left:%.2fpx;top:%.2fpx;", x / ratio$x, y / ratio$y),
+      shiny::span(class = "wb-loss-tooltip",
+        style = if (x > (hover$range$left + hover$range$right) / 2)
+          "left:auto;right:0;transform:none;" else "left:0;transform:none;",
+        sprintf("Epoch %s · Loss %.6g", point$epoch, point$loss)))
+  })
+  output$wb_loss_values <- shiny::renderTable(plot_history(), digits = 8)
   output$wb_loss <- shiny::renderPlot({
-    h <- history(); shiny::validate(shiny::need(nrow(h) > 0, "Training loss appears as epochs are logged."))
+    h <- plot_history()
+    shiny::validate(shiny::need(nrow(h) > 0, if (!is.null(result()))
+      "This saved model has no recorded training-loss history." else "Training loss appears as epochs are logged."))
     r <- result()
-    selected <- if (is.null(job()) && !is.null(r) && identical(h, r$history)) r$selected_epoch else NULL
+    selected <- if (!is.null(r)) r$selected_epoch else NULL
     ggplot2::ggplot(h, ggplot2::aes(x = epoch, y = loss)) +
       (if (length(selected) == 1 && is.finite(selected))
         ggplot2::geom_vline(xintercept = selected, linetype = 2, color = "#69788c")) +
       (if (nrow(h) > 1) ggplot2::geom_line(color = "#087f8c")) +
-      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = "Epoch (current fit)", y = "Logged training loss",
+      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = "Epoch (selected fit)", y = "Logged training loss",
         subtitle = if (length(selected) == 1 && is.finite(selected))
           sprintf("Selected epoch %s · %s", selected,
             if (identical(r$config$checkpoint, "best_validation")) "best validation" else "final epoch") else NULL) +
@@ -507,11 +633,14 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_save <- shiny::downloadHandler(filename = function() "ddesonn-workbench-model.rds",
     content = function(file) { shiny::req(result()); saveRDS(result(), file) })
+  output$wb_save_selected <- shiny::downloadHandler(filename = function() "ddesonn-workbench-model.rds",
+    content = function(file) { shiny::req(result()); saveRDS(result(), file) })
   output$wb_predictions_download <- shiny::downloadHandler(filename = function() "ddesonn-evaluated-predictions.csv",
     content = function(file) utils::write.csv(evaluation()$predictions, file, row.names = FALSE))
   output$wb_new_preview <- shiny::renderTable({ shiny::req(new_predictions()); utils::head(new_predictions(), 20) }, digits = 6)
   output$wb_new_download <- shiny::downloadHandler(filename = function() "ddesonn-new-predictions.csv",
     content = function(file) { shiny::req(new_predictions()); utils::write.csv(new_predictions(), file, row.names = FALSE) })
   # Returned reactives make session state testable without exporting app internals.
-  invisible(list(prepared = prepared, result = result, job = job, status = status))
+  invisible(list(prepared = prepared, result = result, job = job, status = status,
+    completed_runs = completed_runs, selected_run = selected_run, attempts = attempts))
 }
