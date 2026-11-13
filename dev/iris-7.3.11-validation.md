@@ -38,5 +38,6 @@ Iris runs are separate. No full-suite, full-check or vignette result is claimed.
 ## Review
 
 No existing open PR was visible on the public PR page. The title/body are in
-`dev/PR_7_3_11_DESCRIPTION.md`. Push/PR status pending. No merge, publication or
-release-tag changes are performed.
+`dev/PR_7_3_11_DESCRIPTION.md`. Branch `codex/iris-checkpoint-7.3.11` is pushed.
+`gh pr create` returned `Post "https://api.github.com/graphql": Forbidden`; no
+PR was created. No merge, publication or release-tag changes are performed.
