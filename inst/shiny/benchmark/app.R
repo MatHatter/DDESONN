@@ -5,14 +5,14 @@ source("helpers.R", local = TRUE)
 source("workbench_helpers.R", local = TRUE)
 source("workbench.R", local = TRUE)
 options(shiny.maxRequestSize = 50 * 1024^2)
-default_data <- dashboard_validate(utils::read.csv("data/heart-failure-100.csv"))
+default_data <- dashboard_validate(utils::read.csv("data/heart-failure-1000.csv"))
 
 benchmark_ui <- shiny::sidebarLayout(
     shiny::sidebarPanel(width = 3,
       shiny::h3("Choose your results"),
       shiny::tags$details(shiny::tags$summary("What are legacy and standard AdaGrad?"),
         shiny::p("Legacy means DDESONN's earlier custom AdaGrad. Its multilayer path applied a direct weight update and then an adaptive update to the same weights. Despite strong historical results, this differed from classic AdaGrad."),
-        shiny::p("Standard is classic AdaGrad: one adaptive update per parameter tensor per training step. It replaced the legacy behavior in 7.3.0. The documented 100-seed follow-up had slightly higher mean accuracy; not every metric improved.")),
+        shiny::p("Standard is classic AdaGrad: one adaptive update per parameter tensor per training step. It replaced the legacy behavior in 7.3.0. The included 1,000-seed reconstruction uses the corrected update rule, but retains the historical split and its substantial train/test input overlap.")),
       shiny::p(shiny::textOutput("source")),
       shiny::fileInput("upload", "Upload paired results (CSV, up to 10 MB)", accept = ".csv"),
       shiny::div(class = "error", role = "alert", shiny::textOutput("upload_error")),
@@ -43,11 +43,11 @@ benchmark_ui <- shiny::sidebarLayout(
             shiny::p("Upload one row per seed, with a unique positive integer seed column and at least one complete metric pair. For example:"),
             shiny::tags$pre("seed,accuracy_legacy,accuracy_corrected,log_loss_legacy,log_loss_corrected\n101,0.98,0.99,0.04,0.03"),
             shiny::p("Supported prefixes: accuracy, precision, recall, f1, roc_auc, log_loss, brier. Each requires both _legacy and _corrected columns. Here, corrected means standard AdaGrad. Difference columns are recomputed. Additional columns are retained in downloads."),
-            shiny::p("To explore seeds 1–1,000, upload a combined CSV containing all completed seeds. Uploads replace the current data; they do not append or start training. Invalid uploads leave the previous dataset available."),
+            shiny::p("The included record already covers seeds 1–1,000. Uploads replace the current data; they do not append or start training. Invalid uploads leave the previous dataset available."),
             shiny::h3("Included research record"),
-            shiny::p("The included CSV is the completed 100-seed heart-failure reconstruction documented for 7.3.1, using unchanged 7.3.0 training code. It compares archived legacy AdaGrad with standard AdaGrad. It is not a rerun of the historical 1,000-seed Keras comparison."),
+            shiny::p("The included CSV pairs all 1,000 fresh standard-AdaGrad heart-failure runs with archived legacy observations, using frozen 7.3.0 training source. It supersedes the intermediate 100-seed record. Keras was not rerun. Correcting AdaGrad does not repair the repeating inputs across the historical splits; this remains a descriptive, overlap-compromised comparison."),
             shiny::p("The same test split is evaluated across seeds. Original historical initialization is unverified. Of the 750 test inputs, 738 also occur in training; this limits conclusions about unseen cases. Seed variability is not a patient-population confidence interval."),
-            shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-seeds-1-100", "Read the protocol, results and artifact provenance", target = "_blank", rel = "noopener"),
+            shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000", "Read the protocol, results and artifact provenance", target = "_blank", rel = "noopener"),
             shiny::h3("Local, native R"),
             shiny::p("This optional app uses Shiny, callr and ggplot2. Experiments reads saved CSV results; the training pages call the native R model API. No Python, external deep-learning backend, database or credentials are needed. Uploaded data stays with the running app; use a trusted deployment if serving private results."))))))
 

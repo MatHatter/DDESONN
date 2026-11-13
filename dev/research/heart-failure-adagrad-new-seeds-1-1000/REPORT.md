@@ -92,7 +92,7 @@ That matched no-overlap Keras/DDESONN study is **future work** and was not launc
 
 ## Reproduce, resume and retrieve
 
-See [REPRODUCE.md](REPRODUCE.md). Configuration, frozen source/dataset, harness, software inventory, pilots, all per-seed native artifacts, reports, graphs and checksum manifests are included in the standalone bundle. Previous research records remain unchanged. No release was published and no optimizer code was changed.
+See [REPRODUCE.md](REPRODUCE.md). Configuration, frozen source/dataset, harness, software inventory, pilots, all per-seed native artifacts, reports, graphs and checksum manifests are included in the standalone bundle. Earlier research records remain preserved in Git history and the standalone archive; the superseded standalone guides were retired from the current tree in 7.3.19. No release was published and no optimizer code was changed.
 
 The bundle is prepared on the cloud filesystem; ARTIFACTS.json records its actual absolute retrieval path, bytes, SHA256 and archive-member verification after creation. The final completion record is written only after archive verification. No external upload/hosting connector is available in this session, so local paths do not establish durable external storage or an externally hosted download. Download/copy the bundle from the workspace using the client’s available file access before the environment is discarded.
 

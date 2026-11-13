@@ -20,7 +20,7 @@ shiny::runApp("inst/shiny/benchmark")
 ```
 
 The app opens on Data with an iris example ready to prepare. Experiments retains
-the compact 100-seed benchmark with metric/seed filters, plots and downloads.
+the full 1,000-seed benchmark with metric/seed filters, plots and downloads.
 All UI assets are local. Shiny and callr are suggested packages, not imports.
 
 ## Experiment CSV format
@@ -30,20 +30,26 @@ Upload CSV files up to 10 MB with one row per seed: a unique positive integer
 Supported metrics: `accuracy`, `precision`, `recall`, `f1`, `roc_auc`, `log_loss`,
 `brier`. Values must be finite and nonnegative; all except log loss must be at
 most 1. Missing values and partial pairs are rejected. Differences are always
-recomputed. Upload replaces the dataset; a combined 1–1,000 CSV is needed to
-view the full planned benchmark. Invalid uploads retain the previous dataset.
+recomputed. The included dataset already covers all 1,000 seeds. Upload replaces
+the dataset; invalid uploads retain the previous dataset.
 The data tab displays up to 100 rows; downloads contain all selected rows.
 
 ## Included data provenance
 
-`data/heart-failure-100.csv` is an exact copy of
-`dev/research/heart-failure-adagrad-seeds-1-100/paired-test-metrics.csv` at
-repository revision `0b9f59c278638ec4a3a1892e90f5140f94ff0401`.
-The detailed report at that revision records protocol, source fingerprints,
-artifact checksums, initialization uncertainty and data-overlap limitations.
-Training used version 7.3.0; the report was added for 7.3.1. This small CSV is
-included so the installed dashboard works without raw models or development
-folders. No legacy raw archives are restored to the package payload.
+`data/heart-failure-1000.csv` is byte-identical to the consolidated record's
+`dev/research/heart-failure-adagrad-new-seeds-1-1000/paired-test-metrics.csv`.
+It joins the validated new per-seed test metrics with probability-recomputed
+archived legacy metrics by seed ID (1–1,000), retaining all seven metric pairs,
+differences and per-seed elapsed time. Training used frozen 7.3.0 source. The
+consolidated report records protocol, checksums, software, checkpoint validation
+and overlap limitations. The intermediate 100-seed CSV and standalone historical
+vignette are superseded and preserved in Git history/the standalone archive.
+
+CSV SHA256: `7809854ff9f322576aaa046135a2d84486246a9c61987910e4b2e3f086f779a9`.
+
+This compact summary works in an installed package without raw models or dev
+folders. It is a descriptive historical comparison, not a matched Keras rerun.
+No raw archives are restored to the package payload.
 
 Do not interpret aggregate seed evaluations as independent patients or attribute
 historical differences solely to an optimizer correction. The About tab retains
@@ -481,8 +487,8 @@ initial empty-state message; model and checkpoint details appear after completio
 or loading. Existing completed models remain available after unsuccessful runs.
 # Vignette links (7.3.18)
 
-The **Vignettes** tab links the new standard-AdaGrad 1,000-seed research record,
-the historical DDESONN/Keras context, single-run and ensemble plot controls,
+The **Vignettes** tab links the consolidated standard-AdaGrad 1,000-seed research record,
+single-run and ensemble plot controls,
 and ensemble logs. Installed HTML guides open locally in a new tab; a guide
 without installed HTML links to its source on GitHub. Build/install package
 vignettes to make all guides available locally. This tab does not launch training
@@ -493,3 +499,10 @@ The new benchmark retains the historical overlap-heavy split and frozen 7.3.0
 training source. The split correction and a matched Keras/DDESONN rerun are future
 work for another PR; the current comparison does not establish generalization to
 new patients or isolate the AdaGrad correction's causal effect.
+
+## Consolidation (7.3.19)
+
+The four current guides replace the previous five-guide catalog. Historical
+comparison statistics and caveats now live in the consolidated benchmark guide
+and report; the old standalone vignette is available through Git history.
+The included explorer, Reset and CSV downloads use all 1,000 new seeds.

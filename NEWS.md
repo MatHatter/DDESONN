@@ -1,3 +1,16 @@
+# DDESONN 7.3.19
+
+- Consolidate current research documentation around the completed new 1,000-seed
+  standard-AdaGrad report. Remove the superseded standalone 100-seed directory
+  and historical Keras/DDESONN vignette; their evidence remains in Git history
+  and the verified standalone archive.
+- Replace Shiny's included 100-seed CSV with all 1,000 new standard-AdaGrad runs
+  paired descriptively with archived legacy results. Reset, filters, summaries,
+  help, and downloads now refer to this full record.
+- Link the four current vignettes. Preserve the historical comparison statistics,
+  Keras workbook discrepancy, overlap limitation and separate future split-fix
+  scope in the consolidated report. No optimizer, training or data-split change.
+
 # DDESONN 7.3.18
 
 - Document the completed new 1,000-seed standard-AdaGrad heart-failure
