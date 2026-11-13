@@ -10,6 +10,8 @@ test_that("all packaged inputs load unchanged, export and reproduce their data s
   h <- example_fixture()$h
   catalog <- h$wb_example_catalog()
   expect_setequal(names(catalog), c("iris", "mtcars", "heart_failure", "wmt", "customer_train", "customer_test"))
+  expect_setequal(unname(h$wb_example_choices()), setdiff(names(catalog), "customer_test"))
+  expect_false("customer_test" %in% h$wb_example_choices())
   files <- vapply(Filter(function(x) !is.null(x$file), catalog), `[[`, character(1), "file")
   expect_setequal(unname(files), list.files(system.file("extdata", package = "DDESONN"), pattern = "\\.csv$"))
   sizes <- c(iris = 150L, mtcars = 32L, heart_failure = 5000L, wmt = 13248L,
@@ -68,14 +70,17 @@ test_that("dataset changes preserve models, unlabeled prediction and guide navig
       wb_mode = "binary", wb_seed = 42, wb_train_fraction = .6,
       wb_val_fraction = .2, wb_scale = TRUE, wb_split = "random", wb_prepare = 1)
     expect_identical(prepared()$source, code_source())
-    session$setInputs(wb_example = "customer_test", wb_demo = 2, wb_target = "", wb_features = "Age")
-    expect_equal(nrow(raw()), 2627)
-    expect_null(prepared())
-    expect_false(action_states()$wb_prepare)
+    snapshot <- serialize(prepared(), NULL)
+    session$setInputs(wb_example = "customer_test", wb_demo = 2)
+    expect_equal(nrow(raw()), 5000)
+    expect_identical(serialize(prepared(), NULL), snapshot)
+    expect_match(error(), "Predict on new rows")
     expect_identical(result()$model$ensemble[[1]]$weights, weights)
     session$setInputs(wb_example_predict = 1)
     expect_null(model_error())
     expect_equal(nrow(new_predictions()), 2627)
+    expect_identical(serialize(prepared(), NULL), snapshot)
+    expect_equal(nrow(raw()), 5000)
     expect_identical(result()$model$ensemble[[1]]$weights, weights)
     expect_error(h$wb_new_predictions(result(), iris), "every saved predictor")
     session$setInputs(wb_example = "iris", wb_demo = 3, wb_target = "Species",

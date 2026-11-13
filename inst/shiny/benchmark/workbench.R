@@ -121,6 +121,9 @@ wb_ui <- function() {
       shiny::column(6, shiny::div(class = "panel-body-custom",
         wb_heading("Predict on new rows", "Use the completed model to predict outcomes for rows it has not seen. Include the saved predictor columns; the target column is optional. Training preprocessing is reused."),
         shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
+        shiny::p("Optional packaged prediction example: customer rows without group labels. This is separate from the training, validation and test split; you do not need it to train or evaluate a model."),
+        shiny::actionButton("wb_example_predict", "Predict customer groups with completed model"),
+        shiny::downloadButton("wb_prediction_example_download", "Download customer prediction CSV"),
         wb_vignette_link("wb_prediction_vignettes", "Packaged-data and prediction guide in Vignettes"),
         wb_download_button("wb_new_download", "Download new predictions"),
         wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"),
@@ -130,13 +133,11 @@ wb_ui <- function() {
     shiny::tabPanel("1. Data", value = "data",
       shiny::sidebarLayout(
         shiny::sidebarPanel(
-          wb_heading("Start with Data", "Choose an installed example or upload a CSV. Each row is an observation and each column is a variable. Loading data does not train a model. Choose the target and predictors next, on Features."),
-          shiny::selectInput("wb_example", "Packaged example", wb_example_choices(), selected = "iris", selectize = FALSE),
+          wb_heading("Start with Data", "Choose a labeled dataset or upload a CSV with known target values. Shiny divides this one dataset into training, validation and test sets on Features. Each row is an observation and each column is a variable. Loading data does not train a model. Choose the target and predictors next, on Features."),
+          shiny::selectInput("wb_example", "Packaged training example", wb_example_choices(), selected = "iris", selectize = FALSE),
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_example_note")),
           shiny::actionButton("wb_demo", "Load selected example"),
           shiny::downloadButton("wb_example_download", "Download example CSV"),
-          shiny::conditionalPanel("input.wb_example === 'customer_test'",
-            shiny::actionButton("wb_example_predict", "Predict with completed model")),
           wb_vignette_link("wb_data_vignettes", "Packaged-data guide in Vignettes"),
           shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/inst/extdata", target = "_blank", rel = "noopener noreferrer", "Browse dataset source on GitHub"),
           shiny::fileInput("wb_data", "Or upload training data (CSV, up to 10 MB)", accept = ".csv"),
@@ -502,6 +503,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_example_note <- shiny::renderText(wb_example_catalog()[[example_id()]]$note)
   shiny::observeEvent(input$wb_demo, attempt({
     busy(); example <- wb_example(example_id())
+    if (isTRUE(example$prediction_only)) stop("Use unlabeled examples under Predict on new rows, after training a compatible model.")
     dataset_preset(example); raw(example$data); prepared(NULL); data_origin(example$source)
     data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
     if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
@@ -510,12 +512,15 @@ wb_server <- function(input, output, session, helper) {
   output$wb_example_download <- shiny::downloadHandler(
     filename = function() paste0("DDESONN-", example_id(), ".csv"),
     content = function(file) wb_write_example(example_id(), file))
+  output$wb_prediction_example_download <- shiny::downloadHandler(
+    filename = function() "DDESONN-customer-prediction.csv",
+    content = function(file) wb_write_example("customer_test", file))
   shiny::observeEvent(input$wb_example_predict, attempt({
     busy(); new_predictions(NULL)
     shiny::updateTabsetPanel(session, "workspace", selected = "results")
     shiny::updateTabsetPanel(session, "wb_results_tabs", selected = "models")
     if (is.null(result())) stop("Train or load a compatible model before predicting.")
-    new_predictions(wb_new_predictions(result(), wb_example(example_id())$data))
+    new_predictions(wb_new_predictions(result(), wb_example("customer_test")$data))
   }, model_error))
   # Invalidate only preparation. The immutable completed model is still usable.
   signature <- shiny::reactive(list(input$wb_target, input$wb_features, input$wb_mode,

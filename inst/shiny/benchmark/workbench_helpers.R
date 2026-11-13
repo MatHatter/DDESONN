@@ -13,17 +13,17 @@ wb_example_catalog <- function() list(
     file = "WMT_1970-10-01_2025-03-15.csv", target = "close", mode = "regression",
     features = c("open", "high", "low", "volume"), split = "ordered",
     note = "Same-row price regression illustration, not a validated forecast. Target: close; date and adjusted close are not preselected as predictors. Ordered splitting is suggested."),
-  customer_train = list(label = "Customer segmentation — labeled training data",
+  customer_train = list(label = "Customer segmentation — labeled dataset",
     file = "train_multiclass_customer_segmentation.csv", target = "Segmentation", mode = "multiclass",
     features = "Age", exclude = "ID",
-    note = "Target: Segmentation. Age is a complete numeric starting predictor. Other columns include categories or missing values and need preprocessing; ID is not preselected. No rows or columns are removed."),
+    note = "One labeled dataset: Shiny splits it into training, validation and test sets on Features. Target: Segmentation. Age is a complete numeric starting predictor. Other columns include categories or missing values and need preprocessing; ID is not preselected. No rows or columns are removed."),
   customer_test = list(label = "Customer segmentation — unlabeled prediction data",
     file = "test_multiclass_customer_segmentation.csv", features = "Age", exclude = "ID",
     prediction_only = TRUE,
     note = "This file has no Segmentation labels. Inspect or download it, or predict with a compatible model you have trained or loaded. It cannot evaluate segmentation accuracy without true labels."))
 
 wb_example_choices <- function() {
-  catalog <- wb_example_catalog()
+  catalog <- Filter(function(x) !isTRUE(x$prediction_only), wb_example_catalog())
   stats::setNames(names(catalog), vapply(catalog, `[[`, character(1), "label"))
 }
 

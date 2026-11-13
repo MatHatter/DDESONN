@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.23 — one dataset for training, validation and test
+
+Data now offers five labeled examples. Shiny splits your selected dataset on
+Features. The optional unlabeled customer file is available under Predict on
+new rows after training or loading a compatible model; it is not needed for
+training or evaluation. All packaged CSVs are retained unchanged.
+
 ## Version 7.3.22 — packaged examples, guide links and blue workflow selector
 
 Choose iris, mtcars, heart failure, WMT prices or the customer train/test CSVs

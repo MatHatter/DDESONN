@@ -9,7 +9,9 @@ vignette: >
 
 ## Choose an example
 
-On **1. Data**, choose a **Packaged example** and click **Load selected example**.
+On **1. Data**, choose a **Packaged training example** and click **Load selected example**.
+Provide one labeled dataset. On Features, Shiny divides it into training,
+validation and test sets; no separate unlabeled file is required.
 Loading or downloading data does not train a model. The app reads files from
 the installed package, using `system.file("extdata", ..., package = "DDESONN")`.
 Iris and mtcars come from R's datasets package. These choices work offline;
@@ -21,8 +23,7 @@ the GitHub source link is for browsing, not an automatic download fallback.
 | mtcars | Regression / mpg | wt, hp | Small regression example, 32 rows. |
 | Heart failure | Binary / DEATH_EVENT | All 12 numeric predictors | Repeated inputs limit evaluation; see the research vignette. |
 | WMT prices | Regression / close | open, high, low, volume | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
-| Customer training data | Multiclass / Segmentation | Age | Other columns contain categories or missing values; ID is not preselected. |
-| Customer test data | Unlabeled prediction rows | Must match a completed model | No Segmentation labels, so no segmentation-accuracy evaluation is possible. |
+| Customer labeled dataset | Multiclass / Segmentation | Age | Other columns contain categories or missing values; ID is not preselected. |
 
 The full original rows and columns remain available for inspection and download.
 The suggested predictors are complete numeric columns. No rows are silently
@@ -69,9 +70,10 @@ The existing data files are reused; no external datasets are added by this chang
 
 Train a customer model first, or load your compatible saved workbench bundle.
 The customer training preset uses Age as a complete numeric starting predictor;
-the matching test file also contains Age. On Data select **Customer segmentation —
-unlabeled prediction data**. Inspect/download it or click **Predict with completed
-model** to use the existing prediction flow on Model / Results. No pretrained
+the matching test file also contains Age. Under **Model / Results → Saved models & predictions → Predict on new rows**,
+click **Predict customer groups with completed model**, or download the optional
+customer prediction CSV. These rows have no Segmentation labels; they are not
+needed for the training, validation or test split. No pretrained
 model is bundled or automatically loaded. The saved predictor names and finite
 numeric values must match; incompatible data produces an error rather than
 changing the trained model. Additional categorical or incomplete predictors
