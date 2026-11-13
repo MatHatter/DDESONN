@@ -1,0 +1,9 @@
+{
+  "sheet1_rows": 1001,
+  "sheet1_unique_seeds": 1000,
+  "duplicate_seeds": 100,
+  "sheet1_test_accuracy_mean": 0.99680855744255747,
+  "sheet1_test_accuracy_sample_sd": 0.0035694928120038384,
+  "sheet2_reported_count": 1000,
+  "note": "Workbook summary is archived evidence; count inconsistency prevents treating it as a verified set of 1000 independent executions. No rows removed or silently corrected."
+}

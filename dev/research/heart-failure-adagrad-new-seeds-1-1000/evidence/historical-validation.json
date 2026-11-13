@@ -1,0 +1,10 @@
+{
+  "verified_prediction_rows": 750000,
+  "seeds": 1000,
+  "each_seed_rows": 750,
+  "labels_match_fixed_split": true,
+  "stored_classes_match_threshold_0_5": true,
+  "stored_metrics_match_6_decimal_precision": true,
+  "source_inventory_all_10_hashes_verified": true,
+  "run1_recovery_hash_verified": true
+}

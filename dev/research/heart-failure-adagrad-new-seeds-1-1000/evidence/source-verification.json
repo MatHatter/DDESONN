@@ -1,0 +1,146 @@
+{
+  "revision": "a95bc8dda84c4eb35633ee5a5bb456169c1c54b8",
+  "all_20_verified": true,
+  "checks": [
+    {
+      "file": "R/DDESONN-package.R",
+      "expected_sha256": "3f4a9c3749156243df1565edbd4763dbdd849de59478cf255642228a769246ae",
+      "actual_sha256": "3f4a9c3749156243df1565edbd4763dbdd849de59478cf255642228a769246ae",
+      "bytes": 566,
+      "passed": true
+    },
+    {
+      "file": "R/DDESONN.R",
+      "expected_sha256": "84d53119c54d500446c79dfe797179b936810c9eb1488f43fb9f316226dfe234",
+      "actual_sha256": "84d53119c54d500446c79dfe797179b936810c9eb1488f43fb9f316226dfe234",
+      "bytes": 287875,
+      "passed": true
+    },
+    {
+      "file": "R/activation_functions.R",
+      "expected_sha256": "6005d89001a95c639b146b8e133e27ae02e8a058404c0304e2f0e2aee8015386",
+      "actual_sha256": "6005d89001a95c639b146b8e133e27ae02e8a058404c0304e2f0e2aee8015386",
+      "bytes": 23493,
+      "passed": true
+    },
+    {
+      "file": "R/aliases.R",
+      "expected_sha256": "a4337086bfcace445dfce2f92e857f8414ea322c89c4e5fdf9b2349f6bf412cf",
+      "actual_sha256": "a4337086bfcace445dfce2f92e857f8414ea322c89c4e5fdf9b2349f6bf412cf",
+      "bytes": 3651,
+      "passed": true
+    },
+    {
+      "file": "R/api.R",
+      "expected_sha256": "d536a8ddced5ee06e367601b10e6f0e2fec00f3ab8c1ee386bdeb32738c4f169",
+      "actual_sha256": "d536a8ddced5ee06e367601b10e6f0e2fec00f3ab8c1ee386bdeb32738c4f169",
+      "bytes": 216452,
+      "passed": true
+    },
+    {
+      "file": "R/evaluate_predictions_report.R",
+      "expected_sha256": "7fccf72a7388c97dad8b519c5e2fa48bdececa7ea27311fcdfdd56eeed2a443a",
+      "actual_sha256": "7fccf72a7388c97dad8b519c5e2fa48bdececa7ea27311fcdfdd56eeed2a443a",
+      "bytes": 63280,
+      "passed": true
+    },
+    {
+      "file": "R/optimizers.R",
+      "expected_sha256": "19530c81fa2385f60d248ace0ddeb658389cf7fc91dd5cc89da84325b729238a",
+      "actual_sha256": "19530c81fa2385f60d248ace0ddeb658389cf7fc91dd5cc89da84325b729238a",
+      "bytes": 11997,
+      "passed": true
+    },
+    {
+      "file": "R/paths.R",
+      "expected_sha256": "ddf371348c6560924ed0a1d710f833155475612a868e56e938b5e8e1de464d3c",
+      "actual_sha256": "ddf371348c6560924ed0a1d710f833155475612a868e56e938b5e8e1de464d3c",
+      "bytes": 2244,
+      "passed": true
+    },
+    {
+      "file": "R/performance_relevance_metrics.R",
+      "expected_sha256": "fcc53c3f994ce65554e0a8d50bd7f868d8b4ad211b25f65866f28400608c6bf5",
+      "actual_sha256": "fcc53c3f994ce65554e0a8d50bd7f868d8b4ad211b25f65866f28400608c6bf5",
+      "bytes": 82656,
+      "passed": true
+    },
+    {
+      "file": "R/predict.R",
+      "expected_sha256": "3b9642eb3fe42591888f081cc66ca0472e1f678f8cdbdd28998ca58ecce9d122",
+      "actual_sha256": "3b9642eb3fe42591888f081cc66ca0472e1f678f8cdbdd28998ca58ecce9d122",
+      "bytes": 3021,
+      "passed": true
+    },
+    {
+      "file": "R/sequence_data.R",
+      "expected_sha256": "1ae17f6328e87393dee5f17f33f29e9c0c6e8dc454a4b21f3ed6cb1e4221edbf",
+      "actual_sha256": "1ae17f6328e87393dee5f17f33f29e9c0c6e8dc454a4b21f3ed6cb1e4221edbf",
+      "bytes": 2177,
+      "passed": true
+    },
+    {
+      "file": "R/ssm_encoder.R",
+      "expected_sha256": "a32cf1589aa6b8c5973da01d9611a51897537b452bfd7abb6dd37bf07cd13ff9",
+      "actual_sha256": "a32cf1589aa6b8c5973da01d9611a51897537b452bfd7abb6dd37bf07cd13ff9",
+      "bytes": 12044,
+      "passed": true
+    },
+    {
+      "file": "R/ssm_joint.R",
+      "expected_sha256": "1fc1cfae92fdc1db430370db0df3b0d1e52aeaed1b140bccf350fffe045dc0db",
+      "actual_sha256": "1fc1cfae92fdc1db430370db0df3b0d1e52aeaed1b140bccf350fffe045dc0db",
+      "bytes": 3054,
+      "passed": true
+    },
+    {
+      "file": "R/state.R",
+      "expected_sha256": "b7811009f253146303539df1a499a8a0f80b40f46d6fc96ccf2887f9844f09a6",
+      "actual_sha256": "b7811009f253146303539df1a499a8a0f80b40f46d6fc96ccf2887f9844f09a6",
+      "bytes": 436,
+      "passed": true
+    },
+    {
+      "file": "R/update_biases_block.R",
+      "expected_sha256": "64489fcf83332ec3f282fe9b805760df50b7fd621ebfb8d8042641708c74c00f",
+      "actual_sha256": "64489fcf83332ec3f282fe9b805760df50b7fd621ebfb8d8042641708c74c00f",
+      "bytes": 1414,
+      "passed": true
+    },
+    {
+      "file": "R/update_weights_block.R",
+      "expected_sha256": "c2141a707c83cf7ba021f6fca03683de0d58dcfbd3cba29d2f135df28e6d2e39",
+      "actual_sha256": "c2141a707c83cf7ba021f6fca03683de0d58dcfbd3cba29d2f135df28e6d2e39",
+      "bytes": 5054,
+      "passed": true
+    },
+    {
+      "file": "R/utils.R",
+      "expected_sha256": "419aa3d2032ace5ce3ce84e9cb6126f1b0081c128ce9ed6cc9bbefab8bbe2ff2",
+      "actual_sha256": "419aa3d2032ace5ce3ce84e9cb6126f1b0081c128ce9ed6cc9bbefab8bbe2ff2",
+      "bytes": 145649,
+      "passed": true
+    },
+    {
+      "file": "DESCRIPTION",
+      "expected_sha256": "324e1f84faa8d5f374bfc6d08dbd8309bf2f7c5cc49c1dea513d9a174c0740d7",
+      "actual_sha256": "324e1f84faa8d5f374bfc6d08dbd8309bf2f7c5cc49c1dea513d9a174c0740d7",
+      "bytes": 4749,
+      "passed": true
+    },
+    {
+      "file": "NAMESPACE",
+      "expected_sha256": "4f649badef8bf0d408fcf8e463ac15e051fcd987e2deec07b6a27a63407844d6",
+      "actual_sha256": "4f649badef8bf0d408fcf8e463ac15e051fcd987e2deec07b6a27a63407844d6",
+      "bytes": 3050,
+      "passed": true
+    },
+    {
+      "file": "inst/extdata/heart_failure_clinical_records.csv",
+      "expected_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+      "actual_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+      "bytes": 223266,
+      "passed": true
+    }
+  ]
+}

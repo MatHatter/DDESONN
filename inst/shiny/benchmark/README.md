@@ -479,3 +479,17 @@ first-run curves remain visible when recorded. Loaded models without history
 have one specific missing-history message. Current completed model has a single
 initial empty-state message; model and checkpoint details appear after completion
 or loading. Existing completed models remain available after unsuccessful runs.
+# Vignette links (7.3.18)
+
+The **Vignettes** tab links the new standard-AdaGrad 1,000-seed research record,
+the historical DDESONN/Keras context, single-run and ensemble plot controls,
+and ensemble logs. Installed HTML guides open locally in a new tab; a guide
+without installed HTML links to its source on GitHub. Build/install package
+vignettes to make all guides available locally. This tab does not launch training
+or load demonstration models. Beginner examples and model-loading changes remain
+separate work.
+
+The new benchmark retains the historical overlap-heavy split and frozen 7.3.0
+training source. The split correction and a matched Keras/DDESONN rerun are future
+work for another PR; the current comparison does not establish generalization to
+new patients or isolate the AdaGrad correction's causal effect.

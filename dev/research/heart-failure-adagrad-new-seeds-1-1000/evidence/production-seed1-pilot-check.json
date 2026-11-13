@@ -1,0 +1,6 @@
+{
+  "passed": true,
+  "files": ["initialization.rds", "rng.rds", "final-checkpoint.rds", "selected-checkpoint.rds", "preprocessing.rds", "validation-history.rds", "predictions.rds"],
+  "comparison": "fresh production seed 1 versus validated pilot-a",
+  "exact": true
+}

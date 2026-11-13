@@ -1,0 +1,21 @@
+{
+  "rows": 5000,
+  "distinct_feature_vectors": 1319,
+  "validation_matching_training": 734,
+  "test_matching_training": 738,
+  "test_absent_training": 12,
+  "test_absent_training_row_indices": [
+    4263,
+    4270,
+    4412,
+    4436,
+    4627,
+    4695,
+    4718,
+    4732,
+    4856,
+    4863,
+    4966,
+    4973
+  ]
+}

@@ -1,3 +1,15 @@
+# DDESONN 7.3.18
+
+- Document the completed new 1,000-seed standard-AdaGrad heart-failure
+  reconstruction, using frozen 7.3.0 training source. Include per-seed results,
+  summaries, graphs, validation evidence and reproducibility-bundle metadata
+  under dev/research, outside the distributed R package.
+- Add a benchmark vignette and a Vignettes tab in Shiny linking all five guides.
+  Prefer installed HTML guides, with online source links when unavailable.
+- Retain the historical split and disclose its substantial input overlap. The
+  matched no-overlap Keras/DDESONN study remains future work. Historical Keras
+  workbook statistics include a documented duplicate seed-label/count discrepancy.
+
 # DDESONN 7.3.17
 
 - Move idle/finished status and training errors above the progress card; show

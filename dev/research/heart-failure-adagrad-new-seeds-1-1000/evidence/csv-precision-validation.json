@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "checks": "17-digit probability and validation-history CSV values round-trip exactly to saved RDS doubles",
+  "directories": ["pilot-a", "pilot-b", "seeds/0001"]
+}

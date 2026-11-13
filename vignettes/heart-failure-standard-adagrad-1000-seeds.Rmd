@@ -1,0 +1,98 @@
+---
+title: "New standard-AdaGrad heart-failure benchmark: 1,000 seeds"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{New standard-AdaGrad heart-failure benchmark: 1,000 seeds}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Scope
+
+This vignette documents a completed **new reconstructed experiment** of all
+1,000 seeds, not a verified continuation of the original 100-seed study. Each seed
+ran 360 epochs using unchanged package **7.3.0** at
+`a95bc8dda84c4eb35633ee5a5bb456169c1c54b8`. Version 7.3.18 adds this research
+record and vignette links; it does not claim the experiment trained with 7.3.18.
+This document reads saved results and does not launch training.
+
+## Frozen setup
+
+Use the repository heart-failure CSV and all 12 predictors in column order.
+Training rows are 1–3500, validation 3501–4250, and test 4251–5000. Standardize all
+splits using training means/sample SDs and the training standardized maximum
+absolute-value divisor. One 12→64→32→1 network uses ReLU/ReLU/sigmoid, He
+initialization with custom_scale 1.04349, standard AdaGrad with fixed rate .125,
+L1 .00028, dropout list(.1,NULL,NULL), epsilon 1e-7 and native class weights 2/1.
+There is no additional input normalization, batch normalization, self-organization
+or sequence encoding. The unchanged native member trainer avoids the fit
+wrapper's extra normalization. The first strictly best validation accuracy at .5
+selects both weights and biases; all 360 epochs run. Test predictions use >= .5.
+No test-driven tuning, early stopping or seed selection is used.
+
+## Observed fixed-split results
+
+| Metric | Mean | Sample SD |
+|---|---:|---:|
+| accuracy | 0.999705333333 | 0.000631588309488 |
+| precision | 0.999183358325 | 0.0019145390445 |
+| recall | 0.999855895197 | 0.000850676417924 |
+| f1 | 0.999518373615 | 0.00103175565633 |
+| roc_auc | 0.99999779564 | 1.79812778671e-05 |
+| log_loss | 0.0195290555375 | 0.00861872593884 |
+| brier | 0.0029222402564 | 0.00160942267848 |
+
+There were **221 errors** across 750,000 repeated seed-by-test-row predictions:
+188 false positives and 33 false negatives. Fifteen of the fixed 750 test rows
+were misclassified at least once. Aggregate counts were TP 228967, TN 520812,
+FP 188 and FN 33. Values in the table are fractions, not percentages.
+
+All 20 archived source/dataset checksums matched. Two fresh-process seed-1 pilots
+matched initialization, RNG states, all 360 validation accuracies, final/selected
+checkpoints and predictions exactly. Restoring deliberately perturbed weights
+and biases, fresh-process model reload and all 1,000 production artifact manifests
+passed. Arithmetic/reference tests passed 12,162 assertions without failures or
+skips. The supervisor rejected a tampered prediction file. ROC direction is fixed
+with positive class 1; log loss clips only to [1e-15, 1-1e-15]. Undefined ratios
+are NA; the full report records missing counts and all quantiles.
+
+## Historical comparison and overlap
+
+Standard **AdaGrad** is an optimizer, not automatic differentiation. The verified
+legacy multilayer path applied a direct weight subtraction followed by an
+additional adaptive update. Standard AdaGrad removes that double weight update.
+Archived legacy probability-recomputed mean accuracy is 0.999218666666667,
+with sample SD 0.00125609022428344 and 586 repeated prediction errors. The new
+mean is 0.04866667 percentage points higher, with 365 fewer repeated errors.
+These are descriptive differences: historical initialization, RNG, software and
+complete execution conditions remain incompletely verified, so the change cannot
+be attributed solely to the optimizer correction.
+
+Correcting the optimizer does not correct the historical data split. Both sides
+of the historical DDESONN/Keras comparison remain compromised by the overlap-heavy
+heart-failure dataset; this is not a clean, fully matched comparison. Keras was
+not rerun here. Its archived workbook reports count 1,000, but the data sheet has
+1,001 rows with seed label 100 repeated. Workbook statistics are retained as
+archived evidence without silently removing rows.
+
+The overlap audit found 1,319 distinct feature vectors in 5,000 rows;
+734/750 validation and 738/750 test feature vectors match training inputs. Only
+12 test rows have inputs absent from training. The cause has not been established;
+no patient identities or reasons for duplication are inferred. The same 750 test
+rows recur across all seeds. These 750,000 predictions are not independent
+clinical cases, and seed SD is not a patient-population confidence interval.
+
+“We identified substantial overlap between training and test inputs, but its cause has not been established. After this iteration, we will rerun the 1,000-seed benchmark for both Keras and DDESONN using new splits that prevent identical feature vectors from appearing across training, validation, and testing. Both methods will use the same splits for a fair comparison.”
+
+The split fix and matched rerun are **future work for a separate PR/task**.
+This iteration deliberately retains the historical split.
+
+## Full record and reproducibility
+
+[Read the full report, per-seed CSVs, graphs and evidence](https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000).
+The prior 100-seed record is preserved separately. Raw models and the standalone
+2,332,318,464-byte bundle remain outside the distributed R package. Bundle SHA256:
+`44508777bd48332b23e7bba77cde1c464174cb00e85d5f8f52a99ba0fcc807db`.
+All 22,336 archive members and the whole archive were verified. ARTIFACTS.json
+records the current workspace retrieval location; external durable hosting has
+not been established. REPRODUCE.md documents the frozen source and resume workflow.

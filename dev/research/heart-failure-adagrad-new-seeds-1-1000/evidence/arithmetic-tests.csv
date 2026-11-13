@@ -1,0 +1,30 @@
+"file","context","test","nb","failed","skipped","error","warning","user","system","real","passed"
+"test-optimizer-reference.R","optimizer-reference","adagrad matches independent 40-step trajectories and state",960,0,FALSE,FALSE,0,1.439,0.116,1.57,960
+"test-optimizer-reference.R","optimizer-reference","adam matches independent 40-step trajectories and state",1280,0,FALSE,FALSE,0,1.59,0.035,1.624,1280
+"test-optimizer-reference.R","optimizer-reference","lamb matches independent 40-step trajectories and state",1280,0,FALSE,FALSE,0,1.444,0.02,1.467,1280
+"test-optimizer-reference.R","optimizer-reference","sgd matches independent 40-step trajectories and state",640,0,FALSE,FALSE,0,0.636,0.023,0.66,640
+"test-optimizer-reference.R","optimizer-reference","sgd_momentum matches independent 40-step trajectories and state",960,0,FALSE,FALSE,0,1.009,0.013,1.025,960
+"test-optimizer-reference.R","optimizer-reference","nag matches independent 40-step trajectories and state",960,0,FALSE,FALSE,0,1.025,0.004,1.03,960
+"test-optimizer-reference.R","optimizer-reference","rmsprop matches independent 40-step trajectories and state",960,0,FALSE,FALSE,0,1.183,0.00800000000000001,1.193,960
+"test-optimizer-reference.R","optimizer-reference","ftrl matches independent 40-step trajectories and state",1280,0,FALSE,FALSE,0,1.418,0.027,1.447,1280
+"test-optimizer-reference.R","optimizer-reference","lookahead matches independent 40-step trajectories and state",1760,0,FALSE,FALSE,0,1.811,0.028,1.841,1760
+"test-optimizer-reference.R","optimizer-reference","adadelta matches independent 40-step trajectories and state",1280,0,FALSE,FALSE,0,1.26,0.013,1.273,1280
+"test-optimizers.R","optimizers","standard Adagrad is the default and the legacy name is rejected",17,0,FALSE,FALSE,0,0.538,0.041,0.579000000000001,17
+"test-optimizers.R","optimizers","sgd updates SL/ML weights and biases exactly once in order",48,0,FALSE,FALSE,0,0.0700000000000003,0,0.0700000000000003,48
+"test-optimizers.R","optimizers","sgd_momentum updates SL/ML weights and biases exactly once in order",60,0,FALSE,FALSE,0,0.0540000000000003,0,0.0539999999999985,60
+"test-optimizers.R","optimizers","nag updates SL/ML weights and biases exactly once in order",60,0,FALSE,FALSE,0,0.0570000000000004,0,0.0570000000000004,60
+"test-optimizers.R","optimizers","adagrad updates SL/ML weights and biases exactly once in order",62,0,FALSE,FALSE,0,0.0600000000000005,0,0.0600000000000005,62
+"test-optimizers.R","optimizers","rmsprop updates SL/ML weights and biases exactly once in order",60,0,FALSE,FALSE,0,0.0670000000000002,0,0.0670000000000002,60
+"test-optimizers.R","optimizers","adam updates SL/ML weights and biases exactly once in order",72,0,FALSE,FALSE,0,0.0679999999999996,0,0.0679999999999996,72
+"test-optimizers.R","optimizers","adadelta updates SL/ML weights and biases exactly once in order",72,0,FALSE,FALSE,0,0.0780000000000012,0,0.0779999999999994,72
+"test-optimizers.R","optimizers","lamb updates SL/ML weights and biases exactly once in order",72,0,FALSE,FALSE,0,0.0659999999999989,0.004,0.0709999999999997,72
+"test-optimizers.R","optimizers","ftrl updates SL/ML weights and biases exactly once in order",72,0,FALSE,FALSE,0,0.077,0,0.077,72
+"test-optimizers.R","optimizers","lookahead updates SL/ML weights and biases exactly once in order",76,0,FALSE,FALSE,0,0.0779999999999994,0,0.0779999999999994,76
+"test-optimizers.R","optimizers","initialization binds real values without changing random state",23,0,FALSE,FALSE,0,0.0280000000000005,0,0.0280000000000005,23
+"test-optimizers.R","optimizers","invalid gradients and state fail rather than recycle or reset",5,0,FALSE,FALSE,0,0.0820000000000007,0.00800000000000001,0.0899999999999999,5
+"test-optimizers.R","optimizers","regularization is part of one gradient and update flags freeze tensors",10,0,FALSE,FALSE,0,0.0169999999999995,0,0.0170000000000012,10
+"test-optimizers.R","optimizers","Adagrad bias gradients do not depend on duplicating the error batch",1,0,FALSE,FALSE,0,0.00300000000000011,0,0.00300000000000011,1
+"test-optimizers.R","optimizers","bias gradients preserve unit order for column and vector storage",6,0,FALSE,FALSE,0,0.00600000000000023,0,0.00699999999999967,6
+"test-optimizers.R","optimizers","FTRL threshold and LAMB rate apply to biases as well as weights",4,0,FALSE,FALSE,0,0.00500000000000078,0,0.00500000000000078,4
+"test-optimizers.R","optimizers","training_overrides selects every optimizer through ddesonn_run",80,0,FALSE,FALSE,0,1.012,0.15,1.163,80
+"test-optimizers.R","optimizers","standard Adagrad returns predictions even without a best snapshot",2,0,FALSE,FALSE,0,0.0329999999999995,0,0.0330000000000013,2

@@ -2,6 +2,23 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.18 — new 1,000-seed research record and vignette links
+
+The new reconstructed heart-failure experiment completed all 1,000 fresh seeds
+at 360 epochs using frozen **7.3.0** standard-AdaGrad code. Mean fixed-split test
+accuracy was **99.970533%**, with **221 errors** across repeated seed-by-row
+predictions (188 false positives and 33 false negatives). Substantial overlap
+between training and test inputs limits conclusions about unseen cases; this
+does not establish a matched Keras comparison or isolate the optimizer's effect.
+
+Read the [new research record](dev/research/heart-failure-adagrad-new-seeds-1-1000/README.md)
+and [benchmark vignette](vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd).
+The Shiny workbench now has a **Vignettes** tab for all package guides, opening
+installed HTML when available and online source otherwise. The existing
+100-seed record is preserved separately; raw models and the large reproducibility
+bundle remain outside the distributed R package. The no-overlap matched study
+is future work.
+
 ## Version 7.3.14 — Custom help and download previews
 
 Custom controls now have focused lowercase-i help and equivalent R fragments,
@@ -134,13 +151,14 @@ the tables, error counts, paired-results graph, protocol and limitations.
 
 ### How this relates to the historical Keras comparison
 
-The historical 1,000-seed Keras comparison used the legacy DDESONN path. The
-100-seed follow-up is encouraging for accuracy, but is not a new 1,000-seed
-comparison against Keras. A future extension could evaluate seeds 101–1,000
-(the remaining 900 seeds) and revisit the comparison under matched conditions.
-The full accuracy summary could improve, remain similar or worsen; that outcome
-has not been measured. For this release, we are satisfied with the standard
-update rule and completed 100-seed follow-up and are deferring that extension.
+The historical 1,000-seed Keras comparison used the legacy DDESONN path.
+A separate [new 1,000-seed standard-AdaGrad reconstruction](dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
+now records all fresh seed results. It does not rerun Keras or establish a fully
+matched comparison. Correcting AdaGrad leaves the historical dataset's substantial
+train/test feature overlap in place: both sides of the historical comparison
+remain limited by that overlap. The scores do not establish performance on new
+patients or isolate the optimizer's effect. A separate task will prevent identical
+feature vectors from crossing splits and rerun both methods on the same new splits.
 
 Historical results remain available. See [historical research and package-file
 changes](#historical-1000-seed-research) for the affected paths and archive links.

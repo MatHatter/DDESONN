@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "freeze_sha256": "09199bb31be1388778afe5de3609cd52e731a7b7a5afeedf6148d23eb86a3553",
+  "exact_checks": {
+    "initialization.rds": true,
+    "rng.rds": true,
+    "final-checkpoint.rds": true,
+    "selected-checkpoint.rds": true,
+    "preprocessing.rds": true,
+    "validation-history.rds": true,
+    "predictions.rds": true
+  },
+  "all_360_accuracies_exact": true,
+  "first_strict_best_epoch": 119,
+  "all_split_predictions_exact": true,
+  "native_best_probabilities_exact": true,
+  "perturb_weights_and_biases_restore_exact": true,
+  "fresh_process_reload_both_pilots": true
+}
