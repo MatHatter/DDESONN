@@ -309,8 +309,8 @@ test_that("help fragments are distinct, focused and do not change model or RNG s
     expect_false(grepl("wb_[[:alnum:]_]+\\(", code), info = topic)
     expect_no_error(parse(text = h$wb_help_code(topic)))
   }
-  expect_match(codes[["Epochs"]], "num_epochs <- 2L", fixed = TRUE)
-  expect_false(grepl("optimizer|lambda|hidden_sizes", codes[["Epochs"]]))
+  expect_match(codes[["Epochs per model fit"]], "num_epochs <- 2L", fixed = TRUE)
+  expect_false(grepl("optimizer|lambda|hidden_sizes", codes[["Epochs per model fit"]]))
   expect_match(codes[["Optimizer"]], 'optimizer <- "adagrad"', fixed = TRUE)
   expect_false(grepl("num_epochs|lambda|hidden_sizes", codes[["Optimizer"]]))
   expect_match(codes[["Regularization strength"]], "lambda <- 0", fixed = TRUE)

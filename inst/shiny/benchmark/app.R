@@ -217,6 +217,7 @@ ui <- shiny::fluidPage(
     .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
     .wb-workflow-pills { width:66.6667%; margin:0 auto; }
+    .wb-workload-explanation { white-space:pre-line; line-height:1.5; margin:12px 0; color:#40576a; }
     .wb-custom-divider { border-top:2px solid #b4cbd1; margin-top:18px; padding-top:12px; }
     .wb-custom-divider h4 { margin:0 0 8px; color:#155b63; font-size:15px; }
     #wb_prepare { min-width:132px; }

@@ -1,3 +1,13 @@
+# DDESONN 7.3.21
+
+- Distinguish Data-split seed from Training-run seed values, with visible
+  examples explaining that 42 is one seed value, not 42 runs.
+- Label epochs per model fit. Show each single-model run's seed and full epoch
+  budget, the total epochs, and the member/MAIN/TEMP multipliers for ensembles.
+  Two seeds and 100 epochs mean two complete 100-epoch runs, not runs per epoch.
+- Clarify that Basic reuses the Features seed, while Custom training seeds reuse
+  the fixed prepared split. Training behavior and saved input IDs are unchanged.
+
 # DDESONN 7.3.20
 
 - Make optional regularization a shared Build & Train section in Basic and

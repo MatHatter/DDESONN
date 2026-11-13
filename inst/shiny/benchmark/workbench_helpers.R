@@ -484,13 +484,13 @@ wb_help_topics <- function() c(
   "Save or restore", "Another fit from saved weights", "Additional epochs",
   "Predict on new rows", "Start with Data", "Inspect your dataset",
   "Choose what the model learns", "Task", "Train / validation / test split",
-  "Training fraction", "Validation fraction", "Random seed",
+  "Training fraction", "Validation fraction", "Data-split seed",
   "Standardize using training means and SDs", "Prepare for training", "About your split",
-  "Build & Train", "Hidden-layer sizes", "Epochs", "Optimizer", "Learning rate",
+  "Build & Train", "Hidden-layer sizes", "Epochs per model fit", "Optimizer", "Learning rate",
   "Self-organize before initial training", "Weights used for results",
   "Regularization", "Regularization strength", "Training progress",
   "Current completed model", "Target", "Predictors",
-  "Workflow", "Run structure", "Members per model", "Temporary iterations", "Training seeds",
+  "Workflow", "Run structure", "Members per model", "Temporary iterations", "Training-run seed values",
   "Hidden activation", "Weight initialization", "Enable regularization", "Enable dropout", "Dropout rate",
   "Enable learning-rate scheduling", "Schedule", "Minimum rate", "Decay multiplier", "Decay interval (epochs)",
   "Combine members within each training seed", "Combine across training seeds", "Detailed training diagnostics")
@@ -512,7 +512,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "L\n# ddesonn_run(..., do_ensemble = do_ensemble,\n#   num_networks = num_networks, num_temp_iterations = num_temp_iterations)"),
     "Members per model" = paste0("num_networks <- ", custom$members, "L\n# Members inside each model; independent of length(seeds)."),
     "Temporary iterations" = paste0("num_temp_iterations <- ", custom$temp, "L\n# Each TEMP model supplies challengers to the MAIN incumbent ensemble.\n# A warm start does not repeat this search."),
-    "Training seeds" = paste0("seeds <- ", value(custom$seeds), "\n# Pass the same prepared parts$train and parts$validation for every seed.\n# Do not split or fit scaling again inside the seed loop."),
+    "Training-run seed values" = paste0("seeds <- ", value(custom$seeds), "\n# length(seeds) is the number of training runs, not the number of epochs.\n# Each run completes num_epochs for each model fit before the next run starts.\n# Reuse the same prepared rows and scaling for every run."),
     "Hidden activation" = paste0("hidden_activation <- get(", value(custom$activation), ", asNamespace('DDESONN'))\noutput_name <- switch(mode, binary = 'sigmoid', multiclass = 'softmax', regression = 'identity')\noutput_activation <- get(output_name, asNamespace('DDESONN'))\nactivation_functions <- c(rep(list(hidden_activation), length(hidden_sizes)), list(output_activation))\nactivation_functions_predict <- activation_functions"),
     "Weight initialization" = paste0("init_method <- ", value(custom$init), "\n# ddesonn_model(..., init_method = init_method)\n# Warm starts retain the saved weights and biases."),
     "Enable regularization" = paste0("regularization_enabled <- ", value(cfg$reg != "none"), "\nreg_type <- ", value(if (cfg$reg == "none") NULL else cfg$reg), "\n# Off: NULL penalty and zero effective strength."),
@@ -547,7 +547,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "\n# g is one group from the split step.\nn_train <- max(1L, floor(length(g) * train_fraction))"),
     "Validation fraction" = paste0("validation_fraction <- ", value(if (is.null(p$validation_fraction)) .2 else p$validation_fraction),
       "\n# Remaining rows after training and validation become Test.\nn_validation <- max(1L, floor(length(g) * validation_fraction))"),
-    "Random seed" = paste0("seed <- ", p$seed, "L\nset.seed(seed)\n# Reset this seed for splitting and again before model initialization."),
+    "Data-split seed" = paste0("seed <- ", p$seed, "L\nset.seed(seed)\n# Random splitting uses this seed; ordered splitting keeps row order.\n# Basic reuses it for its one training run. Custom uses its separate seeds list.\n# 42 is one seed value, not 42 runs."),
     "Standardize using training means and SDs" = if (isTRUE(p$standardize)) paste(
       "# During preparation, before x has been scaled:",
       "center <- colMeans(x[split_rows$train, , drop = FALSE])",
@@ -565,7 +565,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       value(cfg$hidden), ", ML_NN = ", value(length(cfg$hidden) > 0), ",\n  lambda = ", value(cfg$lambda), ", num_networks = 1)"),
     "Hidden-layer sizes" = paste0("hidden_sizes <- ", value(cfg$hidden),
       "\nML_NN <- length(hidden_sizes) > 0\n# Arguments to ddesonn_model(); integer(0) means no hidden layers."),
-    "Epochs" = paste0("num_epochs <- ", cfg$epochs, "L\n# ddesonn_fit(..., num_epochs = num_epochs)\n# Both checkpoint modes run this full budget; no automatic early stopping."),
+    "Epochs per model fit" = paste0("num_epochs <- ", cfg$epochs, "L\n# ddesonn_fit(..., num_epochs = num_epochs)\n# Each model fit completes this budget. Both checkpoint modes run all epochs.\n# Example: 2 seeds, Single model, 100 epochs = 2 complete runs and 200 total epochs."),
     "Optimizer" = paste0("optimizer <- ", value(cfg$optimizer), "\n# Pass optimizer to ddesonn_fit(); compare choices using Validation."),
     "Learning rate" = if (identical(cfg$workflow, "custom")) paste0("lr <- ", value(cfg$lr),
       "\nlr_min <- ", value(cfg$minimum), "\nlr_decay_rate <- ", value(cfg$decay),
@@ -615,7 +615,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "Current completed model", "Save or restore", "Predict on new rows", "Training progress",
       "Another fit from saved weights", "Additional epochs")) "# Iris/default illustration until data is prepared.\n" else ""
   if (!is.null(completed) && topic %in% c("Model performance", "Confusion matrix (classification)")) prefix <- ""
-  if (is.null(config) && topic %in% c("Build & Train", "Hidden-layer sizes", "Epochs", "Optimizer",
+  if (is.null(config) && topic %in% c("Build & Train", "Hidden-layer sizes", "Epochs per model fit", "Optimizer",
       "Learning rate", "Self-organize before initial training", "Weights used for results",
       "Regularization", "Regularization strength"))
     prefix <- paste0(prefix, "# Default example values; correct invalid model settings for current values.\n")
@@ -689,12 +689,34 @@ wb_custom_config <- function(config, structure = "single", members = 1, seeds = 
 }
 
 wb_workload <- function(config) {
-  if (!identical(config$workflow, "custom")) return(paste(config$epochs, "epochs on the prepared split."))
-  fits <- length(config$seeds) * config$members * (1L + config$temp)
-  paste(length(config$seeds), "training seeds ×", config$members, "members ×",
-    1L + config$temp, "MAIN/TEMP fits =", fits, "member fits;",
-    fits * config$epochs, "total member epochs. The prepared split stays fixed.",
-    if (config$self_org) "Initial self-organization adds work before each new member fit." else "")
+  number <- function(x) format(x, scientific = FALSE, trim = TRUE, big.mark = ",")
+  if (!identical(config$workflow, "custom")) return(paste0(
+    "Basic: 1 training run, 1 model fit, ", number(config$epochs), " epochs.\n",
+    "Uses the Data-split seed from Features. The seed value is not a run count."))
+  runs <- length(config$seeds)
+  fits <- as.double(runs) * config$members * (1 + config$temp)
+  total <- fits * config$epochs
+  intro <- paste0(number(runs), " training run", if (runs == 1L) "" else "s",
+    " (one complete run per listed seed value).")
+  if (config$members == 1L && config$temp == 0L) {
+    shown <- seq_len(min(runs, 3L))
+    plan <- paste0("Run ", shown, " (seed ", config$seeds[shown], "): ",
+      number(config$epochs), " epochs.", collapse = "\n")
+    if (runs > 3L) plan <- paste0(plan, "\n", runs - 3L, " more runs with the same epoch budget.")
+    budget <- paste0("Total: ", number(runs), " × ", number(config$epochs), " = ",
+      number(total), " epochs.")
+  } else {
+    plan <- paste0("Each run trains ", number(config$members), " member networks for ",
+      number(config$epochs), " epochs each.")
+    if (config$temp > 0L) plan <- paste0(plan, " This repeats for the MAIN fit and each of the ",
+      number(config$temp), " TEMP iterations.")
+    budget <- paste0("Total: ", number(fits), " model fits × ", number(config$epochs),
+      " epochs = ", number(total), " total member epochs.")
+  }
+  paste(intro, plan, budget,
+    "Each run completes its full epoch budget before the next run starts. The prepared split stays fixed.",
+    if (isTRUE(config$self_org)) "Initial self-organization adds work before each new network." else NULL,
+    sep = "\n")
 }
 
 # Use a single calculation for evaluation, saved bundles and new predictions.
