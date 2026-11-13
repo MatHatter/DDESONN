@@ -1222,6 +1222,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     isTRUE(out)                                                                        
   }                                                                                    
   
+  if (!isTRUE(cfg$viewTables) && !isTRUE(cfg$verbose)) return(invisible(NULL))
+
   if (isTRUE(cfg$viewTables)) {
     
     summary_tbl <- do.call(  

@@ -63,6 +63,7 @@ wb_ui <- function() {
       shiny::textOutput("wb_selected_model"),
       shiny::textOutput("wb_checkpoint_results"),
       shiny::tableOutput("wb_metrics"),
+      shiny::tags$details(shiny::tags$summary("Training-seed validation comparison and member weights"), shiny::tableOutput("wb_seed_comparison"), shiny::verbatimTextOutput("wb_member_weights")),
       wb_code_panel("wb_evaluation_code", "Equivalent R code — displayed results"),
       wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
@@ -120,8 +121,9 @@ wb_ui <- function() {
             shiny::numericInput("wb_train_fraction", NULL, .6, min = .1, max = .9, step = .05)),
           wb_field("wb_val_fraction", "Validation fraction", "Fraction of rows held for validation; remaining rows become Test. Test is not used to select checkpoints.",
             shiny::numericInput("wb_val_fraction", NULL, .2, min = .05, max = .4, step = .05)),
+          shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Reproducibility"),
           wb_field("wb_seed", "Random seed", "A seed makes random splitting and model initialization repeatable with the same data, settings and software. Changing it can change results.",
-            shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
+            shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1))),
           wb_switch("wb_scale", "Standardize using training means and SDs",
             "Subtracts each predictor's training average and divides by its training standard deviation (SD, a measure of spread). This puts inputs on comparable scales. Validation, test and new rows reuse those same training values; the target is unchanged.", TRUE,
             api = paste("center <- colMeans(x_train)", "spread <- apply(x_train, 2, sd)",
@@ -143,13 +145,15 @@ wb_ui <- function() {
       shiny::sidebarLayout(
         shiny::sidebarPanel(
           wb_heading("Build & Train", "Configure the model and how it learns, then start a new training run on your prepared data. Architecture controls model capacity; optimizer, learning rate and epochs control how weights are updated."),
+          shiny::radioButtons("wb_workflow", "Workflow", c("Basic" = "basic", "Custom DDESONN" = "custom"), inline = TRUE),
+          shiny::tags$script(shiny::HTML("$(document).on('shiny:connected', function() { var m; try { m = localStorage.getItem('DDESONN.workflow'); } catch(e) {} if (m === 'custom' || m === 'basic') { Shiny.setInputValue('wb_remembered_workflow', m); } }); $(document).on('change', 'input[name=wb_workflow]', function() { try { localStorage.setItem('DDESONN.workflow', this.value); } catch(e) {} });")),
           wb_field("wb_hidden", "Hidden-layer sizes", "Hidden layers transform the predictors before the output. Enter units separated by commas, such as 16,8 for two layers. Leave blank for no hidden layer. Larger models can take longer and may overfit.",
             shiny::textInput("wb_hidden", NULL, "16,8")),
           wb_field("wb_epochs", "Epochs", "An epoch is one pass through the training data. More epochs give the model more opportunities to learn, but do not guarantee better predictions on new data.",
             shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
           wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
             shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
-          wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. This workbench keeps it fixed: the decay multiplier is 1 and the minimum equals the starting rate.",
+          wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. Basic keeps it fixed. Custom also offers exponential decay in Learning-rate scheduling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           wb_switch("wb_self_org", "Self-organize before initial training",
             "Runs DDESONN's input-space self-organization phase before supervised training. It organizes neighborhood structure, rather than directly minimizing prediction loss. This optional phase is off by default and runs only for a new model. Warm starts preserve the organized weights without repeating it. It can destabilize training; a smaller learning rate may help.",
@@ -164,10 +168,36 @@ wb_ui <- function() {
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
           shiny::tags$details(shiny::tags$summary("Advanced settings"),
-            wb_field("wb_reg", "Regularization", "Choose no penalty, L1 or L2. The example shows the selected reg_type and model lambda together.",
+            wb_field("wb_reg", "Regularization", "Choose no penalty, L1 or L2 in Basic. Custom also exposes the existing mixed, group and max-norm penalties. The example shows reg_type and model lambda together.",
               shiny::selectInput("wb_reg", NULL, c("None" = "none", "L1", "L2"))),
-            wb_field("wb_lambda", "Regularization strength", "Controls the penalty strength when L1 or L2 is selected; none leaves the penalty off.",
+            wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength; none leaves the penalty off.",
               shiny::numericInput("wb_lambda", NULL, 0, min = 0, step = .0001))),
+          shiny::conditionalPanel("input.wb_workflow === 'custom'",
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
+              shiny::selectInput("wb_structure", "Run structure", c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble" = "main", "Main ensemble with TEMP iterations" = "temp")),
+              shiny::conditionalPanel("input.wb_structure !== 'single'", shiny::numericInput("wb_members", "Members per model", 3, min = 1, max = 100)),
+              shiny::conditionalPanel("input.wb_structure === 'temp'", shiny::numericInput("wb_temp", "TEMP iterations", 1, min = 1, max = 100)),
+              shiny::textInput("wb_seeds", "Training seeds (comma separated)", "42"),
+              shiny::p("Training seeds change initialization and training randomness. The prepared Train / Validation / Test rows and scaling stay fixed.")),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Architecture and initialization"),
+              shiny::selectInput("wb_activation", "Hidden activation", c("relu", "tanh", "sigmoid", "selu", "leaky_relu")),
+              shiny::selectInput("wb_init", "Weight initialization", c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform")),
+              shiny::numericInput("wb_dropout", "Dropout rate (hidden layers; inputs for no hidden layer)", 0, min = 0, max = .99, step = .05),
+              shiny::p("Output activation follows the task. Standardization is configured on Features and fitted only on training rows. Internal batch normalization remains off.")),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Learning-rate scheduling"),
+              shiny::selectInput("wb_schedule", "Schedule", c("Fixed rate" = "fixed", "Exponential decay" = "exponential")),
+              shiny::conditionalPanel("input.wb_schedule === 'exponential'",
+                shiny::numericInput("wb_minimum", "Minimum rate", .00001, min = .00000001),
+                shiny::numericInput("wb_decay", "Decay multiplier", .5, min = .000001, max = 1, step = .05),
+                shiny::numericInput("wb_interval", "Decay interval (epochs)", 20, min = 1, max = 5000)),
+              shiny::p("The Learning rate above is the initial rate. The existing engine applies its exponential schedule with the minimum floor; warm starts restart the schedule.")),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Ensemble prediction combination"),
+              shiny::selectInput("wb_fusion", "Combine members within each training seed", c("Average probabilities / predictions" = "mean", "Validation-weighted average" = "weighted", "Median" = "median", "Majority voting (classification)" = "majority", "Positive-vote proportion (binary)" = "proportion")),
+              shiny::selectInput("wb_seed_aggregate", "Combine across training seeds", c("Average" = "mean", "Median" = "median")),
+              shiny::p("Automatic weights use validation accuracy for classification or inverse validation MSE for regression, normalized within each seed. All-zero accuracies use equal weights. Saved weights are reused for new data."),
+              shiny::p("Binary members vote positive at probability ≥ 0.5; an equal vote ties negative. Multiclass voting uses plurality, with ties choosing the first saved class. No quorum control is offered. Voting outputs are decisions or vote proportions, not calibrated probabilities. Multiclass median is renormalized; an all-zero median falls back to average probabilities.")),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"), shiny::checkboxInput("wb_diagnostics", "Detailed training diagnostics", FALSE))),
+          shiny::textOutput("wb_workload"),
           shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true")),
         shiny::mainPanel(
@@ -184,8 +214,10 @@ wb_ui <- function() {
               shiny::uiOutput("wb_loss_marker")),
             shiny::div(`aria-live` = "polite", shiny::textOutput("wb_loss_inspection")),
             shiny::tags$details(shiny::tags$summary("Training loss values (epoch and loss)"),
-              shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values")))),
-          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; dropout and batch normalization are off in this workbench. Cancelled or failed runs retain any previous completed model."),
+              shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values"))),
+            shiny::tags$details(shiny::tags$summary("Training log (most recent 2,000 lines)"),
+              shiny::tags$pre(style = "max-height:320px;overflow:auto;", shiny::textOutput("wb_training_log")))),
+          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; Custom exposes dropout. Internal batch normalization is off. Cancelled or failed runs retain any previous completed model."),
           shiny::div(class = "panel-body-custom",
             wb_heading("Current completed model", "Select a successful training run or loaded model below. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
             shiny::p("Select a completed run to show its settings, chart and results."),
@@ -224,6 +256,11 @@ wb_server <- function(input, output, session, helper) {
   attempt <- function(code, destination = error) {
     tryCatch({ force(code); destination(NULL) }, error = function(e) destination(conditionMessage(e)))
   }
+  read_job_log <- function(active) {
+    if (is.null(active)) return(character())
+    unlist(lapply(c(active$log, active$error), function(path)
+      if (file.exists(path)) tail(readLines(path, warn = FALSE), 2000L) else character()), use.names = FALSE)
+  }
   begin_attempt <- function(cfg = NULL, kind = "New training") {
     id <- as.character(length(attempts()) + 1L)
     records <- attempts()
@@ -239,21 +276,33 @@ wb_server <- function(input, output, session, helper) {
     if (is.null(id)) return(invisible(NULL))
     records <- attempts(); record <- records[[id]]
     record$state <- state; record$error <- detail; record$history <- history()
+    if (!is.null(job())) record$training_log <- read_job_log(job())
     records[[id]] <- record; attempts(records)
     training_error(detail)
     status(paste0("Run ", id, " · ", if (state == "Cancelled") "Training cancelled" else state, " · ", record$kind,
       if (!is.null(record$config)) paste0(" · ",
         if (identical(record$config$checkpoint, "best_validation")) "Best validation checkpoint" else "Final epoch") else ""))
   }
-  sync_controls <- function(cfg) {
+  sync_controls <- function(cfg, mode = NULL) {
     shiny::updateTextInput(session, "wb_hidden", value = paste(cfg$hidden, collapse = ","))
     shiny::updateNumericInput(session, "wb_epochs", value = cfg$epochs)
     shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
-    shiny::updateSelectInput(session, "wb_optimizer", selected = cfg$optimizer)
+    shiny::updateSelectInput(session, "wb_optimizer", choices = if (identical(cfg$workflow, "custom")) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd"), selected = cfg$optimizer)
     shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
-    shiny::updateSelectInput(session, "wb_reg", selected = cfg$reg)
+    shiny::updateSelectInput(session, "wb_reg", choices = if (identical(cfg$workflow, "custom")) c("none", "L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm") else c("none", "L1", "L2"), selected = cfg$reg)
     shiny::updateNumericInput(session, "wb_lambda", value = cfg$lambda)
     shiny::updateCheckboxInput(session, "wb_self_org", value = isTRUE(cfg$self_org))
+    shiny::updateRadioButtons(session, "wb_workflow", selected = if (identical(cfg$workflow, "custom")) "custom" else "basic")
+    if (identical(cfg$workflow, "custom")) {
+      for (name in c("structure", "activation", "init", "schedule", "seed_aggregate"))
+        shiny::updateSelectInput(session, paste0("wb_", name), selected = cfg[[name]])
+      for (name in c("members", "temp", "dropout", "minimum", "decay", "interval"))
+        shiny::updateNumericInput(session, paste0("wb_", name), value = cfg[[name]])
+      shiny::updateSelectInput(session, "wb_fusion", choices = wb_fusion_choices(mode), selected = cfg$fusion)
+      shiny::updateTextInput(session, "wb_seeds", value = paste(cfg$seeds, collapse = ","))
+      shiny::updateCheckboxInput(session, "wb_diagnostics", value = isTRUE(cfg$diagnostics))
+    }
+
   }
   select_completed <- function(id) {
     r <- completed_runs()[[id]]
@@ -263,7 +312,7 @@ wb_server <- function(input, output, session, helper) {
     if (identical(selected_run(), id) && identical(result(), r)) return(invisible(NULL))
     selected_run(id); result(r)
     new_predictions(NULL); model_error(NULL)
-    sync_controls(r$config)
+    sync_controls(r$config, r$prepared$mode)
     session$sendCustomMessage("wb-clear-loss-hover", list())
   }
   add_completed <- function(bundle) {
@@ -318,9 +367,43 @@ wb_server <- function(input, output, session, helper) {
     if (startsWith(data_source(), "Included iris")) list(example = "iris") else
       list(file = basename(input$wb_data$name))
   })
-  next_config <- shiny::reactive(wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
-    input$wb_optimizer, input$wb_lambda, input$wb_reg, self_org = isTRUE(input$wb_self_org),
-    checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint))
+  shiny::observeEvent(input$wb_remembered_workflow, {
+    if (input$wb_remembered_workflow %in% c("basic", "custom"))
+      shiny::updateRadioButtons(session, "wb_workflow", selected = input$wb_remembered_workflow)
+  }, once = TRUE)
+  shiny::observeEvent(input$wb_workflow, {
+    custom <- identical(input$wb_workflow, "custom")
+    optimizers <- if (custom) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd")
+    regularizers <- if (custom) c("none", "L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm") else c("none", "L1", "L2")
+    shiny::updateSelectInput(session, "wb_optimizer", choices = optimizers,
+      selected = if (length(input$wb_optimizer) == 1 && input$wb_optimizer %in% optimizers) input$wb_optimizer else "adagrad")
+    shiny::updateSelectInput(session, "wb_reg", choices = regularizers,
+      selected = if (length(input$wb_reg) == 1 && input$wb_reg %in% regularizers) input$wb_reg else "none")
+  }, ignoreInit = TRUE)
+  shiny::observeEvent(input$wb_mode, {
+    choices <- wb_fusion_choices(input$wb_mode)
+    shiny::updateSelectInput(session, "wb_fusion", choices = choices,
+      selected = if (length(input$wb_fusion) == 1 && input$wb_fusion %in% choices) input$wb_fusion else "mean")
+  })
+  next_config <- shiny::reactive({
+    cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
+      input$wb_optimizer, input$wb_lambda, input$wb_reg, self_org = isTRUE(input$wb_self_org),
+      checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint)
+    if (!identical(input$wb_workflow, "custom")) return(cfg)
+    wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
+      input$wb_temp, input$wb_activation, input$wb_init, input$wb_dropout,
+      input$wb_schedule, input$wb_minimum, input$wb_decay, input$wb_interval,
+      input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
+  })
+  output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
+  output$wb_training_log <- shiny::renderText({
+    shiny::invalidateLater(500, session)
+    lines <- if (!is.null(job())) read_job_log(job()) else if (!is.null(result())) result()$training_log else if (!is.null(latest_attempt()))
+      attempts()[[latest_attempt()]]$training_log else character()
+    paste(tail(lines, 2000L), collapse = "\n")
+  })
+  output$wb_seed_comparison <- shiny::renderTable({ shiny::req(result()); result()$seed_comparison })
+  output$wb_member_weights <- shiny::renderPrint({ shiny::req(result()); result()$member_weights })
   shiny::observeEvent(input$wb_target, {
     shiny::updateSelectizeInput(session, "wb_features", selected = setdiff(names(raw()), input$wb_target))
   })
@@ -371,8 +454,8 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_cancel, training_attempt({
     if (!is.null(job())) {
       history(wb_log_history(job()$log))
-      wb_stop(job()); job(NULL)
       finish_attempt("Cancelled")
+      wb_stop(job()); job(NULL)
     }
   }))
   shiny::observe({
@@ -387,6 +470,7 @@ wb_server <- function(input, output, session, helper) {
         tryCatch({
           complete <- active$process$get_result()
           complete$history <- h
+          complete$training_log <- read_job_log(active)
           complete <- wb_validate_bundle(complete)
           add_completed(complete); error(NULL)
           finish_attempt("Completed")
@@ -551,7 +635,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_progress <- shiny::renderUI({
     active <- job(); shiny::req(active)
     h <- history(); n <- if (nrow(h)) max(h$epoch) else 0
-    shiny::tags$progress(value = n, max = active$epochs, style = "width:100%;", `aria-label` = "Logged training epochs")
+    shiny::tags$progress(value = n, max = active$epochs, style = "width:100%;", `aria-label` = "Logged member epochs")
   })
   plot_history <- shiny::reactive({
     r <- result()
@@ -608,7 +692,7 @@ wb_server <- function(input, output, session, helper) {
       (if (length(selected) == 1 && is.finite(selected))
         ggplot2::geom_vline(xintercept = selected, linetype = 2, color = "#69788c")) +
       (if (nrow(h) > 1) ggplot2::geom_line(color = "#087f8c")) +
-      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = if (is.null(r)) "Epoch (latest attempt)" else "Epoch (selected fit)", y = "Logged training loss",
+      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = "Logged epoch (cumulative across Custom member fits)", y = "Logged training loss",
         subtitle = if (length(selected) == 1 && is.finite(selected))
           sprintf("Selected epoch %s · %s", selected,
             if (identical(r$config$checkpoint, "best_validation")) "best validation" else "final epoch") else NULL) +

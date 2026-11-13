@@ -84,8 +84,8 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   if (length(epochs) != 1 || !is.finite(epochs) || epochs < 1 || epochs > 5000 || epochs %% 1 != 0)
     stop("Choose 1–5,000 epochs.")
   if (!is.finite(lr) || lr <= 0 || lr > 1) stop("Learning rate must be greater than zero and at most 1.")
-  if (!optimizer %in% c("adagrad", "adam", "rmsprop", "sgd")) stop("Unsupported optimizer.")
-  if (!is.finite(lambda) || lambda < 0 || !reg %in% c("none", "L1", "L2")) stop("Invalid regularization.")
+  if (!optimizer %in% DDESONN::ddesonn_optimizer_options()) stop("Unsupported optimizer.")
+  if (!is.finite(lambda) || lambda < 0 || !reg %in% c("none", "L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm")) stop("Invalid regularization.")
   if (!is.logical(self_org) || length(self_org) != 1 || is.na(self_org))
     stop("Self-organization must be TRUE or FALSE.")
   checkpoint <- match.arg(checkpoint, c("best_validation", "final"))
@@ -94,7 +94,8 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
 }
 
 wb_predictions <- function(model, prepared, part) {
-  p <- as.matrix(DDESONN::ddesonn_predict(model, part$x)$prediction)
+  p <- if (!is.null(attr(model, "workbench_custom"))) wb_custom_predictions(model, prepared, part) else
+    as.matrix(DDESONN::ddesonn_predict(model, part$x)$prediction)
   expected <- if (prepared$mode == "multiclass") length(prepared$classes) else 1L
   if (!identical(dim(p), c(nrow(part$x), as.integer(expected))) || any(!is.finite(p)))
     stop("The model returned invalid predictions.")
@@ -133,6 +134,7 @@ wb_evaluate <- function(prepared, part, p) {
 }
 
 wb_run <- function(prepared, config, previous = NULL) {
+  if (identical(config$workflow, "custom")) return(wb_custom_run(prepared, config, previous))
   # callr isolates RNG, package globals, graphics and all mutable model state.
   set.seed(prepared$seed)
   # Older workbench bundles predate the checkbox and used FALSE.
@@ -195,6 +197,9 @@ wb_checkpoint <- function(bundle) {
 
 wb_checkpoint_summary <- function(bundle) {
   if (is.null(bundle)) return("No completed checkpoint yet.")
+  if (identical(bundle$config$workflow, "custom")) return(paste(
+    if (identical(bundle$config$checkpoint, "best_validation")) "Each member uses its own best validation checkpoint (weights and biases)." else "Each member uses the final epoch.",
+    "All requested epochs ran; results combine members within seeds, then across seeds."))
   checkpoint <- wb_checkpoint(bundle)
   score <- if (length(checkpoint$score) != 1 || !is.finite(checkpoint$score)) "not recorded" else
     if (identical(bundle$prepared$mode, "regression")) format(signif(checkpoint$score, 6), trim = TRUE) else
@@ -263,7 +268,10 @@ wb_new_predictions <- function(bundle, data) {
 wb_log_history <- function(path) {
   lines <- if (file.exists(path)) readLines(path, warn = FALSE) else character()
   lines <- lines[grepl("Epoch [0-9]+ .*Loss: [-+0-9.eE]+", lines)]
-  data.frame(epoch = as.integer(sub(".*Epoch ([0-9]+).*", "\\1", lines)),
+  epochs <- as.integer(sub(".*Epoch ([0-9]+).*", "\\1", lines))
+  # Orchestration restarts epoch numbering per member. Use cumulative member
+  # epochs for the chart; a single-member Basic history remains unchanged.
+  data.frame(epoch = if (anyDuplicated(epochs)) seq_along(epochs) else epochs,
     loss = as.numeric(sub(".*Loss: ([-+0-9.eE]+).*", "\\1", lines)))
 }
 
@@ -278,7 +286,8 @@ wb_start <- function(helper, prepared, config, previous = NULL) {
     libpath = .libPaths(), wd = dir, stdout = log, stderr = error, supervise = TRUE),
     error = function(e) { unlink(dir, recursive = TRUE); stop(e) })
   list(process = process, dir = dir, log = log, error = error,
-    started = Sys.time(), epochs = config$epochs)
+    started = Sys.time(), epochs = if (identical(config$workflow, "custom"))
+      config$epochs * length(config$seeds) * config$members * (if (is.null(previous)) 1L + config$temp else 1L) else config$epochs)
 }
 
 wb_stop <- function(job) {
@@ -364,6 +373,17 @@ wb_lr_comments <- function(lr) {
 }
 
 wb_fit_code <- function(p, cfg, create = TRUE) {
+  if (identical(cfg$workflow, "custom")) {
+    metadata <- p; metadata$parts <- NULL
+    return(paste(
+      "# Use the installed workbench's native orchestration and saved fusion rules.",
+      "workbench <- new.env(parent = globalenv())",
+      "sys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)",
+      paste0("config <- ", wb_literal(cfg)),
+      if (create) paste0("prepared <- ", wb_literal(metadata), "\nprepared$parts <- parts\nprepared$center <- center\nprepared$scale <- scale\nbundle <- workbench$wb_run(prepared, config)") else
+        "bundle <- workbench$wb_run(bundle$prepared, config, bundle)",
+      "model <- bundle$model", sep = "\n\n"))
+  }
   best <- identical(cfg$checkpoint, "best_validation")
   start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
@@ -422,7 +442,7 @@ wb_evaluation_code <- function(p, split = "test") {
 wb_recipe <- function(p, cfg) {
   paste("# Equivalent R recipe for this prepared data and fit configuration.",
     wb_data_code(p$source), wb_features_code(p), wb_fit_code(p, cfg),
-    wb_evaluation_code(p), sep = "\n\n")
+    if (identical(cfg$workflow, "custom")) "print(bundle$evaluation$test)\nprint(bundle$seed_comparison)\nprint(bundle$member_weights)" else wb_evaluation_code(p), sep = "\n\n")
 }
 
 wb_bundle_code <- function() {
@@ -432,9 +452,9 @@ wb_bundle_code <- function() {
     "# 1. Load the saved bundle (replace this path with your downloaded file).\nbundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model",
     "# 2. Read new rows to predict (replace this path with your CSV).\n# Include the original predictor column names; the target is not required.\nnew_data <- read.csv('new-data.csv', check.names = FALSE)",
     "# 3. Select predictors in saved order and reuse training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nsettings <- bundle$prepared\nx_new <- as.matrix(new_data[settings$features])\nx_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')",
-    "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\nprobabilities <- ddesonn_predict(model, x_new)$prediction\nprint(probabilities)",
+    "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\n# This preserves Custom member/seed combination and Basic behavior.\nprobabilities <- workbench$wb_predictions(model, settings, list(x = x_new))\nprint(probabilities)",
     "# Optional: save a copy of the whole bundle for use again later.\n# This retains the model AND its preprocessing, split and settings.\nsaveRDS(bundle, 'my-workbench-model.rds')",
-    "# Optional: export only the API model.\n# This file omits preprocessing; keep the bundle for this workflow.\nsaveRDS(model, 'api-model.rds')", sep = "\n\n")
+    "# Optional: export only the API model.\n# This file omits preprocessing and the Custom orchestration workflow; keep the bundle.\nsaveRDS(model, 'api-model.rds')", sep = "\n\n")
 }
 
 
@@ -443,7 +463,7 @@ wb_resume_recipe <- function(p, cfg) {
     "library(DDESONN)", "bundle <- readRDS('previous-workbench-model.rds')",
     "model <- bundle$model", "parts <- bundle$prepared$parts",
     "mode <- bundle$prepared$mode", "classes <- bundle$prepared$classes",
-    wb_fit_code(p, cfg, FALSE), wb_evaluation_code(p), sep = "\n\n")
+    wb_fit_code(p, cfg, FALSE), if (identical(cfg$workflow, "custom")) "print(bundle$evaluation$test)" else wb_evaluation_code(p), sep = "\n\n")
 }
 
 # Separate explanatory blocks without expanding every individual statement.
@@ -521,7 +541,11 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "\nML_NN <- length(hidden_sizes) > 0\n# Arguments to ddesonn_model(); integer(0) means no hidden layers."),
     "Epochs" = paste0("num_epochs <- ", cfg$epochs, "L\n# ddesonn_fit(..., num_epochs = num_epochs)\n# Both checkpoint modes run this full budget; no automatic early stopping."),
     "Optimizer" = paste0("optimizer <- ", value(cfg$optimizer), "\n# Pass optimizer to ddesonn_fit(); compare choices using Validation."),
-    "Learning rate" = paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n\n", wb_lr_comments(cfg$lr)),
+    "Learning rate" = if (identical(cfg$workflow, "custom")) paste0("lr <- ", value(cfg$lr),
+      "\nlr_min <- ", value(cfg$minimum), "\nlr_decay_rate <- ", value(cfg$decay),
+      "\nlr_decay_epoch <- ", cfg$interval,
+      "L\n# Scheduled rate: max(lr_min, lr * lr_decay_rate^floor(epoch / lr_decay_epoch))\n# The multiplier retains this fraction of the rate at each interval.") else
+      paste0("lr <- ", value(cfg$lr), "\nlr_min <- lr\nlr_decay_rate <- 1\n\n", wb_lr_comments(cfg$lr)),
     "Self-organize before initial training" = paste0("self_org <- ", value(isTRUE(cfg$self_org)),
       "\n# New fit: ddesonn_fit(..., self_org = self_org)\n# Additional fit from saved weights: self_org = FALSE"),
     "Weights used for results" = if (identical(cfg$checkpoint, "best_validation")) paste(
@@ -597,4 +621,165 @@ wb_full_code <- function(prepared = NULL, config = NULL, completed = NULL,
       paste("Iris illustration. Prepare data for a full script using your dataset.",
         if (is.null(config)) "Default model settings are shown while controls are invalid." else "Current valid model settings apply to this illustration.") else
       "Prepared dataset and current valid fit settings, followed by Test evaluation. Use the original CSV and row order.")
+}
+
+# Custom controls are normalized at the server boundary. Basic uses the original
+# configuration and execution path, including its RNG and numerical defaults.
+wb_custom_config <- function(config, structure = "single", members = 1, seeds = "42",
+                             temp = 0, activation = "relu", init = "he", dropout = 0,
+                             schedule = "fixed", minimum = .00001, decay = .5,
+                             interval = 20, fusion = "mean", seed_aggregate = "mean",
+                             diagnostics = FALSE) {
+  integer_in <- function(x, lo, hi, label) {
+    if (length(x) != 1 || !is.finite(x) || x %% 1 != 0 || x < lo || x > hi)
+      stop(label, " must be an integer from ", lo, " to ", hi, ".")
+    as.integer(x)
+  }
+  structure <- match.arg(structure, c("single", "members", "main", "temp"))
+  seeds <- suppressWarnings(as.numeric(trimws(strsplit(seeds, ",", fixed = TRUE)[[1]])))
+  if (!length(seeds) || length(seeds) > 100 || any(!is.finite(seeds) | seeds < 0 |
+      seeds > 2147483646 | seeds %% 1 != 0) || anyDuplicated(seeds))
+    stop("Use 1–100 distinct training seeds, separated by commas.")
+  config$workflow <- "custom"; config$structure <- structure
+  config$members <- if (structure == "single") 1L else integer_in(members, 1, 100, "Members")
+  config$seeds <- as.integer(seeds)
+  config$temp <- if (structure == "temp") integer_in(temp, 1, 100, "TEMP iterations") else 0L
+  config$activation <- match.arg(activation, c("relu", "tanh", "sigmoid", "selu", "leaky_relu"))
+  config$init <- match.arg(init, c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform"))
+  if (length(dropout) != 1 || !is.finite(dropout) || dropout < 0 || dropout >= 1)
+    stop("Dropout must be at least 0 and below 1.")
+  config$dropout <- dropout
+  config$schedule <- match.arg(schedule, c("fixed", "exponential"))
+  if (config$schedule == "exponential" && (length(minimum) != 1 || !is.finite(minimum) ||
+      minimum <= 0 || minimum > config$lr || length(decay) != 1 || !is.finite(decay) || decay <= 0 || decay > 1))
+    stop("Use 0 < minimum rate <= initial rate and 0 < decay multiplier <= 1.")
+  config$minimum <- if (config$schedule == "fixed") config$lr else minimum
+  config$decay <- if (config$schedule == "fixed") 1 else decay
+  config$interval <- integer_in(interval, 1, 5000, "Decay interval")
+  config$fusion <- match.arg(fusion, c("mean", "weighted", "median", "majority", "proportion"))
+  config$seed_aggregate <- match.arg(seed_aggregate, c("mean", "median"))
+  config$diagnostics <- isTRUE(diagnostics)
+  config
+}
+
+wb_workload <- function(config) {
+  if (!identical(config$workflow, "custom")) return(paste(config$epochs, "epochs on the prepared split."))
+  fits <- length(config$seeds) * config$members * (1L + config$temp)
+  paste(length(config$seeds), "training seeds ×", config$members, "members ×",
+    1L + config$temp, "MAIN/TEMP fits =", fits, "member fits;",
+    fits * config$epochs, "total member epochs. The prepared split stays fixed.",
+    if (config$self_org) "Initial self-organization adds work before each new member fit." else "")
+}
+
+# Use a single calculation for evaluation, saved bundles and new predictions.
+# A majority result is encoded as a one-hot decision (not a calibrated probability).
+wb_combine <- function(predictions, mode, method = "mean", weights = NULL) {
+  DDESONN:::.ddesonn_combine_predictions(predictions, mode, method, weights)
+}
+
+wb_custom_predictions <- function(model, prepared, part) {
+  payload <- attr(model, "workbench_custom")
+  predictions <- lapply(seq_along(payload$models), function(i) {
+    raw <- DDESONN::ddesonn_predict(payload$models[[i]], part$x, aggregate = "none")$per_model
+    wb_combine(raw, prepared$mode, payload$fusion, payload$weights[[i]])
+  })
+  wb_combine(predictions, prepared$mode, payload$seed_aggregate)
+}
+
+wb_custom_run <- function(prepared, config, previous = NULL) {
+  if (prepared$mode == "regression" && config$fusion %in% c("majority", "proportion"))
+    stop("Voting applies only to classification.")
+  if (prepared$mode != "binary" && config$fusion == "proportion")
+    stop("Positive-vote proportion applies only to binary classification.")
+  tr <- prepared$parts$train; va <- prepared$parts$validation
+  best <- identical(config$checkpoint, "best_validation")
+  acts <- c(rep(config$activation, length(config$hidden)), switch(prepared$mode,
+    binary = "sigmoid", multiclass = "softmax", regression = "identity"))
+  # Resolve supported activation names to functions through the package namespace.
+  acts <- lapply(acts, function(name) get(name, envir = asNamespace("DDESONN")))
+  train <- list(num_epochs = config$epochs, optimizer = config$optimizer, lr = config$lr,
+    lr_min = config$minimum, lr_decay_rate = config$decay, lr_decay_epoch = config$interval,
+    self_org = is.null(previous) && config$self_org,
+    do_ensemble = config$structure %in% c("main", "temp"),
+    reg_type = if (config$reg == "none") NULL else config$reg,
+    dropout_rates = as.list(rep(config$dropout, max(1, length(config$hidden)))),
+    numeric_columns = NULL, batch_normalize_data = FALSE,
+    validation_metrics = best, best_weights_on_latest_weights_off = best,
+    threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics)
+  if (is.null(previous)) {
+    run <- DDESONN::ddesonn_run(tr$x, tr$y, classification_mode = prepared$mode,
+      hidden_sizes = config$hidden, seeds = config$seeds,
+      do_ensemble = config$structure %in% c("main", "temp"), num_networks = config$members,
+      num_temp_iterations = config$temp, validation = va,
+      model_overrides = list(ML_NN = length(config$hidden) > 0, lambda = config$lambda,
+        activation_functions = acts, activation_functions_predict = acts, init_method = config$init),
+      training_overrides = train, save_models = FALSE, verboseLow = TRUE,
+      verbose = config$diagnostics)
+    models <- lapply(run$runs, function(r) r$main$model)
+    orchestration <- lapply(run$runs, `[[`, "tables")
+  } else {
+    payload <- attr(previous$model, "workbench_custom")
+    if (is.null(payload)) stop("This saved model has no Custom training state.")
+    # Native recipe calls also preserve the saved source bundle. The app adds
+    # process isolation on top of this copy.
+    models <- lapply(payload$models, wb_clone_model)
+    for (i in seq_along(models)) {
+      set.seed(config$seeds[i])
+      do.call(DDESONN::ddesonn_fit, c(list(model = models[[i]], x = tr$x, y = tr$y, validation = va), train))
+    }
+    orchestration <- previous$orchestration
+  }
+  # Every member has its own best tensors; never reuse the last member's tensors.
+  if (best) for (model in models) for (network in model$ensemble) {
+    if (is.null(network$best_weights) || is.null(network$best_biases))
+      stop("A member has no valid validation checkpoint; no completed model was replaced.")
+    network$weights <- network$best_weights; network$biases <- network$best_biases
+  }
+  weights <- lapply(models, function(model) {
+    preds <- DDESONN::ddesonn_predict(model, va$x, aggregate = "none")$per_model
+    score <- vapply(preds, function(p) {
+      if (prepared$mode == "regression") 1 / max(mean((p - va$y)^2), 1e-12) else
+        wb_evaluate(prepared, va, p)$metrics$Value[1]
+    }, numeric(1))
+    if (sum(score) == 0) score[] <- 1
+    score / sum(score)
+  })
+  per_seed <- lapply(seq_along(models), function(i) {
+    p <- wb_combine(DDESONN::ddesonn_predict(models[[i]], va$x, aggregate = "none")$per_model,
+      prepared$mode, config$fusion, weights[[i]])
+    m <- wb_evaluate(prepared, va, p)$metrics
+    data.frame(seed = config$seeds[i], m)
+  })
+  # Keep the root model API-compatible; serialize the other seeds as model state.
+  root <- wb_clone_model(models[[1]])
+  attr(root, "workbench_custom") <- list(models = models, weights = weights,
+    fusion = config$fusion, seed_aggregate = config$seed_aggregate)
+  evaluation <- lapply(prepared$parts, function(part)
+    wb_evaluate(prepared, part, wb_custom_predictions(root, prepared, part)))
+  list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
+    model = root, prepared = prepared, config = config, evaluation = evaluation,
+    self_org_applied = is.null(previous) && config$self_org,
+    selected_epoch = if (best) NA_integer_ else config$epochs,
+    seed_comparison = do.call(rbind, per_seed), member_weights = weights, orchestration = orchestration,
+    recipe = if (is.null(previous)) wb_recipe(prepared, config) else wb_resume_recipe(prepared, config), completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
+    fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
+}
+
+
+wb_fusion_choices <- function(mode) {
+  if (identical(mode, "regression")) return(c("Average predictions" = "mean",
+    "Validation-weighted predictions" = "weighted", "Median predictions" = "median"))
+  choices <- c("Average probabilities" = "mean", "Validation-weighted probabilities" = "weighted",
+    "Median probabilities" = "median", stats::setNames("majority",
+      if (identical(mode, "binary")) "Majority voting" else "Majority voting (plurality)"))
+  if (identical(mode, "binary")) choices <- c(choices, "Positive-vote proportion" = "proportion")
+  choices
+}
+
+
+wb_clone_model <- function(model) {
+  # R6 deep cloning does not recursively copy the networks inside ensemble's
+  # list. Serialization preserves API attributes AND isolates nested R6 state,
+  # matching the worker boundary used by the app.
+  unserialize(serialize(model, NULL))
 }

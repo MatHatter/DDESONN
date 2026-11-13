@@ -110,13 +110,14 @@ base package does not require callr; the optional model workbench does.
   All splits are disjoint row indices. Means/SDs are fitted on training rows only;
   constant features use scale 1. Grouped or duplicate inputs require an externally
   prepared split; random row splitting does not establish subject independence.
-- A single model, zero to five hidden layers, task-appropriate default activations,
+- Basic: a single model, zero to five hidden layers, task-appropriate default activations,
   AdaGrad/Adam/RMSprop/SGD, fixed learning rate, optional L1/L2 regularization.
   Optional initial self-organization runs before a new model's supervised training and is off by
   default. Self-organization can destabilize training; smaller learning rates
-  may help. Dropout, batch normalization, sequence encoding, automatic early
-  stopping and ensemble orchestration are not exposed in this interface.
-- One public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
+  may help. Custom additionally exposes dropout and ensemble orchestration.
+  Internal batch normalization, sequence encoding and automatic early stopping
+  remain outside this interface.
+- Basic uses one public `ddesonn_fit()` call per fit, in an isolated `callr` worker. The loss
   plot and progress use actual epoch log records; log delivery can lag training.
   The **Weights used for results** dropdown defaults to **Best validation checkpoint**, selecting the highest
   validation accuracy for classification or lowest validation loss for regression
@@ -244,7 +245,8 @@ Completed-model help uses its saved recipe, and additional-fit examples retain t
 saved model's settings rather than the next-new-model controls. Examples name the
 required Data/Features panels, trusted bundle or CSV/recipe files. Download the
 complete recipe for a runnable end-to-end workflow; help snippets are contextual
-pieces of that workflow. No private workbench helper functions are required.
+pieces of that workflow. Basic recipes use the public API directly. Custom full recipes source the installed
+workbench helpers to retain the complete multi-seed prediction workflow.
 
 The small i remains a real lowercase letter, with centered glyph alignment and a
 visible keyboard focus ring. Press Enter or Space to open help and Escape to close
@@ -348,3 +350,56 @@ Technical details after failure to see the exception and installed engine/R
 versions. Check `packageVersion("DDESONN")`; install the updated source package
 and restart R when the installed engine is older than the source you intend to
 run. This installation does not require rendering vignettes.
+
+
+### Basic / Custom foundation (7.3.12)
+
+The Basic path retains its training defaults and numerical behavior. Its split
+seed is under collapsed **Reproducibility** on Features. The browser remembers
+only the Basic/Custom preference; data, completed models and workers are session
+state. Custom settings are in keyboard-accessible expandable sections.
+
+Custom supports Single, multiple members inside a model, MAIN, and MAIN with
+TEMP iterations through the existing run orchestrator. Every training seed uses
+exactly the prepared row split and scaling. The preview counts seeds × members ×
+(1 + TEMP iterations) member fits, multiplied by epochs; self-organization adds
+separate initial work. Architecture/activation, initialization, all supported
+optimizers and penalties, dropout, and fixed/exponential scheduling are available.
+Standardization remains on Features; internal batch normalization stays off.
+The decay uses the formula above, including its epoch-one behavior. Both
+checkpoint choices exhaust the epoch budget. Each best-validation member
+restores both tensors independently, including members promoted from TEMP.
+The chart counts cumulative member epochs; it does not imply one shared
+checkpoint epoch. Warm starts fit each saved seed's MAIN members, restart their
+schedule/optimizer state, and never repeat self-organization or TEMP searching.
+
+**Ensemble prediction combination** applies first within each seed, then across
+seeds. Average probabilities (numeric predictions for regression), componentwise
+median and validation-weighted average are distinct choices. Weights use member
+validation accuracy or inverse validation MSE (floor 1e-12), normalized within
+seed; zero total accuracy falls back to equal weights. Saved weights are reused
+for new data. Multiclass medians are renormalized; an all-zero row falls back to
+the mean. Binary vote proportion counts probabilities >= 0.5. Binary majority
+requires more than half, tying negative; multiclass uses plurality with ties in
+saved class order. No quorum is exposed, and file-based multiclass fusion now
+rejects explicit quorum settings rather than silently ignoring them. Binary
+file-fusion quorum still specifies the required positive-vote count; its default
+is strict majority. Multiclass average and legacy soft voting are duplicates, so
+only average is offered. Regression has no voting control. Across seeds, average
+or median applies to the combined outputs; binary classification then uses >=
+0.5 (ties positive), multiclass the first maximum. Voting outputs are decisions
+or vote proportions rather than calibrated probabilities.
+
+The validation seed table and displayed weights explain the saved workflow.
+Keep the whole bundle and use its full prediction recipe: a bare root model with
+`ddesonn_predict()` does not implement the Custom member/seed fusion. New full
+Custom recipes use the installed workbench helpers for training, prediction and
+warm starts; historical Basic recipes remain intact. A Custom bundle can exceed
+the existing 50 MB upload limit for large workloads, so choose a representative
+configuration and retain reproducible recipes alongside the bundle.
+
+Ordinary progress keeps epoch records and genuine warnings/errors. Enable
+**Detailed training diagnostics** before a Custom run for tensor and optimizer
+logs. The progress panel includes the most recent 2,000 log lines; completed
+bundles retain those logs. Weighted majority voting and the optional experimental
+sequence/SSM workbench encoder remain follow-up work.

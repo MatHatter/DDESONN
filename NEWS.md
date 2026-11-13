@@ -1,3 +1,22 @@
+# DDESONN 7.3.12
+
+- Add a browser-remembered Basic / Custom workbench mode while keeping datasets,
+  models and training jobs isolated per session. Basic retains its defaults.
+- Custom exposes single models, multiple members, MAIN and MAIN/TEMP runs,
+  training-seed comparisons on a fixed prepared split, activations,
+  initialization, optimizer/regularization choices, dropout and the existing
+  exponential learning-rate schedule. Preview total member fits and epochs.
+- Combine members separately from seeds. Validation-weighted inference uses
+  accuracy or inverse MSE, never test labels. Persist combination settings and
+  weights in model bundles and use them for predictions and warm starts.
+- Clarify voting: binary ties are negative; multiclass uses plurality with
+  saved-class-order ties. Reject ineffective multiclass quorum settings in
+  file-based fusion. Componentwise multiclass medians are renormalized in Custom.
+- Gate normalization, gradient/error and optimizer diagnostics at their sources;
+  preserve epoch progress, warnings and errors.
+- Weighted majority voting and the optional experimental sequence/SSM workbench
+  encoder remain follow-up work after this foundation.
+
 # DDESONN 7.3.11
 
 ## Retain loss curves from unsuccessful attempts
