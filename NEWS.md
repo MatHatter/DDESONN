@@ -1,3 +1,14 @@
+# DDESONN 7.3.14
+
+- Add focused lowercase-i help and equivalent R fragments throughout Custom,
+  including run structures, MAIN/TEMP roles, member/seed combination, scheduling
+  and diagnostics. Move field explanations into help instead of repeating them
+  below dropdowns.
+- Present Basic/Custom as an accessible segmented pill with a short Custom
+  briefing, contextual Custom advanced settings label and a diagnostics switch.
+- Explain each download's contents. Preview bundle contents, complete training
+  recipes and prediction CSV rows before downloading.
+
 # DDESONN 7.3.13
 
 - Optional regularization, dropout and learning-rate scheduling use off-by-default

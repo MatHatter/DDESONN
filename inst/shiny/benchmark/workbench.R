@@ -50,7 +50,26 @@ wb_download_button <- function(id, label) {
   button$attribs[["aria-disabled"]] <- "true"
   button$attribs$tabindex <- "-1"
   button$attribs$class <- paste(button$attribs$class, "disabled")
-  button
+  wb_download_info(id, button)
+}
+
+# Download help describes the exact artifact, independently of other controls.
+wb_download_info <- function(id, button) {
+  info <- switch(id,
+    wb_save =, wb_save_selected = list("A selected-model bundle (.rds) with complete retained trained tensors and all retained Custom seeds/members, settings, preprocessing, prepared split data and labels, evaluations, history, retained logs and recipe. It excludes discarded TEMP candidate models and the session's other completed runs. Preview summarizes these contents; the file retains full tensors and data.", "saveRDS(bundle, 'ddesonn-workbench-model.rds')"),
+    wb_predictions_download = list("CSV of every evaluated row in the selected Train/Validation/Test split: row index, actual outcome and prediction, plus classification probabilities. The table previews the first 20 rows. This CSV contains no trained model.", "write.csv(bundle$evaluation[[split]]$predictions, 'ddesonn-evaluated-predictions.csv', row.names = FALSE)"),
+    wb_new_download = list("CSV of all processed new rows: row index and prediction, plus classification probabilities. The table previews the first 20 rows. It does not include model tensors or the training dataset.", "write.csv(predictions, 'ddesonn-new-predictions.csv', row.names = FALSE)"),
+    wb_next_recipe = list("An R script for the currently prepared dataset and next-model settings. It references the original CSV or included example, prepares splits/scaling, trains and evaluates. It is code, not a trained model or a copy of your raw CSV. Preview shows the complete script.", "# Review the complete script before running it.\nsource('ddesonn-next-model.R')"),
+    wb_completed_recipe = list("The selected completed model's saved training recipe, unaffected by current control edits. It is an R script, not trained weights. Warm-start recipes identify the prior bundle they require. Preview shows the complete saved script.", "# Uses the source data or prior bundle named in the saved recipe.\nsource('ddesonn-completed-model.R')"),
+    wb_full_download = list("Exactly the R script displayed in this full-code viewer: next-model training, the completed model's saved recipe, or the saved-model prediction example, according to Code for. It contains code rather than a trained model export.", "# The displayed text and downloaded .R file are identical.\n# Review required input paths before sourcing the script."),
+    download = list("CSV containing every currently selected experiment row and its metric columns. The Explore seeds table previews at most 100 rows; the download includes all selected rows. It contains saved benchmark results, not models or a new training run.", "write.csv(selected_rows, 'selected-results.csv', row.names = FALSE)"),
+    download_summary = list("CSV of the experiment metric summary for the current filters: the same summary shown on Overview. It contains summary statistics, not individual models or their weights.", "write.csv(metric_summary, 'summary.csv', row.names = FALSE)"))
+  if (is.null(info)) return(button)
+  title <- switch(id, wb_save = "Download model bundle", wb_save_selected = "Save selected model",
+    wb_predictions_download = "Download evaluated predictions", wb_new_download = "Download new predictions",
+    wb_next_recipe = "Download next-model recipe", wb_completed_recipe = "Download completed-model recipe",
+    wb_full_download = "Download displayed R script", download = "Download experiment rows", download_summary = "Download experiment summary")
+  shiny::div(class = "wb-download-row", button, wb_help(title, info[[1]], info[[2]]))
 }
 
 wb_ui <- function() {
@@ -68,7 +87,7 @@ wb_ui <- function() {
       wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
       wb_download_button("wb_predictions_download", "Download evaluated predictions"),
-      shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))
+      shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview")))))
   models <- shiny::tabPanel("Saved models & predictions", value = "models",
     shiny::fluidRow(
       shiny::column(6, shiny::div(class = "panel-body-custom",
@@ -76,7 +95,7 @@ wb_ui <- function() {
         shiny::textOutput("wb_saved_info"), wb_download_button("wb_save", "Download model bundle (.rds)"),
         shiny::br(), shiny::br(), shiny::uiOutput("wb_completed_recipe_button"),
         wb_code_panel("wb_completed_code", "Equivalent R code — completed model"),
-        shiny::p("The bundle also contains split data and labels. Store it as you would the source dataset."),
+        shiny::actionButton("wb_preview_bundle", "Preview bundle contents"),
         shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds"),
         shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
         wb_heading("Another fit from saved weights", "This starts another training run using the saved weights, data and settings. Optimizer accumulators and epoch schedules restart, so it is a warm start rather than an exact resume."),
@@ -89,7 +108,7 @@ wb_ui <- function() {
         shiny::fileInput("wb_new_data", "New data (CSV, up to 10 MB)", accept = ".csv"),
         wb_download_button("wb_new_download", "Download new predictions"),
         wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"),
-        shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview")),
+        shiny::tags$details(shiny::tags$summary("Preview new-prediction CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview"))),
         shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error"))))))
   list(
     shiny::tabPanel("1. Data", value = "data",
@@ -145,7 +164,10 @@ wb_ui <- function() {
       shiny::sidebarLayout(
         shiny::sidebarPanel(
           wb_heading("Build & Train", "Configure the model and how it learns, then start a new training run on your prepared data. Architecture controls model capacity; optimizer, learning rate and epochs control how weights are updated."),
-          shiny::radioButtons("wb_workflow", "Workflow", c("Basic" = "basic", "Custom DDESONN" = "custom"), inline = TRUE),
+          wb_field("wb_workflow", "Workflow", "Basic keeps the streamlined single-model workflow. Custom exposes DDESONN's member, seed and MAIN/TEMP orchestration plus optional training controls. Both use the same native R engine. Keras is a separate general-purpose deep-learning API; this workbench does not use it or imply a performance advantage.",
+            shiny::div(class = "wb-workflow-pills", shiny::radioButtons("wb_workflow", NULL, c("Basic" = "basic", "Custom DDESONN" = "custom"), inline = TRUE))),
+          shiny::conditionalPanel("input.wb_workflow === 'custom'",
+            shiny::p(class = "wb-custom-brief", "DDESONN is a native R neural-network framework with transparent weight updates, optional self-organization and evolving ensembles. Custom opens its member, seed and MAIN/TEMP controls; Basic uses the same engine with a streamlined setup.")),
           shiny::tags$script(shiny::HTML("$(document).on('shiny:connected', function() { var m; try { m = localStorage.getItem('DDESONN.workflow'); } catch(e) {} if (m === 'custom' || m === 'basic') { Shiny.setInputValue('wb_remembered_workflow', m); } }); $(document).on('change', 'input[name=wb_workflow]', function() { try { localStorage.setItem('DDESONN.workflow', this.value); } catch(e) {} });")),
           wb_field("wb_hidden", "Hidden-layer sizes", "Hidden layers transform the predictors before the output. Enter units separated by commas, such as 16,8 for two layers. Leave blank for no hidden layer. Larger models can take longer and may overfit.",
             shiny::textInput("wb_hidden", NULL, "16,8")),
@@ -167,7 +189,7 @@ wb_ui <- function() {
               "# Restore BOTH tensors before prediction:",
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
-          shiny::tags$details(shiny::tags$summary("Advanced settings"),
+          shiny::tags$details(shiny::tags$summary(shiny::textOutput("wb_advanced_label", inline = TRUE)),
             wb_switch("wb_reg_enabled", "Enable regularization", "Adds a penalty to weight updates. Leave off for no penalty.",
               api = "reg_type <- 'L2'\nlambda <- 0.0001"),
             shiny::conditionalPanel("input.wb_reg_enabled",
@@ -177,34 +199,43 @@ wb_ui <- function() {
                 shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
-              shiny::selectInput("wb_structure", "Run structure", c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble" = "main", "Main ensemble with TEMP iterations" = "temp")),
-              shiny::conditionalPanel("input.wb_structure !== 'single'", shiny::numericInput("wb_members", "Members per model", 3, min = 1, max = 100)),
-              shiny::conditionalPanel("input.wb_structure === 'temp'", shiny::numericInput("wb_temp", "TEMP iterations", 1, min = 1, max = 100)),
-              shiny::textInput("wb_seeds", "Training seeds (comma separated)", "42"),
-              shiny::p("Training seeds change initialization and training randomness. The prepared Train / Validation / Test rows and scaling stay fixed.")),
+              wb_field("wb_structure", "Run structure", "Single model trains one member. Multiple members inside one model trains several members without MAIN/TEMP orchestration. MAIN is the incumbent or champion ensemble. TEMP trains challengers, also called candidates or competitors, for the existing replacement process. These are names for the same MAIN/TEMP roles, not extra run types.",
+                shiny::selectInput("wb_structure", NULL, c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble (MAIN)" = "main", "Main ensemble with TEMP iterations" = "temp"))),
+              shiny::conditionalPanel("input.wb_structure !== 'single'",
+              wb_field("wb_members", "Members per model", "Each member is a separately initialized network inside a model. This count applies to MAIN and to each TEMP candidate model. It is distinct from the number of training seeds.",
+                shiny::numericInput("wb_members", NULL, 3, min = 1, max = 100))),
+              shiny::conditionalPanel("input.wb_structure === 'temp'",
+              wb_field("wb_temp", "TEMP iterations", "Each iteration trains a TEMP challenger/candidate ensemble. The existing backend selects a candidate and replaces a MAIN incumbent slot using its configured metric. A warm start fits the saved MAIN members without repeating this search.",
+                shiny::numericInput("wb_temp", NULL, 1, min = 1, max = 100))),
+              wb_field("wb_seeds", "Training seeds", "Comma-separated distinct seeds control initialization and training randomness. Every seed reuses the prepared Train/Validation/Test rows and training-only scaling; changing training seeds never resplits the data.",
+                shiny::textInput("wb_seeds", NULL, "42"))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Architecture and initialization"),
-              shiny::selectInput("wb_activation", "Hidden activation", c("relu", "tanh", "sigmoid", "selu", "leaky_relu")),
-              shiny::selectInput("wb_init", "Weight initialization", c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform")),
-              wb_switch("wb_dropout_enabled", "Enable dropout", "Randomly drops units during training. Leave off for no dropout.",
-                api = "dropout_rates <- list(0.1)"),
+              wb_field("wb_activation", "Hidden activation", "Applies this activation to hidden layers. Output activation follows the task: sigmoid, softmax or identity. A model without hidden layers has no hidden activation to change.",
+                shiny::selectInput("wb_activation", NULL, c("relu", "tanh", "sigmoid", "selu", "leaky_relu"))),
+              wb_field("wb_init", "Weight initialization", "Chooses the existing engine weight-initialization scheme for new members. Warm starts reuse saved tensors. Scaling is configured on Features using training rows only; internal batch normalization remains off.",
+                shiny::selectInput("wb_init", NULL, c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform"))),
+              wb_switch("wb_dropout_enabled", "Enable dropout", "Randomly drops units during training. Off uses zero dropout; inference uses the full network."),
               shiny::conditionalPanel("input.wb_dropout_enabled",
-                shiny::numericInput("wb_dropout", "Dropout rate (hidden layers; inputs for no hidden layer)", .1, min = 0, max = .99, step = .05)),
-              shiny::p("Output activation follows the task. Standardization is configured on Features and fitted only on training rows. Internal batch normalization remains off.")),
+              wb_field("wb_dropout", "Dropout rate", "Fraction dropped during training, from zero to below one. Applies to hidden layers, or to inputs when there is no hidden layer. Prediction does not randomly drop units.",
+                shiny::numericInput("wb_dropout", NULL, .1, min = 0, max = .99, step = .05)))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Learning-rate scheduling"),
-              wb_switch("wb_schedule_enabled", "Enable learning-rate scheduling", "Leave off to keep the Learning rate fixed throughout training.",
-                api = "lr_decay_rate <- 1 # scheduling off\nlr_min <- lr"),
+              wb_switch("wb_schedule_enabled", "Enable learning-rate scheduling", "Off keeps the Learning rate fixed. On reveals the supported schedule and decay controls. Warm starts restart the schedule."),
               shiny::conditionalPanel("input.wb_schedule_enabled",
-                shiny::selectInput("wb_schedule", "Schedule", c("Exponential decay" = "exponential")),
-                shiny::numericInput("wb_minimum", "Minimum rate", .00001, min = .00000001),
-                shiny::numericInput("wb_decay", "Decay multiplier", .5, min = .000001, max = 1, step = .05),
-                shiny::numericInput("wb_interval", "Decay interval (epochs)", 20, min = 1, max = 5000),
-                shiny::p("The Learning rate above is the initial rate. Exponential decay applies the minimum floor; warm starts restart the schedule."))),
+              wb_field("wb_schedule", "Schedule", "Exponential decay uses max(minimum rate, initial rate times multiplier raised to floor(epoch / interval)). The Learning rate above supplies the initial rate. This is the existing engine formula, including epoch-one behavior.",
+                shiny::selectInput("wb_schedule", NULL, c("Exponential decay" = "exponential"))),
+              wb_field("wb_minimum", "Minimum rate", "Positive floor for the scheduled learning rate. It cannot exceed the initial Learning rate. Scheduling off sets this floor equal to the fixed rate.",
+                shiny::numericInput("wb_minimum", NULL, .00001, min = .00000001)),
+              wb_field("wb_decay", "Decay multiplier", "Fraction of the rate retained at each decay interval. A multiplier of 0.5 halves it; 1 retains the rate. The minimum floor still applies.",
+                shiny::numericInput("wb_decay", NULL, .5, min = .000001, max = 1, step = .05)),
+              wb_field("wb_interval", "Decay interval (epochs)", "Positive epoch interval used by floor(epoch / interval). Each new member fit and warm start restarts its epoch schedule.",
+                shiny::numericInput("wb_interval", NULL, 20, min = 1, max = 5000)))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Ensemble prediction combination"),
-              shiny::selectInput("wb_fusion", "Combine members within each training seed", c("Average probabilities / predictions" = "mean", "Validation-weighted average" = "weighted", "Median" = "median", "Majority voting (classification)" = "majority", "Positive-vote proportion (binary)" = "proportion")),
-              shiny::selectInput("wb_seed_aggregate", "Combine across training seeds", c("Average" = "mean", "Median" = "median")),
-              shiny::p("Automatic weights use validation accuracy for classification or inverse validation MSE for regression, normalized within each seed. All-zero accuracies use equal weights. Saved weights are reused for new data."),
-              shiny::p("Binary members vote positive at probability ≥ 0.5; an equal vote ties negative. Multiclass voting uses plurality, with ties choosing the first saved class. No quorum control is offered. Voting outputs are decisions or vote proportions, not calibrated probabilities. Multiclass median is renormalized; an all-zero median falls back to average probabilities.")),
-            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"), shiny::checkboxInput("wb_diagnostics", "Detailed training diagnostics", FALSE))),
+              wb_field("wb_fusion", "Combine members within each training seed", "Combines member predictions within one seed before combining seeds. Mean averages probabilities or regression predictions. Weighted mean uses normalized validation accuracy or inverse validation MSE, never test labels; zero total accuracy uses equal weights. Binary members vote positive at probability >= 0.5; a majority tie is negative. Multiclass uses plurality, with ties choosing the first saved class. No quorum is exposed. Voting returns decisions or vote proportions, not calibrated probabilities. Multiclass medians are renormalized; an all-zero row falls back to the mean. Saved weights are reused for new data.",
+                shiny::selectInput("wb_fusion", NULL, c("Average probabilities / predictions" = "mean", "Validation-weighted average" = "weighted", "Median" = "median", "Majority voting" = "majority"))),
+              wb_field("wb_seed_aggregate", "Combine across training seeds", "Combines the already-combined prediction from each training seed, by mean or median. Each seed contributes equally at this stage. This is separate from weighting members within a seed. Binary classification then uses >= 0.5; multiclass chooses the first maximum.",
+                shiny::selectInput("wb_seed_aggregate", NULL, c("Average" = "mean", "Median" = "median")))),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
+              wb_switch("wb_diagnostics", "Detailed training diagnostics", "Off shows ordinary epoch progress and genuine warnings/errors. On also emits detailed tensor, gradient/error, optimizer and training summaries. Read the Training log disclosure under the chart: it shows the most recent 2,000 lines, retained with completed bundles. These are diagnostic logs, not extra training, a model-quality guarantee or a separate file export."))),
           shiny::textOutput("wb_workload"),
           shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true")),
@@ -410,6 +441,7 @@ wb_server <- function(input, output, session, helper) {
       if (isTRUE(input$wb_schedule_enabled)) input$wb_schedule else "fixed", input$wb_minimum, input$wb_decay, input$wb_interval,
       input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
   })
+  output$wb_advanced_label <- shiny::renderText(if (identical(input$wb_workflow, "custom")) "Custom advanced settings" else "Advanced settings")
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_training_log <- shiny::renderText({
     shiny::invalidateLater(500, session)
@@ -541,11 +573,12 @@ wb_server <- function(input, output, session, helper) {
     tryCatch(wb_full_code(prepared(), tryCatch(next_config(), error = function(e) NULL), result(), selected),
       error = function(e) { shiny::validate(shiny::need(FALSE, conditionMessage(e))) })
   })
-  shiny::observeEvent(input$wb_show_full_code, {
+  show_full_code <- function(choice = NULL) {
     choices <- c("Next model / iris illustration" = "next")
     if (!is.null(result()$recipe)) choices <- c(choices, "Completed model's saved recipe" = "completed")
     choices <- c(choices, "R example: load a saved model and predict new rows" = "prediction")
     selected <- if (!is.null(result()$recipe)) "completed" else if (!is.null(result())) "prediction" else "next"
+    if (!is.null(choice)) selected <- choice
     full_choice(selected)
     shiny::showModal(shiny::modalDialog(title = "Full R code", size = "l", easyClose = TRUE,
       shiny::radioButtons("wb_full_source", "Code for", choices, selected = selected),
@@ -554,6 +587,20 @@ wb_server <- function(input, output, session, helper) {
         `aria-label` = "Complete R script"),
       shiny::uiOutput("wb_full_download_button"),
       footer = shiny::modalButton("Close")))
+  }
+  shiny::observeEvent(input$wb_show_full_code, show_full_code())
+  shiny::observeEvent(input$wb_preview_next_recipe, show_full_code("next"))
+  shiny::observeEvent(input$wb_preview_completed_recipe, show_full_code("completed"))
+  show_bundle_preview <- function() {
+    shiny::showModal(shiny::modalDialog(title = "Selected model bundle contents", size = "l", easyClose = TRUE,
+      shiny::tableOutput("wb_bundle_manifest"),
+      footer = shiny::modalButton("Close")))
+  }
+  shiny::observeEvent(input$wb_preview_bundle, show_bundle_preview())
+  shiny::observeEvent(input$wb_preview_selected_bundle, show_bundle_preview())
+  output$wb_bundle_manifest <- shiny::renderTable({
+    shiny::validate(shiny::need(!is.null(result()), "Train or load a completed model to preview its bundle."))
+    wb_bundle_manifest(result())
   })
   output$wb_full_notice <- shiny::renderText(full_script()$notice)
   output$wb_full_code <- shiny::renderText(full_script()$code)
@@ -561,7 +608,7 @@ wb_server <- function(input, output, session, helper) {
     script <- tryCatch(full_script(), error = function(e) NULL)
     if (is.null(script)) shiny::tags$button(type = "button", class = "btn btn-default disabled",
       disabled = "disabled", `aria-disabled` = "true", "Download full R script") else
-      shiny::downloadButton("wb_full_download", "Download full R script")
+      wb_download_info("wb_full_download", shiny::downloadButton("wb_full_download", "Download full R script"))
   })
   output$wb_full_download <- shiny::downloadHandler(filename = function() full_script()$filename,
     content = function(file) writeLines(full_script()$code, file))
@@ -585,10 +632,10 @@ wb_server <- function(input, output, session, helper) {
   output$wb_next_recipe_button <- shiny::renderUI({
     cfg <- tryCatch(next_config(), error = function(e) NULL)
     if (!is.null(prepared()) && !is.null(cfg))
-      shiny::downloadButton("wb_next_recipe", "Download next-model R recipe")
+      shiny::tagList(wb_download_info("wb_next_recipe", shiny::downloadButton("wb_next_recipe", "Download next-model R recipe")), shiny::actionButton("wb_preview_next_recipe", "Preview recipe"))
   })
   output$wb_completed_recipe_button <- shiny::renderUI({
-    if (!is.null(result()$recipe)) shiny::downloadButton("wb_completed_recipe", "Download completed-model R recipe")
+    if (!is.null(result()$recipe)) shiny::tagList(wb_download_info("wb_completed_recipe", shiny::downloadButton("wb_completed_recipe", "Download completed-model R recipe")), shiny::actionButton("wb_preview_completed_recipe", "Preview saved recipe"))
   })
   output$wb_next_recipe <- shiny::downloadHandler(filename = function() "ddesonn-next-model.R",
     content = function(file) { shiny::req(prepared()); writeLines(wb_recipe(prepared(), next_config()), file) })
@@ -609,7 +656,7 @@ wb_server <- function(input, output, session, helper) {
       " · edits apply to the next new run on the currently prepared data. Saved model settings remain unchanged.")
   })
   output$wb_selected_save <- shiny::renderUI({
-    if (!is.null(result())) shiny::downloadButton("wb_save_selected", "Save selected model")
+    if (!is.null(result())) shiny::tagList(wb_download_info("wb_save_selected", shiny::downloadButton("wb_save_selected", "Save selected model")), shiny::actionButton("wb_preview_selected_bundle", "Preview bundle contents"))
   })
   output$wb_attempt_history <- shiny::renderUI({
     records <- attempts()

@@ -405,3 +405,30 @@ Ordinary progress keeps epoch records and genuine warnings/errors. Enable
 logs. The progress panel includes the most recent 2,000 log lines; completed
 bundles retain those logs. Weighted majority voting and the optional experimental
 sequence/SSM workbench encoder remain follow-up work.
+
+
+### Contextual help and download previews (7.3.14)
+
+The segmented Basic/Custom selector retains native radio keyboard semantics and
+remembers only the browser mode. A short Custom briefing identifies the native R
+engine and optional orchestration; both modes use the same engine. Workflow help
+explains the distinction from the separate Keras API without performance claims.
+
+Every Custom control has lowercase-i help and a focused equivalent-R fragment.
+Run structure help follows the selected structure: single, members, MAIN or
+MAIN/TEMP. MAIN is the incumbent/champion; TEMP supplies challengers, also called
+candidates or competitors. These are terminology for existing roles, not extra
+algorithms. Member combination and across-seed combination have separate help.
+Long explanations live in the help rather than beneath the dropdowns. Custom
+uses the label Custom advanced settings. Detailed diagnostics is a switch; its
+help explains verbose tensor/optimizer output and the retained Training log.
+
+Each download has help identifying its exact contents and a focused code example.
+Bundle preview summarizes the selected run's actual fields, task, predictors,
+member/seed counts, split row counts, preprocessing, results, logs and saved
+recipe; the RDS retains complete tensors and split data/labels. It excludes the
+session's other completed runs. Recipe preview opens the existing full-code
+viewer on the corresponding next/saved script. The downloaded script matches
+that viewer. Prediction CSV disclosures preview the first 20 rows; downloads
+contain all corresponding rows. Experiment downloads likewise explain selected
+rows versus metric summaries and use their existing table previews.
