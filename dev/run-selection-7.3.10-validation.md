@@ -29,10 +29,11 @@ Base: origin/main at 234b69c (7.3.9, PR #21). Review branch:
   Playwright at 1366×1100 and 390×844; desktop/mobile screenshots were inspected.
 - Focused workbench tests: 372 assertions, zero failures/errors/warnings/skips.
   Dashboard tests: 26 assertions, zero failures/errors/warnings/skips.
-- Final run-selection tests: 49 assertions, zero failures/errors/warnings/skips.
+- Final run-selection tests: 50 assertions, zero failures/errors/warnings/skips.
   They use actual models and callr workers for failure/success/cancellation,
   check older snapshots byte-for-byte, chart ownership, hover immutability,
-  selection echoes, old bundles without history and session isolation.
+  selection echoes, preparation without relabeling the latest attempt, old bundles
+  without history and session isolation.
 - Browser pass: invalid attempt followed by success clears the active warning;
   both best-validation and final-epoch training; radio selection restores
   hidden layers, epoch budget, learning rate and checkpoint mode; chart and
@@ -46,19 +47,30 @@ Base: origin/main at 234b69c (7.3.9, PR #21). Review branch:
 - `git diff --check` passed.
 
 Evidence: `/workspace/.setup/runs-7310/` contains installation logs, `tests.log`,
-`selection-final.log`, `browser-final-checked.cjs`, `browser-final-checked.log`,
+`selection-checked.log`, `browser-final-checked.cjs`, `browser-final-checked.log`,
 `desktop.png`, `mobile.png`, the downloaded bundle and build/check logs.
 
 ## Full package build and check
 
-Pending. The normal build enables vignette rendering. The subsequent check will
-include tests, vignette rebuilding and the full PDF manual. This environment's
-previously established `R_RD4PDF=times,hyper` font configuration uses installed
-Times/Courier fonts; the default Inconsolata font dependency is unavailable.
-Nothing is skipped by that font configuration.
+The normal vignette-enabled build completed successfully and produced
+`DDESONN_7.3.10.tar.gz`. Archive comparison verified 11 final source,
+documentation and test files byte-for-byte. SHA-256:
+`0951e5c140c98c599fbf4334f1253eb1f58290a7d48cb54ef09e9b060893063e`.
+
+The user clarified that vignette building was not requested for this UI change.
+The full package check was therefore stopped at their direction during the full
+test-suite stage. Installation, loading, code, Rd/documentation and examples had
+reported OK. No completed full-check or full-suite pass is claimed. The focused
+448 assertions and installed-app browser validation above passed independently.
+
+The check used the existing `R_RD4PDF=times,hyper` font configuration. CRAN and
+Bioconductor index probes were blocked by the environment; declared dependencies
+were available locally.
 
 ## Review status
 
 The public open-PR page was inspected and showed no existing PR for this branch.
-The exact title/body are in `dev/PR_7_3_10_DESCRIPTION.md`. Push and PR creation
-status are pending. No merge, publication or release-tag changes are performed.
+The exact title/body are in `dev/PR_7_3_10_DESCRIPTION.md`. Branch
+`codex/run-selection-7.3.10` is pushed. `gh pr create` failed with
+`Post "https://api.github.com/graphql": Forbidden`; no PR was created.
+No merge, publication or release-tag changes are performed.
