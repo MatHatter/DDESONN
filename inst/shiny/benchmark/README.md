@@ -466,3 +466,16 @@ The Basic/Custom pill is one-third narrower. Prepare data and Train new model
 are slightly wider; Cancel and Train share one row with Train at the far right.
 Show full R code is wider, using its original 14px font and standard button
 height. Its green panel retains the page-specific widths introduced in 7.3.15.
+
+
+### State-aware progress and empty states (7.3.17)
+
+Idle/finished attempt status and errors use a separate callout above Training
+progress. Active-run status and progress appear inside the card while running;
+errors remain above it. The chart, loss table and checkpoint/epoch guidance
+appear only with recorded loss. Hover instructions live in chart help; the
+visible inspection text appears only over an actual point. Failed/cancelled
+first-run curves remain visible when recorded. Loaded models without history
+have one specific missing-history message. Current completed model has a single
+initial empty-state message; model and checkpoint details appear after completion
+or loading. Existing completed models remain available after unsuccessful runs.

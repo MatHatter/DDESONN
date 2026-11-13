@@ -243,26 +243,35 @@ wb_ui <- function() {
             shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true"),
             shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
-          shiny::div(class = "panel-body-custom",
-            wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. The selected epoch is marked after a completed fit; selection uses validation, not this training curve. Lower training loss alone does not establish better performance on held-out data."),
-            shiny::p(class = "wb-guidance", "Then configure and train the model. When it finishes, review Model / Results."),
-            shiny::div(class = "wb-latest-attempt", role = "status",
-              shiny::strong("Latest attempt"), shiny::textOutput("wb_status"),
-              shiny::uiOutput("wb_train_error"), shiny::uiOutput("wb_progress")),
-            shiny::textOutput("wb_chart_model"),
-            shiny::div(class = "wb-loss-chart",
-              shiny::plotOutput("wb_loss", height = "280px",
-                hover = shiny::hoverOpts("wb_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
-              shiny::uiOutput("wb_loss_marker")),
-            shiny::div(`aria-live` = "polite", shiny::textOutput("wb_loss_inspection")),
-            shiny::tags$details(shiny::tags$summary("Training loss values (epoch and loss)"),
-              shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values"))),
-            shiny::tags$details(shiny::tags$summary("Training log (most recent 2,000 lines)"),
-              shiny::tags$pre(style = "max-height:320px;overflow:auto;", shiny::textOutput("wb_training_log")))),
-          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; Custom exposes dropout. Internal batch normalization is off. Cancelled or failed runs retain any previous completed model."),
+          shiny::conditionalPanel("output.wb_running_flag !== 'yes' || output.wb_error_flag === 'yes'",
+            shiny::div(class = "wb-latest-attempt wb-attempt-above", role = "status",
+              shiny::conditionalPanel("output.wb_running_flag !== 'yes'",
+                shiny::strong(shiny::textOutput("wb_attempt_title", inline = TRUE)), shiny::textOutput("wb_status")),
+              shiny::uiOutput("wb_train_error"))),
+          shiny::div(class = "panel-body-custom", id = "wb_training_panel",
+            wb_heading("Training progress", "Training runs separately so you can still use the interface. The curve appears when epochs are logged. Hover to inspect an epoch and loss without selecting weights; the table provides the same values. Best-validation selection uses validation rather than this training curve. Lower training loss alone does not establish held-out performance."),
+            shiny::conditionalPanel("output.wb_running_flag === 'yes'",
+              shiny::div(class = "wb-latest-attempt wb-attempt-running", role = "status",
+                shiny::strong("Latest attempt"), shiny::textOutput("wb_running_status"), shiny::uiOutput("wb_progress"))),
+            shiny::conditionalPanel("output.wb_chart_ready === 'yes'",
+              shiny::textOutput("wb_chart_model"),
+              shiny::div(class = "wb-loss-chart",
+                shiny::plotOutput("wb_loss", height = "280px",
+                  hover = shiny::hoverOpts("wb_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
+                shiny::uiOutput("wb_loss_marker")),
+              shiny::div(`aria-live` = "polite", shiny::textOutput("wb_loss_inspection")),
+              shiny::tags$details(shiny::tags$summary("Training loss values (epoch and loss)"),
+                shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values")))),
+            shiny::conditionalPanel("output.wb_has_model === 'yes' && output.wb_chart_ready !== 'yes'",
+              shiny::p("This saved model has no recorded training-loss history.")),
+            shiny::conditionalPanel("output.wb_has_logs === 'yes'",
+              shiny::tags$details(shiny::tags$summary("Training log (most recent 2,000 lines)"),
+                shiny::tags$pre(style = "max-height:320px;overflow:auto;", shiny::textOutput("wb_training_log"))))),
+          shiny::conditionalPanel("output.wb_chart_ready === 'yes'",
+          shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; Custom exposes dropout. Internal batch normalization is off. Cancelled or failed runs retain any previous completed model.")),
           shiny::div(class = "panel-body-custom",
             wb_heading("Current completed model", "Select a successful training run or loaded model below. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
-            shiny::p("Select a completed run to show its settings, chart and results."),
+            shiny::conditionalPanel("output.wb_has_model === 'yes'", shiny::p("Select a completed run to show its settings, chart and results.")),
             shiny::uiOutput("wb_run_choices"),
             shiny::textOutput("wb_settings_origin"),
             shiny::textOutput("wb_model_info"),
@@ -674,7 +683,7 @@ wb_server <- function(input, output, session, helper) {
         shiny::tags$details(shiny::tags$summary("Technical details"), shiny::tags$pre(record$error$details))))))
   })
   output$wb_selected_model <- shiny::renderText(model_info())
-  output$wb_model_info <- shiny::renderText(model_info())
+  output$wb_model_info <- shiny::renderText(if (!is.null(result())) model_info())
   output$wb_saved_info <- shiny::renderText(model_info())
   output$wb_error <- shiny::renderText(error())
   output$wb_data_error <- shiny::renderText(error())
@@ -682,11 +691,11 @@ wb_server <- function(input, output, session, helper) {
     e <- training_error(); if (is.null(e)) return(NULL)
     shiny::div(class = "wb-training-error",
       shiny::div(class = "error", role = "alert", e$message,
-        shiny::p("Completed models remain available below. This message belongs to the latest attempt, not the selected model.")),
+        shiny::p(if (!is.null(result())) "Completed models remain available below. This message belongs to the latest attempt, not the selected model." else "No completed model was produced. Correct the settings or data and retry.")),
       shiny::tags$details(shiny::tags$summary("Technical details"), shiny::tags$pre(e$details)))
   })
-  output$wb_checkpoint_summary <- shiny::renderText(wb_checkpoint_summary(result()))
-  output$wb_checkpoint_results <- shiny::renderText(wb_checkpoint_summary(result()))
+  output$wb_checkpoint_summary <- shiny::renderText(if (!is.null(result())) wb_checkpoint_summary(result()))
+  output$wb_checkpoint_results <- shiny::renderText(if (!is.null(result())) wb_checkpoint_summary(result()))
   output$wb_model_error <- shiny::renderText(model_error())
   output$wb_data_source <- shiny::renderText(data_source())
   output$wb_preview <- shiny::renderTable(utils::head(raw(), 10), rownames = FALSE)
@@ -698,6 +707,21 @@ wb_server <- function(input, output, session, helper) {
       if (p$mode == "binary") paste("· positive class:", p$classes[2]) else "")
   })
   output$wb_status <- shiny::renderText(status())
+  output$wb_running_status <- shiny::renderText(status())
+  output$wb_attempt_title <- shiny::renderText(if (is.null(latest_attempt())) "Training status" else "Latest attempt")
+  output$wb_running_flag <- shiny::renderText(if (!is.null(job())) "yes" else "no")
+  output$wb_error_flag <- shiny::renderText(if (!is.null(training_error())) "yes" else "no")
+  output$wb_has_model <- shiny::renderText(if (!is.null(result())) "yes" else "no")
+  output$wb_chart_ready <- shiny::renderText(if (nrow(plot_history()) > 0) "yes" else "no")
+  output$wb_has_logs <- shiny::renderText({
+    lines <- if (!is.null(job())) TRUE else if (!is.null(result())) length(result()$training_log) > 0 else {
+      id <- latest_attempt()
+      !is.null(id) && length(attempts()[[id]]$training_log) > 0
+    }
+    if (lines) "yes" else "no"
+  })
+  for (flag in c("wb_running_flag", "wb_error_flag", "wb_has_model", "wb_chart_ready", "wb_has_logs"))
+    shiny::outputOptions(output, flag, suspendWhenHidden = FALSE)
   output$wb_progress <- shiny::renderUI({
     active <- job(); shiny::req(active)
     h <- history(); n <- if (nrow(h)) max(h$epoch) else 0
@@ -716,9 +740,9 @@ wb_server <- function(input, output, session, helper) {
   output$wb_chart_model <- shiny::renderText({
     if (!is.null(result())) paste0("Showing selected model: Run ",
       if (is.null(selected_run())) "(loaded)" else selected_run(), " · ", wb_checkpoint_summary(result())) else
-      if (!is.null(job())) "Live training loss · no completed model selected yet" else if (!is.null(latest_attempt()) && nrow(plot_history()))
+      if (!is.null(job())) "Live training loss" else if (!is.null(latest_attempt()) && nrow(plot_history()))
         paste0("Training loss from Run ", latest_attempt(), " · ", attempts()[[latest_attempt()]]$state,
-          " · no completed model was produced. The loss curve is retained for inspection.") else "No completed model selected."
+          " · loss curve retained for inspection.") else NULL
   })
   inspected_point <- shiny::reactive({
     h <- plot_history()
@@ -729,7 +753,7 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_loss_inspection <- shiny::renderText({
     point <- inspected_point()
-    if (is.null(point)) return("Hover near a point to inspect epoch and loss, or expand Training loss values. Inspection does not change model weights.")
+    if (is.null(point)) return(NULL)
     sprintf("Epoch %s · training loss: %.8g", point$epoch, point$loss)
   })
   output$wb_loss_marker <- shiny::renderUI({

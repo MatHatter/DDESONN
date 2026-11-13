@@ -1,5 +1,9 @@
 # DDESONN 7.3.17
 
+- Move idle/finished status and training errors above the progress card; show
+  running status inside it. Reveal charts, loss values and checkpoint guidance
+  only when a curve exists, and remove repeated initial model/checkpoint messages.
+
 - Use the same caret, heading style and spacing for the Regularization disclosure
   as the other expandable Custom settings. It remains collapsed and off by default.
 

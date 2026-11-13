@@ -23,6 +23,12 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
   start <- h$wb_start
   shiny::testServer(server, {
     session$flushReact()
+    expect_identical(output$wb_running_flag, "no")
+    expect_identical(output$wb_chart_ready, "no")
+    expect_identical(output$wb_model_info, "")
+    expect_identical(output$wb_checkpoint_summary, "")
+    expect_identical(output$wb_chart_model, "")
+    expect_identical(output$wb_loss_inspection, "")
     prepared(p)
     begin_attempt(best$config); add_completed(best); finish_attempt("Completed")
     begin_attempt(final$config); add_completed(final); finish_attempt("Completed")
@@ -58,11 +64,15 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     # A failing real worker is an attempt, never a selectable completed model.
     h$wb_start <- function(helper, ...) start(failure, ...)
     launch(p, best$config); session$flushReact()
+    expect_identical(output$wb_running_flag, "yes")
+    expect_identical(output$wb_error_flag, "no")
     history(final$history) # unrelated live output cannot replace the selected plot
     expect_identical(plot_history(), best$history)
     job()$process$wait(30000); session$elapse(400)
     expect_null(job())
     expect_identical(attempts()[["3"]]$state, "Failed")
+    expect_identical(output$wb_running_flag, "no")
+    expect_identical(output$wb_error_flag, "yes")
     expect_length(completed_runs(), 2)
     expect_identical(selected_run(), "1")
     expect_match(output$wb_train_error$html, "checkpoint")
@@ -135,6 +145,10 @@ test_that("failed and cancelled first attempts retain their loss curve without a
       expect_identical(attempts()[[latest_attempt()]]$history, logged)
       expect_match(output$wb_chart_model, state)
       expect_match(output$wb_chart_model, "retained for inspection")
+      expect_identical(output$wb_chart_ready, "yes")
+      expect_identical(output$wb_running_flag, "no")
+      expect_identical(output$wb_model_info, "")
+      expect_identical(output$wb_checkpoint_summary, "")
       expect_false(action_states()$wb_save)
     }
   })
