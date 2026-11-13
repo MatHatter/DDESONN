@@ -1,3 +1,13 @@
+# DDESONN 7.3.16
+
+- Place optional regularization under the Advanced Custom settings divider.
+  New Basic runs do not retain hidden Custom penalties.
+- Make the workflow pill one-third narrower, with concise Basic/Custom labels.
+- Put Cancel training and Train new model on one row, with Train at the right.
+  Slightly widen Prepare data and Train new model.
+- Make Show full R code wider while restoring its original font size/height;
+  preserve the page-specific green panel widths.
+
 # DDESONN 7.3.15
 
 - Name the penalty-only disclosure Regularization and explain L1, L2 and Custom

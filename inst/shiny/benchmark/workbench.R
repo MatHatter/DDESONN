@@ -165,7 +165,7 @@ wb_ui <- function() {
         shiny::sidebarPanel(
           wb_heading("Build & Train", "Configure the model and how it learns, then start a new training run on your prepared data. Architecture controls model capacity; optimizer, learning rate and epochs control how weights are updated."),
           wb_field("wb_workflow", "Workflow", "Basic keeps the streamlined single-model workflow. Custom exposes DDESONN's member, seed and MAIN/TEMP orchestration plus optional training controls. Both use the same native R engine. Keras is a separate general-purpose deep-learning API; this workbench does not use it or imply a performance advantage.",
-            shiny::div(class = "wb-workflow-pills", shiny::radioButtons("wb_workflow", NULL, c("Basic" = "basic", "Custom DDESONN" = "custom"), inline = TRUE))),
+            shiny::div(class = "wb-workflow-pills", shiny::radioButtons("wb_workflow", NULL, c("Basic" = "basic", "Custom" = "custom"), inline = TRUE))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::p(class = "wb-custom-brief", "DDESONN is a native R neural-network framework with transparent weight updates, optional self-organization and evolving ensembles. Custom opens its member, seed and MAIN/TEMP controls; Basic uses the same engine with a streamlined setup.")),
           shiny::tags$script(shiny::HTML("$(document).on('shiny:connected', function() { var m; try { m = localStorage.getItem('DDESONN.workflow'); } catch(e) {} if (m === 'custom' || m === 'basic') { Shiny.setInputValue('wb_remembered_workflow', m); } }); $(document).on('change', 'input[name=wb_workflow]', function() { try { localStorage.setItem('DDESONN.workflow', this.value); } catch(e) {} });")),
@@ -189,15 +189,17 @@ wb_ui <- function() {
               "# Restore BOTH tensors before prediction:",
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
-          shiny::tags$details(shiny::tags$summary("Regularization"),
-            wb_switch("wb_reg_enabled", "Enable regularization", "Controls L1 and L2 penalties in Basic; Custom also offers mixed L1_L2, Group_Lasso and Max_Norm penalties. Leave off for no penalty.",
-              api = "reg_type <- 'L2'\nlambda <- 0.0001"),
-            shiny::conditionalPanel("input.wb_reg_enabled",
-              wb_field("wb_reg", "Regularization", "L1 encourages sparse parameters; L2 shrinks their magnitudes. Custom adds L1_L2 (an equal L1/L2 mix), Group_Lasso (group sparsity) and Max_Norm (a penalty toward unit-norm parameters, not a hard constraint).",
-                shiny::selectInput("wb_reg", NULL, c("L2", "L1"))),
-              wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
-                shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
+          shiny::conditionalPanel("input.wb_workflow !== 'custom'", shiny::textOutput("wb_basic_workload")),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
+            shiny::div(class = "wb-custom-divider", shiny::h4("Advanced Custom settings")),
+            shiny::tags$details(shiny::tags$summary("Regularization"),
+              wb_switch("wb_reg_enabled", "Enable regularization", "Optional penalties: L1, L2, mixed L1_L2, Group_Lasso and Max_Norm. Off by default; turn on to choose a penalty and strength.",
+                api = "reg_type <- 'L2'\nlambda <- 0.0001"),
+              shiny::conditionalPanel("input.wb_reg_enabled",
+                wb_field("wb_reg", "Regularization", "L1 encourages sparse parameters; L2 shrinks their magnitudes. Custom adds L1_L2 (an equal L1/L2 mix), Group_Lasso (group sparsity) and Max_Norm (a penalty toward unit-norm parameters, not a hard constraint).",
+                  shiny::selectInput("wb_reg", NULL, c("L2", "L1"))),
+                wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
+                  shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
               wb_field("wb_structure", "Run structure", "Single model trains one member. Multiple members inside one model trains several members without MAIN/TEMP orchestration. MAIN is the incumbent or champion ensemble. TEMP trains challengers, also called candidates or competitors, for the existing replacement process. These are names for the same MAIN/TEMP roles, not extra run types.",
                 shiny::selectInput("wb_structure", NULL, c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble (MAIN)" = "main", "Main ensemble with temporary iterations (MAIN + TEMP)" = "temp"))),
@@ -236,9 +238,10 @@ wb_ui <- function() {
                 shiny::selectInput("wb_seed_aggregate", NULL, c("Average" = "mean", "Median" = "median")))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
               wb_switch("wb_diagnostics", "Detailed training diagnostics", "Off shows ordinary epoch progress and genuine warnings/errors. On also emits detailed tensor, gradient/error, optimizer and training summaries. Read the Training log disclosure under the chart: it shows the most recent 2,000 lines, retained with completed bundles. These are diagnostic logs, not extra training, a model-quality guarantee or a separate file export."))),
-          shiny::textOutput("wb_workload"),
-          shiny::div(class = "wb-action-right", shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true")),
-          shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true")),
+          shiny::conditionalPanel("input.wb_workflow === 'custom'", shiny::textOutput("wb_workload")),
+          shiny::div(class = "wb-training-actions",
+            shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true"),
+            shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
             wb_heading("Training progress", "Training runs separately so you can still use the interface. This plot shows training loss as epochs are logged. The selected epoch is marked after a completed fit; selection uses validation, not this training curve. Lower training loss alone does not establish better performance on held-out data."),
@@ -430,9 +433,10 @@ wb_server <- function(input, output, session, helper) {
       selected = if (length(input$wb_fusion) == 1 && input$wb_fusion %in% choices) input$wb_fusion else "mean")
   })
   next_config <- shiny::reactive({
+    regularize <- identical(input$wb_workflow, "custom") && isTRUE(input$wb_reg_enabled)
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
-      input$wb_optimizer, if (isTRUE(input$wb_reg_enabled)) input$wb_lambda else 0,
-      if (isTRUE(input$wb_reg_enabled)) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),
+      input$wb_optimizer, if (regularize) input$wb_lambda else 0,
+      if (regularize) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),
       checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint)
     if (!identical(input$wb_workflow, "custom")) return(cfg)
     wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
@@ -441,6 +445,7 @@ wb_server <- function(input, output, session, helper) {
       if (isTRUE(input$wb_schedule_enabled)) input$wb_schedule else "fixed", input$wb_minimum, input$wb_decay, input$wb_interval,
       input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
   })
+  output$wb_basic_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_training_log <- shiny::renderText({
     shiny::invalidateLater(500, session)

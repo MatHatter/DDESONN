@@ -206,7 +206,7 @@ ui <- shiny::fluidPage(
       background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
       font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:min(560px,65vh); overflow:auto; overscroll-behavior:contain; }
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
-    #wb_show_full_code { font-size:16px; padding:10px 16px; min-height:44px; }
+    #wb_show_full_code { font-size:14px; padding:6px 24px; min-width:190px; min-height:0; }
     .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
     .wb-export-right { display:flex; flex-direction:column; align-items:flex-end; }
     .wb-export-right .wb-download-row { justify-content:flex-end; }
@@ -216,6 +216,13 @@ ui <- shiny::fluidPage(
     #wb_full_notice { white-space:pre-line; }
     .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
+    .wb-workflow-pills { width:66.6667%; }
+    .wb-custom-divider { border-top:2px solid #b4cbd1; margin-top:18px; padding-top:12px; }
+    .wb-custom-divider h4 { margin:0 0 8px; color:#155b63; font-size:15px; }
+    #wb_prepare { min-width:132px; }
+    #wb_start { min-width:min(150px, 48%); }
+    .wb-training-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:12px; }
+    .wb-training-actions .btn { white-space:normal; }
     .wb-workflow-pills .shiny-input-container { width:100%; margin-bottom:0; }
     .wb-workflow-pills .shiny-options-group { display:flex; padding:4px; gap:4px; background:#e5ecef; border-radius:999px; }
     .wb-workflow-pills label.radio-inline { flex:1; margin:0; padding:9px 12px; text-align:center; border-radius:999px; cursor:pointer; position:relative; transition:background .15s,color .15s; }
