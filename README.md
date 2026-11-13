@@ -2,6 +2,12 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.11 — retain unsuccessful training curves
+
+Logged loss stays visible after a failed or cancelled attempt, even before a
+model has completed. The chart identifies the attempt and remains inspectable.
+Training error details also identify the installed engine and R versions.
+
 ## Version 7.3.10 — completed-run selection
 
 Select successful training runs and loaded models in the existing completed-model

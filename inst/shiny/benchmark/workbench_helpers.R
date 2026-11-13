@@ -218,7 +218,9 @@ wb_training_error <- function(error, stderr = character()) {
     if (grepl("there is no package|not installed|could not start|failed to start|cannot open.*connection", details, ignore.case = TRUE))
       "The training worker could not finish. Try training again; if this repeats, check that DDESONN and the optional callr package are installed in the same R library." else
       "Training could not start or finish. Check the model settings (hidden sizes, epochs and learning rate), then try again. A smaller model or learning rate may help."
-  list(message = guidance, details = paste(c(details, utils::tail(stderr, 40)), collapse = "\n"))
+  list(message = guidance, details = paste(c(
+    paste0("Installed DDESONN engine: ", utils::packageVersion("DDESONN")),
+    paste0("R version: ", getRversion()), details, utils::tail(stderr, 40)), collapse = "\n"))
 }
 
 wb_validate_bundle <- function(bundle) {

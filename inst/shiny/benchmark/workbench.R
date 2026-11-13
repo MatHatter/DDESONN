@@ -228,15 +228,17 @@ wb_server <- function(input, output, session, helper) {
     id <- as.character(length(attempts()) + 1L)
     records <- attempts()
     records[[id]] <- list(id = id, kind = kind, state = "Running", config = cfg,
-      started = format(Sys.time(), tz = "UTC", usetz = TRUE), error = NULL)
+      started = format(Sys.time(), tz = "UTC", usetz = TRUE), error = NULL,
+      history = data.frame(epoch = integer(), loss = numeric()))
     attempts(records); latest_attempt(id); training_error(NULL)
+    history(data.frame(epoch = integer(), loss = numeric()))
     id
   }
   finish_attempt <- function(state, detail = NULL) {
     id <- latest_attempt()
     if (is.null(id)) return(invisible(NULL))
     records <- attempts(); record <- records[[id]]
-    record$state <- state; record$error <- detail
+    record$state <- state; record$error <- detail; record$history <- history()
     records[[id]] <- record; attempts(records)
     training_error(detail)
     status(paste0("Run ", id, " · ", if (state == "Cancelled") "Training cancelled" else state, " · ", record$kind,
@@ -368,6 +370,7 @@ wb_server <- function(input, output, session, helper) {
   }))
   shiny::observeEvent(input$wb_cancel, training_attempt({
     if (!is.null(job())) {
+      history(wb_log_history(job()$log))
       wb_stop(job()); job(NULL)
       finish_attempt("Cancelled")
     }
@@ -554,12 +557,18 @@ wb_server <- function(input, output, session, helper) {
     r <- result()
     if (!is.null(r)) {
       if (is.data.frame(r$history)) r$history else data.frame(epoch = integer(), loss = numeric())
-    } else if (!is.null(job())) history() else data.frame(epoch = integer(), loss = numeric())
+    } else if (!is.null(job())) history() else {
+      id <- latest_attempt()
+      record <- if (is.null(id)) NULL else attempts()[[id]]
+      if (is.data.frame(record$history)) record$history else data.frame(epoch = integer(), loss = numeric())
+    }
   })
   output$wb_chart_model <- shiny::renderText({
     if (!is.null(result())) paste0("Showing selected model: Run ",
       if (is.null(selected_run())) "(loaded)" else selected_run(), " · ", wb_checkpoint_summary(result())) else
-      if (!is.null(job())) "Live training loss · no completed model selected yet" else "No completed model selected."
+      if (!is.null(job())) "Live training loss · no completed model selected yet" else if (!is.null(latest_attempt()) && nrow(plot_history()))
+        paste0("Training loss from Run ", latest_attempt(), " · ", attempts()[[latest_attempt()]]$state,
+          " · no completed model was produced. The loss curve is retained for inspection.") else "No completed model selected."
   })
   inspected_point <- shiny::reactive({
     h <- plot_history()
@@ -599,7 +608,7 @@ wb_server <- function(input, output, session, helper) {
       (if (length(selected) == 1 && is.finite(selected))
         ggplot2::geom_vline(xintercept = selected, linetype = 2, color = "#69788c")) +
       (if (nrow(h) > 1) ggplot2::geom_line(color = "#087f8c")) +
-      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = "Epoch (selected fit)", y = "Logged training loss",
+      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = if (is.null(r)) "Epoch (latest attempt)" else "Epoch (selected fit)", y = "Logged training loss",
         subtitle = if (length(selected) == 1 && is.finite(selected))
           sprintf("Selected epoch %s · %s", selected,
             if (identical(r$config$checkpoint, "best_validation")) "best validation" else "final epoch") else NULL) +
