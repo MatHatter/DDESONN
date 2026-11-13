@@ -72,6 +72,17 @@ wb_download_info <- function(id, button) {
   shiny::div(class = "wb-download-row", button, wb_help(title, info[[1]], info[[2]]))
 }
 
+wb_optimizer_choices <- function() {
+  values <- DDESONN::ddesonn_optimizer_options()
+  labels <- c(adagrad = "Standard AdaGrad", adam = "Adam", lamb = "LAMB",
+    sgd = "SGD", sgd_momentum = "SGD with momentum", nag = "Nesterov accelerated gradient",
+    rmsprop = "RMSprop", ftrl = "FTRL", lookahead = "Lookahead", adadelta = "AdaDelta")
+  display <- values
+  known <- values %in% names(labels)
+  display[known] <- labels[values[known]]
+  stats::setNames(values, display)
+}
+
 wb_ui <- function() {
   performance <- shiny::tabPanel("Performance", value = "evaluate",
     shiny::div(class = "panel-body-custom",
@@ -174,7 +185,7 @@ wb_ui <- function() {
           wb_field("wb_epochs", "Epochs", "An epoch is one pass through the training data. More epochs give the model more opportunities to learn, but do not guarantee better predictions on new data.",
             shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
           wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
-            shiny::selectInput("wb_optimizer", NULL, c("Standard AdaGrad" = "adagrad", "Adam" = "adam", "RMSprop" = "rmsprop", "SGD" = "sgd"))),
+            shiny::selectInput("wb_optimizer", NULL, wb_optimizer_choices(), selected = "adagrad")),
           wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. Basic keeps it fixed. Custom also offers exponential decay in Learning-rate scheduling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           wb_switch("wb_self_org", "Self-organize before initial training",
@@ -189,17 +200,17 @@ wb_ui <- function() {
               "# Restore BOTH tensors before prediction:",
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
+          shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Regularization"),
+            wb_switch("wb_reg_enabled", "Enable regularization", "Optional penalties: L1, L2, mixed L1_L2, Group_Lasso and Max_Norm. Off by default; turn on to choose a penalty and strength.",
+              api = "reg_type <- 'L2'\nlambda <- 0.0001"),
+            shiny::conditionalPanel("input.wb_reg_enabled",
+              wb_field("wb_reg", "Regularization", "L1 encourages sparse parameters; L2 shrinks their magnitudes. L1_L2 mixes L1 and L2 equally, Group_Lasso encourages group sparsity, and Max_Norm is a penalty toward unit-norm parameters, not a hard constraint. These options are available in both Basic and Custom.",
+                shiny::selectInput("wb_reg", NULL, c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm"))),
+              wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
+                shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
           shiny::conditionalPanel("input.wb_workflow !== 'custom'", shiny::textOutput("wb_basic_workload")),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::div(class = "wb-custom-divider", shiny::h4("Advanced Custom settings")),
-            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Regularization"),
-              wb_switch("wb_reg_enabled", "Enable regularization", "Optional penalties: L1, L2, mixed L1_L2, Group_Lasso and Max_Norm. Off by default; turn on to choose a penalty and strength.",
-                api = "reg_type <- 'L2'\nlambda <- 0.0001"),
-              shiny::conditionalPanel("input.wb_reg_enabled",
-                wb_field("wb_reg", "Regularization", "L1 encourages sparse parameters; L2 shrinks their magnitudes. Custom adds L1_L2 (an equal L1/L2 mix), Group_Lasso (group sparsity) and Max_Norm (a penalty toward unit-norm parameters, not a hard constraint).",
-                  shiny::selectInput("wb_reg", NULL, c("L2", "L1"))),
-                wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
-                  shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
               wb_field("wb_structure", "Run structure", "Single model trains one member. Multiple members inside one model trains several members without MAIN/TEMP orchestration. MAIN is the incumbent or champion ensemble. TEMP trains challengers, also called candidates or competitors, for the existing replacement process. These are names for the same MAIN/TEMP roles, not extra run types.",
                 shiny::selectInput("wb_structure", NULL, c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble (MAIN)" = "main", "Main ensemble with temporary iterations (MAIN + TEMP)" = "temp"))),
@@ -338,9 +349,9 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateTextInput(session, "wb_hidden", value = paste(cfg$hidden, collapse = ","))
     shiny::updateNumericInput(session, "wb_epochs", value = cfg$epochs)
     shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
-    shiny::updateSelectInput(session, "wb_optimizer", choices = if (identical(cfg$workflow, "custom")) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd"), selected = cfg$optimizer)
+    shiny::updateSelectInput(session, "wb_optimizer", choices = wb_optimizer_choices(), selected = cfg$optimizer)
     shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
-    shiny::updateSelectInput(session, "wb_reg", choices = if (identical(cfg$workflow, "custom")) c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm") else c("L2", "L1"), selected = if (identical(cfg$reg, "none")) "L2" else cfg$reg)
+    shiny::updateSelectInput(session, "wb_reg", choices = c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm"), selected = if (identical(cfg$reg, "none")) "L2" else cfg$reg)
     shiny::updateNumericInput(session, "wb_lambda", value = if (identical(cfg$reg, "none") && cfg$lambda == 0) .0001 else cfg$lambda)
     shiny::updateCheckboxInput(session, "wb_self_org", value = isTRUE(cfg$self_org))
     shiny::updateCheckboxInput(session, "wb_reg_enabled", value = !identical(cfg$reg, "none"))
@@ -427,22 +438,13 @@ wb_server <- function(input, output, session, helper) {
     if (input$wb_remembered_workflow %in% c("basic", "custom"))
       shiny::updateRadioButtons(session, "wb_workflow", selected = input$wb_remembered_workflow)
   }, once = TRUE)
-  shiny::observeEvent(input$wb_workflow, {
-    custom <- identical(input$wb_workflow, "custom")
-    optimizers <- if (custom) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd")
-    regularizers <- if (custom) c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm") else c("L2", "L1")
-    shiny::updateSelectInput(session, "wb_optimizer", choices = optimizers,
-      selected = if (length(input$wb_optimizer) == 1 && input$wb_optimizer %in% optimizers) input$wb_optimizer else "adagrad")
-    shiny::updateSelectInput(session, "wb_reg", choices = regularizers,
-      selected = if (length(input$wb_reg) == 1 && input$wb_reg %in% regularizers) input$wb_reg else "L2")
-  }, ignoreInit = TRUE)
   shiny::observeEvent(input$wb_mode, {
     choices <- wb_fusion_choices(input$wb_mode)
     shiny::updateSelectInput(session, "wb_fusion", choices = choices,
       selected = if (length(input$wb_fusion) == 1 && input$wb_fusion %in% choices) input$wb_fusion else "mean")
   })
   next_config <- shiny::reactive({
-    regularize <- identical(input$wb_workflow, "custom") && isTRUE(input$wb_reg_enabled)
+    regularize <- isTRUE(input$wb_reg_enabled)
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
       input$wb_optimizer, if (regularize) input$wb_lambda else 0,
       if (regularize) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),

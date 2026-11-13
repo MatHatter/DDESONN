@@ -459,14 +459,29 @@ performance width, and the Save or restore width on Saved models & predictions.
 The alignment updates on tab changes and responsive window resizing.
 
 
-### Compact Basic controls and Custom separation (7.3.16)
+### Shared regularization and centered workflow (7.3.20)
+
+Regularization is a shared, collapsed section in both Basic and Custom. Turn it
+on to choose L1, L2, L1_L2, Group_Lasso or Max_Norm and its strength. It is off by
+default; off sends no penalty and zero effective strength. Switching workflows
+preserves enabled regularization and its settings. Saved-model restoration uses
+the same choices in either workflow. Dropout, scheduling and orchestration remain
+in their existing Custom sections.
+
+The compact Basic/Custom pill is centered horizontally within Build & Train.
+Both workflows also offer the existing native optimizer list. Basic already
+passes the optimizer to the same engine; the previous four-choice menu restriction
+is removed. Switching workflows keeps supported optimizer selections. No training
+engine, penalty formula, or optimizer implementation is changed.
+
+### Earlier Custom separation (7.3.16; superseded by 7.3.20)
 
 Basic ends with its prepared-split epoch summary and a shared training action
 row. Custom reveals an Advanced Custom settings divider below the shared
 controls, followed by optional regularization and the remaining Custom sections.
-Regularization is off by default and hidden in Basic. Switching a new run to
-Basic removes any hidden Custom penalty; existing completed models and warm
-starts continue to use their saved configurations.
+Before 7.3.20, regularization was hidden in Basic and switching to Basic removed
+that hidden penalty. The shared section above replaces that restriction;
+existing completed models and warm starts retain their saved configurations.
 
 The Basic/Custom pill is one-third narrower. Prepare data and Train new model
 are slightly wider; Cancel and Train share one row with Train at the far right.
