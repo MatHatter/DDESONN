@@ -334,3 +334,17 @@ An older bundle without loss history has an explicit empty-state message.
 Hover uses a normal cursor, enlarges the nearest dot and shows epoch/loss. It
 never selects/restores weights; the selected checkpoint remains marked separately.
 The loss table provides the same epoch/loss values without requiring hover.
+
+### Failed-attempt curves and engine versions (7.3.11)
+
+A failed/cancelled attempt can have useful loss measurements without yielding a
+usable model. If no completed model is selected, retain that attempt's logged
+curve and label its outcome explicitly. Save/predict stay unavailable until a
+model completes. A selected completed model continues to show its own history.
+
+Training uses the installed `DDESONN` package, including when you open `app.R`
+from a checkout. Updating app files alone does not update that engine. Expand
+Technical details after failure to see the exception and installed engine/R
+versions. Check `packageVersion("DDESONN")`; install the updated source package
+and restart R when the installed engine is older than the source you intend to
+run. This installation does not require rendering vignettes.

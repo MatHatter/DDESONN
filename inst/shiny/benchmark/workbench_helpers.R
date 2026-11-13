@@ -209,7 +209,9 @@ wb_checkpoint_summary <- function(bundle) {
 
 wb_training_error <- function(error, stderr = character()) {
   details <- conditionMessage(error)
-  guidance <- if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
+  guidance <- if (grepl("Binary mode expects 1-column probabilities", details, fixed = TRUE))
+    "The installed training engine treated multiclass predictions as binary. Reinstall DDESONN from the same updated source as this app, then restart R. Check packageVersion('DDESONN'); this is a task-type mismatch, not a learning-rate problem." else
+    if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
     "No usable validation checkpoint was recorded. Review the technical details and validation data. Try a smaller learning rate, or choose Final epoch explicitly for a separate run; it may succeed with its last weights. No checkpoint is substituted automatically." else
     if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
     "Training could not produce a usable model. Try a smaller learning rate, enable standardization on Features and prepare again, or turn off initial self-organization." else
@@ -218,7 +220,9 @@ wb_training_error <- function(error, stderr = character()) {
     if (grepl("there is no package|not installed|could not start|failed to start|cannot open.*connection", details, ignore.case = TRUE))
       "The training worker could not finish. Try training again; if this repeats, check that DDESONN and the optional callr package are installed in the same R library." else
       "Training could not start or finish. Check the model settings (hidden sizes, epochs and learning rate), then try again. A smaller model or learning rate may help."
-  list(message = guidance, details = paste(c(details, utils::tail(stderr, 40)), collapse = "\n"))
+  list(message = guidance, details = paste(c(
+    paste0("Installed DDESONN engine: ", utils::packageVersion("DDESONN")),
+    paste0("R version: ", getRversion()), details, utils::tail(stderr, 40)), collapse = "\n"))
 }
 
 wb_validate_bundle <- function(bundle) {

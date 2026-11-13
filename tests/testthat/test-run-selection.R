@@ -112,3 +112,30 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_false(action_states()$wb_save)
   })
 })
+
+
+test_that("failed and cancelled first attempts retain their loss curve without a completed model", {
+  skip_if_not_installed("shiny")
+  path <- system.file("shiny", "benchmark", package = "DDESONN")
+  h <- new.env(parent = globalenv())
+  sys.source(file.path(path, "workbench_helpers.R"), h)
+  sys.source(file.path(path, "workbench.R"), h)
+  server <- h$wb_server; formals(server)$helper <- file.path(path, "workbench_helpers.R")
+  shiny::testServer(server, {
+    session$flushReact()
+    expect_equal(nrow(plot_history()), 0)
+    for (state in c("Failed", "Cancelled")) {
+      begin_attempt(h$wb_config())
+      logged <- data.frame(epoch = 1:3, loss = c(.3, .2, .1))
+      history(logged)
+      finish_attempt(state, if (state == "Failed") h$wb_training_error(simpleError("non-finite predictions")))
+      session$flushReact()
+      expect_null(result()); expect_length(completed_runs(), 0)
+      expect_identical(plot_history(), logged)
+      expect_identical(attempts()[[latest_attempt()]]$history, logged)
+      expect_match(output$wb_chart_model, state)
+      expect_match(output$wb_chart_model, "retained for inspection")
+      expect_false(action_states()$wb_save)
+    }
+  })
+})
