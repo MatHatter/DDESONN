@@ -45,7 +45,7 @@ consolidated report records protocol, checksums, software, checkpoint validation
 and overlap limitations. The intermediate 100-seed CSV and standalone historical
 vignette are superseded and preserved in Git history/the standalone archive.
 
-CSV SHA256: `7809854ff9f322576aaa046135a2d84486246a9c61987910e4b2e3f086f779a9`.
+CSV SHA256: `b66d55ccde005e67ac115ee54d8b24e6356a83b0bffb38dfe4e20affcf5912ad`.
 
 This compact summary works in an installed package without raw models or dev
 folders. It is a descriptive historical comparison, not a matched Keras rerun.

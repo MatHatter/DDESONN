@@ -30,7 +30,7 @@ The superseded standalone 100-seed directory and historical Keras/DDESONN vignet
 ## 7.3.19 explorer consolidation
 
 The paired CSV is byte-identical to `inst/shiny/benchmark/data/heart-failure-1000.csv`:
-SHA256 `7809854ff9f322576aaa046135a2d84486246a9c61987910e4b2e3f086f779a9`.
+SHA256 `b66d55ccde005e67ac115ee54d8b24e6356a83b0bffb38dfe4e20affcf5912ad`.
 It joins all 1,000 seed IDs from the validated archived legacy probabilities and
 new standard-AdaGrad test results. `training_seconds` retains the export schema
 and contains the new worker's elapsed status time, not pure optimizer time.
