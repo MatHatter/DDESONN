@@ -25,13 +25,20 @@ Branch: `codex/iris-checkpoint-7.3.11`.
   unchanged friendly guidance in the expanded details.
 - `git diff --check` passed.
 
-The user's specific Iris exception is not reproduced or diagnosed from the
-collapsed summary alone. An earlier screenshot labeled its saved model 7.1.7,
-which suggests checking the installed engine version, but does not prove the
-cause of the current failure. The exact technical exception is still needed.
+The subsequently supplied exception was reproduced exactly using historical
+7.1.7 (commit 17e99904bf4ac485a060788e03ab4820d926974d), installed in an isolated
+library without rendering vignettes. Its validation-reporting block calls
+`accuracy_precision_recall_f1_tuned(..., CLASSIFICATION_MODE = "binary")`
+for multiclass data without a task guard. Default Iris best-validation mode
+failed with the same 1-column/3-column error; final mode succeeded with 83.33%
+validation accuracy. The current engine already has the binary-only guard.
+The app now recognizes this specific error and recommends reinstalling the
+updated package and restarting R. Eight focused regression assertions verify
+that current Iris validation reports use multiclass mode and that this error
+receives version/task guidance rather than learning-rate advice.
 
 Evidence directory: `/workspace/.setup/iris-7311/` (`reproduce.log`, `grid.log`,
-`tests.log`, `browser.log`, `failed-curve.png`, installation logs, `details.log`).
+`tests.log`, `iris-test-final.log`, `reproduce-old.log`, `browser.log`, `failed-curve.png`, installation logs, `details.log`).
 The browser failure is explicitly injected for regression validation; genuine
 Iris runs are separate. No full-suite, full-check or vignette result is claimed.
 

@@ -209,7 +209,9 @@ wb_checkpoint_summary <- function(bundle) {
 
 wb_training_error <- function(error, stderr = character()) {
   details <- conditionMessage(error)
-  guidance <- if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
+  guidance <- if (grepl("Binary mode expects 1-column probabilities", details, fixed = TRUE))
+    "The installed training engine treated multiclass predictions as binary. Reinstall DDESONN from the same updated source as this app, then restart R. Check packageVersion('DDESONN'); this is a task-type mismatch, not a learning-rate problem." else
+    if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
     "No usable validation checkpoint was recorded. Review the technical details and validation data. Try a smaller learning rate, or choose Final epoch explicitly for a separate run; it may succeed with its last weights. No checkpoint is substituted automatically." else
     if (grepl("finite|NaN|Inf|invalid predictions|probabilities|checkpoint", details, ignore.case = TRUE))
     "Training could not produce a usable model. Try a smaller learning rate, enable standardization on Features and prepare again, or turn off initial self-organization." else

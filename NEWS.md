@@ -7,6 +7,9 @@
   results. A selected completed model continues to own its chart.
 - Retain each attempt's loss history and capture logged loss before cancellation
   cleanup. Hover inspection and the loss table remain available.
+- Give the known Iris three-column/binary-reporting error explicit package
+  reinstall/restart guidance instead of misleading learning-rate advice. A
+  regression test checks multiclass mode throughout validation reporting.
 - Include the installed DDESONN engine and R versions in expandable training
   error details to help diagnose newer app files running against an older package.
 
