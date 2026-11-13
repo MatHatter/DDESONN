@@ -1,3 +1,8 @@
+# DDESONN 7.3.17
+
+- Use the same caret, heading style and spacing for the Regularization disclosure
+  as the other expandable Custom settings. It remains collapsed and off by default.
+
 # DDESONN 7.3.16
 
 - Place optional regularization under the Advanced Custom settings divider.

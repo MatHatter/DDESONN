@@ -192,7 +192,7 @@ wb_ui <- function() {
           shiny::conditionalPanel("input.wb_workflow !== 'custom'", shiny::textOutput("wb_basic_workload")),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::div(class = "wb-custom-divider", shiny::h4("Advanced Custom settings")),
-            shiny::tags$details(shiny::tags$summary("Regularization"),
+            shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Regularization"),
               wb_switch("wb_reg_enabled", "Enable regularization", "Optional penalties: L1, L2, mixed L1_L2, Group_Lasso and Max_Norm. Off by default; turn on to choose a penalty and strength.",
                 api = "reg_type <- 'L2'\nlambda <- 0.0001"),
               shiny::conditionalPanel("input.wb_reg_enabled",
