@@ -538,7 +538,7 @@ SONN <- R6::R6Class(
       }
 
 
-      if (isTRUE(verbose) || isTRUE(verboseLow)) {
+      if (isTRUE(verbose)) {
         err_summary <- function(x) {
           if (is.null(x)) return("NULL")
           x <- as.matrix(x)
@@ -1265,7 +1265,7 @@ SONN <- R6::R6Class(
       
       learn_time <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
       
-      if (isTRUE(verbose) || isTRUE(verboseLow)) {
+      if (isTRUE(verbose)) {
         err_summary <- function(x) {
           if (is.null(x)) return("NULL")
           x <- as.matrix(x)
@@ -1700,7 +1700,7 @@ SONN <- R6::R6Class(
             X_validation <- joint_inputs$validation
           }
           # --- Error debug ---
-          if (!is.null(learn_result$error)) {
+          if (isTRUE(verbose) && !is.null(learn_result$error)) {
             log_important(
               "[TRAIN] last-layer error -> min=%.6f mean=%.6f max=%.6f sd=%.6f",
               min(learn_result$error, na.rm = TRUE),
@@ -1799,14 +1799,14 @@ SONN <- R6::R6Class(
           # Output saturation diagnostics
           mean_output <- mean(predicted_output)
           sd_output   <- sd(predicted_output)
-          log_important("Mean Output: %.4f | StdDev: %.4f", mean_output, sd_output)
+          if (isTRUE(verbose)) log_important("Mean Output: %.4f | StdDev: %.4f", mean_output, sd_output)
           mean_output_log <- c(mean_output_log, mean_output)
           sd_output_log   <- c(sd_output_log, sd_output)
           
           # Weight explosion diagnostics
           if (exists("best_weights_record")) {
             max_weight <- max(sapply(best_weights_record, function(w) max(abs(w))))
-            log_important("Max Weight Abs: %.4f", max_weight)
+            if (isTRUE(verbose)) log_important("Max Weight Abs: %.4f", max_weight)
           } else {
             max_weight <- NA
           }
@@ -3340,14 +3340,14 @@ DDESONN <- R6::R6Class(
     
     },
     # Function to normalize specific columns in the data
-    normalize_data = function(Rdata, numeric_columns) {
+    normalize_data = function(Rdata, numeric_columns, verbose = FALSE) {
       # Calculate mean and standard deviation for each numeric feature
       means <- colMeans(Rdata[, numeric_columns])
       std_devs <- apply(Rdata[, numeric_columns], 2, sd)
 
       # Print mean and standard deviation before normalization
-      print(paste("Before normalization - Mean: ", means))
-      print(paste("Before normalization - Standard Deviation: ", std_devs))
+      if (isTRUE(verbose)) print(paste("Before normalization - Mean: ", means))
+      if (isTRUE(verbose)) print(paste("Before normalization - Standard Deviation: ", std_devs))
 
       # Normalize the numeric data
       normalized_Rdata <- Rdata
@@ -3358,13 +3358,13 @@ DDESONN <- R6::R6Class(
       normalized_std_devs <- apply(normalized_Rdata[, numeric_columns], 2, sd)
 
       # Print mean and standard deviation after normalization
-      print(paste("After normalization - Mean: ", normalized_means))
-      print(paste("After normalization - Standard Deviation: ", normalized_std_devs))
+      if (isTRUE(verbose)) print(paste("After normalization - Mean: ", normalized_means))
+      if (isTRUE(verbose)) print(paste("After normalization - Standard Deviation: ", normalized_std_devs))
 
       return(normalized_Rdata)
     },
     # Function to perform batch normalization on specific columns in the data
-    batch_normalize_data = function(Rdata, numeric_columns, gamma_bn, beta_bn, epsilon_bn = epsilon_bn, momentum_bn = momentum_bn, is_training_bn = is_training_bn) {
+    batch_normalize_data = function(Rdata, numeric_columns, gamma_bn, beta_bn, epsilon_bn = epsilon_bn, momentum_bn = momentum_bn, is_training_bn = is_training_bn, verbose = FALSE) {
 
       if (is_training_bn) {
         # Training mode: Compute mean and variance from the current batch
@@ -3388,8 +3388,8 @@ DDESONN <- R6::R6Class(
         normalized_data_bn[, numeric_columns] <- (normalized_data_bn[, numeric_columns] * gamma_bn) + beta_bn
 
         # Print diagnostic information
-        print(paste("Batch Mean: ", batch_mean_bn))
-        print(paste("Batch Variance: ", batch_var_bn))
+        if (isTRUE(verbose)) print(paste("Batch Mean: ", batch_mean_bn))
+        if (isTRUE(verbose)) print(paste("Batch Variance: ", batch_var_bn))
 
       } else {
         # Inference mode: Use running statistics computed during training
@@ -3409,8 +3409,8 @@ DDESONN <- R6::R6Class(
       post_norm_mean_bn <- colMeans(normalized_data_bn[, numeric_columns])
       post_norm_var_bn <- apply(normalized_data_bn[, numeric_columns], 2, var)
 
-      print(paste("After normalization - Mean: ", post_norm_mean_bn))
-      print(paste("After normalization - Variance: ", post_norm_var_bn))
+      if (isTRUE(verbose)) print(paste("After normalization - Mean: ", post_norm_mean_bn))
+      if (isTRUE(verbose)) print(paste("After normalization - Variance: ", post_norm_var_bn))
 
       # Return the normalized data and the updated running mean/variance
       return(list(normalized_data = normalized_data_bn, running_mean = running_mean_bn, running_var = running_var_bn))
@@ -3510,7 +3510,7 @@ DDESONN <- R6::R6Class(
       
       # Normalize the input data
       if (!is.null(numeric_columns) && !batch_normalize_data) {
-        Rdata <- self$normalize_data(Rdata, numeric_columns)
+        Rdata <- self$normalize_data(Rdata, numeric_columns, verbose = verbose)
       }
       
       # Initialize batch normalization parameters if not set
@@ -4014,7 +4014,7 @@ DDESONN <- R6::R6Class(
       # (no local verbosity defaults here)  
       ddesonn_console_log(                                          
         "[PR] Aggregating performance/relevance metrics.",          
-        level = "important",                                        
+        level = "info",
         verbose = verbose,                                          
         verboseLow = verboseLow                                     
       )                                                             
@@ -4319,7 +4319,7 @@ DDESONN <- R6::R6Class(
             targets <- best_val_labels
             prediction_time <- best_val_prediction_time
             
-            if (isTRUE(debug) || isTRUE(verbose) || isTRUE(verboseLow)) {             
+            if (isTRUE(debug) || isTRUE(verbose)) {
               cat("[calculate_performance] Using best validation snapshot (@ best epoch)\n")
             }                                                                         
             
@@ -4329,7 +4329,7 @@ DDESONN <- R6::R6Class(
             targets <- labels
             prediction_time <- single_prediction_time
             
-            if (isTRUE(debug) || isTRUE(verbose) || isTRUE(verboseLow)) {             
+            if (isTRUE(debug) || isTRUE(verbose)) {
               cat("[calculate_performance] Using last-epoch predictions\n")
             }                                                                         
           }
@@ -4385,7 +4385,7 @@ DDESONN <- R6::R6Class(
           # SECTION: Metrics print gate (ensemble_number < 1)            
           # ============================================================ 
           
-          if ((ensemble_number < 1) && (length(self$ensemble) >= 1) && (isTRUE(verbose) || isTRUE(verboseLow) || isTRUE(viewTables))) {  
+          if ((ensemble_number < 1) && (length(self$ensemble) >= 1) && (isTRUE(verbose) || isTRUE(viewTables))) {
             message(sprintf(">> METRICS FOR ENSEMBLE: %s MODEL: %s", ensemble_number, i))
             emit_table(performance_metric, title = "[PERFORMANCE metrics]", verbose = verbose, viewTables = viewTables)
             emit_table(relevance_metric,   title = "[RELEVANCE metrics]",   verbose = verbose, viewTables = viewTables)

@@ -2461,9 +2461,9 @@ optimizers_log_update <- function(
   debug_allowed <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG", unset = "0"), "1")
   
   # Print when:
-  # - low tier on OR high tier on
-  # - or debug is explicitly allowed (rare override)
-  if (!verboseLow && !verbose && !debug_allowed) return(invisible(NULL))
+  # Tensor diagnostics require detailed verbosity or explicitly allowed debug.
+  # Ordinary verboseLow progress never emits optimizer tensor summaries.
+  if (!verbose && !debug_allowed) return(invisible(NULL))
   
   # ---- helpers ----
   .as_num <- function(x) {
@@ -3239,7 +3239,7 @@ DDESONN_fuse_from_agg <- function(
     classification_mode = c("binary","multiclass","regression")
 ) {
   ## ===================== DEBUG HELPERS =====================
-  DEBUG <- TRUE
+  DEBUG <- isTRUE(getOption("DDESONN.debug", FALSE)) && identical(Sys.getenv("DDESONN_DEBUG"), "1")
   dts <- function() format(Sys.time(), "%H:%M:%S")
   dcat <- function(...) if (isTRUE(DEBUG)) cat(sprintf("[FUSE-DBG %s] ", dts()), paste0(..., collapse=""), "\n")
   dhead <- function(x, n=5) { if (isTRUE(DEBUG)) { dcat("head():"); print(utils::head(x, n)); } }
@@ -3536,7 +3536,7 @@ DDESONN_fuse_from_agg <- function(
     if ("vote_soft" %in% methods || "vote_hard" %in% methods) {
       vote_mat <- sweep(probs_mat, 2, thr_vec, FUN = ">=") * 1L
       vote_frac <- rowMeans(vote_mat, na.rm = TRUE)
-      q <- vote_quorum %||% ceiling(ncol(probs_mat)/2)
+      q <- vote_quorum %||% (floor(ncol(probs_mat)/2) + 1L)
       vote_hard <- as.integer(rowSums(vote_mat, na.rm = TRUE) >= q)
       
       if ("vote_soft" %in% methods) {
@@ -3635,15 +3635,13 @@ DDESONN_fuse_from_agg <- function(
     if ("vote_hard" %in% methods) {
       yps <- lapply(P_slots, function(P) labs_vec[argmax_idx(P)])
       Yvote <- do.call(cbind, yps)  # N x S
-      q <- vote_quorum %||% ceiling(ncol(Yvote)/2)
+      if (!is.null(vote_quorum)) stop("Multiclass quorum is unsupported; use plurality voting without quorum.")
+      q <- NULL
       vote_label <- integer(N)
       for (i in seq_len(N)) {
         cnt <- tabulate(match(Yvote[i,], labs_vec), nbins=length(labs_vec))
-        if (max(cnt) >= q) {
-          vote_label[i] <- labs_vec[which.max(cnt)]
-        } else {
-          vote_label[i] <- labs_vec[which.max(cnt)]
-        }
+        # Plurality; ties choose the first class in the established label order.
+        vote_label[i] <- labs_vec[which.max(cnt)]
       }
       res <- pack_mc(vote_label, "Ensemble_vote_hard", list(quorum=q))
       out_rows[["Ensemble_vote_hard"]] <- res$row

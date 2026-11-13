@@ -2,6 +2,51 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.12 — Basic / Custom workbench foundation
+
+Basic keeps the familiar workflow. Custom adds expandable controls for run
+structure, members, training seeds, activation/initialization, regularization,
+dropout and learning-rate scheduling. The browser remembers only the mode;
+data and models stay in their own Shiny session. Prepare the split once on
+Features: all training seeds reuse its rows and training-only scaling.
+
+Custom uses `ddesonn_run()` for new MAIN/TEMP orchestration and `ddesonn_fit()`
+for warm starts, without repeating self-organization or TEMP searches on a
+warm start. Schedules restart on each additional fit. The workload preview
+counts new member fits and requested member epochs, excluding self-organization.
+All checkpoint modes run the requested epochs; each member restores its own
+best weights **and biases**. Cumulative member epochs form the Custom chart.
+
+### Ensemble prediction combination
+
+Members combine within each training seed; the resulting seed predictions then
+combine by average or median. Binary seed combinations classify at `>= 0.5`
+(including ties); multiclass combinations choose the first maximum.
+Validation comparisons show individual seeds.
+The weighted option uses normalized validation accuracy for classification or
+inverse validation MSE for regression (floor `1e-12`). Zero total classification
+accuracy falls back to equal weights. Test labels never choose weights.
+
+Average and validation-weighted average return probabilities for classification
+and numeric predictions for regression. Median uses componentwise medians;
+multiclass rows are renormalized, falling back to the mean if all medians are
+zero. Binary vote proportion counts member probabilities `>= 0.5`. Binary
+majority requires strictly more than half the votes (ties negative). Multiclass
+voting uses plurality, with ties choosing the first saved class; there is no
+quorum control. Voting produces decisions/vote proportions rather than calibrated
+probabilities. Multiclass `avg` and legacy `vote_soft` are the same calculation,
+so Custom offers one average option. Regression voting is unavailable.
+
+Keep the whole downloaded model bundle. Custom prediction and warm-start recipes
+use the installed workbench helpers so all saved seeds, member weights and
+combination settings apply. A bare root API model alone is not the complete
+Custom prediction workflow. Detailed diagnostics are opt-in; epoch progress and
+warnings remain visible.
+
+Weighted majority voting and the optional experimental sequence/SSM workbench
+encoder remain planned follow-ups. Internal batch normalization is off; use the
+training-only standardization on Features. No automatic early stopping is added.
+
 ## Version 7.3.11 — retain unsuccessful training curves
 
 Logged loss stays visible after a failed or cancelled attempt, even before a
@@ -105,9 +150,9 @@ shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
 
 From a source checkout, use `shiny::runApp("inst/shiny/benchmark")`.
 Start with the included iris example: Data, Features, Prepare data, then Train new model.
-Training runs in a cancellable background R process. The first workflow supports
-binary/multiclass classification and regression with numeric predictors; advanced
-ensemble and sequence workflows remain available through the R API.
+Training runs in a cancellable background R process. Basic and Custom support
+binary/multiclass classification and regression with numeric predictors. Custom
+adds member, seed and MAIN/TEMP orchestration; sequence workflows use the R API.
 See the [workbench guide](inst/shiny/benchmark/README.md) for supported settings,
 saved model contents and warm-start limitations. Shiny and callr remain optional.
 

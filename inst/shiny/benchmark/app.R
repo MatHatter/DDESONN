@@ -188,6 +188,10 @@ ui <- shiny::fluidPage(
     #wb_full_notice { white-space:pre-line; }
     .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }
     .wb-code-panel { margin-top:16px; }
+    .wb-settings-section { border-top:1px solid #d8e2e8; margin-top:10px; padding-top:8px; }
+    .wb-settings-section > summary { cursor:pointer; color:#155b63; font-weight:600; padding:4px 0; }
+    .wb-settings-section > summary::before { content:'▸ '; }
+    .wb-settings-section[open] > summary::before { content:'▾ '; }
     .wb-code-panel > summary { color:#155b63; cursor:pointer; font-weight:600; }
     .wb-code-panel pre { white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; line-height:1.6; margin-top:10px; max-height:380px; overflow:auto; font-size:12px; }
     .wb-help-code-label { margin-top:12px; font-weight:600; color:#b5eee8; }
