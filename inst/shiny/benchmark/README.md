@@ -357,7 +357,7 @@ run. This installation does not require rendering vignettes.
 The Basic path retains its training defaults and numerical behavior. Its split
 seed is under collapsed **Reproducibility** on Features. The browser remembers
 only the Basic/Custom preference; data, completed models and workers are session
-state. Custom settings are in keyboard-accessible expandable sections. Scheduling,
+state. Custom settings are in keyboard-accessible expandable sections. In 7.3.13, scheduling,
 dropout and regularization are off-by-default toggles; their detailed controls
 appear only when enabled. Scheduling off means a fixed learning rate.
 

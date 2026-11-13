@@ -1,9 +1,14 @@
+# DDESONN 7.3.13
+
+- Optional regularization, dropout and learning-rate scheduling use off-by-default
+  toggles that reveal their settings only when enabled.
+- Restore enablement and settings from completed or loaded models. Disabling
+  these controls removes their backend effects while retaining fixed-rate training.
+
 # DDESONN 7.3.12
 
 - Add a browser-remembered Basic / Custom workbench mode while keeping datasets,
   models and training jobs isolated per session. Basic retains its defaults.
-- Optional regularization, dropout and learning-rate scheduling use off-by-default
-  toggles that reveal their settings only when enabled.
 - Custom exposes single models, multiple members, MAIN and MAIN/TEMP runs,
   training-seed comparisons on a fixed prepared split, activations,
   initialization, optimizer/regularization choices, dropout and the existing
