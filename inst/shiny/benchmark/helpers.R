@@ -1,4 +1,43 @@
-# Pure data helpers shared by the optional app and its tests.
+# Helpers shared by the optional app and its tests.
+dashboard_vignette_dir <- function(app_dir = getwd()) {
+  candidates <- c(file.path(app_dir, "../../../doc"),
+    file.path(app_dir, "../../doc"), system.file("doc", package = "DDESONN"))
+  for (path in candidates) {
+    if (nzchar(path) && dir.exists(path) && length(list.files(path, pattern = "\\.html$")))
+      return(normalizePath(path))
+  }
+  ""
+}
+
+dashboard_vignettes <- function(doc_dir = "") {
+  guides <- data.frame(
+    file = c("heart-failure-standard-adagrad-1000-seeds", "DDESONNvsKeras_1000Seeds",
+      "plot-controls_scenario1-2_single-run_scenarioA",
+      "plot-contols_scenario1_ensemble-runs_scenarioC-D",
+      "logs_main-change-movement_ensemble_runs_scenarioD"),
+    title = c("New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
+      "Historical DDESONN/Keras heart-failure experiments",
+      "Plot controls: single-run scenarios 1 and 2",
+      "Plot controls: ensemble scenarios C and D",
+      "Main, change and movement logs: ensemble scenario D"),
+    stringsAsFactors = FALSE)
+  guides$local <- nzchar(doc_dir) & file.exists(file.path(doc_dir, paste0(guides$file, ".html")))
+  guides$href <- ifelse(guides$local,
+    paste0("ddesonn-vignettes/", guides$file, ".html"),
+    paste0("https://github.com/MatHatter/DDESONN/blob/main/vignettes/", guides$file, ".Rmd"))
+  guides
+}
+
+dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
+  guides <- dashboard_vignettes(doc_dir)
+  if (any(guides$local)) shiny::addResourcePath("ddesonn-vignettes", doc_dir)
+  shiny::tagList(shiny::h3("Vignettes"),
+    shiny::p("Read the package guides and research context. Links open in a new tab; online source is used when a guide is not installed."),
+    shiny::tags$ul(lapply(seq_len(nrow(guides)), function(i)
+      shiny::tags$li(shiny::tags$a(href = guides$href[i], guides$title[i],
+        target = "_blank", rel = "noopener noreferrer")))))
+}
+
 dashboard_metrics <- c(accuracy = "Accuracy", precision = "Precision",
   recall = "Recall", f1 = "F1", roc_auc = "ROC AUC",
   log_loss = "Log loss", brier = "Brier score")

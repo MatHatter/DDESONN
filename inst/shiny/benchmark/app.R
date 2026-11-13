@@ -280,7 +280,10 @@ ui <- shiny::fluidPage(
   shiny::div(class = "wb-workflow-guide", shiny::strong("Your workflow"),
     "Start with Data → choose target and predictors in Features → build and train → review Model / Results."),
   do.call(shiny::tabsetPanel, c(list(id = "workspace"), wb_ui(),
-    list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui)))),
+    list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui),
+      shiny::tabPanel("Vignettes", value = "vignettes",
+        shiny::div(class = "panel-body-custom",
+          dashboard_vignettes_ui(dashboard_vignette_dir())))))),
   shiny::div(class = "wb-full-code-bar",
     shiny::actionButton("wb_show_full_code", "Show full R code"),
     shiny::p("Help icons show one topic at a time. View or download the complete workflow here.")))

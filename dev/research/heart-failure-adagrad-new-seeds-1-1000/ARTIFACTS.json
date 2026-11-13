@@ -1,0 +1,13 @@
+{
+  "archive": "/workspace/ddesonn-heart-failure-new-1000-reproducibility.tar.gz",
+  "bytes": 2332318464,
+  "sha256": "44508777bd48332b23e7bba77cde1c464174cb00e85d5f8f52a99ba0fcc807db",
+  "members_verified": 22336,
+  "all_archive_member_hashes_verified": true,
+  "whole_archive_sha256_verified": true,
+  "freeze_sha256": "09199bb31be1388778afe5de3609cd52e731a7b7a5afeedf6148d23eb86a3553",
+  "external_storage_verified": false,
+  "delivery_limitation": "No external upload/hosting tool is available; this path is on the cloud filesystem and is not proof of durable external storage.",
+  "report": "/workspace/ddesonn-heart-failure-new-1000/report/REPORT.html",
+  "per_seed_csv": "/workspace/ddesonn-heart-failure-new-1000/report/per-seed-test-metrics.csv"
+}

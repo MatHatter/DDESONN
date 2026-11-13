@@ -50,6 +50,17 @@ which reports 1,000 observations. Values are fractions, not percentages.
 | Minimum | 0.992000000 | 0.978667000 |
 | Maximum | 1.000000000 | 1.000000000 |
 
+The 7.3.18 audit found that Keras Sheet1 has 1,001 rows and 1,000 unique seed
+labels, with seed 100 repeated, while Sheet2 reports count 1,000. The table above
+retains the archived summary without silently deduplicating it. It is not proof
+of 1,000 distinct executions. See the [new reconstruction](heart-failure-standard-adagrad-1000-seeds.html)
+for the count audit and the separate completed standard-AdaGrad experiment.
+
+Correcting AdaGrad does not remove the historical train/test feature overlap.
+Both sides of the historical heart-failure comparison remain limited by repeated
+inputs; a clean, matched Keras/DDESONN evaluation requires the separate future
+split fix and rerun. Keras was not rerun for the new reconstruction.
+
 These are legacy experimental observations, not evidence that correctly
 implemented standard AdaGrad outperforms Keras. Their applicability depends on
 optimizer semantics, preprocessing, splits, model selection and execution details
