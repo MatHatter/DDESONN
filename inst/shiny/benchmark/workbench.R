@@ -86,8 +86,8 @@ wb_ui <- function() {
       wb_code_panel("wb_evaluation_code", "Equivalent R code — displayed results"),
       wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
-      wb_download_button("wb_predictions_download", "Download evaluated predictions"),
-      shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview")))))
+      shiny::div(class = "wb-export-right", wb_download_button("wb_predictions_download", "Download evaluated predictions"),
+      shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))))
   models <- shiny::tabPanel("Saved models & predictions", value = "models",
     shiny::fluidRow(
       shiny::column(6, shiny::div(class = "panel-body-custom",
@@ -118,7 +118,7 @@ wb_ui <- function() {
           shiny::fileInput("wb_data", "Training data (CSV, up to 10 MB)", accept = ".csv"),
           shiny::actionButton("wb_demo", "Use iris example"),
           shiny::p(class = "wb-guidance", "Start with Data. Inspect the rows, then choose the target and predictors in Features."),
-          shiny::actionButton("wb_next_features", "Next: choose features", class = "btn-primary")),
+          shiny::div(class = "wb-action-right", shiny::actionButton("wb_next_features", "Next: choose features", class = "btn-primary"))),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
             wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. The preview shows the first ten rows; the full dataset is used when you prepare it."),
@@ -148,7 +148,7 @@ wb_ui <- function() {
             api = paste("center <- colMeans(x_train)", "spread <- apply(x_train, 2, sd)",
               "spread[!is.finite(spread) | spread == 0] <- 1",
               "x_train_scaled <- sweep(sweep(x_train, 2, center, '-'), 2, spread, '/')", sep = "\n")),
-          shiny::actionButton("wb_prepare", "Prepare data", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true")),
+          shiny::div(class = "wb-action-right", shiny::actionButton("wb_prepare", "Prepare data", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
             wb_heading("Prepare for training", "Prepare data validates your choices, creates the three row splits, and fits any scaling using training rows only. The same scaling is then reused for validation, test and new data."),
@@ -189,30 +189,30 @@ wb_ui <- function() {
               "# Restore BOTH tensors before prediction:",
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
-          shiny::tags$details(shiny::tags$summary(shiny::textOutput("wb_advanced_label", inline = TRUE)),
-            wb_switch("wb_reg_enabled", "Enable regularization", "Adds a penalty to weight updates. Leave off for no penalty.",
+          shiny::tags$details(shiny::tags$summary("Regularization"),
+            wb_switch("wb_reg_enabled", "Enable regularization", "Controls L1 and L2 penalties in Basic; Custom also offers mixed L1_L2, Group_Lasso and Max_Norm penalties. Leave off for no penalty.",
               api = "reg_type <- 'L2'\nlambda <- 0.0001"),
             shiny::conditionalPanel("input.wb_reg_enabled",
-              wb_field("wb_reg", "Regularization", "Basic offers L1 and L2. Custom also exposes the existing mixed, group and max-norm penalties.",
+              wb_field("wb_reg", "Regularization", "L1 encourages sparse parameters; L2 shrinks their magnitudes. Custom adds L1_L2 (an equal L1/L2 mix), Group_Lasso (group sparsity) and Max_Norm (a penalty toward unit-norm parameters, not a hard constraint).",
                 shiny::selectInput("wb_reg", NULL, c("L2", "L1"))),
               wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
                 shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
               wb_field("wb_structure", "Run structure", "Single model trains one member. Multiple members inside one model trains several members without MAIN/TEMP orchestration. MAIN is the incumbent or champion ensemble. TEMP trains challengers, also called candidates or competitors, for the existing replacement process. These are names for the same MAIN/TEMP roles, not extra run types.",
-                shiny::selectInput("wb_structure", NULL, c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble (MAIN)" = "main", "Main ensemble with TEMP iterations" = "temp"))),
+                shiny::selectInput("wb_structure", NULL, c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble (MAIN)" = "main", "Main ensemble with temporary iterations (MAIN + TEMP)" = "temp"))),
               shiny::conditionalPanel("input.wb_structure !== 'single'",
               wb_field("wb_members", "Members per model", "Each member is a separately initialized network inside a model. This count applies to MAIN and to each TEMP candidate model. It is distinct from the number of training seeds.",
                 shiny::numericInput("wb_members", NULL, 3, min = 1, max = 100))),
               shiny::conditionalPanel("input.wb_structure === 'temp'",
-              wb_field("wb_temp", "TEMP iterations", "Each iteration trains a TEMP challenger/candidate ensemble. The existing backend selects a candidate and replaces a MAIN incumbent slot using its configured metric. A warm start fits the saved MAIN members without repeating this search.",
+              wb_field("wb_temp", "Temporary iterations", "Each iteration trains a TEMP challenger/candidate ensemble. The existing backend selects a candidate and replaces a MAIN incumbent slot using its configured metric. A warm start fits the saved MAIN members without repeating this search.",
                 shiny::numericInput("wb_temp", NULL, 1, min = 1, max = 100))),
               wb_field("wb_seeds", "Training seeds", "Comma-separated distinct seeds control initialization and training randomness. Every seed reuses the prepared Train/Validation/Test rows and training-only scaling; changing training seeds never resplits the data.",
                 shiny::textInput("wb_seeds", NULL, "42"))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Architecture and initialization"),
-              wb_field("wb_activation", "Hidden activation", "Applies this activation to hidden layers. Output activation follows the task: sigmoid, softmax or identity. A model without hidden layers has no hidden activation to change.",
+              wb_field("wb_activation", "Hidden activation", "ReLU keeps positive inputs; leaky ReLU also keeps a small negative response. Tanh is bounded around zero, sigmoid maps to 0–1, and SELU is a scaled exponential linear unit. The selected function applies to hidden layers. Output activation follows the task: sigmoid, softmax or identity. With no hidden layers this choice has no effect.",
                 shiny::selectInput("wb_activation", NULL, c("relu", "tanh", "sigmoid", "selu", "leaky_relu"))),
-              wb_field("wb_init", "Weight initialization", "Chooses the existing engine weight-initialization scheme for new members. Warm starts reuse saved tensors. Scaling is configured on Features using training rows only; internal batch normalization remains off.",
+              wb_field("wb_init", "Weight initialization", "He scales initial weights by input width and is commonly paired with ReLU; LeCun uses a smaller input-width scale. Xavier and Glorot use input/output widths, with Glorot uniform drawing from a uniform range. Orthogonal uses a QR-based construction; variance scaling uses the engine's smaller width-based scale. These initialize new members; warm starts retain saved tensors. Predictor standardization is separate on Features.",
                 shiny::selectInput("wb_init", NULL, c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform"))),
               wb_switch("wb_dropout_enabled", "Enable dropout", "Randomly drops units during training. Off uses zero dropout; inference uses the full network."),
               shiny::conditionalPanel("input.wb_dropout_enabled",
@@ -237,7 +237,7 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
               wb_switch("wb_diagnostics", "Detailed training diagnostics", "Off shows ordinary epoch progress and genuine warnings/errors. On also emits detailed tensor, gradient/error, optimizer and training summaries. Read the Training log disclosure under the chart: it shows the most recent 2,000 lines, retained with completed bundles. These are diagnostic logs, not extra training, a model-quality guarantee or a separate file export."))),
           shiny::textOutput("wb_workload"),
-          shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
+          shiny::div(class = "wb-action-right", shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true")),
           shiny::br(), shiny::br(), shiny::actionButton("wb_cancel", "Cancel training", disabled = "disabled", `aria-disabled` = "true")),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
@@ -441,7 +441,6 @@ wb_server <- function(input, output, session, helper) {
       if (isTRUE(input$wb_schedule_enabled)) input$wb_schedule else "fixed", input$wb_minimum, input$wb_decay, input$wb_interval,
       input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
   })
-  output$wb_advanced_label <- shiny::renderText(if (identical(input$wb_workflow, "custom")) "Custom advanced settings" else "Advanced settings")
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_training_log <- shiny::renderText({
     shiny::invalidateLater(500, session)

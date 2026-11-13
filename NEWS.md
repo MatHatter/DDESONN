@@ -1,3 +1,14 @@
+# DDESONN 7.3.15
+
+- Name the penalty-only disclosure Regularization and explain L1, L2 and Custom
+  penalty types. Add activation/initialization context in their existing help.
+- Label the combined run structure Main ensemble with temporary iterations
+  (MAIN + TEMP), and spell out Temporary iterations in its control and help.
+- Right-align Data/Features/training actions and evaluated prediction exports.
+- Enlarge Show full R code and match its green panel to the visible page's
+  configuration container: full performance width and half-width Save or restore
+  on the respective Model / Results tabs.
+
 # DDESONN 7.3.14
 
 - Add focused lowercase-i help and equivalent R fragments throughout Custom,

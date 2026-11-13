@@ -490,7 +490,7 @@ wb_help_topics <- function() c(
   "Self-organize before initial training", "Weights used for results",
   "Regularization", "Regularization strength", "Training progress",
   "Current completed model", "Target", "Predictors",
-  "Workflow", "Run structure", "Members per model", "TEMP iterations", "Training seeds",
+  "Workflow", "Run structure", "Members per model", "Temporary iterations", "Training seeds",
   "Hidden activation", "Weight initialization", "Enable regularization", "Enable dropout", "Dropout rate",
   "Enable learning-rate scheduling", "Schedule", "Minimum rate", "Decay multiplier", "Decay interval (epochs)",
   "Combine members within each training seed", "Combine across training seeds", "Detailed training diagnostics")
@@ -511,7 +511,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "\nnum_networks <- ", custom$members, "L\nnum_temp_iterations <- ", custom$temp,
       "L\n# ddesonn_run(..., do_ensemble = do_ensemble,\n#   num_networks = num_networks, num_temp_iterations = num_temp_iterations)"),
     "Members per model" = paste0("num_networks <- ", custom$members, "L\n# Members inside each model; independent of length(seeds)."),
-    "TEMP iterations" = paste0("num_temp_iterations <- ", custom$temp, "L\n# Each TEMP model supplies challengers to the MAIN incumbent ensemble.\n# A warm start does not repeat this search."),
+    "Temporary iterations" = paste0("num_temp_iterations <- ", custom$temp, "L\n# Each TEMP model supplies challengers to the MAIN incumbent ensemble.\n# A warm start does not repeat this search."),
     "Training seeds" = paste0("seeds <- ", value(custom$seeds), "\n# Pass the same prepared parts$train and parts$validation for every seed.\n# Do not split or fit scaling again inside the seed loop."),
     "Hidden activation" = paste0("hidden_activation <- get(", value(custom$activation), ", asNamespace('DDESONN'))\noutput_name <- switch(mode, binary = 'sigmoid', multiclass = 'softmax', regression = 'identity')\noutput_activation <- get(output_name, asNamespace('DDESONN'))\nactivation_functions <- c(rep(list(hidden_activation), length(hidden_sizes)), list(output_activation))\nactivation_functions_predict <- activation_functions"),
     "Weight initialization" = paste0("init_method <- ", value(custom$init), "\n# ddesonn_model(..., init_method = init_method)\n# Warm starts retain the saved weights and biases."),
@@ -582,7 +582,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
     "Regularization" = paste0("reg_type <- ", value(if (cfg$reg == "none") NULL else cfg$reg),
       "\n# Pass reg_type to ddesonn_fit(); NULL means no penalty."),
     "Regularization strength" = paste0("lambda <- ", value(cfg$lambda),
-      "\n# Pass lambda to ddesonn_model(); the penalty applies when L1 or L2 is selected."),
+      "\n# Pass lambda to ddesonn_model(); the selected L1, L2, L1_L2, Group_Lasso or Max_Norm penalty uses this strength."),
     "Evaluation split" = paste0("part <- parts[[", value(evaluation_split),
       "]]\n# This selects rows for reporting; Test never selects training weights."),
     "Model performance" = paste("# After predicting the selected part, compute only the metrics:",
@@ -669,7 +669,7 @@ wb_custom_config <- function(config, structure = "single", members = 1, seeds = 
   config$workflow <- "custom"; config$structure <- structure
   config$members <- if (structure == "single") 1L else integer_in(members, 1, 100, "Members")
   config$seeds <- as.integer(seeds)
-  config$temp <- if (structure == "temp") integer_in(temp, 1, 100, "TEMP iterations") else 0L
+  config$temp <- if (structure == "temp") integer_in(temp, 1, 100, "Temporary iterations") else 0L
   config$activation <- match.arg(activation, c("relu", "tanh", "sigmoid", "selu", "leaky_relu"))
   config$init <- match.arg(init, c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform"))
   if (length(dropout) != 1 || !is.finite(dropout) || dropout < 0 || dropout >= 1)
