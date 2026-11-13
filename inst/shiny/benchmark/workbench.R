@@ -168,10 +168,13 @@ wb_ui <- function() {
               "model$ensemble[[1]]$weights <- model$ensemble[[1]]$best_weights",
               "model$ensemble[[1]]$biases <- model$ensemble[[1]]$best_biases", sep = "\n")),
           shiny::tags$details(shiny::tags$summary("Advanced settings"),
-            wb_field("wb_reg", "Regularization", "Choose no penalty, L1 or L2 in Basic. Custom also exposes the existing mixed, group and max-norm penalties. The example shows reg_type and model lambda together.",
-              shiny::selectInput("wb_reg", NULL, c("None" = "none", "L1", "L2"))),
-            wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength; none leaves the penalty off.",
-              shiny::numericInput("wb_lambda", NULL, 0, min = 0, step = .0001))),
+            wb_switch("wb_reg_enabled", "Enable regularization", "Adds a penalty to weight updates. Leave off for no penalty.",
+              api = "reg_type <- 'L2'\nlambda <- 0.0001"),
+            shiny::conditionalPanel("input.wb_reg_enabled",
+              wb_field("wb_reg", "Regularization", "Basic offers L1 and L2. Custom also exposes the existing mixed, group and max-norm penalties.",
+                shiny::selectInput("wb_reg", NULL, c("L2", "L1"))),
+              wb_field("wb_lambda", "Regularization strength", "Controls the selected penalty strength. A strength of zero has no effect.",
+                shiny::numericInput("wb_lambda", NULL, .0001, min = 0, step = .0001)))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'",
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Run structure and training seeds"),
               shiny::selectInput("wb_structure", "Run structure", c("Single model" = "single", "Multiple members inside one model" = "members", "Main ensemble" = "main", "Main ensemble with TEMP iterations" = "temp")),
@@ -182,15 +185,20 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Architecture and initialization"),
               shiny::selectInput("wb_activation", "Hidden activation", c("relu", "tanh", "sigmoid", "selu", "leaky_relu")),
               shiny::selectInput("wb_init", "Weight initialization", c("he", "xavier", "lecun", "orthogonal", "variance_scaling", "glorot_uniform")),
-              shiny::numericInput("wb_dropout", "Dropout rate (hidden layers; inputs for no hidden layer)", 0, min = 0, max = .99, step = .05),
+              wb_switch("wb_dropout_enabled", "Enable dropout", "Randomly drops units during training. Leave off for no dropout.",
+                api = "dropout_rates <- list(0.1)"),
+              shiny::conditionalPanel("input.wb_dropout_enabled",
+                shiny::numericInput("wb_dropout", "Dropout rate (hidden layers; inputs for no hidden layer)", .1, min = 0, max = .99, step = .05)),
               shiny::p("Output activation follows the task. Standardization is configured on Features and fitted only on training rows. Internal batch normalization remains off.")),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Learning-rate scheduling"),
-              shiny::selectInput("wb_schedule", "Schedule", c("Fixed rate" = "fixed", "Exponential decay" = "exponential")),
-              shiny::conditionalPanel("input.wb_schedule === 'exponential'",
+              wb_switch("wb_schedule_enabled", "Enable learning-rate scheduling", "Leave off to keep the Learning rate fixed throughout training.",
+                api = "lr_decay_rate <- 1 # scheduling off\nlr_min <- lr"),
+              shiny::conditionalPanel("input.wb_schedule_enabled",
+                shiny::selectInput("wb_schedule", "Schedule", c("Exponential decay" = "exponential")),
                 shiny::numericInput("wb_minimum", "Minimum rate", .00001, min = .00000001),
                 shiny::numericInput("wb_decay", "Decay multiplier", .5, min = .000001, max = 1, step = .05),
-                shiny::numericInput("wb_interval", "Decay interval (epochs)", 20, min = 1, max = 5000)),
-              shiny::p("The Learning rate above is the initial rate. The existing engine applies its exponential schedule with the minimum floor; warm starts restart the schedule.")),
+                shiny::numericInput("wb_interval", "Decay interval (epochs)", 20, min = 1, max = 5000),
+                shiny::p("The Learning rate above is the initial rate. Exponential decay applies the minimum floor; warm starts restart the schedule."))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Ensemble prediction combination"),
               shiny::selectInput("wb_fusion", "Combine members within each training seed", c("Average probabilities / predictions" = "mean", "Validation-weighted average" = "weighted", "Median" = "median", "Majority voting (classification)" = "majority", "Positive-vote proportion (binary)" = "proportion")),
               shiny::selectInput("wb_seed_aggregate", "Combine across training seeds", c("Average" = "mean", "Median" = "median")),
@@ -289,15 +297,20 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
     shiny::updateSelectInput(session, "wb_optimizer", choices = if (identical(cfg$workflow, "custom")) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd"), selected = cfg$optimizer)
     shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
-    shiny::updateSelectInput(session, "wb_reg", choices = if (identical(cfg$workflow, "custom")) c("none", "L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm") else c("none", "L1", "L2"), selected = cfg$reg)
-    shiny::updateNumericInput(session, "wb_lambda", value = cfg$lambda)
+    shiny::updateSelectInput(session, "wb_reg", choices = if (identical(cfg$workflow, "custom")) c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm") else c("L2", "L1"), selected = if (identical(cfg$reg, "none")) "L2" else cfg$reg)
+    shiny::updateNumericInput(session, "wb_lambda", value = if (identical(cfg$reg, "none") && cfg$lambda == 0) .0001 else cfg$lambda)
     shiny::updateCheckboxInput(session, "wb_self_org", value = isTRUE(cfg$self_org))
+    shiny::updateCheckboxInput(session, "wb_reg_enabled", value = !identical(cfg$reg, "none"))
     shiny::updateRadioButtons(session, "wb_workflow", selected = if (identical(cfg$workflow, "custom")) "custom" else "basic")
     if (identical(cfg$workflow, "custom")) {
-      for (name in c("structure", "activation", "init", "schedule", "seed_aggregate"))
+      for (name in c("structure", "activation", "init", "seed_aggregate"))
         shiny::updateSelectInput(session, paste0("wb_", name), selected = cfg[[name]])
-      for (name in c("members", "temp", "dropout", "minimum", "decay", "interval"))
+      for (name in c("members", "temp", "minimum", "decay", "interval"))
         shiny::updateNumericInput(session, paste0("wb_", name), value = cfg[[name]])
+      shiny::updateCheckboxInput(session, "wb_schedule_enabled", value = identical(cfg$schedule, "exponential"))
+      shiny::updateSelectInput(session, "wb_schedule", selected = "exponential")
+      shiny::updateCheckboxInput(session, "wb_dropout_enabled", value = cfg$dropout > 0)
+      shiny::updateNumericInput(session, "wb_dropout", value = if (cfg$dropout > 0) cfg$dropout else .1)
       shiny::updateSelectInput(session, "wb_fusion", choices = wb_fusion_choices(mode), selected = cfg$fusion)
       shiny::updateTextInput(session, "wb_seeds", value = paste(cfg$seeds, collapse = ","))
       shiny::updateCheckboxInput(session, "wb_diagnostics", value = isTRUE(cfg$diagnostics))
@@ -374,11 +387,11 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_workflow, {
     custom <- identical(input$wb_workflow, "custom")
     optimizers <- if (custom) DDESONN::ddesonn_optimizer_options() else c("adagrad", "adam", "rmsprop", "sgd")
-    regularizers <- if (custom) c("none", "L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm") else c("none", "L1", "L2")
+    regularizers <- if (custom) c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm") else c("L2", "L1")
     shiny::updateSelectInput(session, "wb_optimizer", choices = optimizers,
       selected = if (length(input$wb_optimizer) == 1 && input$wb_optimizer %in% optimizers) input$wb_optimizer else "adagrad")
     shiny::updateSelectInput(session, "wb_reg", choices = regularizers,
-      selected = if (length(input$wb_reg) == 1 && input$wb_reg %in% regularizers) input$wb_reg else "none")
+      selected = if (length(input$wb_reg) == 1 && input$wb_reg %in% regularizers) input$wb_reg else "L2")
   }, ignoreInit = TRUE)
   shiny::observeEvent(input$wb_mode, {
     choices <- wb_fusion_choices(input$wb_mode)
@@ -387,12 +400,14 @@ wb_server <- function(input, output, session, helper) {
   })
   next_config <- shiny::reactive({
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
-      input$wb_optimizer, input$wb_lambda, input$wb_reg, self_org = isTRUE(input$wb_self_org),
+      input$wb_optimizer, if (isTRUE(input$wb_reg_enabled)) input$wb_lambda else 0,
+      if (isTRUE(input$wb_reg_enabled)) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),
       checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint)
     if (!identical(input$wb_workflow, "custom")) return(cfg)
     wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
-      input$wb_temp, input$wb_activation, input$wb_init, input$wb_dropout,
-      input$wb_schedule, input$wb_minimum, input$wb_decay, input$wb_interval,
+      input$wb_temp, input$wb_activation, input$wb_init,
+      if (isTRUE(input$wb_dropout_enabled)) input$wb_dropout else 0,
+      if (isTRUE(input$wb_schedule_enabled)) input$wb_schedule else "fixed", input$wb_minimum, input$wb_decay, input$wb_interval,
       input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
   })
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
