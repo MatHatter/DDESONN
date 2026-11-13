@@ -2,6 +2,14 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.21 — explicit training runs and epochs
+
+Shiny distinguishes the Data-split seed from Training-run seed values. A seed
+value of 42 means one training run, not 42 runs. For Single model, seeds 42,43
+with 100 epochs train run 1 for 100 epochs, then run 2 for 100: 200 total.
+Visible examples and the workload preview explain runs, model fits and epochs.
+This clarifies the existing behavior without changing training.
+
 ## Version 7.3.20 — shared regularization and centered workflow selector
 
 Optional regularization is available in both Basic and Custom. The selected

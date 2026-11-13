@@ -459,6 +459,28 @@ performance width, and the Save or restore width on Saved models & predictions.
 The alignment updates on tab changes and responsive window resizing.
 
 
+### Seed values, complete training runs and epochs (7.3.21)
+
+On Features, **Data-split seed** controls repeatable random row assignment.
+Ordered splitting keeps row order. Basic also reuses that value for its one
+training run. In Custom, **Training-run seed values** on Build & Train control
+training randomness independently, using the already-prepared rows and scaling.
+
+**42 is one seed value, not 42 runs.** In Single model, `42,43` requests two
+complete runs. With **Epochs per model fit = 100**, the sequence is:
+
+1. Run 1, seed 42: train its model for all 100 epochs.
+2. Run 2, seed 43: train a fresh model for all 100 epochs.
+
+That is 200 total epochs. It does not repeat both runs inside every epoch.
+For ensembles, each member receives the epoch budget at each MAIN/TEMP fit.
+The workload preview shows these multipliers and total member epochs, excluding
+the separately noted initial self-organization work. Seed changes on Build &
+Train never resplit data. Both checkpoint choices still run all requested epochs.
+
+The input IDs and training/API behavior are unchanged; this update clarifies
+labels, visible guidance, R help comments and the workload preview.
+
 ### Shared regularization and centered workflow (7.3.20)
 
 Regularization is a shared, collapsed section in both Basic and Custom. Turn it

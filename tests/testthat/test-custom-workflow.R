@@ -25,12 +25,30 @@ test_that("Custom validates settings and previews all MAIN and TEMP work", {
   h <- custom_fixture()
   base <- h$wb_config(epochs = 2)
   cfg <- h$wb_custom_config(base, "temp", 3, "1,2", 4)
-  expect_match(h$wb_workload(cfg), "30 member fits; 60 total member epochs", fixed = TRUE)
+  expect_match(h$wb_workload(cfg), "30 model fits × 2 epochs = 60 total member epochs", fixed = TRUE)
   expect_null(h$wb_config()$workflow)
   expect_error(h$wb_custom_config(base, seeds = "1,1"), "distinct")
   expect_error(h$wb_custom_config(base, members = 1.5, structure = "members"), "integer")
   expect_error(h$wb_custom_config(base, dropout = 1), "Dropout")
   expect_error(h$wb_custom_config(base, schedule = "exponential", minimum = 1), "minimum")
+})
+
+test_that("run previews distinguish seed values, complete runs and epochs", {
+  h <- custom_fixture()
+  base <- h$wb_config(epochs = 100)
+  expect_match(h$wb_workload(base), "1 training run, 1 model fit, 100 epochs", fixed = TRUE)
+  cfg <- h$wb_custom_config(base, seeds = "42,43")
+  preview <- h$wb_workload(cfg)
+  expect_match(preview, "2 training runs", fixed = TRUE)
+  expect_match(preview, "Run 1 (seed 42): 100 epochs.", fixed = TRUE)
+  expect_match(preview, "Run 2 (seed 43): 100 epochs.", fixed = TRUE)
+  expect_match(preview, "Total: 2 × 100 = 200 epochs.", fixed = TRUE)
+  expect_match(preview, "before the next run starts", fixed = TRUE)
+  one <- h$wb_custom_config(base, seeds = "42")
+  expect_match(h$wb_workload(one), "1 training run (one complete run", fixed = TRUE)
+  big <- h$wb_custom_config(h$wb_config(epochs = 5000), structure = "temp",
+    members = 100, temp = 100, seeds = paste(1:100, collapse = ","))
+  expect_match(h$wb_workload(big), "5,050,000,000 total member epochs", fixed = TRUE)
 })
 
 test_that("Custom uses fixed rows, restores members, saves fusion and warm starts without organization", {
