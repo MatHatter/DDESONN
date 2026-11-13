@@ -95,6 +95,28 @@ ui <- shiny::fluidPage(
     document.addEventListener('toggle', function(event) {
       if (event.target.matches('.wb-inline-help') && event.target.open) wbPositionHelp(event.target);
     }, true);
+    function wbSizeCodePanel() {
+      var bar = document.querySelector('.wb-full-code-bar');
+      var nav = document.getElementById('workspace');
+      if (!bar || !nav) return;
+      var pane = nav.parentElement.querySelector(':scope > .tab-content > .tab-pane.active');
+      if (!pane) return;
+      var reference;
+      if (pane.dataset.value === 'results') {
+        var subnav = document.getElementById('wb_results_tabs');
+        var subpane = subnav.parentElement.querySelector(':scope > .tab-content > .tab-pane.active');
+        reference = subpane && subpane.querySelector('.panel-body-custom');
+      } else reference = pane.querySelector('.well');
+      if (!reference) return;
+      var rect = reference.getBoundingClientRect();
+      if (!rect.width) return;
+      bar.style.width = rect.width + 'px';
+      bar.style.marginLeft = '0px';
+      var baseline = bar.getBoundingClientRect().left;
+      bar.style.marginLeft = (rect.left - baseline) + 'px';
+    }
+    $(document).on('shown.bs.tab shiny:connected', function() { setTimeout(wbSizeCodePanel, 0); });
+    window.addEventListener('resize', wbSizeCodePanel);
     function wbPositionOpenHelp() { document.querySelectorAll('.wb-inline-help[open]').forEach(wbPositionHelp); }
     window.addEventListener('resize', wbPositionOpenHelp);
     document.addEventListener('scroll', wbPositionOpenHelp, true);
@@ -184,6 +206,12 @@ ui <- shiny::fluidPage(
       background:#183447; color:white; border-radius:9px; padding:13px 15px; box-shadow:0 5px 18px #18344733;
       font:normal 13px/1.6 system-ui,sans-serif; z-index:1100; max-height:min(560px,65vh); overflow:auto; overscroll-behavior:contain; }
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
+    #wb_show_full_code { font-size:16px; padding:10px 16px; min-height:44px; }
+    .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
+    .wb-export-right { display:flex; flex-direction:column; align-items:flex-end; }
+    .wb-export-right .wb-download-row { justify-content:flex-end; }
+    .wb-export-right > details { width:100%; text-align:right; }
+    .wb-export-right .scroll-table { text-align:left; }
     .wb-full-code-bar p { margin:8px 0 0; }
     #wb_full_notice { white-space:pre-line; }
     .wb-full-script { line-height:1.6; max-height:60vh; overflow:auto; white-space:pre-wrap; overflow-wrap:break-word; word-break:normal; margin-top:12px; }

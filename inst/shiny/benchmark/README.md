@@ -432,3 +432,21 @@ viewer on the corresponding next/saved script. The downloaded script matches
 that viewer. Prediction CSV disclosures preview the first 20 rows; downloads
 contain all corresponding rows. Experiment downloads likewise explain selected
 rows versus metric summaries and use their existing table previews.
+
+
+### Clearer labels and aligned actions (7.3.15)
+
+The penalty-only disclosure is named Regularization. Help names L1/L2 and the
+Custom L1_L2, Group_Lasso and Max_Norm variants, including the distinction
+between a max-norm penalty and a hard constraint. Activation and initialization
+help adds context for the listed options. The combined structure is labeled
+Main ensemble with temporary iterations (MAIN + TEMP); its count is Temporary
+iterations. Backend parameter names and training behavior are unchanged.
+
+Next: choose features, Prepare data and Train new model align to the right of
+their control panels. Evaluated predictions download/help and the CSV preview
+summary align to the right of Model performance. The larger Show full R code
+button remains in its green panel. That panel follows the visible control
+container width on Data, Features, Build & Train and Experiments, the full Model
+performance width, and the Save or restore width on Saved models & predictions.
+The alignment updates on tab changes and responsive window resizing.
