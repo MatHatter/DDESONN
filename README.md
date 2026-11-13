@@ -2,6 +2,14 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.20 — shared regularization and centered workflow selector
+
+Optional regularization is available in both Basic and Custom. The selected
+penalty and strength stay selected when changing workflows; off applies no
+penalty. Both workflows offer the existing native optimizer list, without
+changing the training engine. The compact Basic/Custom pill is centered on
+Build & Train.
+
 ## Version 7.3.19 — consolidated research and full-seed explorer
 
 The completed 1,000-seed report is now the current research entry point. The

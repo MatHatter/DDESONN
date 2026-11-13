@@ -1,3 +1,13 @@
+# DDESONN 7.3.20
+
+- Make optional regularization a shared Build & Train section in Basic and
+  Custom. Both offer L1, L2, L1_L2, Group_Lasso and Max_Norm; switching workflows
+  preserves the enabled penalty and strength. Off still applies no penalty.
+- Center the compact Basic/Custom workflow pill within its control panel.
+- Offer the existing native optimizer list in both workflows; Basic's trainer
+  already accepts these optimizers. Workflow switching no longer replaces a
+  supported optimizer selection with AdaGrad.
+
 # DDESONN 7.3.19
 
 - Consolidate current research documentation around the completed new 1,000-seed
