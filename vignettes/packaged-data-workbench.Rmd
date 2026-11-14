@@ -169,3 +169,28 @@ full R code contains portable fitting and application functions and uses the
 same split. All learned preprocessing precedes native Basic or Custom training;
 the new preprocessing path disables additional internal input normalization.
 Older numeric-only saved bundles remain supported without changing their rules.
+
+## Read the defaults and training curves
+
+A dropdown entry such as **Use Auto default: training median** means that this
+step takes its treatment from Overall preprocessing. If you select Manual, the
+inherited label changes to **Use Manual default: require complete**. Selecting
+an explicit method such as Training mean overrides the overall choice and stays
+selected when you switch modes. Per-column inheritance names the relevant step
+above it. Click the info icon beside any preprocessing control to see what all
+its options mean, plus a focused R example. Apply column override stores edits;
+selecting a column alone does not apply them.
+
+Custom runs may log multiple members, training seeds and MAIN/TEMP fits. A fresh
+fit can start at a different loss, producing a sawtooth if those curves are
+joined. The workbench now leaves fits unconnected, adds boundaries and labels,
+and reports the local epoch on hover. Fit numbers follow log order; they do not
+identify a specific seed, member or MAIN/TEMP role. Older Custom bundles lacking
+fit metadata can infer boundaries from their configured epoch budget; the
+chart explanation identifies this inference. Training loss is not held-out
+performance or proof of a model-quality problem by itself.
+
+Use Download PNG or SVG to save the chart, or Download loss data for the plotted
+records including fit/local-epoch columns. Copy chart image puts the visible
+chart bitmap on the clipboard in supported browsers. If browser permissions or
+the RStudio viewer prevent image copying, use the PNG/SVG downloads instead.

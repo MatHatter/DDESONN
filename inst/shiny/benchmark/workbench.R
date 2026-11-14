@@ -26,6 +26,11 @@ wb_field <- function(id, title, help, control, api = NULL) {
       shiny::tags$label(id = paste0(id, "-label"), `for` = id, title), wb_help(title, help, api)), control)
 }
 
+wb_pp_field <- function(id, title, control) {
+  help <- wb_pp_help()[[id]]
+  wb_field(id, title, help$text, control, help$code)
+}
+
 wb_switch <- function(id, title, help, value = FALSE, api = NULL) {
   shiny::div(class = "wb-switch-row shiny-input-container",
     shiny::tags$label(id = paste0(id, "-label"), `for` = id, title),
@@ -171,20 +176,20 @@ wb_ui <- function() {
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_features_source")),
           shiny::uiOutput("wb_columns"),
           shiny::tags$details(class = "wb-settings-section", open = "open", shiny::tags$summary("Preprocessing — Auto / Manual"),
-            shiny::radioButtons("wb_pp_mode", "Overall preprocessing", c("Auto" = "auto", "Manual" = "manual"), selected = "auto", inline = TRUE),
+            wb_pp_field("wb_pp_mode", "Overall preprocessing", shiny::radioButtons("wb_pp_mode", NULL, c("Auto" = "auto", "Manual" = "manual"), selected = "auto", inline = TRUE)),
             shiny::p("Auto proposes rules locally. Manual requires complete numeric inputs unless you choose treatments. Standardization below is controlled independently. Each step can override the overall mode. Rules are fitted on training rows only; target labels are not imputed."),
-            shiny::selectInput("wb_pp_numeric", "Missing numeric values / infinities", c("Follow overall mode" = "auto", "Training median" = "median", "Training mean" = "mean", "Fill with zero" = "zero", "Require complete values" = "error")),
-            shiny::selectInput("wb_pp_encoding", "Categorical encoding", c("Follow overall mode" = "auto", "One-hot: separate 0/1 inputs" = "onehot", "Ordinal: use an explicit order per column" = "ordinal", "Require numeric predictors" = "error")),
-            shiny::selectInput("wb_pp_missing", "Missing categorical values", c("Follow overall mode" = "auto", "Separate Missing level" = "level", "Most frequent training category" = "mode", "Require complete categories" = "error")),
-            shiny::selectInput("wb_pp_ids", "Likely identifier columns", c("Follow overall mode" = "auto", "Exclude names ID, *_id, id_*" = "exclude", "Keep selected columns" = "keep")),
+            wb_pp_field("wb_pp_numeric", "Missing numeric values / infinities", shiny::selectInput("wb_pp_numeric", NULL, c("Use Auto default (see info)" = "auto", "Training median" = "median", "Training mean" = "mean", "Fill with zero" = "zero", "Require complete values" = "error"))),
+            wb_pp_field("wb_pp_encoding", "Categorical encoding", shiny::selectInput("wb_pp_encoding", NULL, c("Use Auto default (see info)" = "auto", "One-hot: separate 0/1 inputs" = "onehot", "Ordinal: use an explicit order per column" = "ordinal", "Require numeric predictors" = "error"))),
+            wb_pp_field("wb_pp_missing", "Missing categorical values", shiny::selectInput("wb_pp_missing", NULL, c("Use Auto default (see info)" = "auto", "Separate Missing level" = "level", "Most frequent training category" = "mode", "Require complete categories" = "error"))),
+            wb_pp_field("wb_pp_ids", "Likely identifier columns", shiny::selectInput("wb_pp_ids", NULL, c("Use Auto default (see info)" = "auto", "Exclude names ID, *_id, id_*" = "exclude", "Keep selected columns" = "keep"))),
             shiny::tags$details(shiny::tags$summary("Override one column"),
               shiny::uiOutput("wb_pp_column_ui"),
-              shiny::selectInput("wb_pp_role", "Column role", c("Follow section rules" = "auto", "Keep" = "keep", "Exclude" = "exclude")),
-              shiny::selectInput("wb_pp_column_numeric", "Numeric missing-value override", c("Follow section rules" = "auto", "Median" = "median", "Mean" = "mean", "Zero" = "zero", "Require complete" = "error")),
-              shiny::selectInput("wb_pp_column_encoding", "Category encoding override", c("Follow section rules" = "auto", "One-hot" = "onehot", "Ordinal" = "ordinal", "Require numeric" = "error")),
+              wb_pp_field("wb_pp_role", "Column role", shiny::selectInput("wb_pp_role", NULL, c("Use identifier rule above" = "auto", "Keep" = "keep", "Exclude" = "exclude"))),
+              wb_pp_field("wb_pp_column_numeric", "Numeric missing-value override", shiny::selectInput("wb_pp_column_numeric", NULL, c("Use numeric missing-value rule above" = "auto", "Median" = "median", "Mean" = "mean", "Zero" = "zero", "Require complete" = "error"))),
+              wb_pp_field("wb_pp_column_encoding", "Category encoding override", shiny::selectInput("wb_pp_column_encoding", NULL, c("Use categorical encoding rule above" = "auto", "One-hot" = "onehot", "Ordinal" = "ordinal", "Require numeric" = "error"))),
               shiny::textInput("wb_pp_order", "Ordinal categories, low to high (separate with |)", value = ""),
               shiny::p("For ordinal encoding, enter categories separated by |, for example Low|Average|High. Known levels become 1..K; missing becomes 0 and unseen becomes -1. One-hot categories have no numerical order."),
-              shiny::selectInput("wb_pp_column_missing", "Categorical missing-value override", c("Follow section rules" = "auto", "Missing level" = "level", "Most frequent" = "mode", "Require complete" = "error")),
+              wb_pp_field("wb_pp_column_missing", "Categorical missing-value override", shiny::selectInput("wb_pp_column_missing", NULL, c("Use categorical missing-value rule above" = "auto", "Missing level" = "level", "Most frequent" = "mode", "Require complete" = "error"))),
               shiny::actionButton("wb_pp_apply", "Apply column override"),
               shiny::actionButton("wb_pp_reset", "Clear all column overrides"),
               shiny::textOutput("wb_pp_override_status")),
@@ -328,6 +333,13 @@ wb_ui <- function() {
                   hover = shiny::hoverOpts("wb_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
                 shiny::uiOutput("wb_loss_marker")),
               shiny::div(`aria-live` = "polite", shiny::textOutput("wb_loss_inspection")),
+              shiny::div(class = "wb-guidance", shiny::textOutput("wb_loss_explanation")),
+              shiny::div(class = "wb-chart-exports",
+                shiny::downloadButton("wb_loss_png", "Download PNG"),
+                shiny::downloadButton("wb_loss_svg", "Download SVG"),
+                shiny::downloadButton("wb_loss_csv", "Download loss data"),
+                shiny::tags$button(id = "wb_copy_loss", type = "button", class = "btn btn-default", "Copy chart image")),
+              shiny::div(id = "wb_copy_loss_status", role = "status", `aria-live` = "polite"),
               shiny::tags$details(shiny::tags$summary("Training loss values (epoch and loss)"),
                 shiny::div(class = "wb-loss-values scroll-table", shiny::tableOutput("wb_loss_values")))),
             shiny::conditionalPanel("output.wb_has_model === 'yes' && output.wb_chart_ready !== 'yes'",
@@ -368,7 +380,16 @@ wb_server <- function(input, output, session, helper) {
     input_default(input$wb_pp_mode, "auto"), input_default(input$wb_pp_numeric, "auto"),
     input_default(input$wb_pp_encoding, "auto"), input_default(input$wb_pp_missing, "auto"),
     input_default(input$wb_pp_ids, "auto"), pp_overrides()))
-  output$wb_pp_column_ui <- shiny::renderUI(shiny::selectInput("wb_pp_column", "Predictor to override", input$wb_features))
+  shiny::observeEvent(input$wb_pp_mode, {
+    auto <- identical(input$wb_pp_mode, "auto")
+    choices <- list(
+      wb_pp_numeric = c(stats::setNames("auto", if (auto) "Use Auto default: training median" else "Use Manual default: require complete"), "Training median" = "median", "Training mean" = "mean", "Fill with zero" = "zero", "Require complete values" = "error"),
+      wb_pp_encoding = c(stats::setNames("auto", if (auto) "Use Auto default: one-hot" else "Use Manual default: require numeric"), "One-hot: separate 0/1 inputs" = "onehot", "Ordinal: explicit order per column" = "ordinal", "Require numeric predictors" = "error"),
+      wb_pp_missing = c(stats::setNames("auto", if (auto) "Use Auto default: Missing level" else "Use Manual default: require complete"), "Separate Missing level" = "level", "Most frequent training category" = "mode", "Require complete categories" = "error"),
+      wb_pp_ids = c(stats::setNames("auto", if (auto) "Use Auto default: exclude ID-like names" else "Use Manual default: keep selected"), "Exclude names ID, *_id, id_*" = "exclude", "Keep selected columns" = "keep"))
+    for (id in names(choices)) shiny::updateSelectInput(session, id, choices = choices[[id]], selected = shiny::isolate(input_default(input[[id]], "auto")))
+  })
+  output$wb_pp_column_ui <- shiny::renderUI(wb_pp_field("wb_pp_column", "Predictor to override", shiny::selectInput("wb_pp_column", NULL, input$wb_features)))
   shiny::observeEvent(input$wb_pp_apply, attempt({
     busy()
     column <- input$wb_pp_column
@@ -910,7 +931,7 @@ wb_server <- function(input, output, session, helper) {
     h <- history(); n <- if (nrow(h)) max(h$epoch) else 0
     shiny::tags$progress(value = n, max = active$epochs, style = "width:100%;", `aria-label` = "Logged member epochs")
   })
-  plot_history <- shiny::reactive({
+  raw_plot_history <- shiny::reactive({
     r <- result()
     if (!is.null(r)) {
       if (is.data.frame(r$history)) r$history else data.frame(epoch = integer(), loss = numeric())
@@ -919,6 +940,16 @@ wb_server <- function(input, output, session, helper) {
       record <- if (is.null(id)) NULL else attempts()[[id]]
       if (is.data.frame(record$history)) record$history else data.frame(epoch = integer(), loss = numeric())
     }
+  })
+  plot_history <- shiny::reactive(wb_chart_history(raw_plot_history(),
+    if (!is.null(result())) result()$config else NULL))
+  output$wb_loss_explanation <- shiny::renderText({
+    h <- plot_history()
+    if (!nrow(h)) return(NULL)
+    if (length(unique(h$fit)) > 1) paste0("These are ", length(unique(h$fit)),
+      " separate fits, not one model restarting. Custom can log multiple members, seeds and MAIN/TEMP fits. Loss can start higher for a new fit because its weights or training stage differ. Fit numbers follow log order; they do not identify a specific seed or MAIN/TEMP role.",
+      if (isTRUE(attr(h, "inferred_boundaries"))) " Older-bundle boundaries are inferred from the configured epochs per fit." else "") else
+      "One fit is shown. A dashed checkpoint line, when present, marks the selected epoch; it does not stop training."
   })
   output$wb_chart_model <- shiny::renderText({
     if (!is.null(result())) paste0("Showing selected model: Run ",
@@ -937,7 +968,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_loss_inspection <- shiny::renderText({
     point <- inspected_point()
     if (is.null(point)) return(NULL)
-    sprintf("Epoch %s · training loss: %.8g", point$epoch, point$loss)
+    sprintf("Fit %s · epoch %s within fit · logged position %s · training loss: %.8g", point$fit, point$fit_epoch, point$epoch, point$loss)
   })
   output$wb_loss_marker <- shiny::renderUI({
     point <- inspected_point(); hover <- input$wb_loss_hover
@@ -952,25 +983,22 @@ wb_server <- function(input, output, session, helper) {
       shiny::span(class = "wb-loss-tooltip",
         style = if (x > (hover$range$left + hover$range$right) / 2)
           "left:auto;right:0;transform:none;" else "left:0;transform:none;",
-        sprintf("Epoch %s · Loss %.6g", point$epoch, point$loss)))
+        sprintf("Fit %s · epoch %s · Loss %.6g", point$fit, point$fit_epoch, point$loss)))
   })
   output$wb_loss_values <- shiny::renderTable(plot_history(), digits = 8)
-  output$wb_loss <- shiny::renderPlot({
-    h <- plot_history()
-    shiny::validate(shiny::need(nrow(h) > 0, if (!is.null(result()))
-      "This saved model has no recorded training-loss history." else "Training loss appears as epochs are logged."))
+  loss_plot <- shiny::reactive({
+    shiny::validate(shiny::need(nrow(plot_history()) > 0, "No recorded training loss is available."))
     r <- result()
-    selected <- if (!is.null(r)) r$selected_epoch else NULL
-    ggplot2::ggplot(h, ggplot2::aes(x = epoch, y = loss)) +
-      (if (length(selected) == 1 && is.finite(selected))
-        ggplot2::geom_vline(xintercept = selected, linetype = 2, color = "#69788c")) +
-      (if (nrow(h) > 1) ggplot2::geom_line(color = "#087f8c")) +
-      ggplot2::geom_point(color = "#087f8c") + ggplot2::labs(x = "Logged epoch (cumulative across Custom member fits)", y = "Logged training loss",
-        subtitle = if (length(selected) == 1 && is.finite(selected))
-          sprintf("Selected epoch %s · %s", selected,
-            if (identical(r$config$checkpoint, "best_validation")) "best validation" else "final epoch") else NULL) +
-      ggplot2::theme_minimal(base_size = 13)
+    wb_loss_plot(plot_history(), if (!is.null(r)) r$config else NULL,
+      if (!is.null(r)) r$selected_epoch else NULL)
   })
+  output$wb_loss <- shiny::renderPlot(loss_plot())
+  output$wb_loss_png <- shiny::downloadHandler(filename = function() "ddesonn-training-loss.png",
+    content = function(file) ggplot2::ggsave(file, loss_plot(), device = "png", width = 12, height = 5, dpi = 160, bg = "white"))
+  output$wb_loss_svg <- shiny::downloadHandler(filename = function() "ddesonn-training-loss.svg",
+    content = function(file) ggplot2::ggsave(file, loss_plot(), device = grDevices::svg, width = 12, height = 5, bg = "white"))
+  output$wb_loss_csv <- shiny::downloadHandler(filename = function() "ddesonn-training-loss.csv",
+    content = function(file) utils::write.csv(plot_history(), file, row.names = FALSE))
   evaluation <- shiny::reactive({
     shiny::validate(shiny::need(!is.null(result()), "Train or load a completed model first."))
     part <- if (is.null(input$wb_eval_split)) "test" else input$wb_eval_split

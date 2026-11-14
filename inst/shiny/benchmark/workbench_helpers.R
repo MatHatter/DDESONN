@@ -333,10 +333,10 @@ wb_log_history <- function(path) {
   lines <- if (file.exists(path)) readLines(path, warn = FALSE) else character()
   lines <- lines[grepl("Epoch [0-9]+ .*Loss: [-+0-9.eE]+", lines)]
   epochs <- as.integer(sub(".*Epoch ([0-9]+).*", "\\1", lines))
-  # Orchestration restarts epoch numbering per member. Use cumulative member
-  # epochs for the chart; a single-member Basic history remains unchanged.
-  data.frame(epoch = if (anyDuplicated(epochs)) seq_along(epochs) else epochs,
-    loss = as.numeric(sub(".*Loss: ([-+0-9.eE]+).*", "\\1", lines)))
+  fit <- cumsum(c(TRUE, diff(epochs) <= 0))
+  if (!length(epochs)) return(data.frame(epoch = integer(), loss = numeric(), fit = integer(), fit_epoch = integer()))
+  data.frame(epoch = if (max(fit) > 1) seq_along(epochs) else epochs,
+    loss = as.numeric(sub(".*Loss: ([-+0-9.eE]+).*", "\\1", lines)), fit = fit, fit_epoch = epochs)
 }
 
 wb_start <- function(helper, prepared, config, previous = NULL) {
@@ -571,7 +571,8 @@ wb_help_topics <- function() c(
   "Workflow", "Run structure", "Members per model", "Temporary iterations", "Training-run seed values",
   "Hidden activation", "Weight initialization", "Enable regularization", "Enable dropout", "Dropout rate",
   "Enable learning-rate scheduling", "Schedule", "Minimum rate", "Decay multiplier", "Decay interval (epochs)",
-  "Combine members within each training seed", "Combine across training seeds", "Detailed training diagnostics")
+  "Combine members within each training seed", "Combine across training seeds", "Detailed training diagnostics",
+  unname(vapply(wb_pp_help(), `[[`, character(1), "title")))
 
 wb_help_key <- function(topic) paste0("wb_help_", gsub("[^a-z0-9]+", "_", tolower(topic)))
 
@@ -579,6 +580,9 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
                          source = list(example = "iris"), evaluation_split = "test",
                          more_epochs = 10L) {
   if (!topic %in% wb_help_topics()) stop("Unknown workbench help topic: ", topic)
+  pp <- wb_pp_help()
+  key <- which(vapply(pp, function(item) identical(item$title, topic), logical(1)))
+  if (length(key)) return(pp[[key]]$code)
   p <- if (is.null(prepared)) wb_prepare(datasets::iris, "Species", names(datasets::iris)[1:4], "multiclass") else prepared
   cfg <- if (is.null(config)) wb_config() else config
   custom <- if (identical(cfg$workflow, "custom")) cfg else wb_custom_config(cfg)
@@ -689,7 +693,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       if (is.null(epochs)) "# Choose 1–5,000 additional epochs." else
         paste0("num_epochs <- ", epochs, "L\n# Epoch budget for the additional fit; other settings come from bundle$config.")
     },
-    "Training progress" = "history <- bundle$history\nplot(history$epoch, history$loss, type = 'l', xlab = 'Epoch', ylab = 'Training loss')\nabline(v = bundle$selected_epoch, lty = 2)\n# Inspecting the curve does not select weights.",
+    "Training progress" = "history <- bundle$history\nplot(history$epoch, history$loss, type = 'n', xlab = 'Logged epoch', ylab = 'Training loss')\n# Current bundles record fit and fit_epoch separately.\nfor (fit in unique(history$fit)) {\n  rows <- history$fit == fit\n  lines(history$epoch[rows], history$loss[rows])\n}\n# No line joins separate fits; inspecting does not select weights.",
     "Current completed model" = "bundle$package_version\nbundle$config\nbundle$selected_epoch\nbundle$fit_runs\n# Show full R code to inspect this model's saved recipe.")
   prefix <- if (is.null(prepared) && !topic %in% c("Start with Data", "Inspect your dataset",
       "Current completed model", "Save or restore", "Predict on new rows", "Training progress",
@@ -1093,3 +1097,56 @@ wb_pp_summary <- function(preprocessing) {
     Training_categories = if (s$type == "numeric") "not applicable" else paste(utils::head(s$levels, 20), collapse = " | "),
     Output_inputs = length(s$columns), stringsAsFactors = FALSE)))
 }
+
+wb_chart_history <- function(history, config = NULL) {
+  if (!is.data.frame(history) || !nrow(history)) return(data.frame(epoch = integer(), loss = numeric(), fit = integer(), fit_epoch = integer()))
+  h <- history
+  if (!all(c("fit", "fit_epoch") %in% names(h))) {
+    epochs <- h$epoch
+    resets <- c(TRUE, diff(epochs) <= 0)
+    if (any(resets[-1])) {
+      h$fit <- cumsum(resets); h$fit_epoch <- epochs; h$epoch <- seq_len(nrow(h))
+    } else if (identical(config$workflow, "custom") && length(config$epochs) == 1 &&
+        is.finite(config$epochs) && config$epochs > 0 && nrow(h) > config$epochs) {
+      h$fit <- (seq_len(nrow(h)) - 1L) %/% config$epochs + 1L
+      h$fit_epoch <- (seq_len(nrow(h)) - 1L) %% config$epochs + 1L
+      attr(h, "inferred_boundaries") <- TRUE
+    } else { h$fit <- 1L; h$fit_epoch <- epochs }
+  }
+  h
+}
+
+wb_loss_plot <- function(history, config = NULL, selected_epoch = NULL) {
+  h <- wb_chart_history(history, config)
+  if (!nrow(h)) stop("No recorded training loss is available.")
+  multiple <- length(unique(h$fit)) > 1
+  p <- ggplot2::ggplot(h, ggplot2::aes(x = epoch, y = loss, group = fit)) +
+    (if (any(table(h$fit) > 1)) ggplot2::geom_line(
+      data = h[as.integer(table(h$fit)[as.character(h$fit)]) > 1, , drop = FALSE], color = "#087f8c")) +
+    ggplot2::geom_point(color = "#087f8c", size = 1) +
+    ggplot2::labs(x = if (multiple) "Logged epoch across separate fits" else "Epoch within fit",
+      y = "Logged training loss", caption = if (multiple)
+        paste(length(unique(h$fit)), "separate fits. Each has its own weights; curves are not connected across fits.") else NULL) +
+    ggplot2::theme_minimal(base_size = 12) + ggplot2::theme(plot.caption = ggplot2::element_text(hjust = 0))
+  if (multiple) {
+    starts <- h[!duplicated(h$fit), , drop = FALSE]
+    p <- p + ggplot2::geom_vline(xintercept = starts$epoch[-1] - .5, linetype = 3, color = "#9cabb9") +
+      ggplot2::geom_text(data = starts, ggplot2::aes(label = paste("Fit", fit)),
+        y = Inf, vjust = 1.3, hjust = 0, size = 3, color = "#42586c")
+  } else if (length(selected_epoch) == 1 && is.finite(selected_epoch)) {
+    p <- p + ggplot2::geom_vline(xintercept = selected_epoch, linetype = 2, color = "#69788c")
+  }
+  p
+}
+
+wb_pp_help <- function() list(
+  wb_pp_mode = list(title = "Overall preprocessing", text = "Auto proposes training-median filling, one-hot encoding, a Missing category and identifier-name exclusions. Manual defaults to requiring complete numeric inputs and keeping selected columns. Each step can replace this default. Standardization is a separate switch. Nothing is fitted until Prepare data splits the rows.", code = "preprocessing_mode <- 'auto'\n# Auto suggests treatments; Manual requires explicit treatments.\n# Per-step and per-column choices override this default."),
+  wb_pp_numeric = list(title = "Missing numeric values / infinities", text = "This treats NA, NaN and infinite numeric predictors. Median is the middle training value; mean is the training average. Zero always fills with 0. Require complete values stops preparation if values are missing. Auto defaults to median; Manual defaults to rejecting missing values. Validation, test and future data reuse the training replacement.", code = "numeric_rule <- 'median'\nfinite_training_values <- training_values[is.finite(training_values)]\nreplacement <- median(finite_training_values)\n# mean() is the average; zero filling uses 0 instead."),
+  wb_pp_encoding = list(title = "Categorical encoding", text = "One-hot creates separate 0/1 inputs for unordered categories such as Profession. Ordinal assigns ranks 1..K and requires a meaningful low-to-high order for each column. Require numeric predictors rejects text categories. Auto defaults to one-hot; Manual requires numeric inputs unless you choose encoding. Levels are learned from training rows; saved Missing/Unknown slots keep future input columns stable.", code = "encoding_rule <- 'onehot'\n# Example after missing categories are treated:\nencoded_training <- model.matrix(~ Profession - 1, data = training_rows)\n# The full recipe also saves training levels and handles unseen categories."),
+  wb_pp_missing = list(title = "Missing categorical values", text = "Blank text and NA count as missing categories. Separate Missing level keeps an explicit missing indicator. Most frequent training category fills with the training mode. Require complete categories rejects missing values. Auto defaults to a Missing level; Manual rejects missing values. An entirely missing training column cannot supply a mode.", code = "category_missing_rule <- 'level'\ncategory_values[is.na(category_values) | trimws(category_values) == ''] <- '(Missing)'\n# Mode filling instead reuses the most frequent training category."),
+  wb_pp_ids = list(title = "Likely identifier columns", text = "Auto excludes selected names ID, names ending _id and names starting id_, ignoring case. This is only a name-based suggestion: review whether each column is useful or leaks the answer. Keep selected columns disables this exclusion. Manual defaults to keeping selected columns. A per-column Keep or Exclude overrides this step.", code = "identifier_names <- grep('(^id$|_id$|^id_)', names(data), ignore.case = TRUE, value = TRUE)\n# Review these names before excluding them; a name is not proof."),
+  wb_pp_column = list(title = "Predictor to override", text = "Choose one currently selected predictor to configure separately. Changing this dropdown loads that column's saved override into the editor. Edits take effect only after Apply column override. The status lists applied overrides; loading another dataset clears them.", code = "column_to_override <- 'Spending_Score'\n# Edit its rules, then apply the override.\n# Selecting a column alone does not change its treatment."),
+  wb_pp_role = list(title = "Column role", text = "Use identifier setting above inherits this step's keep/exclude decision. Keep forces this selected predictor to stay in the model inputs, even if its name resembles an ID. Exclude removes it from prepared inputs while retaining the original source data. Apply column override stores the decision.", code = "column_role <- 'exclude'\n# Exclusion removes a model input, not the original CSV column."),
+  wb_pp_column_numeric = list(title = "Numeric missing-value override", text = "Use numeric step above inherits the chosen numeric filling method. Median, Mean, Zero and Require complete apply only to this numeric column. They have the same meanings as the main numeric step. Apply column override stores the choice; numeric rules do not encode text categories.", code = "column_numeric_rule <- 'mean'\ncolumn_fill <- mean(training_column[is.finite(training_column)])\n# Learn this value only from this column's training rows."),
+  wb_pp_column_encoding = list(title = "Category encoding override", text = "Use encoding step above inherits the main encoding method. One-hot or Ordinal changes only this category column. Ordinal also needs the explicit order entered below. Require numeric rejects categorical data. Apply column override stores the choice; it does not create an order automatically.", code = "column_encoding_rule <- 'ordinal'\nordered_levels <- c('Low', 'Average', 'High')\nranked <- match(category_values, ordered_levels)\n# The saved rules also distinguish missing and unseen values."),
+  wb_pp_column_missing = list(title = "Categorical missing-value override", text = "Use categorical-missing step above inherits the main categorical missing-value treatment. Missing level, Most frequent and Require complete apply only to this category column. Apply column override stores the choice. These rules do not fill missing numeric values or target labels.", code = "column_category_missing_rule <- 'mode'\ncounts <- table(training_categories)\nmost_frequent <- names(sort(counts, decreasing = TRUE))[1]\n# Reuse the chosen category for later rows; do not recalculate it."))

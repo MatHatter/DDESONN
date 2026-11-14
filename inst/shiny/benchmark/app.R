@@ -71,6 +71,23 @@ ui <- shiny::fluidPage(
         }
       });
     }
+    document.addEventListener('click', async function(event) {
+      if (!event.target.closest('#wb_copy_loss')) return;
+      var status = document.getElementById('wb_copy_loss_status');
+      var img = document.querySelector('#wb_loss img');
+      try {
+        if (!img || !img.complete) throw new Error('No chart');
+        if (!navigator.clipboard || !navigator.clipboard.write || !window.ClipboardItem) throw new Error('Clipboard unavailable');
+        var canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        var blob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/png'); });
+        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+        status.textContent = 'Chart image copied. Paste it into your document or slides.';
+      } catch (error) {
+        status.textContent = 'Image copy is unavailable in this browser or was denied. Use Download PNG or SVG instead.';
+      }
+    });
     Shiny.addCustomMessageHandler('wb-clear-loss-hover', function(message) {
       Shiny.setInputValue('wb_loss_hover', null);
     });
