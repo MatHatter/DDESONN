@@ -1,4 +1,4 @@
-# DDESONN 7.3.36
+# DDESONN 7.3.35
 
 - Add Clear saved-model workspace to reset loaded models, both file pickers,
   uploaded CSV data, scores and results without touching training or disk files.

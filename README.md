@@ -2,7 +2,7 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.36 — clear saved models and start fresh
+## Version 7.3.35 — clear saved models and start fresh
 
 Use **Clear saved-model workspace** before browsing if you want to start blank.
 It resets loaded models, the CSV, file-picker captions and displayed results;
