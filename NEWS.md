@@ -1,3 +1,18 @@
+# DDESONN 7.3.27
+
+- Add Auto/Manual preprocessing with per-step and per-column overrides, an
+  explained plan, fitted-rule summary and reproducible R code in Shiny.
+- Auto proposes identifier exclusions, one-hot encoding, training-median numeric
+  filling and a Missing category. Manual supports mean/median/zero/error numeric
+  filling, one-hot or explicitly ordered ordinal encoding, categorical mode/
+  Missing/error handling and explicit keep/exclude column roles.
+- Split before fitting preprocessing. Save the input schema, training categories,
+  replacements and scaling with the model; reuse them for validation, test,
+  new predictions, Basic/Custom training and replay recipes. Older numeric-only
+  bundles and the strict default helper path remain supported.
+- Honor an explicit empty numeric_columns selection in ddesonn_fit so prepared
+  inputs are not normalized a second time. NULL retains its existing behavior.
+
 # DDESONN 7.3.26
 
 - Refresh target and predictor choices when a dataset is loaded, including while

@@ -2,6 +2,15 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.27 — Auto/Manual preprocessing
+
+On Features, review a suggested preprocessing plan, override any step or column,
+and prepare the data. Auto handles customer categories and missing predictors,
+and proposes excluding ID. Encoding, imputation and scaling are fitted on
+training rows only and saved with the model for later predictions. Full R code
+reproduces the choices. Manual mode requires explicit treatments for incomplete
+or categorical predictors; standardization remains independently controlled.
+
 ## Version 7.3.26 — align Features with the loaded dataset
 
 Both Features navigation paths show the loaded dataset's target, task and all

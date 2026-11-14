@@ -160,6 +160,8 @@ ui <- shiny::fluidPage(
     .stat small { color:#63748a; }
     .panel-body-custom { padding:22px; background:white; border:1px solid #dde5ec; border-radius:12px; margin-top:18px; }
     .scroll-table { overflow-x:auto; }
+    .wb-preprocessing-table table { min-width:900px; }
+    .wb-preprocessing-table th, .wb-preprocessing-table td { white-space:nowrap; }
     .context { border-left:3px solid #087f8c; padding:12px 16px; background:#eaf5f4; margin:16px 0; }
     .error { color:#a52736; }
     .nav-tabs>li.active>a { color:#087f8c; font-weight:650; }

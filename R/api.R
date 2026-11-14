@@ -599,7 +599,8 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   cfg$activation_functions <- cfg$activation_functions %||% attr(model, "activation_functions")
   cfg$activation_functions_predict <- cfg$activation_functions_predict %||% attr(model, "activation_functions_predict")
   cfg$dropout_rates <- cfg$dropout_rates %||% ddesonn_dropout_defaults(hidden_sizes)
-  cfg$numeric_columns <- cfg$numeric_columns %||% data_prep$numeric_columns
+  # Explicit integer(0) means no additional normalization (already prepared inputs).
+  if (is.null(cfg$numeric_columns)) cfg$numeric_columns <- data_prep$numeric_columns
   # [SSM] Embeddings are computed by the encoder at both train and inference;
   # exclude them from the legacy static-feature normalization/batch norm.
   if (identical(seq_cfg$encoder, "ssm")) {

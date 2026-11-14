@@ -147,7 +147,7 @@ wb_ui <- function() {
           shiny::div(class = "panel-body-custom",
             wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. Choosing a packaged example loads it immediately. Browse first, last or specific rows and choose columns. Inspection does not change training data."),
             shiny::textOutput("wb_data_source"),
-            shiny::p("Predictors must be numeric. Encode categories and handle missing values before training. A classification target can contain class labels."),
+            shiny::p("Auto preprocessing can encode categories and handle missing predictors. Inspect the suggested plan on Features. A classification target can contain class labels."),
             shiny::fluidRow(
               shiny::column(4, shiny::selectInput("wb_inspect_view", "Rows to view", c("First rows (head)" = "head", "Last rows (tail)" = "tail", "From row number" = "range"), selectize = FALSE)),
               shiny::column(4, shiny::numericInput("wb_inspect_n", "Number of rows (1–100)", 5, min = 1, max = 100)),
@@ -170,6 +170,25 @@ wb_ui <- function() {
           wb_heading("Choose what the model learns", "The target is the answer you want to predict. Predictors supply the evidence. Task type determines the kind of answer the model produces and the metrics used to assess it."),
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_features_source")),
           shiny::uiOutput("wb_columns"),
+          shiny::tags$details(class = "wb-settings-section", open = "open", shiny::tags$summary("Preprocessing — Auto / Manual"),
+            shiny::radioButtons("wb_pp_mode", "Overall preprocessing", c("Auto" = "auto", "Manual" = "manual"), selected = "auto", inline = TRUE),
+            shiny::p("Auto proposes rules locally. Manual requires complete numeric inputs unless you choose treatments. Standardization below is controlled independently. Each step can override the overall mode. Rules are fitted on training rows only; target labels are not imputed."),
+            shiny::selectInput("wb_pp_numeric", "Missing numeric values / infinities", c("Follow overall mode" = "auto", "Training median" = "median", "Training mean" = "mean", "Fill with zero" = "zero", "Require complete values" = "error")),
+            shiny::selectInput("wb_pp_encoding", "Categorical encoding", c("Follow overall mode" = "auto", "One-hot: separate 0/1 inputs" = "onehot", "Ordinal: use an explicit order per column" = "ordinal", "Require numeric predictors" = "error")),
+            shiny::selectInput("wb_pp_missing", "Missing categorical values", c("Follow overall mode" = "auto", "Separate Missing level" = "level", "Most frequent training category" = "mode", "Require complete categories" = "error")),
+            shiny::selectInput("wb_pp_ids", "Likely identifier columns", c("Follow overall mode" = "auto", "Exclude names ID, *_id, id_*" = "exclude", "Keep selected columns" = "keep")),
+            shiny::tags$details(shiny::tags$summary("Override one column"),
+              shiny::uiOutput("wb_pp_column_ui"),
+              shiny::selectInput("wb_pp_role", "Column role", c("Follow section rules" = "auto", "Keep" = "keep", "Exclude" = "exclude")),
+              shiny::selectInput("wb_pp_column_numeric", "Numeric missing-value override", c("Follow section rules" = "auto", "Median" = "median", "Mean" = "mean", "Zero" = "zero", "Require complete" = "error")),
+              shiny::selectInput("wb_pp_column_encoding", "Category encoding override", c("Follow section rules" = "auto", "One-hot" = "onehot", "Ordinal" = "ordinal", "Require numeric" = "error")),
+              shiny::textInput("wb_pp_order", "Ordinal categories, low to high (separate with |)", value = ""),
+              shiny::p("For ordinal encoding, enter categories separated by |, for example Low|Average|High. Known levels become 1..K; missing becomes 0 and unseen becomes -1. One-hot categories have no numerical order."),
+              shiny::selectInput("wb_pp_column_missing", "Categorical missing-value override", c("Follow section rules" = "auto", "Missing level" = "level", "Most frequent" = "mode", "Require complete" = "error")),
+              shiny::actionButton("wb_pp_apply", "Apply column override"),
+              shiny::actionButton("wb_pp_reset", "Clear all column overrides"),
+              shiny::textOutput("wb_pp_override_status")),
+            shiny::p("One-hot uses training categories plus reserved Missing/Unknown inputs. A new category never changes the saved input layout. Review suggested exclusions: an identifier name is a hint, not proof.")),
           wb_field("wb_mode", "Task", "Regression predicts a number, such as price. Binary classification chooses between two classes. Multiclass classification chooses among several classes. Choose a task that matches your target.",
             shiny::selectInput("wb_mode", NULL, c("Multiclass classification" = "multiclass", "Binary classification" = "binary", "Regression" = "regression"))),
           wb_field("wb_split", "Train / validation / test split", "Training rows teach the model. Validation rows help you assess development choices. Test rows are held aside for a final assessment. The fractions below allocate training and validation; remaining rows become test data.",
@@ -190,9 +209,16 @@ wb_ui <- function() {
           shiny::div(class = "wb-action-right", shiny::actionButton("wb_prepare", "Prepare data", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
-            wb_heading("Prepare for training", "Prepare data validates your choices, creates the three row splits, and fits any scaling using training rows only. The same scaling is then reused for validation, test and new data."),
+            wb_heading("Prepare for training", "Prepare data creates the three splits, then fits encoding, missing-value rules and scaling using training rows only. Saved rules are reused for validation, test and new data."),
             shiny::p(class = "wb-guidance", "Next, choose the target and predictors. Click Prepare data to continue to Build & Train."),
+            shiny::tags$details(open = "open", shiny::tags$summary("Suggested preprocessing plan"),
+              shiny::p("This is a proposed plan for selected predictors. Values, category levels and scaling are learned only after splitting. Review it, then click Prepare data. The full source dataset is retained. Scroll horizontally to see all rules."),
+              shiny::div(class = "scroll-table wb-preprocessing-table", shiny::tableOutput("wb_pp_plan")),
+              wb_code_panel("wb_pp_plan_code", "R code — preprocessing choices")),
             shiny::textOutput("wb_prepared"),
+            shiny::tags$details(shiny::tags$summary("Fitted preprocessing — training rows only"),
+              shiny::p("These saved replacements and category rules are reused for all other rows. At most 20 category labels are shown per column; the complete rules are retained in the model bundle and R code."),
+              shiny::div(class = "scroll-table wb-preprocessing-table", shiny::tableOutput("wb_pp_fitted"))),
             shiny::p("Target + predictors determine what the model learns from. Task determines its output and evaluation metrics. Changing any selection here requires Prepare data again."),
             wb_code_panel("wb_features_code", "Equivalent R code — prepared split and scaling")),
           shiny::div(class = "panel-body-custom",
@@ -336,6 +362,45 @@ wb_server <- function(input, output, session, helper) {
   data_source <- shiny::reactiveVal("Included iris example · 150 rows")
   data_origin <- shiny::reactiveVal(list(example = "iris"))
   dataset_preset <- shiny::reactiveVal(wb_example("iris"))
+  pp_overrides <- shiny::reactiveVal(list())
+  input_default <- function(value, default) if (is.null(value)) default else value
+  pp_config <- shiny::reactive(wb_pp_config(
+    input_default(input$wb_pp_mode, "auto"), input_default(input$wb_pp_numeric, "auto"),
+    input_default(input$wb_pp_encoding, "auto"), input_default(input$wb_pp_missing, "auto"),
+    input_default(input$wb_pp_ids, "auto"), pp_overrides()))
+  output$wb_pp_column_ui <- shiny::renderUI(shiny::selectInput("wb_pp_column", "Predictor to override", input$wb_features))
+  shiny::observeEvent(input$wb_pp_apply, attempt({
+    busy()
+    column <- input$wb_pp_column
+    if (length(column) != 1 || !column %in% input$wb_features) stop("Choose a selected predictor to override.")
+    overrides <- pp_overrides()
+    order <- trimws(strsplit(input_default(input$wb_pp_order, ""), "|", fixed = TRUE)[[1]])
+    overrides[[column]] <- list(action = input_default(input$wb_pp_role, "auto"),
+      numeric = input_default(input$wb_pp_column_numeric, "auto"),
+      encoding = input_default(input$wb_pp_column_encoding, "auto"),
+      missing = input_default(input$wb_pp_column_missing, "auto"), order = order[nzchar(order)])
+    pp_overrides(overrides)
+  }))
+  shiny::observeEvent(input$wb_pp_reset, pp_overrides(list()))
+  shiny::observeEvent(input$wb_pp_column, {
+    o <- pp_overrides()[[input$wb_pp_column]]
+    shiny::updateSelectInput(session, "wb_pp_role", selected = input_default(o$action, "auto"))
+    shiny::updateSelectInput(session, "wb_pp_column_numeric", selected = input_default(o$numeric, "auto"))
+    shiny::updateSelectInput(session, "wb_pp_column_encoding", selected = input_default(o$encoding, "auto"))
+    shiny::updateSelectInput(session, "wb_pp_column_missing", selected = input_default(o$missing, "auto"))
+    shiny::updateTextInput(session, "wb_pp_order", value = paste(o$order, collapse = "|"))
+  })
+  output$wb_pp_override_status <- shiny::renderText(paste("Column overrides:",
+    if (length(pp_overrides())) paste(names(pp_overrides()), collapse = ", ") else "none"))
+  output$wb_pp_plan <- shiny::renderTable({
+    features <- intersect(input$wb_features, names(raw()))
+    shiny::req(length(features))
+    wb_pp_plan(raw(), features, pp_config())
+  })
+  output$wb_pp_plan_code <- shiny::renderText(paste0(
+    "# These choices are fitted after splitting, using training rows only.\n",
+    "preprocessing_config <- ", wb_literal(pp_config()),
+    "\n# Prepare data to see the complete, runnable encoding and imputation code."))
   prepared <- shiny::reactiveVal(NULL)
   result <- shiny::reactiveVal(NULL)
   completed_runs <- shiny::reactiveVal(list())
@@ -458,9 +523,9 @@ wb_server <- function(input, output, session, helper) {
     shiny::tagList(
       wb_field("wb_target", "Target", "The target is the variable you want the model to predict, such as a class label or a numeric outcome. It is kept out of the predictors.",
         shiny::selectInput("wb_target", NULL, c("Choose a target" = "", stats::setNames(cols, cols)), selected = target)),
-      wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. All columns except the target are selected by default. Remove identifiers or information derived from the answer. Selected predictors must be numeric and finite; encode categories and handle missing values before preparation.",
+      wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. All columns except the target are selected by default. Remove identifiers or information derived from the answer. Review the preprocessing plan below to encode categories and fill missing predictor values.",
         shiny::selectizeInput("wb_features", NULL, setdiff(cols, target), selected = wb_default_features(raw(), target, preset), multiple = TRUE)),
-      shiny::p(class = "wb-guidance", "All non-target columns start selected. Review IDs and leakage; encode categories and handle missing values before preparing data."))
+      shiny::p(class = "wb-guidance", "All non-target columns start selected. Auto preprocessing proposes identifier exclusions and handles categories/missing values; review the plan and leakage before preparing data."))
   })
   # Refresh hidden Features controls before either navigation path reveals them.
   shiny::outputOptions(output, "wb_columns", suspendWhenHidden = FALSE)
@@ -530,7 +595,7 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_data, attempt({
     busy(); candidate <- read_csv(input$wb_data)
     if (nrow(candidate) < 10 || anyDuplicated(names(candidate))) stop("Use at least 10 rows and unique column names.")
-    dataset_preset(NULL); raw(candidate); data_revision(data_revision() + 1L); prepared(NULL)
+    pp_overrides(list()); dataset_preset(NULL); raw(candidate); data_revision(data_revision() + 1L); prepared(NULL)
     data_origin(list(file = basename(input$wb_data$name)))
     data_source(paste("Uploaded:", basename(input$wb_data$name)))
   }))
@@ -539,7 +604,7 @@ wb_server <- function(input, output, session, helper) {
   load_example <- function() {
     busy(); example <- wb_example(example_id())
     if (isTRUE(example$prediction_only)) stop("Use unlabeled examples under Predict on new rows, after training a compatible model.")
-    dataset_preset(example); raw(example$data); data_revision(data_revision() + 1L); prepared(NULL); data_origin(example$source)
+    pp_overrides(list()); dataset_preset(example); raw(example$data); data_revision(data_revision() + 1L); prepared(NULL); data_origin(example$source)
     data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
     if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
     shiny::updateSelectInput(session, "wb_split", selected = if (is.null(example$split)) "random" else example$split)
@@ -561,12 +626,12 @@ wb_server <- function(input, output, session, helper) {
   }, model_error))
   # Invalidate only preparation. The immutable completed model is still usable.
   signature <- shiny::reactive(list(input$wb_target, input$wb_features, input$wb_mode,
-    input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split))
+    input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split, pp_config()))
   shiny::observeEvent(signature(), prepared(NULL), ignoreInit = TRUE)
   shiny::observeEvent(input$wb_prepare, attempt({
     busy()
     p <- wb_prepare(raw(), input$wb_target, input$wb_features, input$wb_mode,
-      input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split)
+      input$wb_seed, input$wb_train_fraction, input$wb_val_fraction, input$wb_scale, input$wb_split, preprocessing = pp_config())
     p$source <- code_source()
     prepared(p)
     if (is.null(latest_attempt())) status("Data prepared. Ready to train a new model.")
@@ -812,11 +877,16 @@ wb_server <- function(input, output, session, helper) {
     graphics::boxplot(finite, horizontal = TRUE, main = column, xlab = "Value", col = "#dce9f6", border = "#326ea5")
     graphics::mtext(paste(length(finite), "finite values;", length(values) - length(finite), "missing/nonfinite omitted from plot only"), side = 3, cex = .8)
   })
+  output$wb_pp_fitted <- shiny::renderTable({
+    shiny::req(prepared(), prepared()$preprocessing)
+    wb_pp_summary(prepared()$preprocessing)
+  })
   output$wb_prepared <- shiny::renderText({
     p <- prepared()
     if (is.null(p)) return("Not prepared. Choose your columns and task, then click Prepare data.")
     counts <- vapply(p$parts, function(x) nrow(x$x), integer(1))
     paste(paste(sprintf("%s: %s rows", names(counts), counts), collapse = " · "),
+      paste0("· ", length(p$features), " source predictors → ", ncol(p$parts$train$x), " numeric model inputs"),
       if (p$mode == "binary") paste("· positive class:", p$classes[2]) else "")
   })
   output$wb_status <- shiny::renderText(status())
