@@ -2,6 +2,15 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.34 — evaluate labeled CSVs or predict unknown answers
+
+Choose **Evaluate the model on labeled data** to measure accuracy against known
+answers, or **Predict answers for unlabeled data** to obtain predictions without
+an accuracy claim. Evaluation leads with CSV accuracy and a confusion matrix
+(or RMSE and an actual/predicted plot for regression). Matching-input counts are
+optional supporting checks, not performance scores. Reviewing the original model's
+saved training/validation/test results does not require uploading another CSV.
+
 ## Version 7.3.33 — separate training and saved-model workflows
 
 Choose **Train a new model** (light blue) or **Use a saved model** (light teal).

@@ -1220,7 +1220,7 @@ wb_pp_help <- function() list(
 
 # Compare scored inputs with the stored splits; equality does not imply identity
 # of people, and does not detect near-duplicates or other forms of leakage.
-wb_prediction_report <- function(bundle, data) {
+wb_prediction_report <- function(bundle, data, evaluate = TRUE) {
   p <- bundle$prepared
   x <- wb_prediction_inputs(data, p)
   keys <- function(inputs) apply(inputs, 1, function(v)
@@ -1229,10 +1229,14 @@ wb_prediction_report <- function(bundle, data) {
   matches <- lapply(p$parts[c("train", "validation", "test")], function(part) scored %in% keys(part$x))
   matched <- Reduce(`|`, matches)
   report <- list(rows = nrow(data), matched_rows = sum(matched),
-    overlap = data.frame(`Saved split` = c("Training", "Validation", "Test"),
-      `Matching CSV rows` = vapply(matches, sum, integer(1)), check.names = FALSE),
+    overlap = data.frame(`Stored dataset` = c("Original training inputs", "Original validation inputs", "Original test inputs"),
+      `Matching input rows (count)` = vapply(matches, sum, integer(1)), check.names = FALSE),
     metrics = NULL,
     evaluation_note = paste0("Predictions only: no accuracy is available because this CSV has no ", p$target, " target column. Saved model evaluation above belongs to the original splits."))
+  if (!evaluate) {
+    report$evaluation_note <- "Prediction-only mode: no accuracy is calculated. To measure performance, choose Evaluate the model on labeled data and include the known correct answers."
+    return(report)
+  }
   if (!p$target %in% names(data)) return(report)
   actual <- data[[p$target]]
   valid <- if (p$mode == "regression") is.numeric(actual) && all(is.finite(actual)) else
@@ -1252,4 +1256,15 @@ wb_prediction_report <- function(bundle, data) {
   report$evaluation_note <- paste0("Uploaded CSV evaluation: compared with the supplied ", p$target, " labels. ",
     if (report$matched_rows) "This includes inputs matching saved splits, so it is not an independent unseen-input score." else "These scores describe this labeled CSV, separately from the saved training/validation/test scores.")
   report
+}
+
+# The evaluation action requires answers; prediction remains available without them.
+wb_evaluation_target_check <- function(prepared, data) {
+  target <- prepared$target
+  if (!target %in% names(data)) return(list(valid = FALSE, message = paste0("To evaluate this model, include a ", target, " column containing the known correct answers.")))
+  actual <- data[[target]]
+  valid <- if (prepared$mode == "regression") is.numeric(actual) && all(is.finite(actual)) else
+    !anyNA(actual) && all(as.character(actual) %in% prepared$classes)
+  if (!valid) return(list(valid = FALSE, message = paste0("The ", target, " answers are missing or incompatible with this model. Provide complete, valid target values to evaluate it.")))
+  list(valid = TRUE, message = "Known target values are available for evaluation.")
 }

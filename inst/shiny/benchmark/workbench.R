@@ -108,7 +108,7 @@ wb_ui <- function() {
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
       shiny::div(class = "wb-export-right", wb_download_button("wb_predictions_download", "Download evaluated predictions"),
       shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))))
-  models <- shiny::tabPanel("Saved model → predict", value = "saved",
+  models <- shiny::tabPanel("Saved model → evaluate or predict", value = "saved",
     shiny::div(class = "panel-body-custom",
       shiny::h3("1. Choose a model"),
       shiny::p("Upload a completed .rds model here. This workflow keeps your saved models separate from Data, Features and Build & Train. It does not train again or fill those tabs."),
@@ -119,7 +119,7 @@ wb_ui <- function() {
       shiny::tags$details(shiny::tags$summary("Model details"), shiny::textOutput("wb_saved_info")),
       shiny::conditionalPanel("output.wb_has_saved_model === 'yes'",
         shiny::div(class = "wb-result-area", shiny::h3("Saved model evaluation"),
-          shiny::p("These training, validation and test scores use the splits stored in the model. They are not scores for the CSV you upload below."),
+          shiny::p("These are the original scores from the data splits saved with the model. If you only want to review those results, no CSV upload is needed. Upload another CSV below to evaluate labeled data or predict unknown answers."),
           shiny::tableOutput("wb_saved_evaluation")),
         shiny::tags$details(shiny::tags$summary("Saved training history — not live training"),
           shiny::textOutput("wb_saved_history_note"),
@@ -131,38 +131,45 @@ wb_ui <- function() {
           shiny::tags$ol(
             shiny::tags$li("Reference ", shiny::tags$a(href = "https://github.com/MatHatter/DDESONN", target = "_blank", rel = "noopener noreferrer", "MatHatter/DDESONN on GitHub"),
               " and give your installed DDESONN version, task, target and predictor columns. For customer segmentation, the task is multiclass classification and the packaged target is Segmentation."),
-            shiny::tags$li("Ask for an actually trained workbench .rds bundle with saved preprocessing and class labels, plus an example prediction CSV. If ChatGPT cannot run R, ask for a reproducible R script to run yourself; generated instructions alone are not a trained model."),
+            shiny::tags$li("Ask for an actually trained workbench .rds bundle with saved preprocessing and class labels, a labeled evaluation CSV with known answers, and a separate unlabeled prediction CSV. Ask where evaluation rows came from and whether they repeat the saved test set. If ChatGPT cannot run R, ask for a reproducible R script to run yourself; generated instructions alone are not a trained model."),
             shiny::tags$li("Choose Use a saved model at the top. Under 1. Choose a model, upload the trusted workbench .rds bundle using Load trusted workbench model."),
-            shiny::tags$li("On Predict, upload a CSV containing the saved predictor columns, then click Run predictions. The target labels are optional; the saved preprocessing is reused."),
-            shiny::tags$li("Read the results below your CSV, then optionally choose Download predictions (CSV). Check the model's held-out evaluation before relying on its predictions.")),
+            shiny::tags$li("Choose Evaluate the model on labeled data and upload predictors plus known target answers to get accuracy. Or choose Predict answers for unlabeled data, upload predictors, and click Run predictions. Saved preprocessing is reused."),
+            shiny::tags$li("Read the evaluation or predictions below your CSV, then optionally choose Download results (CSV). Check the model's held-out evaluation before relying on its predictions.")),
           shiny::p("Example request to copy and adapt:"),
-          shiny::tags$pre("Use https://github.com/MatHatter/DDESONN and my installed DDESONN version [version]. Train a multiclass customer-segmentation model with target Segmentation and these predictors: [columns]. Export a compatible Shiny workbench .rds bundle with fitted preprocessing and class labels, plus a prediction CSV example. Use separate training, validation and test data and report the evaluation. If you cannot execute R, provide a reproducible R script instead of claiming to have trained the model.")),
+          shiny::tags$pre("Use https://github.com/MatHatter/DDESONN and my installed DDESONN version [version]. Train a multiclass customer-segmentation model with target Segmentation and these predictors: [columns]. Export a compatible Shiny workbench .rds bundle with fitted preprocessing and class labels, plus a labeled evaluation CSV with known answers and a separate unlabeled prediction CSV. State whether the evaluation CSV reuses saved test rows or contains new data. Use separate training, validation and test data and report the evaluation. If you cannot execute R, provide a reproducible R script instead of claiming to have trained the model.")),
       shiny::tabsetPanel(id = "wb_model_tools", selected = "predict",
-        shiny::tabPanel("Predict", value = "predict",
-          shiny::h3("2. Upload rows to predict"),
-          shiny::p("The .rds contains your model. A separate CSV supplies the rows you want predictions for. Upload both files, then click Run predictions. This prediction workflow is separate from training."),
-          shiny::fileInput("wb_new_data", "Prediction data (CSV, up to 10 MB)", accept = ".csv"),
+        shiny::tabPanel("Evaluate or predict", value = "predict",
+          shiny::h3("2. What do you want to do with your CSV?"),
+          shiny::radioButtons("wb_csv_purpose", NULL,
+            c("Evaluate the model on labeled data" = "evaluate", "Predict answers for unlabeled data" = "predict"), selected = "evaluate"),
+          shiny::p(class = "wb-guidance", shiny::textOutput("wb_csv_instructions")),
+          shiny::fileInput("wb_new_data", "Your data (CSV, up to 10 MB)", accept = ".csv"),
           shiny::tags$details(shiny::tags$summary("Required CSV columns"), shiny::textOutput("wb_prediction_columns")),
-          shiny::tags$details(shiny::tags$summary("Optional: try packaged customer rows instead"),
-            shiny::p("Demonstration rows may match inputs in your saved model’s splits. This replaces your CSV with packaged customer rows. It requires a compatible customer model; click Run predictions to see the overlap report and outputs."),
+          shiny::conditionalPanel("input.wb_csv_purpose === 'evaluate'",
+            shiny::tags$details(shiny::tags$summary("Optional: labeled example for the downloadable customer model"),
+              shiny::p("For the provided customer-segmentation-model-7.3.31.rds only: these 20 labeled rows come from its original test set. This demonstrates evaluation, not a new independent test; its subset accuracy can differ from the full-test score above. For your own model, supply your own compatible labeled CSV."),
+              shiny::downloadButton("wb_eval_example_download", "Download labeled evaluation example"))),
+          shiny::conditionalPanel("input.wb_csv_purpose === 'predict'", shiny::tags$details(shiny::tags$summary("Optional: try an unlabeled customer example"),
+            shiny::p("These example rows have no correct Segmentation labels, so they demonstrate prediction only, not accuracy. They may match inputs stored in a compatible customer model."),
             shiny::actionButton("wb_example_predict", "Use packaged customer rows"),
             shiny::downloadButton("wb_prediction_example_download", "Download example input CSV"),
-            wb_vignette_link("wb_prediction_vignettes", "Packaged-data and prediction guide")),
-          shiny::h3("3. Run predictions and view results"),
-          shiny::actionButton("wb_predict", "Run predictions", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
+            wb_vignette_link("wb_prediction_vignettes", "Packaged-data and prediction guide"))),
+          shiny::h3("3. Run and view your results"),
+          shiny::actionButton("wb_predict", "Evaluate model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
           shiny::div(`aria-live` = "polite", shiny::textOutput("wb_prediction_status")),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error")),
           shiny::conditionalPanel("output.wb_has_predictions === 'yes'",
-            shiny::div(class = "wb-result-area", shiny::h4("Predictions for your CSV"),
-            shiny::textOutput("wb_prediction_result_info"),
-            shiny::div(class = "wb-overlap-report", shiny::textOutput("wb_prediction_overlap_note"),
-              shiny::tableOutput("wb_prediction_overlap_table")),
+            shiny::div(class = "wb-result-area", shiny::h4(shiny::textOutput("wb_csv_result_title")),
+            shiny::h3(shiny::textOutput("wb_csv_primary_score")),
             shiny::textOutput("wb_prediction_accuracy_note"),
-            shiny::tableOutput("wb_prediction_accuracy"),
+            shiny::textOutput("wb_prediction_result_info"),
             shiny::plotOutput("wb_new_chart", height = "300px"),
             shiny::div(class = "scroll-table", shiny::tableOutput("wb_new_preview")),
-            shiny::p("For classification, the table includes the predicted class and its class probabilities. Accuracy cannot be measured on rows without known target labels."),
-            shiny::downloadButton("wb_new_download", "Download predictions (CSV)"))),
+            shiny::conditionalPanel("output.wb_csv_has_metrics === 'yes'", shiny::tags$details(shiny::tags$summary("Additional evaluation metrics"), shiny::tableOutput("wb_prediction_accuracy"))),
+            shiny::tags$details(class = "wb-overlap-report", shiny::tags$summary("Optional data checks: matching inputs (not accuracy)"),
+              shiny::p("These are counts of identical inputs, not scores. A zero means no matching rows, not 0% accuracy."),
+              shiny::textOutput("wb_prediction_overlap_note"), shiny::tableOutput("wb_prediction_overlap_table")),
+            shiny::downloadButton("wb_new_download", "Download results (CSV)"))),
           shiny::tags$details(shiny::tags$summary("R example for prediction"),
             wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"))),
         shiny::tabPanel("Save & export", value = "export",
@@ -416,7 +423,7 @@ wb_ui <- function() {
     shiny::tabPanel("4. Model / Results", value = "results",
       shiny::p(class = "wb-step-intro", "Finally, review performance and outputs, save the model, or use it for new predictions. Results reflect the saved choices from the earlier steps."),
       shiny::tabsetPanel(id = "wb_results_tabs", performance),
-      shiny::actionButton("wb_use_trained_model", "Predict with this trained model", class = "btn-primary")),
+      shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")),
     models
   )
 }
@@ -502,7 +509,7 @@ wb_server <- function(input, output, session, helper) {
   })
   shiny::observeEvent(TRUE, set_flow("train", "data"), once = TRUE)
   output$wb_flow_guide <- shiny::renderText(if (task_flow() == "saved")
-    "Use a saved model: upload .rds → read its summary → upload prediction CSV → run → view results. Training tabs stay unchanged." else
+    "Use a saved model: upload .rds → read its summary → choose labeled evaluation or unlabeled prediction → upload CSV → run → view results. Training tabs stay unchanged." else
     "Train a new model: Data → Features → Build & Train → Evaluate → Predict. Saved models use their own workflow.")
   code_model <- shiny::reactive(if (task_flow() == "saved") active_model() else result())
   attempts <- shiny::reactiveVal(list())
@@ -623,6 +630,21 @@ wb_server <- function(input, output, session, helper) {
     if (is.null(result())) stop("Train a model before using it for prediction.")
     add_saved(result()); set_flow("saved")
   }, model_error))
+  csv_purpose <- shiny::reactive(if (is.null(input$wb_csv_purpose)) "evaluate" else input$wb_csv_purpose)
+  csv_target_check <- shiny::reactive({
+    if (is.null(active_model()) || is.null(prediction_data())) return(list(valid = FALSE, message = "Upload a model and CSV first."))
+    wb_evaluation_target_check(active_model()$prepared, prediction_data())
+  })
+  shiny::observeEvent(input$wb_csv_purpose, {
+    new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL); model_error(NULL)
+  }, ignoreInit = TRUE)
+  shiny::observe(shiny::updateActionButton(session, "wb_predict", label = if (csv_purpose() == "evaluate") "Evaluate model" else "Run predictions"))
+  output$wb_csv_instructions <- shiny::renderText({
+    target <- if (is.null(active_model())) "the model's target column" else active_model()$prepared$target
+    if (csv_purpose() == "evaluate") paste0("Get a score by uploading predictor columns PLUS known correct answers in ", target,
+      ". Classification shows accuracy; regression shows error metrics. The model is not retrained. For an independent test, use labeled data that was not used to fit or select the model.") else
+      "Get predicted answers for rows whose outcomes you do not know. Upload the predictor columns, then Run predictions. This mode does not calculate accuracy."
+  })
   # Per-session states are also enforced by server guards, not just the browser.
   action_states <- shiny::reactive({
     running <- !is.null(job()); completed <- !is.null(result()); saved <- !is.null(active_model())
@@ -636,7 +658,7 @@ wb_server <- function(input, output, session, helper) {
         length(input$wb_features) > 0 && !input$wb_target %in% input$wb_features,
       wb_data = !running, wb_demo = !running, wb_example = !running,
       wb_example_predict = saved && !running,
-      wb_predict = saved && !is.null(prediction_data()) && !running)
+      wb_predict = saved && !is.null(prediction_data()) && !running && (csv_purpose() == "predict" || csv_target_check()$valid))
   })
   shiny::observe(session$sendCustomMessage("wb-action-states", action_states()))
   busy <- function() if (!is.null(job())) stop("Finish or cancel the running job first.")
@@ -747,6 +769,12 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_example_download <- shiny::downloadHandler(
     filename = function() "DDESONN-customer-prediction.csv",
     content = function(file) wb_write_example("customer_test", file))
+  output$wb_eval_example_download <- shiny::downloadHandler(
+    filename = function() "customer-segmentation-original-test-example.csv",
+    content = function(file) {
+      path <- system.file("shiny", "benchmark", "examples", "customer-segmentation-original-test-example.csv", package = "DDESONN")
+      stopifnot(nzchar(path), file.copy(path, file, overwrite = TRUE))
+    })
   shiny::observeEvent(input$wb_example_predict, attempt({
     busy(); new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL)
     if (is.null(active_model())) stop("Train or load a compatible model before choosing example rows.")
@@ -848,24 +876,39 @@ wb_server <- function(input, output, session, helper) {
     busy(); new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL)
     if (is.null(active_model())) stop("Load or select a model first.")
     if (is.null(prediction_data())) stop("Upload a prediction CSV first.")
+    if (csv_purpose() == "evaluate" && !csv_target_check()$valid) stop(csv_target_check()$message)
     predictions <- wb_new_predictions(active_model(), prediction_data())
-    report <- wb_prediction_report(active_model(), prediction_data())
+    report <- wb_prediction_report(active_model(), prediction_data(), evaluate = csv_purpose() == "evaluate")
     prediction_report(report)
     if (!is.null(report$metrics)) predictions <- cbind(predictions[1], actual = prediction_data()[[active_model()$prepared$target]], predictions[-1])
     new_predictions(predictions)
-    prediction_provenance(list(model = active_model()$model_name, source = prediction_source(), rows = nrow(predictions)))
+    prediction_provenance(list(model = active_model()$model_name, source = prediction_source(), rows = nrow(predictions), purpose = csv_purpose()))
   }, model_error))
   output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Selected model:", active_model()$model_name))
   output$wb_prediction_columns <- shiny::renderText({
     if (is.null(active_model())) return("Load a model to see its required columns.")
-    paste0(paste(active_model()$prepared$features, collapse = ", "), ". Target labels are optional. Saved preprocessing is reused.")
+    paste0(paste(active_model()$prepared$features, collapse = ", "), if (csv_purpose() == "evaluate") paste0("; plus ", active_model()$prepared$target, " with known answers. Saved preprocessing is reused.") else ". Target labels are not evaluated in prediction-only mode. Saved preprocessing is reused.")
   })
   output$wb_prediction_status <- shiny::renderText({
     if (is.null(active_model())) return("Step 1: load or select a model.")
-    if (is.null(prediction_data())) return("Model ready. Step 2: upload the CSV containing rows to predict.")
-    if (!is.null(model_error())) return("Prediction could not complete. Correct the error below and click Run predictions again.")
-    if (is.null(new_predictions())) return(paste0(prediction_source(), " · ", nrow(prediction_data()), " rows ready. Step 3: click Run predictions for ", active_model()$model_name, "."))
-    paste0("Predictions complete for ", nrow(new_predictions()), " rows. Results are below; download is optional.")
+    if (is.null(prediction_data())) return("Model ready. Choose evaluation or prediction, then upload your CSV. Reviewing the saved scores alone requires no upload.")
+    if (csv_purpose() == "evaluate" && !csv_target_check()$valid)
+      return(paste0(csv_target_check()$message, " If the answers are unknown, choose Predict answers for unlabeled data instead."))
+    if (!is.null(model_error())) return("Could not complete. Correct the error below and try again.")
+    if (is.null(new_predictions())) return(paste0(prediction_source(), " · ", nrow(prediction_data()), " rows ready. Click ", if (csv_purpose() == "evaluate") "Evaluate model" else "Run predictions", "."))
+    paste0(if (csv_purpose() == "evaluate") "Evaluation" else "Predictions", " complete for ", nrow(new_predictions()), " rows. Results are below; download is optional.")
+  })
+  output$wb_csv_result_title <- shiny::renderText({
+    shiny::req(prediction_provenance())
+    if (prediction_provenance()$purpose == "evaluate") "Evaluation of your labeled CSV" else "Predictions for your unlabeled CSV"
+  })
+  output$wb_csv_primary_score <- shiny::renderText({
+    report <- prediction_report(); shiny::req(report)
+    if (is.null(report$metrics)) return(paste(report$rows, "predictions generated"))
+    metric <- if (active_model()$prepared$mode == "regression") "RMSE" else "Accuracy"
+    value <- report$metrics$Value[match(metric, report$metrics$Metric)]
+    if (metric == "Accuracy") sprintf("CSV accuracy: %.2f%% (%d rows)", value * 100, report$rows) else
+      sprintf("CSV RMSE: %.4f (lower is better; %d rows)", value, report$rows)
   })
   output$wb_prediction_result_info <- shiny::renderText({
     provenance <- prediction_provenance(); shiny::req(provenance)
@@ -1118,6 +1161,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_attempt_title <- shiny::renderText(if (is.null(latest_attempt())) "Training status" else "Latest attempt")
   output$wb_running_flag <- shiny::renderText(if (!is.null(job())) "yes" else "no")
   output$wb_error_flag <- shiny::renderText(if (!is.null(training_error())) "yes" else "no")
+  output$wb_csv_has_metrics <- shiny::renderText(if (!is.null(prediction_report()$metrics)) "yes" else "no")
   output$wb_has_saved_model <- shiny::renderText(if (!is.null(active_model())) "yes" else "no")
   output$wb_has_predictions <- shiny::renderText(if (!is.null(new_predictions())) "yes" else "no")
   output$wb_has_model <- shiny::renderText(if (!is.null(result())) "yes" else "no")
@@ -1129,7 +1173,7 @@ wb_server <- function(input, output, session, helper) {
     }
     if (lines) "yes" else "no"
   })
-  for (flag in c("wb_running_flag", "wb_error_flag", "wb_has_model", "wb_chart_ready", "wb_has_logs", "wb_has_predictions", "wb_has_saved_model"))
+  for (flag in c("wb_running_flag", "wb_error_flag", "wb_has_model", "wb_chart_ready", "wb_has_logs", "wb_has_predictions", "wb_has_saved_model", "wb_csv_has_metrics"))
     shiny::outputOptions(output, flag, suspendWhenHidden = FALSE)
   output$wb_progress <- shiny::renderUI({
     active <- job(); shiny::req(active)
@@ -1239,6 +1283,20 @@ wb_server <- function(input, output, session, helper) {
     content = function(file) utils::write.csv(evaluation()$predictions, file, row.names = FALSE))
   output$wb_new_chart <- shiny::renderPlot({
     predictions <- new_predictions(); shiny::req(predictions, active_model())
+    if (!is.null(prediction_report()$metrics)) {
+      if (active_model()$prepared$mode == "regression") {
+        return(ggplot2::ggplot(predictions, ggplot2::aes(x = actual, y = prediction)) +
+          ggplot2::geom_point(color = "#087f8c") + ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2) +
+          ggplot2::labs(title = "Actual vs predicted — uploaded CSV", x = "Supplied actual value", y = "Predicted value") + ggplot2::theme_minimal(base_size = 12))
+      }
+      confusion <- as.data.frame(table(Actual = factor(predictions$actual, levels = active_model()$prepared$classes),
+        Predicted = factor(predictions$predicted, levels = active_model()$prepared$classes)))
+      return(ggplot2::ggplot(confusion, ggplot2::aes(x = Predicted, y = Actual, fill = Freq)) +
+        ggplot2::geom_tile() + ggplot2::geom_text(ggplot2::aes(label = Freq)) +
+        ggplot2::scale_fill_gradient(low = "#eaf5f4", high = "#087f8c") +
+        ggplot2::labs(title = "Confusion matrix — uploaded CSV", subtitle = "Diagonal counts are correct predictions; off-diagonal counts are errors") +
+        ggplot2::theme_minimal(base_size = 12))
+    }
     if (identical(active_model()$prepared$mode, "regression")) {
       ggplot2::ggplot(predictions, ggplot2::aes(x = prediction)) +
         ggplot2::geom_histogram(bins = min(30L, nrow(predictions)), fill = "#087f8c", color = "white") +

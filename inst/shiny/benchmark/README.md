@@ -1,5 +1,35 @@
 # DDESONN model workbench
 
+## CSV upload: evaluation or prediction (7.3.34)
+
+The original saved-model scores answer “How did this model perform on its original
+training, validation and test splits?” If that is all you want, no CSV upload is
+needed. The separate CSV upload answers one of two different questions:
+
+- **Evaluate the model on labeled data** (default): upload all saved predictor
+  columns plus the target with known correct answers, such as `Segmentation` with
+  A/B/C/D. Click **Evaluate model** to see CSV accuracy, a confusion matrix and
+  actual/predicted rows. Regression uses RMSE and an actual-versus-predicted plot.
+  This evaluates the existing model; it does not retrain it or resplit your CSV.
+- **Predict answers for unlabeled data**: upload predictor columns and click
+  **Run predictions** to obtain unknown answers and class probabilities. This mode
+  does not score supplied target labels; switch to evaluation if you want accuracy.
+
+Evaluation stays disabled with an explanation when target values are missing or
+incompatible. Switching purposes clears previous results. Additional metrics and
+exact-input checks are optional disclosures below the main chart/table. Matching
+counts are not accuracy: zero test matches means zero matching inputs, not 0%.
+Evaluation of repeated inputs is qualified as not independent unseen-input evidence.
+
+The labeled example in `inst/shiny/benchmark/examples/customer-segmentation-original-test-example.csv`
+is for the downloadable 7.3.31 customer model. It repeats 20 rows from that model's
+original held-out test set, with the correct labels. It demonstrates CSV evaluation;
+it is not a new independent benchmark and may differ from full-test accuracy.
+The earlier 20-row prediction CSV is unlabeled and only demonstrates prediction.
+
+Earlier version notes below describe the interfaces at the time; this purpose
+choice supersedes automatic evaluation based only on the presence of labels.
+
 ## Two independent workflows (7.3.33)
 
 At the top, choose **Train a new model** or **Use a saved model**. Blue and teal

@@ -1,3 +1,18 @@
+# DDESONN 7.3.34
+
+- Give CSV upload two explicit purposes: evaluate labeled data (default) or
+  predict unknown answers. Evaluation requires complete compatible target values
+  and uses an Evaluate model action; prediction-only mode never scores labels.
+- Lead labeled-CSV results with accuracy as a percentage (RMSE for regression),
+  a confusion matrix or actual-versus-predicted plot, and actual/predicted rows.
+  Keep original saved split scores distinct and explain that reviewing them does
+  not require another CSV upload.
+- Move matching-input counts into a collapsed Optional data checks disclosure,
+  explicitly identifying them as counts rather than accuracy. Keep overlap
+  qualifications on labeled evaluation without making the audit the main result.
+- Add a labeled example drawn from the original test split of the downloadable
+  customer model. Label it as a demonstration, not new independent test evidence.
+
 # DDESONN 7.3.33
 
 - Separate Train a new model from Use a saved model, with labeled blue/teal

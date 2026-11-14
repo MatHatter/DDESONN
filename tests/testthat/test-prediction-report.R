@@ -35,3 +35,25 @@ test_that("supplied binary and regression targets produce their own CSV metrics"
     expect_null(f$h$wb_prediction_report(bundle, d)$metrics)
   }
 })
+test_that("prediction-only mode does not score supplied labels", {
+  f <- prediction_flow_fixture()
+  report <- f$h$wb_prediction_report(f$bundle, head(iris), evaluate = FALSE)
+  expect_null(report$metrics)
+  expect_match(report$evaluation_note, "Prediction-only mode", fixed = TRUE)
+  expect_true(f$h$wb_evaluation_target_check(f$bundle$prepared, head(iris))$valid)
+  expect_false(f$h$wb_evaluation_target_check(f$bundle$prepared, head(iris)[1:4])$valid)
+  d <- head(iris); d$Species[1] <- NA
+  expect_false(f$h$wb_evaluation_target_check(f$bundle$prepared, d)$valid)
+})
+test_that("the labeled customer example retains known source labels", {
+  path <- system.file("shiny", "benchmark", "examples", "customer-segmentation-original-test-example.csv", package = "DDESONN")
+  expect_true(nzchar(path))
+  example <- read.csv(path, check.names = FALSE)
+  source <- read.csv(system.file("extdata", "train_multiclass_customer_segmentation.csv", package = "DDESONN"), check.names = FALSE)
+  expect_equal(nrow(example), 20)
+  expect_false("ID" %in% names(example))
+  expect_true(all(example$Segmentation %in% c("A", "B", "C", "D")))
+  # Include the target in the fingerprint: no example answers are fabricated.
+  keys <- function(d) vapply(seq_len(nrow(d)), function(i) digest::digest(lapply(d, function(x) as.character(x[i]))), character(1))
+  expect_true(all(keys(example) %in% keys(source[names(example)])))
+})
