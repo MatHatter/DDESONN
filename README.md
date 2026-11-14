@@ -2,6 +2,15 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.31 — help preparing and loading a model
+
+The Saved models & predictions tab now includes **Need help preparing a model?**
+with numbered steps and a customer-segmentation prompt. Use ChatGPT separately,
+reference this GitHub repository and your installed version, and request a trained
+compatible workbench bundle or a reproducible R script if execution is unavailable.
+The guide explains how to load the bundle, upload new predictor rows, review the
+model evaluation and download predictions. ChatGPT is not built into the app.
+
 ## Version 7.3.29 — visible profiling and clearer data preparation
 
 Data opens its descriptive summary by default and labels profiling as optional
