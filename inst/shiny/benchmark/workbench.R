@@ -331,6 +331,7 @@ wb_ui <- function() {
 
 wb_server <- function(input, output, session, helper) {
   raw <- shiny::reactiveVal(datasets::iris)
+  data_revision <- shiny::reactiveVal(0L)
   data_source <- shiny::reactiveVal("Included iris example · 150 rows")
   data_origin <- shiny::reactiveVal(list(example = "iris"))
   dataset_preset <- shiny::reactiveVal(wb_example("iris"))
@@ -449,14 +450,16 @@ wb_server <- function(input, output, session, helper) {
     utils::read.csv(upload$datapath, check.names = FALSE)
   }
   output$wb_columns <- shiny::renderUI({
+    data_revision() # Explicit reloads reset defaults even if the data is identical.
     cols <- names(raw())
     preset <- dataset_preset()
     target <- if (is.null(preset)) tail(cols, 1) else if (is.null(preset$target)) "" else preset$target
     shiny::tagList(
       wb_field("wb_target", "Target", "The target is the variable you want the model to predict, such as a class label or a numeric outcome. It is kept out of the predictors.",
         shiny::selectInput("wb_target", NULL, c("Choose a target" = "", stats::setNames(cols, cols)), selected = target)),
-      wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. Select numeric columns available when you will make future predictions; do not include the target or information derived from the answer.",
-        shiny::selectizeInput("wb_features", NULL, cols, selected = wb_default_features(raw(), target, preset), multiple = TRUE)))
+      wb_field("wb_features", "Predictors", "Predictors are the input features used to predict the target. All columns except the target are selected by default. Remove identifiers or information derived from the answer. Selected predictors must be numeric and finite; encode categories and handle missing values before preparation.",
+        shiny::selectizeInput("wb_features", NULL, setdiff(cols, target), selected = wb_default_features(raw(), target, preset), multiple = TRUE)),
+      shiny::p(class = "wb-guidance", "All non-target columns start selected. Review IDs and leakage; encode categories and handle missing values before preparing data."))
   })
   for (id in c("wb_data_vignettes", "wb_features_vignettes", "wb_training_vignettes", "wb_prediction_vignettes", "wb_experiment_vignettes")) local({
     link_id <- id
@@ -502,13 +505,16 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_seed_comparison <- shiny::renderTable({ shiny::req(result()); result()$seed_comparison })
   output$wb_member_weights <- shiny::renderPrint({ shiny::req(result()); result()$member_weights })
-  shiny::observeEvent(input$wb_target, {
-    shiny::updateSelectizeInput(session, "wb_features", selected = wb_default_features(raw(), input$wb_target, dataset_preset()))
+  shiny::observeEvent(list(raw(), input$wb_target, data_revision()), {
+    target <- input$wb_target
+    if (length(target) != 1L || (nzchar(target) && !target %in% names(raw()))) return(invisible(NULL))
+    features <- wb_default_features(raw(), target)
+    shiny::updateSelectizeInput(session, "wb_features", choices = features, selected = features)
   })
   shiny::observeEvent(input$wb_data, attempt({
     busy(); candidate <- read_csv(input$wb_data)
     if (nrow(candidate) < 10 || anyDuplicated(names(candidate))) stop("Use at least 10 rows and unique column names.")
-    dataset_preset(NULL); raw(candidate); prepared(NULL)
+    dataset_preset(NULL); raw(candidate); data_revision(data_revision() + 1L); prepared(NULL)
     data_origin(list(file = basename(input$wb_data$name)))
     data_source(paste("Uploaded:", basename(input$wb_data$name)))
   }))
@@ -517,7 +523,7 @@ wb_server <- function(input, output, session, helper) {
   load_example <- function() {
     busy(); example <- wb_example(example_id())
     if (isTRUE(example$prediction_only)) stop("Use unlabeled examples under Predict on new rows, after training a compatible model.")
-    dataset_preset(example); raw(example$data); prepared(NULL); data_origin(example$source)
+    dataset_preset(example); raw(example$data); data_revision(data_revision() + 1L); prepared(NULL); data_origin(example$source)
     data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
     if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
     if (!is.null(example$split)) shiny::updateSelectInput(session, "wb_split", selected = example$split)

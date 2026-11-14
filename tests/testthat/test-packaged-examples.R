@@ -6,6 +6,37 @@ example_fixture <- function() {
   list(h = h, path = path)
 }
 
+test_that("predictor defaults reset with dataset/target, but preserve manual edits", {
+  skip_if_not_installed("shiny")
+  f <- example_fixture(); h <- f$h
+  server <- h$wb_server; formals(server)$helper <- file.path(f$path, "workbench_helpers.R")
+  shiny::testServer(server, {
+    messages <- new.env()
+    session$sendInputMessage <- function(id, message) messages[[id]] <- message
+    session$setInputs(wb_target = "Species")
+    expect_identical(messages$wb_features$value, names(iris)[1:4])
+    raw(data.frame(x = 1:10, y = 11:20, Species = rep(c("A", "B"), 5)))
+    session$flushReact()
+    expect_identical(messages$wb_features$value, c("x", "y"))
+    expect_false(grepl('value="Species"', messages$wb_features$options, fixed = TRUE))
+    rm("wb_features", envir = messages)
+    session$setInputs(wb_features = "x")
+    expect_false(exists("wb_features", envir = messages, inherits = FALSE))
+    session$setInputs(wb_target = "y")
+    expect_identical(messages$wb_features$value, c("x", "Species"))
+    session$setInputs(wb_target = "")
+    expect_identical(messages$wb_features$value, c("x", "y", "Species"))
+    session$setInputs(wb_example = "iris", wb_target = "Species")
+    load_example()
+    session$flushReact()
+    session$setInputs(wb_features = "Sepal.Length")
+    rm("wb_features", envir = messages)
+    load_example() # Same data, same target: an explicit reload still resets.
+    session$flushReact()
+    expect_identical(messages$wb_features$value, names(iris)[1:4])
+  })
+})
+
 test_that("all packaged inputs load unchanged, export and reproduce their data source", {
   h <- example_fixture()$h
   catalog <- h$wb_example_catalog()
@@ -31,15 +62,20 @@ test_that("all packaged inputs load unchanged, export and reproduce their data s
     }
     unlink(output)
     features <- h$wb_default_features(ex$data, ex$target, ex)
-    expect_false(any(features %in% c(ex$target, ex$exclude)))
+    expect_identical(features, setdiff(names(ex$data), ex$target))
     if (!is.null(ex$target)) {
-      p <- h$wb_prepare(ex$data, ex$target, features, ex$mode,
+      # Defaults include all columns. Preparation still enforces numeric/finite
+      # predictors rather than silently filtering or encoding user data.
+      valid <- vapply(ex$data[features], function(x) is.numeric(x) && all(is.finite(x)), logical(1))
+      if (!all(valid)) expect_error(h$wb_prepare(ex$data, ex$target, features, ex$mode), "numeric and finite")
+      p <- h$wb_prepare(ex$data, ex$target, features[valid], ex$mode,
         split = if (is.null(ex$split)) "random" else ex$split)
       expect_equal(p$rows, nrow(ex$data))
     }
   }
   expect_identical(h$wb_default_features(h$wb_example("customer_train")$data,
-    "Segmentation", h$wb_example("customer_train")), "Age")
+    "Segmentation", h$wb_example("customer_train")),
+    setdiff(names(h$wb_example("customer_train")$data), "Segmentation"))
   expect_null(h$wb_example("customer_test")$target)
   expect_true(h$wb_example("customer_test")$prediction_only)
   expect_error(h$wb_example("../../private.csv"), "Choose a packaged example")

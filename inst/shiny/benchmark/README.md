@@ -24,9 +24,9 @@ and columns, or download it. CSVs are read with `system.file()` from the install
 package; there is no automatic network fallback. A source-directory link opens
 GitHub manually. Generated recipes use the installed filename and CSV SHA256.
 
-Examples suggest task, target and complete numeric predictors. Categories and
-missing values are not silently encoded, imputed or removed; ID and answer-derived
-fields are not preselected in the relevant presets. The customer test file has
+Examples suggest task and target; every other column starts selected as a
+predictor. Categories and missing values are not silently encoded, imputed or
+removed. Review ID and answer-derived fields before preparation. The customer test file has
 no Segmentation labels: it is for inspection/prediction, not automatic training
 or accuracy evaluation. Its prediction action requires a compatible completed
 model and reuses the existing saved-preprocessing prediction path.
@@ -579,3 +579,16 @@ The four current guides replace the previous five-guide catalog. Historical
 comparison statistics and caveats now live in the consolidated benchmark guide
 and report; the old standalone vignette is available through Git history.
 The included explorer, Reset and CSV downloads use all 1,000 new seeds.
+
+
+### Predictor defaults (7.3.25)
+
+Packaged examples and uploads initially select every column except the target.
+A dataset or target change, or explicit reload, resets that selection, even for
+identical data or two datasets sharing a target name. Manual predictor edits
+remain intact when navigating pages or changing inspection settings.
+Customer segmentation defaults to target Segmentation and the other ten columns,
+including ID; there is no hidden Age-only preset. Review identifiers and leakage,
+and encode categorical predictors/handle missing values before preparing. The
+existing numeric/finite checks remain in force; selecting a column does not
+silently preprocess it or make it suitable for training.

@@ -1,3 +1,13 @@
+# DDESONN 7.3.25
+
+- Default Predictors to every column except the chosen target for packaged and
+  uploaded datasets. Remove hidden preset/numeric-only selection rules.
+- Reset predictor choices when the dataset or target changes, including datasets
+  sharing the same target name and identical explicit reloads. Exclude the target
+  from predictor choices.
+- Explain that all-column selection still requires review of identifiers/leakage,
+  numeric encoding and missing values; preparation validation is unchanged.
+
 # DDESONN 7.3.24
 
 - Load packaged examples immediately when the dropdown changes, keeping inspector
