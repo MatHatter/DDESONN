@@ -117,6 +117,7 @@ wb_ui <- function() {
       shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds", width = "100%"),
       shiny::div(class = "error", role = "alert", shiny::textOutput("wb_load_error")),
       shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
+      shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
       shiny::uiOutput("wb_prediction_model_ui"),
       shiny::div(class = "wb-guidance", shiny::textOutput("wb_active_model")),
       shiny::tags$details(shiny::tags$summary("Model details"), shiny::textOutput("wb_saved_info")),
