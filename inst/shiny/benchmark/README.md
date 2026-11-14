@@ -1,5 +1,12 @@
 # DDESONN model workbench
 
+## Dataset and Features alignment (7.3.26)
+
+Loading a dataset updates Features target and all-non-target predictor choices
+even while the tab is hidden. Both the numbered tab and Next show these controls
+and the loaded dataset name. Navigating alone preserves your manual selections.
+Packaged examples reset split defaults: ordered for WMT, random for the others.
+
 ## Dataset inspector (7.3.24)
 
 Example changes load immediately. Inspect head, tail or a row range, choose

@@ -147,3 +147,30 @@ test_that("normalization preserves dimensions for one and multiple predictors", 
     expect_identical(dim(actual), dim(d))
   }
 })
+
+test_that("loading examples synchronizes hidden Features controls and split defaults", {
+  f <- example_fixture(); h <- f$h
+  server <- h$wb_server; formals(server)$helper <- file.path(f$path, "workbench_helpers.R")
+  shiny::testServer(server, {
+    messages <- new.env()
+    session$sendInputMessage <- function(id, message) messages[[id]] <- message
+    session$setInputs(wb_example = "iris", wb_target = "Species", workspace = "data")
+    for (id in c("wmt", "customer_train", "mtcars", "heart_failure", "iris")) {
+      session$setInputs(wb_example = id)
+      ex <- h$wb_example(id)
+      expect_identical(messages$wb_target$value, ex$target)
+      expect_setequal(messages$wb_features$value, setdiff(names(ex$data), ex$target))
+      expect_identical(messages$wb_mode$value, ex$mode)
+      expect_identical(messages$wb_split$value, if (is.null(ex$split)) "random" else ex$split)
+      expect_match(output$wb_features_source, ex$label, fixed = TRUE)
+    }
+    session$setInputs(wb_features = "Sepal.Length", wb_target = "Species")
+    session$flushReact()
+    rm(list = ls(messages), envir = messages)
+    session$setInputs(workspace = "features", wb_next_features = 1)
+    session$setInputs(workspace = "data")
+    session$setInputs(workspace = "features")
+    expect_false(exists("wb_target", messages, inherits = FALSE))
+    expect_false(exists("wb_features", messages, inherits = FALSE))
+  })
+})

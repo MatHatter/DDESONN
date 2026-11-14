@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.26 — align Features with the loaded dataset
+
+Both Features navigation paths show the loaded dataset's target, task and all
+non-target predictors. Loading a new example refreshes these defaults while
+ordinary navigation preserves manual choices. WMT defaults to ordered splits;
+other packaged training examples default to random splits.
+
 ## Version 7.3.24 — browse and profile your dataset
 
 The inspector follows the selected example immediately. Browse head, tail or

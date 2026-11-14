@@ -20,16 +20,18 @@ the GitHub source link is for browsing, not an automatic download fallback.
 | Example | Suggested task / target | Starting predictors | Important context |
 |---|---|---|---|
 | Iris | Multiclass / Species | Four numeric measurements | Small first example, 150 rows. |
-| mtcars | Regression / mpg | wt, hp | Small regression example, 32 rows. |
+| mtcars | Regression / mpg | All columns except mpg | Small regression example, 32 rows. |
 | Heart failure | Binary / DEATH_EVENT | All 12 numeric predictors | Repeated inputs limit evaluation; see the research vignette. |
-| WMT prices | Regression / close | open, high, low, volume | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
-| Customer labeled dataset | Multiclass / Segmentation | Age | Other columns contain categories or missing values; ID is not preselected. |
+| WMT prices | Regression / close | All columns except close | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
+| Customer labeled dataset | Multiclass / Segmentation | All columns except Segmentation | Review ID, categories and missing values before preparation. |
 
 The full original rows and columns remain available for inspection and download.
-The suggested predictors are complete numeric columns. No rows are silently
-deleted, categories encoded, or missing values imputed. Prepare additional
-predictors yourself before selecting them. In WMT, the date is nonnumeric and
-adjusted close derives from close, so neither is preselected for this illustration.
+All columns except the target start selected. No rows are silently deleted,
+categories encoded, or missing values imputed. Remove identifiers and information
+derived from the answer; encode categories and handle missing values before
+preparing. For WMT, review the nonnumeric date and answer-derived adjusted close.
+On Features, the dataset name confirms what is loaded. Both navigation paths
+show its target and predictor defaults; moving between tabs preserves your edits.
 
 ## A first iris model
 
@@ -41,8 +43,8 @@ adjusted close derives from close, so neither is preselected for this illustrati
 4. On **4. Model / Results**, inspect the evaluations and predictions. Results
    depend on settings and seed; this is a small workflow example, not a performance claim.
 
-For mtcars, load its example instead. The suggested target is mpg, predictors wt
-and hp, and task Regression. You can change the suggestions on Features.
+For mtcars, load its example instead. The default target is mpg, task Regression, and predictors all other columns.
+For a smaller example, manually select only wt and hp on Features.
 **Show full R code** follows your actual prepared data and settings after preparation.
 
 ## Read the same data in R
@@ -69,7 +71,8 @@ The existing data files are reused; no external datasets are added by this chang
 ## Predict using the unlabeled customer file
 
 Train a customer model first, or load your compatible saved workbench bundle.
-The customer training preset uses Age as a complete numeric starting predictor;
+The customer preset selects all non-target columns; for a simple numeric model,
+manually select Age alone after reviewing the schema.
 the matching test file also contains Age. Under **Model / Results → Saved models & predictions → Predict on new rows**,
 click **Predict customer groups with completed model**, or download the optional
 customer prediction CSV. These rows have no Segmentation labels; they are not

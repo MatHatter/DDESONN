@@ -1,3 +1,12 @@
+# DDESONN 7.3.26
+
+- Refresh target and predictor choices when a dataset is loaded, including while
+  Features is hidden, for both the tab and Next: choose features navigation.
+- Identify the loaded dataset on Features. Preserve all-non-target predictor
+  defaults and manual selections when merely navigating between tabs.
+- Reset packaged split defaults when changing examples: WMT uses ordered;
+  the other training examples use random splitting.
+
 # DDESONN 7.3.25
 
 - Default Predictors to every column except the chosen target for packaged and

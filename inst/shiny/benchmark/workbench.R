@@ -168,6 +168,7 @@ wb_ui <- function() {
       shiny::sidebarLayout(
         shiny::sidebarPanel(
           wb_heading("Choose what the model learns", "The target is the answer you want to predict. Predictors supply the evidence. Task type determines the kind of answer the model produces and the metrics used to assess it."),
+          shiny::div(class = "wb-guidance", shiny::textOutput("wb_features_source")),
           shiny::uiOutput("wb_columns"),
           wb_field("wb_mode", "Task", "Regression predicts a number, such as price. Binary classification chooses between two classes. Multiclass classification chooses among several classes. Choose a task that matches your target.",
             shiny::selectInput("wb_mode", NULL, c("Multiclass classification" = "multiclass", "Binary classification" = "binary", "Regression" = "regression"))),
@@ -461,6 +462,21 @@ wb_server <- function(input, output, session, helper) {
         shiny::selectizeInput("wb_features", NULL, setdiff(cols, target), selected = wb_default_features(raw(), target, preset), multiple = TRUE)),
       shiny::p(class = "wb-guidance", "All non-target columns start selected. Review IDs and leakage; encode categories and handle missing values before preparing data."))
   })
+  # Refresh hidden Features controls before either navigation path reveals them.
+  shiny::outputOptions(output, "wb_columns", suspendWhenHidden = FALSE)
+  output$wb_features_source <- shiny::renderText(paste("Dataset:", data_source()))
+  shiny::observeEvent(data_revision(), {
+    session$onFlushed(function() {
+      shiny::isolate({
+        cols <- names(raw()); preset <- dataset_preset()
+        target <- if (is.null(preset)) tail(cols, 1) else preset$target
+        shiny::updateSelectInput(session, "wb_target",
+          choices = c("Choose a target" = "", stats::setNames(cols, cols)), selected = target)
+        features <- wb_default_features(raw(), target)
+        shiny::updateSelectizeInput(session, "wb_features", choices = features, selected = features)
+      })
+    }, once = TRUE)
+  }, ignoreInit = TRUE)
   for (id in c("wb_data_vignettes", "wb_features_vignettes", "wb_training_vignettes", "wb_prediction_vignettes", "wb_experiment_vignettes")) local({
     link_id <- id
     shiny::observeEvent(input[[link_id]], shiny::updateTabsetPanel(session, "workspace", selected = "vignettes"))
@@ -526,7 +542,7 @@ wb_server <- function(input, output, session, helper) {
     dataset_preset(example); raw(example$data); data_revision(data_revision() + 1L); prepared(NULL); data_origin(example$source)
     data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
     if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
-    if (!is.null(example$split)) shiny::updateSelectInput(session, "wb_split", selected = example$split)
+    shiny::updateSelectInput(session, "wb_split", selected = if (is.null(example$split)) "random" else example$split)
   }
   shiny::observeEvent(input$wb_demo, attempt(load_example()))
   shiny::observeEvent(input$wb_example, attempt(load_example()), ignoreInit = TRUE)
