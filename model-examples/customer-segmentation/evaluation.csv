@@ -1,0 +1,10 @@
+"Split","Metric","Value"
+"train","Accuracy",0.540959867604468
+"train","Log loss",1.0548147361025
+"train","Brier score",0.579839144711985
+"validation","Accuracy",0.508652657601978
+"validation","Log loss",1.11248944544522
+"validation","Brier score",0.607194798045035
+"test","Accuracy",0.522277227722772
+"test","Log loss",1.09234318587819
+"test","Brier score",0.59496953293776
