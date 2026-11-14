@@ -1,3 +1,12 @@
+# DDESONN 7.3.31
+
+- Add a visible “Need help preparing a model?” guide under Saved models &
+  predictions. Explain how to use ChatGPT separately, reference this repository
+  and the installed version, obtain a trained compatible workbench bundle or
+  reproducible R script, load the bundle, upload predictor rows and export results.
+- Include an adaptable customer-segmentation prompt and clarify that generated
+  instructions are not a trained model; held-out evaluation still needs review.
+
 # DDESONN 7.3.30 (proposed)
 
 - For binary workbench preparation, split groups of identical retained predictor
