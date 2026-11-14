@@ -1,5 +1,31 @@
 # DDESONN model workbench
 
+## Starting fresh and changing models (7.3.36)
+
+Click **Clear saved-model workspace** to empty saved-model selection, all loaded
+saved models, CSV data and results, and both browser file pickers. It does not
+change the training workflow or delete files from your computer. This is optional;
+you can also browse for another model directly.
+
+The current valid model remains active while a replacement uploads/validates.
+Failed replacement errors appear beside the upload control; the valid previous
+model is retained. After a successful replacement or a dropdown selection change,
+load your CSV again: the previous CSV and results are cleared so they cannot be
+mistaken for the new model's data. Selecting the already active dropdown entry
+does not clear it. Re-uploading the exact same file refreshes that entry instead
+of adding another copy. File pickers and progress captions reset along with the
+server state, so selecting the same disk file again works after clearing.
+
+A second example is available as
+[Customer Segmentation — Compact 16x8 ZIP](https://raw.githubusercontent.com/MatHatter/DDESONN/artifacts/customer-segmentation-two-files/model-examples/customer-segmentation-two-files/customer-segmentation-two-files.zip).
+The ZIP contains exactly **two files**: `customer-segmentation-compact-16x8.rds`
+and `customer-segmentation-evaluation.csv`. Upload the `.rds` in step 1, upload
+the CSV in step 2, and click **Evaluate model**. No other files, retraining or
+extra uploads are needed. The labeled CSV repeats 20 original test rows for an
+evaluation demonstration; it is not a new independent benchmark. It shares the
+original example's prepared splits and uses smaller 16/8 hidden layers. It is an
+alternative example, not a claim of better accuracy or new independent test data.
+
 ## CSV upload: evaluation or prediction (7.3.34)
 
 The original saved-model scores answer “How did this model perform on its original

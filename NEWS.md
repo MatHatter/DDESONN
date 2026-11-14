@@ -1,3 +1,16 @@
+# DDESONN 7.3.36
+
+- Add Clear saved-model workspace to reset loaded models, both file pickers,
+  uploaded CSV data, scores and results without touching training or disk files.
+- Clear the previous CSV and results when changing or reloading saved models.
+  Refresh an existing entry for an identical uploaded file instead of adding a
+  duplicate. Keep a failed replacement's error beside upload and retain the
+  previous valid model until a replacement validates successfully.
+- Expand the upload and model-selection controls to show longer filenames.
+- Provide a Compact 16x8 download with exactly two files: the trained .rds model
+  and one labeled evaluation CSV. No other uploads or training steps are required.
+  It uses the original model's grouped partitions and fitted preprocessing; it is a different model, not a claim of improved performance.
+
 # DDESONN 7.3.34
 
 - Give CSV upload two explicit purposes: evaluate labeled data (default) or
