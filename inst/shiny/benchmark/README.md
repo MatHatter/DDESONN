@@ -1,5 +1,39 @@
 # DDESONN model workbench
 
+## Recent runs and exact clear scopes (7.3.37)
+
+**Recent runs** is a separate tab in both workflows. It keeps the latest 10
+successful trained models, validated model uploads and completed CSV evaluation/
+production runs for the current browser session. CSV snapshots include the model,
+input rows, purpose, report and predictions so Restore does not retrain or rescore.
+Duplicate uploaded-model entries refresh one item; separately completed CSV runs
+are separate records. Failed or cancelled attempts remain in training history,
+not in this successful-run archive.
+
+| Action | What changes | What remains unchanged |
+|---|---|---|
+| Clear saved-model workspace | Open saved models/selection, CSV, scores/history displays, results, file pickers, saved-workspace errors and purpose choice reset | Recent runs, all training data/settings/models/attempts, files on disk |
+| Remove selected history item | Only that Recent runs snapshot is removed | Active saved models/CSV/results, other recent items, training and disk files |
+| Clear recent history | Only this session's Recent runs archive is emptied | Active saved models/CSV/results, training and disk files |
+| Restore selected item | A copy opens in the saved workflow; a CSV snapshot restores its data/mode/results too | Training state, the archive record and disk files |
+
+Restored file pickers are blank because restoring an in-memory snapshot is not a
+new file upload. A visible notice names the restored item. Switching model or
+uploading another CSV clears the prior results as before.
+
+This archive is session memory, **not permanent storage**. Ending/restarting the
+session loses it. Restore a model and use Save & export to download its `.rds`
+before leaving if you want to keep it. Recent runs is not shared across users.
+
+Successful training shows a brief acknowledgment and a link to the new community
+guide. The Vignettes tab and guide link to the author's
+[LinkedIn](https://www.linkedin.com/in/mathewfok), email and GitHub, invite people to
+share applications and achievements, and distinguish future visualization/OLR
+plans from the current experimental SSM findings.
+
+Earlier version notes below describe the interfaces at those versions; the scope
+and archive behavior above supersede the earlier reset descriptions.
+
 ## Plain-language CSV choices (7.3.36)
 
 The two choices have compact circled lowercase-i disclosures:

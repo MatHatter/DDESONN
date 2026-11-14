@@ -197,3 +197,15 @@ Use Download PNG or SVG to save the chart, or Download loss data for the plotted
 records including fit/local-epoch columns. Copy chart image puts the visible
 chart bitmap on the clipboard in supported browsers. If browser permissions or
 the RStudio viewer prevent image copying, use the PNG/SVG downloads instead.
+
+## Keep recent work and share what you built
+
+Recent runs keeps completed models and CSV results in this browser session only.
+Clearing the saved-model workspace preserves this archive; removing history does
+not clear active work or training. Restore a model and download its `.rds` to keep
+it permanently. Restoring a recent CSV run restores its recorded results rather
+than starting another fit.
+
+Please share your applications, achievements or suggestions with the author. See
+the [community and next-steps guide](https://github.com/MatHatter/DDESONN/blob/main/vignettes/community-and-next-steps.Rmd),
+or [connect on LinkedIn](https://www.linkedin.com/in/mathewfok).

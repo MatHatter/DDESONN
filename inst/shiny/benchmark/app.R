@@ -345,9 +345,9 @@ ui <- shiny::fluidPage(
       shiny::tabPanel("Vignettes", value = "vignettes",
         shiny::div(class = "panel-body-custom",
           dashboard_vignettes_ui(dashboard_vignette_dir())))))),
-  shiny::div(class = "wb-full-code-bar",
+  shiny::conditionalPanel("input.workspace !== 'recent'", shiny::div(class = "wb-full-code-bar",
     shiny::actionButton("wb_show_full_code", "Show full R code"),
-    shiny::p("Help icons show one topic at a time. View or download the complete workflow here.")))
+    shiny::p("Help icons show one topic at a time. View or download the complete workflow here."))))
 
 shiny::shinyApp(ui, function(input, output, session) {
   dashboard_server(default_data)(input, output, session)

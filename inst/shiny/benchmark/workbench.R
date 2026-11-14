@@ -135,16 +135,29 @@ wb_ui <- function() {
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
       shiny::div(class = "wb-export-right", wb_download_button("wb_predictions_download", "Download evaluated predictions"),
       shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))))
+  recent <- shiny::tabPanel("Recent runs", value = "recent",
+    shiny::div(class = "panel-body-custom",
+      shiny::h3("Recent runs — this browser session"),
+      shiny::p("Keeps the latest 10 completed training models, loaded models and CSV evaluation/prediction runs in memory for this Shiny session. Nothing here is automatically saved to disk. Restore a model and use Save & export to download its .rds before ending the session."),
+      shiny::p("Clear saved-model workspace does not remove this history. Remove selected item and Clear recent history remove only archive entries: they do not close an active model, erase training results or delete files."),
+      shiny::uiOutput("wb_recent_items"),
+      shiny::actionButton("wb_recent_restore", "Restore selected item", disabled = "disabled"),
+      shiny::actionButton("wb_recent_remove", "Remove selected history item", disabled = "disabled"),
+      shiny::actionButton("wb_recent_clear", "Clear recent history", disabled = "disabled"),
+      shiny::div(`aria-live` = "polite", shiny::textOutput("wb_recent_notice")),
+      shiny::div(class = "error", role = "alert", shiny::textOutput("wb_recent_error"))))
   models <- shiny::tabPanel("Saved model → evaluate or predict", value = "saved",
     shiny::div(class = "panel-body-custom",
       shiny::h3("1. Choose a model"),
-      shiny::p("Upload a completed .rds model here. This workflow keeps your saved models separate from Data, Features and Build & Train. It does not train again or fill those tabs."),
+      shiny::p("Upload a completed .rds model here. Uploading and scoring keep Data, Features and Build & Train unchanged. Training starts only if you explicitly choose the optional Train further action."),
       shiny::actionButton("wb_clear_saved", "Clear saved-model workspace"),
-      shiny::p("Start over here before browsing if you want a blank workspace. This clears loaded saved models, the CSV and results; it does not delete files or change training. A new file replaces the active selection only after it loads successfully."),
+      shiny::p("Starts this Saved model → evaluate or predict tab blank: clears its open models/selection, model summary and history display, CSV, results, file pickers, errors and purpose choice. Keeps Recent runs, all training data/settings/results and files on your computer. A replacement file becomes active only after it validates successfully."),
       shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds", width = "100%"),
       shiny::div(class = "error", role = "alert", shiny::textOutput("wb_load_error")),
       shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
       shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
+      shiny::p("Loading a model does not create a new file on disk. Recent runs keeps session snapshots; Save & export downloads a model file for permanent keeping."),
+      shiny::div(`aria-live` = "polite", shiny::textOutput("wb_workspace_notice")),
       shiny::uiOutput("wb_prediction_model_ui"),
       shiny::div(class = "wb-guidance", shiny::textOutput("wb_active_model")),
       shiny::tags$details(shiny::tags$summary("Model details"), shiny::textOutput("wb_saved_info")),
@@ -204,7 +217,7 @@ wb_ui <- function() {
             wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"))),
         shiny::tabPanel("Save & export", value = "export",
           wb_heading("Save or restore", "Export a copy of the selected model, or its training recipe. A recipe is code, not trained weights."),
-          shiny::p("You do not need to download a model you just uploaded. These optional exports save the selected model or its recipe. Nothing on this page changes your training workspace."),
+          shiny::p("You do not need to download a model you just uploaded. These optional exports download the selected model or its recipe to your computer. Exporting a copy does not change either workspace."),
           wb_download_button("wb_save", "Download model bundle (.rds)"),
           shiny::br(), shiny::br(), shiny::uiOutput("wb_completed_recipe_button"),
           wb_code_panel("wb_completed_code", "Equivalent R code — completed model"),
@@ -439,9 +452,11 @@ wb_ui <- function() {
           shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; Custom exposes dropout. Internal batch normalization is off. Cancelled or failed runs retain any previous completed model.")),
           shiny::div(class = "panel-body-custom",
             wb_heading("Current completed model", "Select a successful training run below. Uploaded models live separately in Use a saved model. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
-            shiny::conditionalPanel("output.wb_has_model === 'yes'", shiny::p("Select a completed run to show its settings, chart and results.")),
+            shiny::conditionalPanel("output.wb_has_model === 'yes'", shiny::p("Select a completed run to show its settings, chart and results. Completed models and Recent runs are in this session only; download the .rds to keep it after the session ends.")),
             shiny::uiOutput("wb_run_choices"),
             shiny::textOutput("wb_settings_origin"),
+            shiny::p(class = "wb-guidance", shiny::textOutput("wb_training_success")),
+            wb_vignette_link("wb_community_vignettes", "Share what you built or contribute ideas"),
             shiny::textOutput("wb_model_info"),
             shiny::textOutput("wb_checkpoint_summary"),
             wb_code_panel("wb_training_code", "Equivalent R code — next new model"),
@@ -454,7 +469,7 @@ wb_ui <- function() {
       shiny::p(class = "wb-step-intro", "Finally, review performance and outputs, save the model, or use it for new predictions. Results reflect the saved choices from the earlier steps."),
       shiny::tabsetPanel(id = "wb_results_tabs", performance),
       shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")),
-    models
+    models, recent
   )
 }
 
@@ -516,6 +531,28 @@ wb_server <- function(input, output, session, helper) {
   result <- shiny::reactiveVal(NULL)
   completed_runs <- shiny::reactiveVal(list())
   selected_run <- shiny::reactiveVal(NULL)
+  recent_runs <- shiny::reactiveVal(list())
+  recent_counter <- shiny::reactiveVal(0L)
+  recent_notice <- shiny::reactiveVal(NULL)
+  recent_error <- shiny::reactiveVal(NULL)
+  workspace_notice <- shiny::reactiveVal(NULL)
+  restoring_purpose <- shiny::reactiveVal(NULL)
+  training_success <- shiny::reactiveVal(NULL)
+  remember_recent <- function(bundle, kind, run = NULL, key = NULL) {
+    records <- recent_runs()
+    same <- if (is.null(key)) integer() else which(vapply(records, function(record) identical(record$key, key), logical(1)))
+    if (length(same)) id <- names(records)[same[1]] else {
+      recent_counter(recent_counter() + 1L); id <- paste0("recent-", recent_counter())
+    }
+    record <- unserialize(serialize(list(id = id, kind = kind, key = key, bundle = bundle, run = run), NULL))
+    records <- c(stats::setNames(list(record), id), records[setdiff(names(records), id)])
+    recent_runs(utils::head(records, 10L))
+  }
+  selected_recent <- shiny::reactive({
+    id <- input$wb_recent_id
+    if (length(id) != 1L || !id %in% names(recent_runs())) return(NULL)
+    recent_runs()[[id]]
+  })
   saved_models <- shiny::reactiveVal(list())
   selected_saved <- shiny::reactiveVal(NULL)
   active_model <- shiny::reactive({ if (is.null(selected_saved())) NULL else saved_models()[[selected_saved()]] })
@@ -640,6 +677,7 @@ wb_server <- function(input, output, session, helper) {
   }
   shiny::observeEvent(input$wb_selected_run, select_completed(input$wb_selected_run), ignoreInit = TRUE)
   clear_saved_rows <- function() {
+    workspace_notice(NULL); restoring_purpose(NULL)
     prediction_data(NULL); prediction_source(NULL); new_predictions(NULL)
     prediction_provenance(NULL); prediction_report(NULL); model_error(NULL)
     session$sendCustomMessage("wb-reset-files", list(ids = c("wb_new_data")))
@@ -669,18 +707,68 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_model_ui <- shiny::renderUI({
     models <- saved_models(); if (!length(models)) return(NULL)
     labels <- vapply(names(models), function(id) paste0(models[[id]]$model_name, " · ", id), character(1))
-    shiny::selectInput("wb_prediction_model", "Current saved model", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "100%")
+    shiny::selectInput("wb_prediction_model", "Models open in this saved-model workspace", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "100%")
   })
   shiny::observeEvent(input$wb_use_trained_model, attempt({
     if (is.null(result())) stop("Train a model before using it for prediction.")
     add_saved(result()); set_flow("saved")
   }, model_error))
+  output$wb_recent_items <- shiny::renderUI({
+    records <- recent_runs()
+    if (!length(records)) return(shiny::p("No recent runs in this session yet. Successful training, model uploads and completed CSV runs will appear here."))
+    current <- shiny::isolate(input$wb_recent_id)
+    if (length(current) != 1L || !current %in% names(records)) current <- names(records)[1]
+    shiny::radioButtons("wb_recent_id", "Choose a recent item (newest first)", width = "100%",
+      selected = current, choiceValues = names(records), choiceNames = unname(lapply(records, function(record) {
+        detail <- if (is.null(record$run)) paste(record$bundle$prepared$mode, "model") else
+          paste0(record$run$source, " · ", nrow(record$run$data), " rows", if (!is.null(record$run$report$metrics)) {
+            metrics <- record$run$report$metrics
+            metric <- if (record$bundle$prepared$mode == "regression") "RMSE" else "Accuracy"
+            value <- metrics$Value[match(metric, metrics$Metric)]
+            if (metric == "Accuracy") sprintf(" · CSV accuracy %.2f%%", value * 100) else sprintf(" · CSV RMSE %.4f", value)
+          } else " · predictions only")
+        shiny::tagList(shiny::strong(paste(record$kind, record$bundle$model_name, sep = " · ")),
+          shiny::tags$span(class = "wb-run-summary", paste(record$id, detail, sep = " · ")))
+      })))
+  })
+  shiny::observeEvent(input$wb_recent_remove, attempt({
+    record <- selected_recent(); if (is.null(record)) stop("Select a recent item first.")
+    records <- recent_runs(); records[[record$id]] <- NULL; recent_runs(records)
+    recent_notice("Removed that history item only. Active saved models, CSV/results, training and disk files are unchanged.")
+  }, recent_error))
+  shiny::observeEvent(input$wb_recent_clear, {
+    recent_runs(list()); recent_error(NULL)
+    recent_notice("Recent history cleared for this session only. Active saved models, CSV/results, training and disk files are unchanged.")
+  })
+  shiny::observeEvent(input$wb_recent_restore, attempt({
+    busy(); record <- selected_recent(); if (is.null(record)) stop("Select a recent item first.")
+    add_saved(record$bundle); load_error(NULL); set_flow("saved", "saved")
+    session$sendCustomMessage("wb-reset-files", list(ids = c("wb_load", "wb_new_data")))
+    shiny::updateTabsetPanel(session, "wb_model_tools", selected = "predict")
+    if (!is.null(record$run)) {
+      run <- record$run
+      restoring_purpose(if (!identical(csv_purpose(), run$purpose)) run$purpose else NULL)
+      shiny::updateRadioButtons(session, "wb_csv_purpose", selected = run$purpose)
+      prediction_data(run$data); prediction_source(run$source)
+      prediction_report(run$report); new_predictions(run$predictions); prediction_provenance(run$provenance)
+      workspace_notice(paste0("Restored model and CSV results from ", record$id, " in this session. File pickers are blank because no files were re-uploaded. Training is unchanged."))
+    } else workspace_notice(paste0("Restored model from ", record$id, " in this session. Upload a CSV to evaluate or predict. Training is unchanged."))
+    recent_notice("Restored a copy into Saved model → evaluate or predict. The history item remains available.")
+  }, recent_error))
+  output$wb_recent_notice <- shiny::renderText(recent_notice())
+  output$wb_recent_error <- shiny::renderText(recent_error())
+  output$wb_workspace_notice <- shiny::renderText(workspace_notice())
+  output$wb_training_success <- shiny::renderText(training_success())
   csv_purpose <- shiny::reactive(if (is.null(input$wb_csv_purpose)) "evaluate" else input$wb_csv_purpose)
   csv_target_check <- shiny::reactive({
     if (is.null(active_model()) || is.null(prediction_data())) return(list(valid = FALSE, message = "Upload a model and CSV first."))
     wb_evaluation_target_check(active_model()$prepared, prediction_data())
   })
   shiny::observeEvent(input$wb_csv_purpose, {
+    if (!is.null(restoring_purpose()) && identical(input$wb_csv_purpose, restoring_purpose())) {
+      restoring_purpose(NULL); return(invisible(NULL))
+    }
+    restoring_purpose(NULL); workspace_notice(NULL)
     new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL); model_error(NULL)
   }, ignoreInit = TRUE)
   shiny::observe(shiny::updateActionButton(session, "wb_predict", label = if (csv_purpose() == "evaluate") "Evaluate model" else "Run predictions"))
@@ -699,6 +787,8 @@ wb_server <- function(input, output, session, helper) {
       wb_new_download = !is.null(new_predictions()), wb_new_data = saved,
       wb_use_trained_model = completed && !running,
       wb_load = !running, wb_clear_saved = !running,
+      wb_recent_restore = !is.null(selected_recent()) && !running,
+      wb_recent_remove = !is.null(selected_recent()), wb_recent_clear = length(recent_runs()) > 0,
       wb_prepare = !running && length(input$wb_target) == 1 && nzchar(input$wb_target) && input$wb_target %in% names(raw()) &&
         length(input$wb_features) > 0 && !input$wb_target %in% input$wb_features,
       wb_data = !running, wb_demo = !running, wb_example = !running,
@@ -739,7 +829,7 @@ wb_server <- function(input, output, session, helper) {
       })
     }, once = TRUE)
   }, ignoreInit = TRUE)
-  for (id in c("wb_data_vignettes", "wb_features_vignettes", "wb_training_vignettes", "wb_prediction_vignettes", "wb_experiment_vignettes")) local({
+  for (id in c("wb_data_vignettes", "wb_features_vignettes", "wb_training_vignettes", "wb_prediction_vignettes", "wb_experiment_vignettes", "wb_community_vignettes")) local({
     link_id <- id
     shiny::observeEvent(input[[link_id]], shiny::updateTabsetPanel(session, "workspace", selected = "vignettes"))
   })
@@ -844,6 +934,7 @@ wb_server <- function(input, output, session, helper) {
   }))
   launch <- function(p, cfg, old = NULL) {
     busy()
+    training_success(NULL)
     id <- begin_attempt(cfg, if (is.null(old)) "New training" else
       paste0("Warm start from Run ", if (is.null(selected_run())) "loaded model" else selected_run()))
     next_job <- wb_start(helper, p, cfg, old)
@@ -893,7 +984,9 @@ wb_server <- function(input, output, session, helper) {
           complete$training_log <- read_job_log(active)
           complete <- wb_validate_bundle(complete)
           add_completed(complete); error(NULL)
+          remember_recent(result(), "Trained model", key = paste0("trained-", selected_run()))
           finish_attempt("Completed")
+          training_success("Model trained—nice work. Review its held-out results before using it for new predictions.")
         }, error = function(e) {
           finish_attempt("Failed", wb_training_error(e, if (file.exists(active$error))
             readLines(active$error, warn = FALSE) else character()))
@@ -910,10 +1003,13 @@ wb_server <- function(input, output, session, helper) {
     candidate$model_name <- if (is.null(input$wb_load$name)) "Loaded workbench model" else basename(input$wb_load$name)
     candidate$source_filename <- candidate$model_name
     candidate$upload_sha256 <- digest::digest(file = input$wb_load$datapath, algo = "sha256")
-    add_saved(candidate); set_flow("saved")
+    add_saved(candidate)
+    remember_recent(active_model(), "Loaded model", key = paste0("upload-", candidate$upload_sha256))
+    set_flow("saved")
     shiny::updateTabsetPanel(session, "wb_model_tools", selected = "predict")
   }, load_error))
   shiny::observeEvent(input$wb_new_data, attempt({
+    workspace_notice(NULL)
     new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL); prediction_data(NULL); prediction_source(NULL)
     prediction_data(read_csv(input$wb_new_data))
     prediction_source(basename(input$wb_new_data$name))
@@ -929,6 +1025,9 @@ wb_server <- function(input, output, session, helper) {
     if (!is.null(report$metrics)) predictions <- cbind(predictions[1], actual = prediction_data()[[active_model()$prepared$target]], predictions[-1])
     new_predictions(predictions)
     prediction_provenance(list(model = active_model()$model_name, source = prediction_source(), rows = nrow(predictions), purpose = csv_purpose()))
+    remember_recent(active_model(), if (csv_purpose() == "evaluate") "CSV evaluation" else "Production prediction",
+      run = list(data = prediction_data(), source = prediction_source(), purpose = csv_purpose(),
+        report = prediction_report(), predictions = new_predictions(), provenance = prediction_provenance()))
   }, model_error))
   output$wb_load_error <- shiny::renderText(if (!is.null(load_error())) paste0("Saved-model action failed: ", load_error(), " The previous active model, if any, is still selected."))
   output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Selected model:", active_model()$model_name))

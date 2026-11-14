@@ -84,6 +84,8 @@ test_that("extra epochs create a named new model without replacing the upload", 
     expect_identical(task_flow(), "train")
     expect_identical(active_model()$model_name, "original.rds")
     expect_length(completed_runs(), 2)
+    expect_true(any(vapply(recent_runs(), function(record) record$kind == "Trained model", logical(1))))
+    expect_match(output$wb_training_success, "Model trained", fixed = TRUE)
     expect_identical(serialize(saved_models()[[original_id]], NULL), original)
     expect_match(result()$model_name, "original.rds · extra fit", fixed = TRUE)
     expect_equal(result()$config$epochs, 1)
