@@ -64,6 +64,21 @@ ui <- shiny::fluidPage(
       var saved = document.querySelector('#workspace a[data-value=\"saved\"]');
       if (saved) document.querySelector(saved.getAttribute('href')).classList.add('wb-saved-pane');
     });
+    Shiny.addCustomMessageHandler('wb-reset-files', function(message) {
+      [].concat(message.ids || []).forEach(function(id) {
+        var input = document.getElementById(id);
+        if (!input) return;
+        // An empty change uses Shiny's file binding to stop any pending upload.
+        input.value = '';
+        $(input).trigger('change');
+        var group = input.closest('.shiny-input-container');
+        if (group) {
+          group.querySelectorAll('input[type=text]').forEach(function(caption) { caption.value = ''; });
+          group.querySelectorAll('.shiny-file-input-progress').forEach(function(progress) { progress.style.visibility = 'hidden'; progress.querySelectorAll('.progress-bar').forEach(function(bar) { bar.style.visibility = 'hidden'; bar.style.width = '0%'; bar.textContent = ''; }); });
+        }
+        Shiny.setInputValue(id, null, {priority:'event'});
+      });
+    });
     var wbActionStates = {};
     function wbApplyActionStates() {
       Object.keys(wbActionStates).forEach(function(id) {

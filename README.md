@@ -2,6 +2,16 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.35 — clear saved models and start fresh
+
+Use **Clear saved-model workspace** before browsing if you want to start blank.
+It resets loaded models, the CSV, file-picker captions and displayed results;
+your training workspace and files on disk stay unchanged. Switching or reloading
+a model also clears the previous CSV. Identical uploads refresh one entry rather
+than adding duplicates, and invalid replacements keep the last valid model with
+an error beside upload. A separately downloadable Compact 16x8 customer model
+provides a distinctly named second model to try.
+
 ## Version 7.3.34 — evaluate labeled CSVs or predict unknown answers
 
 Choose **Evaluate the model on labeled data** to measure accuracy against known
