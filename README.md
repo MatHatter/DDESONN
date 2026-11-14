@@ -2,6 +2,19 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.37 — recent runs and clearer workspace boundaries
+
+**Recent runs** retains the latest 10 completed models and CSV runs in this browser
+session. Restore an item, remove it individually, or clear recent history. Clearing
+the saved-model workspace preserves Recent runs and training; clearing history
+preserves the active workspace. This is in-memory history, not automatic disk
+storage: download a model bundle to keep it after the session ends.
+
+A new [community guide](vignettes/community-and-next-steps.Rmd) invites you to share
+what you built, contribute examples or ideas, and connect with the author on
+[LinkedIn](https://www.linkedin.com/in/mathewfok). It also covers the planned
+visualization idea, separate OLR work and the current experimental SSM findings.
+
 ## Version 7.3.36 — explain holdout testing and production prediction
 
 The CSV choices now say **Evaluate a holdout sample (known answers)** and
@@ -1744,10 +1757,23 @@ The author also maintains additional modeling projects in R and Python, includin
 
 ## Contact
 
-If you found DDESONN useful, interesting, or thought-provoking, feel free to connect with me on **LinkedIn**.
+I'd be grateful to hear what you have built or achieved with DDESONN. Following
+these recent updates, I strongly encourage contributions, useful applications,
+reproducible experiments, fixes, documentation and suggestions. Please reach out
+with good ideas, questions, or results—including things that did not work.
 
-If you send a connection request, please include a short note mentioning DDESONN so I know where you found it. I read those messages.
+[Connect with me on LinkedIn](https://www.linkedin.com/in/mathewfok) or
+[email me](mailto:quiksilver67213@yahoo.com). Please mention DDESONN in your
+connection request. You can also share applications, issues and ideas through
+[GitHub issues](https://github.com/MatHatter/DDESONN/issues) and contribute a pull
+request. I appreciate hearing how people use the model and what we could build next.
 
-Questions about the architecture, implementation details, or research design are welcome. I’m happy to respond when I can.
+I still want to explore the neural-network/equation visualization idea described
+in the roadmap, and I plan to refresh my separate OLR modeling package. If you find
+a useful SSM application, please let me know: current benchmarks have not shown a
+meaningful improvement over the baseline, and independent reproducible evidence
+is welcome. I welcome suggestions and help with these future directions.
+
+See the [community and next-steps guide](vignettes/community-and-next-steps.Rmd).
 
 **Mathew William Armitage Fok**

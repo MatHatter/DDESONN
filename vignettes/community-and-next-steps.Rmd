@@ -1,0 +1,71 @@
+---
+title: "Share your results, contribute and connect"
+author: "Mathew William Armitage Fok"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Share your results, contribute and connect}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## What have you built?
+
+Thank you for trying DDESONN. If you have built or trained a model, nice work.
+Please tell me what you have built or achieved with the package. I would be very
+grateful to hear about useful applications, interesting results and ideas for
+what we could build next. Results that did not work out can be useful too.
+
+Following these recent updates, I strongly encourage contributions: reproducible
+experiments, bug reports, fixes, documentation, visualizations and suggestions.
+There are many directions I would like to explore with this framework, and I
+welcome conversations about good ideas, practical needs and opportunities to
+collaborate. A small example or a clear issue is a useful place to start.
+
+## Reach out or connect
+
+- [Connect with me on LinkedIn](https://www.linkedin.com/in/mathewfok).
+  Please include a short note mentioning DDESONN when you add me.
+- [Email me](mailto:quiksilver67213@yahoo.com).
+- [Share an application, suggestion or reproducible issue on GitHub](https://github.com/MatHatter/DDESONN/issues).
+- [Contribute a pull request](https://github.com/MatHatter/DDESONN/pulls).
+
+Tell me what you tried, what you learned and what you would like the package to
+do. For a bug or performance claim, include the version, settings, data/split
+provenance and a small reproducible example when you can.
+
+## Ideas I still want to explore
+
+The neural-network visualization idea remains on my list: a view of the model's
+structure with equations and relevant settings integrated into the network. This remains a
+planned idea; the package does not yet provide that proposed visualization tool.
+Suggestions and contributions are welcome.
+
+I also want to update my separate
+[OLR — Optimal Linear Regression package](https://CRAN.R-project.org/package=olr).
+OLR is another project of mine; it is not part of DDESONN and is not required to
+use this workbench.
+
+## If you find a useful SSM application
+
+The optional state-space/sequence encoder remains experimental and off by
+default. Our current benchmarks have not shown a meaningful improvement over the
+baseline. If you find a useful SSM application or a reproducible benefit, please
+let me know. Independent results showing no benefit are welcome as well.
+
+For comparisons, use matched data splits and settings, keep related or repeated
+inputs out of opposing partitions, repeat seeds where practical and report the
+variation. A single successful run is not sufficient evidence of an advantage.
+See the repository's
+[SSM context](https://github.com/MatHatter/DDESONN#optional-native-r-sequence-encoder)
+and current research limitations before interpreting performance claims.
+
+## Keep your work before ending the app session
+
+Recent runs is a separate in-memory archive for the latest 10 completed models
+and CSV runs in your current browser session. Clearing the saved-model workspace
+does not clear it. You can restore a recent item, remove one entry, or clear
+recent history without changing active workspaces or files on disk.
+
+This archive is not permanent storage. Restore a model and use **Save & export**
+to download its `.rds` if you want to keep it after the Shiny session ends. Save
+prediction CSVs separately when you need to compare them with outcomes later.

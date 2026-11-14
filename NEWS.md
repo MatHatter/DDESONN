@@ -1,3 +1,20 @@
+# DDESONN 7.3.37
+
+- Add Recent runs as an independent, per-browser-session archive of the latest
+  10 successful trained/loaded models and completed CSV runs. Restore model/data/
+  results snapshots, remove individual items, or clear history without changing
+  active workspaces. No archive is automatically written to disk.
+- Explicitly describe the saved-workspace reset boundary: its open models, CSV,
+  displays, errors and purpose choice are cleared; Recent runs, training and
+  computer files are preserved. Distinguish session memory from permanent .rds
+  downloads, and label restored snapshots whose file pickers are intentionally blank.
+- Add a short model-trained acknowledgment only after successful training, with
+  a reminder to review held-out results and a link to share work or contribute.
+- Add a community vignette and contact links, including the author's LinkedIn.
+  Invite applications, achievements, reproducible contributions and suggestions;
+  describe planned visualization/OLR work separately. Retain the current SSM
+  finding of no meaningful benchmark improvement, without claiming significance.
+
 # DDESONN 7.3.36
 
 - Rename CSV choices to Evaluate a holdout sample (known answers) and Make
