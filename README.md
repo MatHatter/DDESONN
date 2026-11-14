@@ -2,6 +2,14 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.36 — explain holdout testing and production prediction
+
+The CSV choices now say **Evaluate a holdout sample (known answers)** and
+**Make production predictions (answers unknown)**. Small circled lowercase-i
+controls explain each choice, including the bank loan example: use saved weights
+to estimate repayment before it is known, then compare saved predictions with
+actual outcomes when available. Opening help does not change your selection.
+
 ## Version 7.3.35 — clear saved models and start fresh
 
 Use **Clear saved-model workspace** before browsing if you want to start blank.

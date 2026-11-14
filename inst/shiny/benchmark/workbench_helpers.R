@@ -1234,7 +1234,7 @@ wb_prediction_report <- function(bundle, data, evaluate = TRUE) {
     metrics = NULL,
     evaluation_note = paste0("Predictions only: no accuracy is available because this CSV has no ", p$target, " target column. Saved model evaluation above belongs to the original splits."))
   if (!evaluate) {
-    report$evaluation_note <- "Prediction-only mode: no accuracy is calculated. To measure performance, choose Evaluate the model on labeled data and include the known correct answers."
+    report$evaluation_note <- "Prediction-only mode: no accuracy is calculated. To measure performance, choose Evaluate a holdout sample and include the known correct answers."
     return(report)
   }
   if (!p$target %in% names(data)) return(report)

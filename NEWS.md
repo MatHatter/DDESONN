@@ -1,3 +1,14 @@
+# DDESONN 7.3.36
+
+- Rename CSV choices to Evaluate a holdout sample (known answers) and Make
+  production predictions (answers unknown). Put a compact circled lowercase-i
+  explanation beside each choice without changing its selection when help opens.
+- Explain typical holdout accuracy against known outcomes, and production use
+  with a bank estimating loan repayment before the outcome is known. Clarify that
+  saved weights plus input values generate estimates, outcomes can be compared
+  later, and prediction is not a live update or retraining. Keep this conceptual
+  help separate from generated R-code help.
+
 # DDESONN 7.3.35
 
 - Add Clear saved-model workspace to reset loaded models, both file pickers,
