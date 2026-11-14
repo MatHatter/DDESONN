@@ -74,8 +74,9 @@ The customer preset selects all non-target columns. Auto proposes excluding ID,
 one-hot encoding the categories and handling missing predictor values. You can
 therefore prepare the full relevant customer attributes without reducing them
 to Age alone.
-The matching prediction file provides the same predictor columns. Choose **Use a saved model → Saved model → predict → Predict**,
-upload your CSV, then click **Run predictions**. Alternatively, expand the optional
+The matching prediction file provides the same predictor columns. Choose **Use a saved model → Evaluate or predict**. Select labeled evaluation
+and include the known target answers to measure accuracy, or select unlabeled
+prediction and click **Run predictions** to obtain answers without accuracy. Alternatively, expand the optional
 packaged-customer section, choose **Use packaged customer rows**, and click the
 same **Run predictions** button. The chart and table appear below the CSV; downloading
 predictions is optional. These demonstration rows may match inputs in the saved splits; the result reports those matches. These rows have no Segmentation labels; they are not
