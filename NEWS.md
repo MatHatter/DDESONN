@@ -1,3 +1,17 @@
+# DDESONN 7.3.38
+
+- Put the two-upload example instructions before Browse. Place the italic model
+  status immediately below the file picker and identify loaded weights as already
+  trained. Hide empty model details and add visible collapsed/expanded carets to
+  saved-workflow disclosures, including Need help preparing a saved model?.
+- Suggest an editable Save model as filename derived from the active model, keep
+  the .rds extension and normalize invalid filename characters for downloads.
+  Clarify that the browser controls the save location; exporting keeps weights intact.
+- Rename Train further — optional and lead with This model is already trained.
+  Explain that additional epochs run only after Start additional training is
+  clicked, using saved weights and original data on a copy. Use a compact 110px
+  epoch field and shorten the previous-fit/checkpoint context.
+
 # DDESONN 7.3.37
 
 - Add Recent runs as an independent, per-browser-session archive of the latest

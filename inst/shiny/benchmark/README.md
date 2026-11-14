@@ -1,5 +1,27 @@
 # DDESONN model workbench
 
+## Upload, disclosure and extra-training clarity (7.3.38)
+
+The two-file example guidance appears before the model Browse control. An italic
+status immediately below Browse says whether a trained model is loaded. Empty
+model details are hidden; **View trained model details** and **Need help preparing
+a saved model?** use visible right/down carets to show that they expand.
+
+Under **Save & export**, **Save model as** starts with the active model's suggested
+filename. Edit it before downloading if desired; `.rds` is added automatically.
+The browser decides the download location and may let you change the name there
+as well. This exports a copy of the model bundle without retraining or changing
+its weights. A recipe remains a separate optional code export.
+
+**Train further — optional** first explains that the model is already trained and
+needs no extra epochs for evaluation/prediction. It shows the previous requested
+epoch budget and saved checkpoint, a compact **Additional epochs** field, and
+**Start additional training**. For example, 10 means ten extra epochs starting from
+the saved weights, not rerunning the original fit. Editing the number alone starts
+nothing. The button explicitly switches to training on a copy with the saved data
+and settings; the original stays unchanged. Optimizer state/schedules restart as
+before, and the saved checkpoint policy applies to this extra fit.
+
 ## Recent runs and exact clear scopes (7.3.37)
 
 **Recent runs** is a separate tab in both workflows. It keeps the latest 10
