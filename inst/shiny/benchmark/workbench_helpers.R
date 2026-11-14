@@ -563,7 +563,7 @@ wb_help_topics <- function() c(
   "Predict on new rows", "Start with Data", "Inspect your dataset",
   "Choose what the model learns", "Task", "Train / validation / test split",
   "Training fraction", "Validation fraction", "Data-split seed",
-  "Standardize using training means and SDs", "Prepare for training", "About your split",
+  "Scale inputs using training means and SDs", "Prepare for training", "About your split",
   "Build & Train", "Hidden-layer sizes", "Epochs per model fit", "Optimizer", "Learning rate",
   "Self-organize before initial training", "Weights used for results",
   "Regularization", "Regularization strength", "Training progress",
@@ -630,7 +630,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
     "Validation fraction" = paste0("validation_fraction <- ", value(if (is.null(p$validation_fraction)) .2 else p$validation_fraction),
       "\n# Remaining rows after training and validation become Test.\nn_validation <- max(1L, floor(length(g) * validation_fraction))"),
     "Data-split seed" = paste0("seed <- ", p$seed, "L\nset.seed(seed)\n# Random splitting uses this seed; ordered splitting keeps row order.\n# Basic reuses it for its one training run. Custom uses its separate seeds list.\n# 42 is one seed value, not 42 runs."),
-    "Standardize using training means and SDs" = if (isTRUE(p$standardize)) paste(
+    "Scale inputs using training means and SDs" = if (isTRUE(p$standardize)) paste(
       "# During preparation, before x has been scaled:",
       "center <- colMeans(x[split_rows$train, , drop = FALSE])",
       "scale <- apply(x[split_rows$train, , drop = FALSE], 2, sd)",

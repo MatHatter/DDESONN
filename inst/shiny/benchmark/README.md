@@ -1,5 +1,23 @@
 # DDESONN model workbench
 
+## Profiling and preparation guidance (7.3.29)
+
+On Data, the descriptive summary starts expanded. Profiling is optional discovery:
+row browsing, summary statistics and box plots do not apply preprocessing.
+**Show all columns** displays every column; turn it off to choose a subset. With
+no columns selected, the inspector prompts for a selection instead of implying
+that an empty selection means all columns.
+
+On Features, review preprocessing before **Prepare data**. Customer segmentation
+needs encoding for categorical predictors and may need missing-value handling;
+complete numeric predictors may need neither. Review identifier and leakage
+exclusions separately. Scaling can help when predictor ranges differ, for any
+task. **Scale inputs using training means and SDs** names the existing
+standardization control explicitly; it predates the Auto/Manual section and stays
+independently enabled by default. Preparation splits first and learns category,
+filling and scaling rules from training rows only, reusing them for validation,
+test and future predictions. Changing preparation settings requires preparing again.
+
 ## Fit-aware charts and preprocessing help (7.3.28)
 
 Training-loss records retain fit number, local epoch and cumulative logged

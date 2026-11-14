@@ -2,6 +2,22 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.29 — visible profiling and clearer data preparation
+
+Data opens its descriptive summary by default and labels profiling as optional
+exploration: it never transforms training data. Choose **Show all columns** or
+select the columns to inspect; an empty custom selection prompts for a choice.
+
+Features explains when preprocessing is needed: encode categorical inputs,
+handle missing predictors, and review identifiers or answer-derived columns.
+Customer segmentation illustrates these needs; complete numeric predictors may
+need neither encoding nor filling. The existing scaling switch now explicitly
+says **Scale inputs using training means and SDs**. Scaling was already available
+before the Auto/Manual section and remains independently enabled by default for
+binary classification, multiclass classification and regression. Click
+**Prepare data** before training: split first, fit rules on training rows, then
+reuse those rules for validation, test and future predictions.
+
 ## Version 7.3.28 — separate fit curves, chart exports and clearer help
 
 Training charts label separate member/seed/stage fits and leave their curves
