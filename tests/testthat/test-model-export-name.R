@@ -1,0 +1,12 @@
+test_that("model download names default clearly and remain filenames", {
+  h <- new.env(parent = globalenv())
+  sys.source(system.file("shiny", "benchmark", "workbench_helpers.R", package = "DDESONN"), h)
+  expect_identical(h$wb_export_filename(NULL, "flowers.rds"), "flowers.rds")
+  expect_identical(h$wb_export_filename("My model"), "My model.rds")
+  expect_identical(h$wb_export_filename("copy.RDS"), "copy.rds")
+  expect_identical(h$wb_export_filename("   ", "flowers.rds"), "flowers.rds")
+  expect_identical(h$wb_export_filename("CON"), "model-CON.rds")
+  value <- h$wb_export_filename("../folder\\my:model\n")
+  expect_false(grepl('[/\\\\:\n]', value))
+  expect_true(endsWith(value, ".rds"))
+})

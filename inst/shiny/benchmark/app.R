@@ -245,6 +245,11 @@ ui <- shiny::fluidPage(
     .wb-switch input:focus-visible + .wb-switch-track { outline:3px solid #6f9daa; outline-offset:3px; }
     @media(prefers-reduced-motion:reduce) { .wb-switch-track, .wb-switch-track::after { transition:none; } }
     .tab-pane > .row > [class*='col-'] > .panel-body-custom:first-child { margin-top:0; }
+    .wb-saved-pane details:not(.wb-inline-help) > summary { cursor:pointer; list-style:none; color:#155b63; font-weight:600; padding:4px 0; }
+    .wb-saved-pane details:not(.wb-inline-help) > summary::-webkit-details-marker { display:none; }
+    .wb-saved-pane details:not(.wb-inline-help) > summary::before { content:'▸ '; }
+    .wb-saved-pane details[open]:not(.wb-inline-help) > summary::before { content:'▾ '; }
+    .wb-model-status { margin:4px 0 12px; color:#53677b; }
     .wb-purpose-choice { display:flex; align-items:center; gap:8px; }
     .wb-purpose-choice > label { margin-bottom:0; }
     .wb-purpose-choice > .wb-inline-help { margin:0; }

@@ -2,6 +2,14 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.38 — clearer model loading, exporting and extra training
+
+Read the two-file upload instructions before Browse, then see an italic loaded-
+model status directly below it. Carets identify expandable trained-model details
+and saved-model preparation help. Save & export suggests an editable `.rds`
+filename. **Train further — optional** now explicitly starts with an already-trained
+model, a small additional-epochs field and one **Start additional training** button.
+
 ## Version 7.3.37 — recent runs and clearer workspace boundaries
 
 **Recent runs** retains the latest 10 completed models and CSV runs in this browser

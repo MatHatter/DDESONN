@@ -626,7 +626,7 @@ wb_space_comments <- function(code) {
 # Code in help uses the same public-API generators as downloadable recipes.
 wb_help_topics <- function() c(
   "Model performance", "Evaluation split", "Confusion matrix (classification)",
-  "Save or restore", "Another fit from saved weights", "Additional epochs",
+  "Save a copy of this trained model", "Another fit from saved weights", "Additional epochs",
   "Predict on new rows", "Start with Data", "Inspect your dataset",
   "Choose what the model learns", "Task", "Train / validation / test split",
   "Training fraction", "Validation fraction", "Data-split seed",
@@ -746,7 +746,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
         "table(Actual = factor(classes[actual_index], levels = classes),",
         "      Predicted = factor(classes[predicted_index], levels = classes))", sep = "\n")
     },
-    "Save or restore" = "# Load the .rds file downloaded with Save model.\n# The bundle contains the trained model and preprocessing settings.\nbundle <- readRDS('ddesonn-workbench-model.rds')\n\n# Save a copy for later; this does not train or predict.\nsaveRDS(bundle, 'my-workbench-model.rds')",
+    "Save a copy of this trained model" = "# Load the .rds file downloaded with Save model.\n# The bundle contains the trained model and preprocessing settings.\nbundle <- readRDS('ddesonn-workbench-model.rds')\n\n# Save a copy for later; this does not train or predict.\nsaveRDS(bundle, 'my-workbench-model.rds')",
     "Predict on new rows" = paste(
       "# Run the complete saved-model prediction example first to create x_new.",
       "# That script reuses fitted encoding, imputation and scaling; it does not refit.",
@@ -763,7 +763,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
     "Training progress" = "history <- bundle$history\nplot(history$epoch, history$loss, type = 'n', xlab = 'Logged epoch', ylab = 'Training loss')\n# Current bundles record fit and fit_epoch separately.\nfor (fit in unique(history$fit)) {\n  rows <- history$fit == fit\n  lines(history$epoch[rows], history$loss[rows])\n}\n# No line joins separate fits; inspecting does not select weights.",
     "Current completed model" = "bundle$package_version\nbundle$config\nbundle$selected_epoch\nbundle$fit_runs\n# Show full R code to inspect this model's saved recipe.")
   prefix <- if (is.null(prepared) && !topic %in% c("Start with Data", "Inspect your dataset",
-      "Current completed model", "Save or restore", "Predict on new rows", "Training progress",
+      "Current completed model", "Save a copy of this trained model", "Predict on new rows", "Training progress",
       "Another fit from saved weights", "Additional epochs")) "# Iris/default illustration until data is prepared.\n" else ""
   if (!is.null(completed) && topic %in% c("Model performance", "Confusion matrix (classification)")) prefix <- ""
   if (is.null(config) && topic %in% c("Build & Train", "Hidden-layer sizes", "Epochs per model fit", "Optimizer",
@@ -1267,4 +1267,18 @@ wb_evaluation_target_check <- function(prepared, data) {
     !anyNA(actual) && all(as.character(actual) %in% prepared$classes)
   if (!valid) return(list(valid = FALSE, message = paste0("The ", target, " answers are missing or incompatible with this model. Provide complete, valid target values to evaluate it.")))
   list(valid = TRUE, message = "Known target values are available for evaluation.")
+}
+
+# This is a browser download filename, never a server or user filesystem path.
+wb_export_filename <- function(value = NULL, suggested = "ddesonn-workbench-model.rds") {
+  usable <- function(x) length(x) == 1L && !is.na(x) && nzchar(trimws(x))
+  if (!usable(value)) value <- if (usable(suggested)) suggested else "ddesonn-workbench-model.rds"
+  value <- trimws(value)
+  value <- gsub('[[:cntrl:]<>:"/\\\\|?*]', '_', value)
+  value <- sub('\\.rds$', '', value, ignore.case = TRUE)
+  value <- gsub('^[. ]+|[. ]+$', '', value)
+  if (!nzchar(value)) value <- "ddesonn-workbench-model"
+  stem <- toupper(sub('\\..*$', '', value))
+  if (stem %in% c("CON", "PRN", "AUX", "NUL", paste0("COM", 1:9), paste0("LPT", 1:9))) value <- paste0("model-", value)
+  paste0(value, ".rds")
 }

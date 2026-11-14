@@ -149,18 +149,19 @@ wb_ui <- function() {
   models <- shiny::tabPanel("Saved model → evaluate or predict", value = "saved",
     shiny::div(class = "panel-body-custom",
       shiny::h3("1. Choose a model"),
-      shiny::p("Upload a completed .rds model here. Uploading and scoring keep Data, Features and Build & Train unchanged. Training starts only if you explicitly choose the optional Train further action."),
+      shiny::p("A saved model already contains trained weights. Loading it lets you evaluate or predict without training again. Data, Features and Build & Train stay unchanged unless you explicitly start additional training."),
       shiny::actionButton("wb_clear_saved", "Clear saved-model workspace"),
       shiny::p("Starts this Saved model → evaluate or predict tab blank: clears its open models/selection, model summary and history display, CSV, results, file pickers, errors and purpose choice. Keeps Recent runs, all training data/settings/results and files on your computer. A replacement file becomes active only after it validates successfully."),
+      shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
       shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds", width = "100%"),
+      shiny::tags$p(class = "wb-model-status", `aria-live` = "polite", shiny::tags$em(shiny::textOutput("wb_active_model", inline = TRUE))),
       shiny::div(class = "error", role = "alert", shiny::textOutput("wb_load_error")),
       shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
-      shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
       shiny::p("Loading a model does not create a new file on disk. Recent runs keeps session snapshots; Save & export downloads a model file for permanent keeping."),
       shiny::div(`aria-live` = "polite", shiny::textOutput("wb_workspace_notice")),
       shiny::uiOutput("wb_prediction_model_ui"),
-      shiny::div(class = "wb-guidance", shiny::textOutput("wb_active_model")),
-      shiny::tags$details(shiny::tags$summary("Model details"), shiny::textOutput("wb_saved_info")),
+      shiny::conditionalPanel("output.wb_has_saved_model === 'yes'",
+        shiny::tags$details(class = "wb-disclosure", shiny::tags$summary("View trained model details"), shiny::textOutput("wb_saved_info"))),
       shiny::conditionalPanel("output.wb_has_saved_model === 'yes'",
         shiny::div(class = "wb-result-area", shiny::h3("Saved model evaluation"),
           shiny::p("These are the original scores from the data splits saved with the model. If you only want to review those results, no CSV upload is needed. Upload another CSV below to evaluate labeled data or predict unknown answers."),
@@ -170,7 +171,7 @@ wb_ui <- function() {
           shiny::plotOutput("wb_saved_loss", height = "250px"),
           shiny::verbatimTextOutput("wb_saved_logs"))),
         shiny::tags$details(class = "wb-model-help",
-          shiny::tags$summary("Need help preparing a model?"),
+          shiny::tags$summary("Need help preparing a saved model?"),
           shiny::p("Use ChatGPT separately to help prepare a compatible model. ChatGPT is not built into this app. You can also train here and download the completed model bundle."),
           shiny::tags$ol(
             shiny::tags$li("Reference ", shiny::tags$a(href = "https://github.com/MatHatter/DDESONN", target = "_blank", rel = "noopener noreferrer", "MatHatter/DDESONN on GitHub"),
@@ -216,19 +217,27 @@ wb_ui <- function() {
           shiny::tags$details(shiny::tags$summary("R example for prediction"),
             wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"))),
         shiny::tabPanel("Save & export", value = "export",
-          wb_heading("Save or restore", "Export a copy of the selected model, or its training recipe. A recipe is code, not trained weights."),
+          wb_heading("Save a copy of this trained model", "Export a copy of the selected model, or its training recipe. A recipe is code, not trained weights."),
           shiny::p("You do not need to download a model you just uploaded. These optional exports download the selected model or its recipe to your computer. Exporting a copy does not change either workspace."),
+          shiny::uiOutput("wb_export_filename_ui"),
+          shiny::p(class = "help-block", "A filename is suggested from the active model. Edit it if you wish; .rds is added automatically. Your browser controls where the file is saved."),
           wb_download_button("wb_save", "Download model bundle (.rds)"),
           shiny::br(), shiny::br(), shiny::uiOutput("wb_completed_recipe_button"),
           wb_code_panel("wb_completed_code", "Equivalent R code — completed model"),
           shiny::actionButton("wb_preview_bundle", "Preview bundle contents")),
-        shiny::tabPanel("Train further (optional)", value = "continue",
-          wb_heading("Another fit from saved weights", "Train further from the selected model's saved weights and its original training data. This creates another completed model. Optimizer accumulators and schedules restart; it is not an exact resume."),
-          shiny::textOutput("wb_warm_start_summary"),
-          wb_field("wb_more_epochs", "Additional epochs", "Number of epochs for this extra fit, starting from the selected model's saved weights. It does not rerun the previous epochs. The saved data, settings and preprocessing are retained; optimizer schedules restart.",
-            shiny::numericInput("wb_more_epochs", NULL, 10, min = 1, max = 5000, step = 1)),
-          shiny::actionButton("wb_continue", "Switch to training and start extra fit", disabled = "disabled", `aria-disabled` = "true"),
-          shiny::p("This explicit action switches to the training workflow and starts an extra fit on a copy, using the model’s original data and settings. A successful extra fit creates a new training result. Your uploaded model stays unchanged in Use a saved model.")))))
+        shiny::tabPanel("Train further — optional", value = "continue",
+          shiny::conditionalPanel("output.wb_has_saved_model !== 'yes'",
+            shiny::p("Load or restore a trained model first. This optional section is not needed for evaluation or prediction.")),
+          shiny::conditionalPanel("output.wb_has_saved_model === 'yes'",
+            shiny::h3("This model is already trained"),
+            shiny::p("You can evaluate or predict now without more training. Only use this section if you want to train the selected model further from its saved weights."),
+            shiny::textOutput("wb_warm_start_summary"),
+            wb_field("wb_more_epochs", "Additional epochs", "Number of extra epochs to run when you click Start additional training. Starts from the selected saved weights, keeps the original data/settings and restarts optimizer schedules. It does not repeat the previous epochs.",
+              shiny::numericInput("wb_more_epochs", NULL, 10, min = 1, max = 5000, step = 1, width = "110px")),
+            shiny::p(class = "help-block", "For example, 10 means run 10 more epochs from these saved weights. Nothing starts until you click the button."),
+            shiny::actionButton("wb_continue", "Start additional training", disabled = "disabled", `aria-disabled` = "true"),
+            shiny::p("This button switches to the training workflow and runs the additional epochs on a copy, using the model's original data and settings. A completed extra fit becomes a separate training result. Your saved model stays unchanged."))))))
+
 
   list(
     shiny::tabPanel("1. Data", value = "data",
@@ -1030,7 +1039,7 @@ wb_server <- function(input, output, session, helper) {
         report = prediction_report(), predictions = new_predictions(), provenance = prediction_provenance()))
   }, model_error))
   output$wb_load_error <- shiny::renderText(if (!is.null(load_error())) paste0("Saved-model action failed: ", load_error(), " The previous active model, if any, is still selected."))
-  output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Selected model:", active_model()$model_name))
+  output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Trained model loaded:", active_model()$model_name))
   output$wb_prediction_columns <- shiny::renderText({
     if (is.null(active_model())) return("Load a model to see its required columns.")
     paste0(paste(active_model()$prepared$features, collapse = ", "), if (csv_purpose() == "evaluate") paste0("; plus ", active_model()$prepared$target, " with known answers. Saved preprocessing is reused.") else ". Target labels are not evaluated in prediction-only mode. Saved preprocessing is reused.")
@@ -1063,7 +1072,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_warm_start_summary <- shiny::renderText({
     r <- active_model(); if (is.null(r)) return("Load or select a model before training further.")
     paste0("Selected model: ", r$model_name, ". Its previous fit requested ", r$config$epochs,
-      " epochs per member", if (length(r$selected_epoch) == 1L && is.finite(r$selected_epoch)) paste0("; saved weights are from epoch ", r$selected_epoch) else "", ". Enter the number of extra epochs below. For example, 10 runs 10 more epochs from these saved weights, not the original fit again. Each member follows its saved checkpoint policy for this extra fit.")
+      " epochs per member", if (length(r$selected_epoch) == 1L && is.finite(r$selected_epoch)) paste0("; saved weights are from epoch ", r$selected_epoch) else "", ".")
   })
   output$wb_saved_evaluation <- shiny::renderTable({
     r <- active_model(); shiny::req(r)
@@ -1421,7 +1430,11 @@ wb_server <- function(input, output, session, helper) {
         ggplot2::theme_minimal(base_size = 13)
     }
   })
-  output$wb_save <- shiny::downloadHandler(filename = function() "ddesonn-workbench-model.rds",
+  output$wb_export_filename_ui <- shiny::renderUI({
+    r <- active_model(); if (is.null(r)) return(NULL)
+    shiny::textInput("wb_export_filename", "Save model as", value = wb_export_filename(NULL, r$model_name), width = "100%")
+  })
+  output$wb_save <- shiny::downloadHandler(filename = function() wb_export_filename(input$wb_export_filename, active_model()$model_name),
     content = function(file) { shiny::req(active_model()); saveRDS(active_model(), file) })
   output$wb_save_selected <- shiny::downloadHandler(filename = function() "ddesonn-workbench-model.rds",
     content = function(file) { shiny::req(result()); saveRDS(result(), file) })
