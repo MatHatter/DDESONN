@@ -1,5 +1,22 @@
 # DDESONN model workbench
 
+## Plain-language CSV choices (7.3.36)
+
+The two choices have compact circled lowercase-i disclosures:
+
+- **Evaluate a holdout sample (known answers):** predict rows kept out of training
+  and compare them with their known actual answers. The help uses historical loan
+  applicants with known repayment outcomes as a typical holdout example.
+- **Make production predictions (answers unknown):** use saved weights plus new
+  input values to estimate an unknown answer. A bank can estimate repayment before
+  deciding to lend, then compare saved predictions with actual outcomes later.
+  The help also explains that this can estimate current unknowns such as customer
+  segments; it is not necessarily forecasting, live updating or retraining.
+
+Help stays outside the radio labels: opening it does not switch modes or clear
+results. These are short conceptual explanations without an extra R-code panel.
+The underlying evaluate/predict actions and file requirements are unchanged.
+
 ## Starting fresh and changing models (7.3.35)
 
 Click **Clear saved-model workspace** to empty saved-model selection, all loaded

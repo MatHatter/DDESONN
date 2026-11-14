@@ -1,5 +1,5 @@
 # Native disclosure controls keep help available without another JavaScript package.
-wb_help <- function(topic, text, api = NULL) {
+wb_help <- function(topic, text, api = NULL, show_code = TRUE) {
   shiny::tags$details(class = "wb-inline-help",
     shiny::tags$summary(title = text, `aria-label` = paste("Help:", topic),
       shiny::tags$svg(class = "wb-help-icon", viewBox = "0 0 20 20", width = "20", height = "20",
@@ -7,12 +7,39 @@ wb_help <- function(topic, text, api = NULL) {
         shiny::tags$circle(class = "wb-help-ring", cx = "10", cy = "10", r = "8.4"),
         shiny::tags$text(class = "wb-help-letter", x = "10", y = "14.25", `text-anchor` = "middle", "i"))),
     shiny::div(class = "wb-help-copy", tabindex = "0", role = "region",
-      `aria-label` = paste(topic, "help and equivalent R"), text,
-      shiny::div(class = "wb-help-code-label", "Equivalent R"),
+      `aria-label` = paste(topic, if (show_code) "help and equivalent R" else "help"), text,
+      if (show_code) shiny::tagList(shiny::div(class = "wb-help-code-label", "Equivalent R"),
       shiny::tags$pre(id = wb_help_key(topic), class = "shiny-text-output wb-help-code",
         tabindex = "0", `aria-label` = paste("Equivalent R code:", topic),
         if (is.null(api)) "# Open help to load the equivalent R example." else api),
-      shiny::p(class = "wb-help-prerequisites", "This fragment covers only this topic. Show full R code at the bottom of the page for the complete workflow and required objects.")))
+      shiny::p(class = "wb-help-prerequisites", "This fragment covers only this topic. Show full R code at the bottom of the page for the complete workflow and required objects."))))
+}
+
+# Keep help beside each radio label, outside the label so opening it never
+# changes the purpose or clears already computed results.
+wb_csv_purpose_control <- function() {
+  topics <- c("Evaluate a holdout sample", "Make production predictions")
+  explanations <- c(
+    "Typical holdout testing: set aside data with known correct answers before training. Load the saved weights, predict those rows, then compare the predictions with the answers to measure accuracy. Bank example: test on historical loan applicants whose repayment outcomes are already known, using cases kept out of training. Include the correct answer column in your CSV. This evaluates the existing model; it does not train it again.",
+    "Production use: a bank estimates whether a new applicant will repay before deciding whether to lend. The saved weights and the applicant's input values produce a learned estimate; the real outcome is not known yet, so accuracy cannot be calculated now. Save the predictions and compare them with actual repayment outcomes when they become available. This is one prediction run, not a live update or retraining. An unknown answer can also be a current unknown, such as a customer's segment, rather than a future event.")
+  control <- shiny::radioButtons("wb_csv_purpose", NULL,
+    c("Evaluate a holdout sample (known answers)" = "evaluate",
+      "Make production predictions (answers unknown)" = "predict"), selected = "evaluate", width = "100%")
+  control$attribs[["aria-label"]] <- "Choose holdout evaluation or production prediction"
+  index <- 0L
+  add_help <- function(node) {
+    if (inherits(node, "shiny.tag")) {
+      if (identical(node$attribs$class, "radio")) {
+        index <<- index + 1L
+        node$attribs$class <- "radio wb-purpose-choice"
+        node$children <- c(node$children, list(wb_help(topics[index], explanations[index], show_code = FALSE)))
+        return(node)
+      }
+      node$children <- lapply(node$children, add_help)
+    } else if (is.list(node)) node <- lapply(node, add_help)
+    node
+  }
+  add_help(control)
 }
 
 wb_heading <- function(title, help, level = 3) {
@@ -137,15 +164,14 @@ wb_ui <- function() {
               " and give your installed DDESONN version, task, target and predictor columns. For customer segmentation, the task is multiclass classification and the packaged target is Segmentation."),
             shiny::tags$li("Ask for an actually trained workbench .rds bundle with saved preprocessing and class labels, a labeled evaluation CSV with known answers, and a separate unlabeled prediction CSV. Ask where evaluation rows came from and whether they repeat the saved test set. If ChatGPT cannot run R, ask for a reproducible R script to run yourself; generated instructions alone are not a trained model."),
             shiny::tags$li("Choose Use a saved model at the top. Under 1. Choose a model, upload the trusted workbench .rds bundle using Load trusted workbench model."),
-            shiny::tags$li("Choose Evaluate the model on labeled data and upload predictors plus known target answers to get accuracy. Or choose Predict answers for unlabeled data, upload predictors, and click Run predictions. Saved preprocessing is reused."),
+            shiny::tags$li("Choose Evaluate a holdout sample and upload predictors plus known answers to measure accuracy. Or choose Make production predictions to estimate unknown answers from predictors. Saved preprocessing is reused."),
             shiny::tags$li("Read the evaluation or predictions below your CSV, then optionally choose Download results (CSV). Check the model's held-out evaluation before relying on its predictions.")),
           shiny::p("Example request to copy and adapt:"),
           shiny::tags$pre("Use https://github.com/MatHatter/DDESONN and my installed DDESONN version [version]. Train a multiclass customer-segmentation model with target Segmentation and these predictors: [columns]. Export a compatible Shiny workbench .rds bundle with fitted preprocessing and class labels, plus a labeled evaluation CSV with known answers and a separate unlabeled prediction CSV. State whether the evaluation CSV reuses saved test rows or contains new data. Use separate training, validation and test data and report the evaluation. If you cannot execute R, provide a reproducible R script instead of claiming to have trained the model.")),
       shiny::tabsetPanel(id = "wb_model_tools", selected = "predict",
         shiny::tabPanel("Evaluate or predict", value = "predict",
           shiny::h3("2. What do you want to do with your CSV?"),
-          shiny::radioButtons("wb_csv_purpose", NULL,
-            c("Evaluate the model on labeled data" = "evaluate", "Predict answers for unlabeled data" = "predict"), selected = "evaluate"),
+          wb_csv_purpose_control(),
           shiny::p(class = "wb-guidance", shiny::textOutput("wb_csv_instructions")),
           shiny::fileInput("wb_new_data", "Your data (CSV, up to 10 MB)", accept = ".csv", width = "100%"),
           shiny::tags$details(shiny::tags$summary("Required CSV columns"), shiny::textOutput("wb_prediction_columns")),
@@ -660,9 +686,9 @@ wb_server <- function(input, output, session, helper) {
   shiny::observe(shiny::updateActionButton(session, "wb_predict", label = if (csv_purpose() == "evaluate") "Evaluate model" else "Run predictions"))
   output$wb_csv_instructions <- shiny::renderText({
     target <- if (is.null(active_model())) "the model's target column" else active_model()$prepared$target
-    if (csv_purpose() == "evaluate") paste0("Get a score by uploading predictor columns PLUS known correct answers in ", target,
-      ". Classification shows accuracy; regression shows error metrics. The model is not retrained. For an independent test, use labeled data that was not used to fit or select the model.") else
-      "Get predicted answers for rows whose outcomes you do not know. Upload the predictor columns, then Run predictions. This mode does not calculate accuracy."
+    if (csv_purpose() == "evaluate") paste0("Include your predictor columns and the known answers in ", target,
+      ". This compares predictions with those answers; it does not retrain the model. Open the circled i for a holdout example.") else
+      "Use the saved weights to estimate unknown answers from your input rows. No accuracy is available until actual answers are known. Open the circled i for the bank example."
   })
   # Per-session states are also enforced by server guards, not just the browser.
   action_states <- shiny::reactive({
@@ -914,7 +940,7 @@ wb_server <- function(input, output, session, helper) {
     if (is.null(active_model())) return("Step 1: load or select a model.")
     if (is.null(prediction_data())) return("Model ready. Choose evaluation or prediction, then upload your CSV. Reviewing the saved scores alone requires no upload.")
     if (csv_purpose() == "evaluate" && !csv_target_check()$valid)
-      return(paste0(csv_target_check()$message, " If the answers are unknown, choose Predict answers for unlabeled data instead."))
+      return(paste0(csv_target_check()$message, " If the answers are unknown, choose Make production predictions instead."))
     if (!is.null(model_error())) return("Could not complete. Correct the error below and try again.")
     if (is.null(new_predictions())) return(paste0(prediction_source(), " · ", nrow(prediction_data()), " rows ready. Click ", if (csv_purpose() == "evaluate") "Evaluate model" else "Run predictions", "."))
     paste0(if (csv_purpose() == "evaluate") "Evaluation" else "Predictions", " complete for ", nrow(new_predictions()), " rows. Results are below; download is optional.")

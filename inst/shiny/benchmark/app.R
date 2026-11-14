@@ -245,6 +245,9 @@ ui <- shiny::fluidPage(
     .wb-switch input:focus-visible + .wb-switch-track { outline:3px solid #6f9daa; outline-offset:3px; }
     @media(prefers-reduced-motion:reduce) { .wb-switch-track, .wb-switch-track::after { transition:none; } }
     .tab-pane > .row > [class*='col-'] > .panel-body-custom:first-child { margin-top:0; }
+    .wb-purpose-choice { display:flex; align-items:center; gap:8px; }
+    .wb-purpose-choice > label { margin-bottom:0; }
+    .wb-purpose-choice > .wb-inline-help { margin:0; }
     .wb-inline-help { position:relative; flex:0 0 auto; font-weight:normal; }
     .wb-inline-help > summary { display:inline-grid; place-items:center; list-style:none;
       cursor:pointer; width:20px; height:20px; min-width:20px; flex:none; padding:0;
