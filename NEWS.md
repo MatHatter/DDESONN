@@ -1,3 +1,20 @@
+# DDESONN 7.3.33
+
+- Separate Train a new model from Use a saved model, with labeled blue/teal
+  containers and neutral results areas. Saved-model uploads, model selection and
+  prediction CSVs never backfill training data, settings or completed-run state.
+- Show the saved model's original training/validation/test scores in its summary.
+  Display stored loss curves/logs only as saved history, not live training.
+- Label uploaded-CSV predictions separately. Report exact prepared-input matches
+  against each saved split; identify example rows as demonstrations. Evaluate a
+  CSV only when it supplies complete compatible target labels, showing accuracy
+  as a percentage and supplied labels alongside predictions. Explain overlap
+  limitations rather than presenting repeated-input scores as independent tests.
+- Make training a saved model further an explicit transition using a copy. Keep
+  the original saved model unchanged, invalidate unrelated preparation, and label
+  the original-data context. Trained models enter prediction only through an
+  explicit Predict with this trained model action.
+
 # DDESONN 7.3.32
 
 - Streamline Saved models & predictions into Predict, Save & export and Train

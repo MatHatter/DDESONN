@@ -112,6 +112,7 @@ test_that("dataset changes preserve models, unlabeled prediction and guide navig
     expect_identical(serialize(prepared(), NULL), snapshot)
     expect_match(error(), "Predict on new rows")
     expect_identical(result()$model$ensemble[[1]]$weights, weights)
+    session$setInputs(wb_use_trained_model = 1)
     session$setInputs(wb_example_predict = 1)
     expect_null(model_error())
     expect_null(new_predictions())

@@ -55,6 +55,15 @@ benchmark_ui <- shiny::sidebarLayout(
 ui <- shiny::fluidPage(
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
   shiny::tags$script(shiny::HTML("
+    Shiny.addCustomMessageHandler('wb-flow-theme', function(message) {
+      document.documentElement.setAttribute('data-wb-flow', message.flow);
+      ['data','features','train','results'].forEach(function(value) {
+        var link = document.querySelector('#workspace a[data-value=\"' + value + '\"]');
+        if (link) document.querySelector(link.getAttribute('href')).classList.add('wb-train-pane');
+      });
+      var saved = document.querySelector('#workspace a[data-value=\"saved\"]');
+      if (saved) document.querySelector(saved.getAttribute('href')).classList.add('wb-saved-pane');
+    });
     var wbActionStates = {};
     function wbApplyActionStates() {
       Object.keys(wbActionStates).forEach(function(id) {
@@ -182,6 +191,16 @@ ui <- shiny::fluidPage(
     .context { border-left:3px solid #087f8c; padding:12px 16px; background:#eaf5f4; margin:16px 0; }
     .error { color:#a52736; }
     .nav-tabs>li.active>a { color:#087f8c; font-weight:650; }
+    .wb-flow-picker { border:1px solid #cbd5df; border-radius:10px; padding:16px 20px; margin:18px 0; }
+    .wb-flow-picker .shiny-input-container { width:100%; margin-bottom:6px; }
+    .wb-flow-picker label { color:#18364a; }
+    html[data-wb-flow='train'] .wb-flow-picker, .wb-train-pane .panel-body-custom {
+      background:rgba(45,108,182,.055); border-color:#c9d8eb; }
+    html[data-wb-flow='saved'] .wb-flow-picker, .wb-saved-pane .panel-body-custom {
+      background:rgba(8,127,140,.055); border-color:#bfdedb; }
+    .wb-result-area, .wb-overlap-report { background:#fff; border:1px solid #d4dde5;
+      border-radius:8px; padding:14px 18px; margin:14px 0; }
+    .wb-saved-pane .scroll-table { background:#fff; }
     .wb-workflow-guide { color:#53677b; margin:0 0 14px; line-height:1.7; }
     .wb-workflow-guide strong { color:#155b63; margin-right:8px; }
     #workspace > li > a[data-value='data'], #workspace > li > a[data-value='features'],
@@ -294,13 +313,15 @@ ui <- shiny::fluidPage(
   shiny::div(class = "masthead",
     shiny::div(
       shiny::div(class = "eyebrow", "DDESONN / MODEL WORKBENCH"),
-      shiny::h1("Build, train and explore"),
-      shiny::p("Train a native R model, inspect its predictions and compare saved experiments.")),
+      shiny::h1("Train or use a saved model"),
+      shiny::p("Choose a new training workflow or use a completed model to predict new rows.")),
     shiny::actionButton("brain_art", label = shiny::tagList(
       shiny::tags$img(src = "DDESONN_brain.png", alt = "DDESONN brain artwork with glowing neural connections and equations")), class = "brain-preview",
       title = "Open enlarged brain artwork", `aria-label` = "Enlarge DDESONN brain artwork")),
-  shiny::div(class = "wb-workflow-guide", shiny::strong("Your workflow"),
-    "Start with Data → choose target and predictors in Features → build and train → review Model / Results."),
+  shiny::div(class = "wb-flow-picker",
+    shiny::radioButtons("wb_task_flow", "Choose your workflow",
+      c("Train a new model" = "train", "Use a saved model" = "saved"), selected = "train", inline = TRUE),
+    shiny::div(class = "wb-workflow-guide", shiny::textOutput("wb_flow_guide"))),
   do.call(shiny::tabsetPanel, c(list(id = "workspace"), wb_ui(),
     list(shiny::tabPanel("Experiments", value = "experiments", benchmark_ui),
       shiny::tabPanel("Vignettes", value = "vignettes",
