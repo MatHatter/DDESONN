@@ -71,6 +71,43 @@ wb_seed <- function(seed, code) {
   force(code)
 }
 
+# Group identical effective predictors before any training-derived transformations.
+# Labels never form part of identity: conflicting labels stay in the same group.
+wb_binary_split <- function(x, y, seed, train_fraction, validation_fraction, split) {
+  keys <- vapply(seq_len(nrow(x)), function(i)
+    digest::digest(lapply(x, function(v) v[i]), algo = "sha256"), character(1))
+  members <- unname(base::split(seq_along(keys), match(keys, unique(keys))))
+  if (split == "ordered") {
+    a <- max(1L, floor(nrow(x) * train_fraction))
+    b <- max(1L, floor(nrow(x) * validation_fraction))
+    ids <- list(train = seq_len(a), validation = seq.int(a + 1L, a + b),
+      test = seq.int(a + b + 1L, nrow(x)))
+  } else {
+    # Approximate class balance at group level; fractions refer to groups.
+    labels <- vapply(members, function(i) names(sort(table(as.character(y[i])), decreasing = TRUE))[1], character(1))
+    ids <- wb_seed(seed, {
+      out <- list(train = integer(), validation = integer(), test = integer())
+      for (g in unname(base::split(seq_along(members), labels))) {
+        if (length(g) < 3L) stop("Need at least three independent predictor groups per class. Supply a different dataset or prepare a grouped split externally.")
+        g <- sample(g, length(g))
+        a <- min(length(g) - 2L, max(1L, floor(length(g) * train_fraction)))
+        b <- min(length(g) - a - 1L, max(1L, floor(length(g) * validation_fraction)))
+        choices <- list(train = g[seq_len(a)], validation = g[seq.int(a + 1L, a + b)], test = g[seq.int(a + b + 1L, length(g))])
+        for (name in names(out)) out[[name]] <- c(out[[name]], unlist(members[choices[[name]]], use.names = FALSE))
+      }
+      out
+    })
+  }
+  sets <- lapply(ids, function(i) unique(keys[i]))
+  overlaps <- c(train_validation = length(intersect(sets$train, sets$validation)),
+    train_test = length(intersect(sets$train, sets$test)),
+    validation_test = length(intersect(sets$validation, sets$test)))
+  if (any(overlaps)) stop("Repeated predictor inputs cross the ordered split. Use Random grouped splitting or supply a chronological split with no shared groups.")
+  list(ids = ids, audit = list(method = if (split == "random") "grouped_predictors" else "ordered_checked",
+    unique_predictors = length(members), overlap_groups = overlaps,
+    rows = vapply(ids, length, integer(1))))
+}
+
 wb_prepare <- function(data, target, features, mode, seed = 42L,
                        train_fraction = .6, validation_fraction = .2,
                        standardize = TRUE, split = "random", preprocessing = NULL) {
@@ -94,6 +131,23 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
       train_fraction < .1 || validation_fraction < .05 ||
       train_fraction + validation_fraction > .95) stop("Leave at least 5% for testing and validation.")
   if (!split %in% c("random", "ordered")) stop("Choose random or ordered splitting.")
+  split_audit <- NULL
+  if (mode == "binary") {
+    grouping <- x
+    if (!is.null(preprocessing)) {
+      plan <- wb_pp_plan(data, features, preprocessing)
+      grouping <- grouping[plan$Column[plan$Role == "keep"]]
+    }
+    if (!ncol(grouping)) stop("Keep at least one predictor for grouping.")
+    grouping[] <- lapply(grouping, function(v) {
+      if (is.factor(v) || is.character(v)) {
+        v <- trimws(as.character(v)); v[is.na(v) | v == ""] <- NA_character_
+      }
+      v
+    })
+    grouped <- wb_binary_split(grouping, y, seed, train_fraction, validation_fraction, split)
+    ids <- grouped$ids; split_audit <- grouped$audit
+  } else {
   groups <- if (mode == "regression" || split == "ordered") list(seq_len(nrow(data))) else
     unname(split(seq_len(nrow(data)), as.character(y)))
   # Random classification splits are stratified. Ordered splitting preserves time order.
@@ -111,6 +165,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
     }
     out
   })
+  }
   classes <- if (mode != "regression") sort(unique(as.character(y[ids$train]))) else NULL
   if (mode == "binary" && length(classes) != 2) stop("Binary classification needs exactly two training classes.")
   if (mode == "multiclass" && (length(classes) < 2 || length(classes) > 100))
@@ -126,6 +181,15 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
   x <- sweep(sweep(x, 2, center, "-"), 2, scale, "/")
+  if (mode == "binary") {
+    # Filling/encoding may collapse different raw inputs. Fail closed if so.
+    signatures <- apply(x, 1, function(v) digest::digest(unname(v), algo = "sha256"))
+    sets <- lapply(ids, function(i) unique(signatures[i]))
+    if (length(intersect(sets$train, sets$validation)) ||
+        length(intersect(sets$train, sets$test)) || length(intersect(sets$validation, sets$test)))
+      stop("Preprocessing created identical inputs across splits. Choose different predictors or preprocessing, or prepare a grouped split externally.")
+    split_audit$transformed_overlap_groups <- c(train_validation = 0L, train_test = 0L, validation_test = 0L)
+  }
   encode <- function(z) {
     if (mode == "regression") return(matrix(as.numeric(z), ncol = 1))
     k <- match(as.character(z), classes)
@@ -138,7 +202,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
     actual = y[i], row = i))
   list(parts = parts, features = features, target = target, mode = mode,
     classes = classes, center = center, scale = scale, seed = seed,
-    preprocessing = fitted, encoded_features = colnames(x),
+    preprocessing = fitted, encoded_features = colnames(x), split_audit = split_audit,
     split = split, standardize = standardize, train_fraction = train_fraction,
     validation_fraction = validation_fraction, rows = nrow(data))
 }
@@ -391,7 +455,10 @@ wb_features_code <- function(p) {
   header <- paste0("features <- ", wb_literal(if (is.null(p$preprocessing)) p$features else p$preprocessing$plan$Column), "\ntarget <- ", wb_literal(p$target),
     "\nmode <- ", wb_literal(p$mode), "\nstopifnot(nrow(data) == ", p$rows,
     ", all(c(features, target) %in% names(data)))\n")
-  if (!is.null(p$train_fraction) && !is.null(p$validation_fraction)) {
+  if (!is.null(p$split_audit)) {
+    split_code <- paste0("# Frozen, audited group-disjoint row indices; use the original rows and order.\nsplit_rows <- ",
+      wb_literal(lapply(p$parts, `[[`, "row")), "\n")
+  } else if (!is.null(p$train_fraction) && !is.null(p$validation_fraction)) {
     split_code <- paste0("set.seed(", p$seed, ")\n",
       if (p$mode == "regression" || p$split == "ordered")
         "groups <- list(seq_len(nrow(data)))\n" else
