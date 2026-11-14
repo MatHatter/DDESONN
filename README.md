@@ -2,6 +2,11 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.39 - simpler saved-model evaluation
+
+Removed the redundant labeled customer-example section and download button from
+the saved-model workflow. Upload your evaluation CSV directly.
+
 ## Version 7.3.38 — clearer model loading, exporting and extra training
 
 Read the two-file upload instructions before Browse, then see an italic loaded-

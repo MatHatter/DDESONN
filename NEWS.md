@@ -1,7 +1,10 @@
-# DDESONN 7.3.38
+# DDESONN 7.3.39
 
 - Remove the redundant labeled customer-example section from the saved-model
-  workflow and its unused download handler.
+  workflow and its unused download handler. Users can upload their evaluation CSV
+  directly without a second example download.
+
+# DDESONN 7.3.38
 
 - Put the two-upload example instructions before Browse. Place the italic model
   status immediately below the file picker and identify loaded weights as already
