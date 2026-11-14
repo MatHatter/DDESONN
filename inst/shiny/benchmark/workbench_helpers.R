@@ -5,18 +5,18 @@ wb_example_catalog <- function() list(
     note = "Target: Species. Four numeric flower measurements. Ready to prepare on Features."),
   mtcars = list(label = "mtcars — fuel-economy regression", builtin = TRUE,
     target = "mpg", mode = "regression", features = c("wt", "hp"),
-    note = "Target: mpg. Suggested predictors: wt and hp, matching the small R example. You can choose other columns on Features."),
+    note = "Target: mpg. All other columns are selected by default; review them on Features."),
   heart_failure = list(label = "Heart failure — binary classification",
     file = "heart_failure_clinical_records.csv", target = "DEATH_EVENT", mode = "binary",
     note = "Target: DEATH_EVENT. Uses the 12 numeric predictors. This CSV has repeated inputs; read the benchmark limitations in Vignettes. Loading it does not run or reproduce the research benchmark."),
   wmt = list(label = "WMT prices — packaged stock snapshot",
     file = "WMT_1970-10-01_2025-03-15.csv", target = "close", mode = "regression",
     features = c("open", "high", "low", "volume"), split = "ordered",
-    note = "Same-row price regression illustration, not a validated forecast. Target: close; date and adjusted close are not preselected as predictors. Ordered splitting is suggested."),
+    note = "Same-row price regression illustration, not a validated forecast. Target: close. All other columns are selected by default; review date and adjusted close for preprocessing and leakage. Ordered splitting is suggested."),
   customer_train = list(label = "Customer segmentation — labeled dataset",
     file = "train_multiclass_customer_segmentation.csv", target = "Segmentation", mode = "multiclass",
     features = "Age", exclude = "ID",
-    note = "One labeled dataset: Shiny splits it into training, validation and test sets on Features. Target: Segmentation. Age is a complete numeric starting predictor. Other columns include categories or missing values and need preprocessing; ID is not preselected. No rows or columns are removed."),
+    note = "One labeled dataset: Shiny splits it into training, validation and test sets on Features. Target: Segmentation. All other columns are selected by default, including ID. Review identifiers; categories and missing values need preprocessing before preparation. No rows or columns are removed."),
   customer_test = list(label = "Customer segmentation — unlabeled prediction data",
     file = "test_multiclass_customer_segmentation.csv", features = "Age", exclude = "ID",
     prediction_only = TRUE,
@@ -49,10 +49,8 @@ wb_example <- function(id) {
 }
 
 wb_default_features <- function(data, target, preset = NULL) {
-  numeric <- names(data)[vapply(data, function(x) is.numeric(x) && all(is.finite(x)), logical(1))]
-  if (!is.null(preset$features) && (is.null(preset$target) || identical(target, preset$target)))
-    numeric <- intersect(preset$features, numeric)
-  setdiff(numeric, c(target, preset$exclude))
+  # Selection is explicit and schema-based; preparation validates suitability.
+  setdiff(names(data), target)
 }
 
 wb_write_example <- function(id, file) {
