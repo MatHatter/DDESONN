@@ -1,3 +1,18 @@
+# DDESONN 7.3.32
+
+- Streamline Saved models & predictions into Predict, Save & export and Train
+  further. Guide users through choosing a named model, uploading prediction rows
+  and explicitly running predictions. Show a dedicated chart and results table
+  below the CSV before offering
+  an optional download; keep packaged examples inside a separate disclosure.
+- Preserve uploaded filenames as model names and synchronize selection with
+  Current completed model. Label predictions with their model and data source;
+  clear stale results when either changes. Export and recipe controls are optional
+  tools rather than immediate actions after loading a model.
+- Explain that additional epochs run an extra fit from the selected model's saved
+  weights and original training data, retaining its preprocessing/settings and
+  creating a new completed model. Changes in tabs 1–3 do not edit loaded models.
+
 # DDESONN 7.3.31
 
 - Add a visible “Need help preparing a model?” guide under Saved models &

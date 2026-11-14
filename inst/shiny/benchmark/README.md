@@ -1,5 +1,37 @@
 # DDESONN model workbench
 
+## Streamlined saved-model prediction (7.3.32)
+
+Open **4. Model / Results → Saved models & predictions**. Load the `.rds`
+under **1. Choose a model**. Its filename becomes its displayed model name and
+also appears in **Current completed model**. Switch among models using the
+**Current model** dropdown on this page or the completed-run list on Build & Train.
+
+**Predict** is the default tool. Under **2. Upload rows to predict**, upload the
+separate CSV with the model's saved predictors. Uploading prepares the rows;
+click **Run predictions** under step 3 to score them. The graphing area immediately
+below shows a chart and the first 20 result rows, labeled with their model and
+source CSV. Classification charts count predicted classes; regression charts show
+a distribution of predicted values. These charts cover all prediction rows and
+do not measure accuracy. **Download predictions (CSV)** is optional and appears
+after results. Changing models or prediction rows clears previous results.
+
+Packaged customer rows are an optional, collapsed alternative to uploading your
+CSV. Choose **Use packaged customer rows**, then use the same **Run predictions**
+button. This replaces the active prediction rows; the status names the source.
+
+Model bundles and completed-model recipes live under **Save & export**. You do
+not need to redownload an uploaded model. Edits in tabs 1–3 configure a new model;
+they do not alter a loaded model or enable an updated export by themselves.
+
+**Train further** is optional. Additional epochs are an extra fit from the
+selected model's saved weights, using its saved training data, preprocessing and
+settings. For example, 10 means 10 extra epochs, not repeating the original fit.
+The page identifies the previous epoch budget and selected checkpoint. Optimizer
+state/schedules restart; each member follows its saved checkpoint policy. A
+successful fit creates a separately named completed model and leaves the original
+available. The action opens the existing training-progress area.
+
 ## Help preparing and loading a model (7.3.31)
 
 Open **4. Model / Results → Saved models & predictions → Need help preparing a
@@ -11,10 +43,10 @@ example. If R execution is unavailable, request a reproducible script to run
 instead. Ordinary RDS model formats and generated instructions alone are not
 workbench bundles.
 
-Load the trusted bundle under **Save or restore**, then upload a CSV with its
-saved predictors under **Predict on new rows**. Target labels are optional;
-saved preprocessing is reused. Review the held-out evaluation and download the
-new predictions. Alternatively, train in the app and download its model bundle.
+Load the trusted bundle under **1. Choose a model**, then upload a CSV with its
+saved predictors on **Predict** and click **Run predictions**. Target labels are
+optional; saved preprocessing is reused. View the chart and table below your CSV
+before optionally downloading predictions. Review the held-out evaluation too. Alternatively, train in the app and download its model bundle.
 
 ## Profiling and preparation guidance (7.3.29)
 
@@ -253,7 +285,7 @@ model's original split. A saved bundle contains the model, preprocessing, split
 data, labels, configuration and evaluation. It can contain private source data.
 Only trusted workbench bundles are supported for loading.
 
-**Continue from saved weights** starts another API fit on the model's original
+**Train selected model further** starts another API fit on the model's original
 prepared data with its original settings and the requested extra epochs. Initial
 self-organization is not repeated; the warm start keeps the learned weights. The
 API creates new optimizer accumulators and restarts epoch schedules on each fit;
