@@ -20,16 +20,17 @@ the GitHub source link is for browsing, not an automatic download fallback.
 | Example | Suggested task / target | Starting predictors | Important context |
 |---|---|---|---|
 | Iris | Multiclass / Species | Four numeric measurements | Small first example, 150 rows. |
-| mtcars | Regression / mpg | wt, hp | Small regression example, 32 rows. |
+| mtcars | Regression / mpg | All columns except mpg | Small regression example, 32 rows. |
 | Heart failure | Binary / DEATH_EVENT | All 12 numeric predictors | Repeated inputs limit evaluation; see the research vignette. |
-| WMT prices | Regression / close | open, high, low, volume | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
-| Customer labeled dataset | Multiclass / Segmentation | Age | Other columns contain categories or missing values; ID is not preselected. |
+| WMT prices | Regression / close | All columns except close | Packaged snapshot; ordered splitting is suggested. This same-row illustration is not a validated forecast. |
+| Customer labeled dataset | Multiclass / Segmentation | All columns except Segmentation | Review ID, categories and missing values before preparation. |
 
 The full original rows and columns remain available for inspection and download.
-The suggested predictors are complete numeric columns. No rows are silently
-deleted, categories encoded, or missing values imputed. Prepare additional
-predictors yourself before selecting them. In WMT, the date is nonnumeric and
-adjusted close derives from close, so neither is preselected for this illustration.
+All columns except the target start selected. Preprocessing choices are shown explicitly before preparation. Review identifiers and information derived from the answer. Auto proposes
+identifier exclusions, encoding and missing-value rules; inspect or override
+the plan before preparing. The raw dataset is retained unchanged. For WMT, review the nonnumeric date and answer-derived adjusted close.
+On Features, the dataset name confirms what is loaded. Both navigation paths
+show its target and predictor defaults; moving between tabs preserves your edits.
 
 ## A first iris model
 
@@ -41,8 +42,8 @@ adjusted close derives from close, so neither is preselected for this illustrati
 4. On **4. Model / Results**, inspect the evaluations and predictions. Results
    depend on settings and seed; this is a small workflow example, not a performance claim.
 
-For mtcars, load its example instead. The suggested target is mpg, predictors wt
-and hp, and task Regression. You can change the suggestions on Features.
+For mtcars, load its example instead. The default target is mpg, task Regression, and predictors all other columns.
+For a smaller example, manually select only wt and hp on Features.
 **Show full R code** follows your actual prepared data and settings after preparation.
 
 ## Read the same data in R
@@ -69,15 +70,18 @@ The existing data files are reused; no external datasets are added by this chang
 ## Predict using the unlabeled customer file
 
 Train a customer model first, or load your compatible saved workbench bundle.
-The customer training preset uses Age as a complete numeric starting predictor;
-the matching test file also contains Age. Under **Model / Results → Saved models & predictions → Predict on new rows**,
+The customer preset selects all non-target columns. Auto proposes excluding ID,
+one-hot encoding the categories and handling missing predictor values. You can
+therefore prepare the full relevant customer attributes without reducing them
+to Age alone.
+The matching prediction file provides the same predictor columns. Under **Model / Results → Saved models & predictions → Predict on new rows**,
 click **Predict customer groups with completed model**, or download the optional
 customer prediction CSV. These rows have no Segmentation labels; they are not
 needed for the training, validation or test split. No pretrained
-model is bundled or automatically loaded. The saved predictor names and finite
-numeric values must match; incompatible data produces an error rather than
-changing the trained model. Additional categorical or incomplete predictors
-require the same preparation in both training and prediction data.
+model is bundled or automatically loaded. The saved raw predictor names and types must match; fitted encoding, missing-value
+rules and scaling are reused; incompatible data produces an error rather than
+changing the trained model. For older numeric-only bundles, prediction inputs must still be complete numeric
+values in the original schema.
 
 Loading another dataset clears preparation for a new model while preserving
 completed models. A raw file without target labels is not automatically assigned
@@ -110,3 +114,58 @@ Blank text counts as missing; infinite values are counted separately. Numeric
 summaries and plots use finite values only, without cleaning the underlying data.
 Open **Box-and-whisker plot** and choose a numeric column to explore its median,
 spread and potential outliers. Columns use separate plots because units differ.
+
+## Auto and Manual preprocessing
+
+On Features, **Auto** suggests a complete plan using local, reproducible rules;
+it does not call an AI service. Each section can follow the overall mode or use
+an explicit choice. **Manual** starts with complete numeric inputs and asks you
+to choose any required treatment. Standardization is independently controlled
+by the existing training-means/SDs switch in either mode.
+
+| Step | Auto | Other choices |
+|---|---|---|
+| Numeric missing/nonfinite values | Training median | Training mean, zero, or reject missing values |
+| Unordered categories | One-hot encoding | Explicit ordinal order, or require numeric predictors |
+| Missing categories | Separate Missing level | Most frequent training category, or reject missing values |
+| Identifier-like names | Exclude ID, names ending `_id` or starting `id_` | Keep selected columns, or override a single column |
+
+One-hot encoding gives categories separate 0/1 inputs without imposing an order.
+For ordinal encoding, use **Override one column**, choose Ordinal, and enter an
+explicit low-to-high order such as `Low|Average|High`. All training categories
+must appear exactly once. Known levels become 1..K; missing uses 0 and unseen
+uses -1. Choose ordinal encoding only when the order has a real meaning.
+Click **Apply column override** to store it, or **Clear all column overrides**
+to follow section rules again. The status lists overridden columns. Loading a
+new dataset clears column overrides; merely moving between tabs preserves them.
+
+The proposed table shows each selected column's type, role, encoding, missing
+rule and reason. Identifier-name exclusions are suggestions, not proof of
+irrelevance; review them and possible leakage. The Segmentation target keeps
+its A/B/C/D labels and is never imputed. Missing target values cause an error.
+
+Click Prepare data to split first, then fit category levels, replacement values
+and standardization using **training rows only**. The fitted-rule disclosure
+shows actual training replacements and category lists. No rows are removed.
+Save the workbench bundle to retain the complete rules, output-column order,
+model and training state. Validation, test and new prediction data reuse those
+rules without recalculating medians, modes, levels or scaling.
+
+A new one-hot category maps to a reserved Unknown input; missing categories
+have a separate reserved input. Unknown inputs have no learned examples if
+none existed during training, so predictions on new categories require care.
+Blank text counts as missing; categorical whitespace is trimmed. Numeric
+infinities are treated as missing. Entirely missing numeric training columns
+need explicit zero filling or exclusion. A mode cannot be learned from an
+entirely missing category; choose a Missing level instead.
+
+Columns with more than 200 observed training categories, or a design exceeding
+2,000 inputs, require explicit simplification. Dates and free text can require
+manual conversion/exclusion; for the WMT illustration review the date column
+and answer-derived adjusted close. Auto does not identify every leakage risk.
+
+The preprocessing code preview records your choices. After preparation, the
+full R code contains portable fitting and application functions and uses the
+same split. All learned preprocessing precedes native Basic or Custom training;
+the new preprocessing path disables additional internal input normalization.
+Older numeric-only saved bundles remain supported without changing their rules.

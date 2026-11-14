@@ -1,5 +1,26 @@
 # DDESONN model workbench
 
+## Auto/Manual preprocessing (7.3.27)
+
+Features includes an overall mode, per-step methods, per-column keep/exclude and
+encoding/imputation overrides, a proposed plan and fitted training-rule summary.
+Auto uses median filling, one-hot encoding, a Missing level and identifier-name
+exclusions. Manual defaults to complete numeric inputs and allows explicit
+choices, including user-ordered ordinal categories. Standardization remains an
+independent switch. The target is never imputed; raw source rows stay unchanged.
+
+Preprocessing is fitted after the split and saved in each bundle. Prediction
+uses the saved category schema and fills, including reserved unknown-category
+slots; no prediction-time refitting occurs. Basic/Custom recipes replay the
+choices. Historical numeric-only bundles retain their original behavior.
+
+## Dataset and Features alignment (7.3.26)
+
+Loading a dataset updates Features target and all-non-target predictor choices
+even while the tab is hidden. Both the numbered tab and Next show these controls
+and the loaded dataset name. Navigating alone preserves your manual selections.
+Packaged examples reset split defaults: ordered for WMT, random for the others.
+
 ## Dataset inspector (7.3.24)
 
 Example changes load immediately. Inspect head, tail or a row range, choose

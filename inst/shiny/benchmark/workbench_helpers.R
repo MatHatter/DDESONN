@@ -16,7 +16,7 @@ wb_example_catalog <- function() list(
   customer_train = list(label = "Customer segmentation — labeled dataset",
     file = "train_multiclass_customer_segmentation.csv", target = "Segmentation", mode = "multiclass",
     features = "Age", exclude = "ID",
-    note = "One labeled dataset: Shiny splits it into training, validation and test sets on Features. Target: Segmentation. All other columns are selected by default, including ID. Review identifiers; categories and missing values need preprocessing before preparation. No rows or columns are removed."),
+    note = "One labeled dataset: Shiny splits it into training, validation and test sets on Features. Target: Segmentation. All other columns are selected by default, including ID. Review the Auto preprocessing plan for identifier exclusions, category encoding and missing-value treatment before preparation. Original source rows and columns remain available for inspection and download."),
   customer_test = list(label = "Customer segmentation — unlabeled prediction data",
     file = "test_multiclass_customer_segmentation.csv", features = "Age", exclude = "ID",
     prediction_only = TRUE,
@@ -73,7 +73,7 @@ wb_seed <- function(seed, code) {
 
 wb_prepare <- function(data, target, features, mode, seed = 42L,
                        train_fraction = .6, validation_fraction = .2,
-                       standardize = TRUE, split = "random") {
+                       standardize = TRUE, split = "random", preprocessing = NULL) {
   if (!is.data.frame(data) || nrow(data) < 10 || anyDuplicated(names(data)))
     stop("Use at least 10 rows and unique column names.")
   if (!mode %in% c("binary", "multiclass", "regression")) stop("Choose a supported task.")
@@ -81,7 +81,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
       any(!features %in% names(data)) || target %in% features || anyDuplicated(features))
     stop("Choose a target and at least one distinct predictor.")
   x <- data[features]
-  if (!all(vapply(x, function(v) is.numeric(v) && all(is.finite(v)), logical(1))))
+  if (is.null(preprocessing) && !all(vapply(x, function(v) is.numeric(v) && all(is.finite(v)), logical(1))))
     stop("Predictors must be numeric and finite. Encode categories and handle missing values first.")
   y <- data[[target]]
   if (anyNA(y) || any(trimws(as.character(y)) == "")) stop("The target contains missing values.")
@@ -117,7 +117,11 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
     stop("Multiclass classification needs 2–100 training classes.")
   if (mode != "regression" && any(!as.character(y) %in% classes))
     stop("Validation/test contains a class absent from training. Change the split.")
-  x <- as.matrix(x)
+  fitted <- if (is.null(preprocessing)) NULL else wb_pp_fit(x[ids$train, , drop = FALSE], features, preprocessing)
+  if (!is.null(fitted)) {
+    features <- fitted$features
+    x <- wb_pp_apply(data, fitted)
+  } else x <- as.matrix(x)
   center <- if (standardize) colMeans(x[ids$train, , drop = FALSE]) else rep(0, ncol(x))
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
@@ -134,6 +138,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
     actual = y[i], row = i))
   list(parts = parts, features = features, target = target, mode = mode,
     classes = classes, center = center, scale = scale, seed = seed,
+    preprocessing = fitted, encoded_features = colnames(x),
     split = split, standardize = standardize, train_fraction = train_fraction,
     validation_fraction = validation_fraction, rows = nrow(data))
 }
@@ -205,7 +210,7 @@ wb_run <- function(prepared, config, previous = NULL) {
   config$checkpoint <- match.arg(config$checkpoint, c("best_validation", "final"))
   use_best <- identical(config$checkpoint, "best_validation")
   model <- if (is.null(previous)) DDESONN::ddesonn_model(
-    input_size = length(prepared$features),
+    input_size = ncol(prepared$parts$train$x),
     output_size = if (prepared$mode == "multiclass") length(prepared$classes) else 1,
     hidden_sizes = config$hidden, classification_mode = prepared$mode,
     ML_NN = length(config$hidden) > 0, lambda = config$lambda,
@@ -217,7 +222,7 @@ wb_run <- function(prepared, config, previous = NULL) {
     num_epochs = config$epochs, optimizer = config$optimizer, lr = config$lr,
     lr_decay_rate = 1, lr_min = config$lr, self_org = self_org_applied,
     reg_type = if (config$reg == "none") NULL else config$reg,
-    dropout_rates = NULL, numeric_columns = NULL, batch_normalize_data = FALSE,
+    dropout_rates = NULL, numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
     validation_metrics = use_best, best_weights_on_latest_weights_off = use_best,
     threshold = .5,
     viewTables = FALSE, verboseLow = TRUE)
@@ -302,8 +307,8 @@ wb_validate_bundle <- function(bundle) {
     bundle$selected_epoch <- bundle$config$epochs
   p <- bundle$prepared
   if (!p$mode %in% c("binary", "multiclass", "regression") ||
-      !length(p$features) || length(p$center) != length(p$features) ||
-      length(p$scale) != length(p$features) || any(!is.finite(p$center)) ||
+      !length(p$features) || length(p$center) != ncol(p$parts$train$x) ||
+      length(p$scale) != ncol(p$parts$train$x) || any(!is.finite(p$center)) ||
       any(!is.finite(p$scale) | p$scale <= 0)) stop("The saved preprocessing is invalid.")
   # Exercise the model rather than trusting a stale saved evaluation.
   for (part in names(p$parts)) bundle$evaluation[[part]] <- wb_evaluate(p, p$parts[[part]],
@@ -315,10 +320,7 @@ wb_new_predictions <- function(bundle, data) {
   p <- bundle$prepared
   if (!is.data.frame(data) || !nrow(data) || anyDuplicated(names(data)) ||
       any(!p$features %in% names(data))) stop("Prediction data must include every saved predictor, with unique column names.")
-  x <- data[p$features]
-  if (!all(vapply(x, function(v) is.numeric(v) && all(is.finite(v)), logical(1))))
-    stop("Prediction features must be finite numeric values.")
-  x <- sweep(sweep(as.matrix(x), 2, p$center, "-"), 2, p$scale, "/")
+  x <- wb_prediction_inputs(data, p)
   predictions <- wb_predictions(bundle$model, p, list(x = x))
   if (p$mode == "regression") return(data.frame(row = seq_len(nrow(x)), prediction = predictions[, 1]))
   probs <- if (p$mode == "binary") cbind(1 - predictions[, 1], predictions[, 1]) else predictions
@@ -386,7 +388,7 @@ wb_data_code <- function(source = NULL) {
 }
 
 wb_features_code <- function(p) {
-  header <- paste0("features <- ", wb_literal(p$features), "\ntarget <- ", wb_literal(p$target),
+  header <- paste0("features <- ", wb_literal(if (is.null(p$preprocessing)) p$features else p$preprocessing$plan$Column), "\ntarget <- ", wb_literal(p$target),
     "\nmode <- ", wb_literal(p$mode), "\nstopifnot(nrow(data) == ", p$rows,
     ", all(c(features, target) %in% names(data)))\n")
   if (!is.null(p$train_fraction) && !is.null(p$validation_fraction)) {
@@ -406,12 +408,17 @@ wb_features_code <- function(p) {
     split_code <- paste0("# Frozen row indices from an older bundle\nsplit_rows <- ",
       wb_literal(lapply(p$parts, `[[`, "row")), "\n")
   }
-  scale_code <- paste0("x <- as.matrix(data[features])\n",
+  input_code <- if (is.null(p$preprocessing)) "x <- as.matrix(data[features])\n" else paste0(
+    "# Portable categorical encoding and missing-value rules.\n", wb_pp_code(), "\n\n",
+    "preprocessing_config <- ", wb_literal(p$preprocessing$config), "\n",
+    "preprocessing <- wb_pp_fit(data[split_rows$train, , drop = FALSE], features, preprocessing_config)\n",
+    "x <- wb_pp_apply(data, preprocessing)\n")
+  scale_code <- paste0(input_code,
     if (isTRUE(p$standardize)) paste0(
       "center <- colMeans(x[split_rows$train, , drop = FALSE])\n",
       "scale <- apply(x[split_rows$train, , drop = FALSE], 2, sd)\n",
       "scale[!is.finite(scale) | scale == 0] <- 1\n") else
-      "center <- rep(0, length(features))\nscale <- rep(1, length(features))\n",
+      "center <- rep(0, ncol(x))\nscale <- rep(1, ncol(x))\n",
     "x <- sweep(sweep(x, 2, center, '-'), 2, scale, '/')\n")
   labels <- switch(p$mode,
     regression = "y <- matrix(as.numeric(data[[target]]), ncol = 1)\n",
@@ -449,14 +456,16 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
       "workbench <- new.env(parent = globalenv())",
       "sys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)",
       paste0("config <- ", wb_literal(cfg)),
-      if (create) paste0("prepared <- ", wb_literal(metadata), "\nprepared$parts <- parts\nprepared$center <- center\nprepared$scale <- scale\nbundle <- workbench$wb_run(prepared, config)") else
+      if (create) paste0("prepared <- ", wb_literal(metadata), "\nprepared$parts <- parts\nprepared$center <- center\nprepared$scale <- scale\n",
+        if (!is.null(p$preprocessing)) "prepared$preprocessing <- preprocessing\nprepared$features <- preprocessing$features\nprepared$encoded_features <- colnames(parts$train$x)\n" else "",
+        "bundle <- workbench$wb_run(prepared, config)") else
         "bundle <- workbench$wb_run(bundle$prepared, config, bundle)",
       "model <- bundle$model", sep = "\n\n"))
   }
   best <- identical(cfg$checkpoint, "best_validation")
   start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
-    "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = length(features), output_size = ",
+    "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = ncol(parts$train$x), output_size = ",
     if (p$mode == "multiclass") "length(classes)" else "1", ",\n",
     "  hidden_sizes = ", wb_literal(cfg$hidden), ", classification_mode = mode,\n",
     "  ML_NN = ", wb_literal(length(cfg$hidden) > 0), ", lambda = ", wb_literal(cfg$lambda), ", num_networks = 1)\n")
@@ -465,7 +474,7 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
     "  num_epochs = ", cfg$epochs, ", optimizer = ", wb_literal(cfg$optimizer), ", lr = ", wb_literal(cfg$lr), ",\n",
     "  lr_decay_rate = 1, lr_min = ", wb_literal(cfg$lr), ", self_org = ", wb_literal(create && isTRUE(cfg$self_org)), ",\n",
     "  reg_type = ", wb_literal(if (cfg$reg == "none") NULL else cfg$reg), ", dropout_rates = NULL,\n",
-    "  numeric_columns = NULL, batch_normalize_data = FALSE, threshold = 0.5,\n",
+    "  numeric_columns = ", if (is.null(p$preprocessing)) "NULL" else "integer(0)", ", batch_normalize_data = FALSE, threshold = 0.5,\n",
     "  validation_metrics = ", wb_literal(best), ", best_weights_on_latest_weights_off = ", wb_literal(best), ",\n",
     "  viewTables = FALSE, verboseLow = TRUE)\n")
   if (best) paste0(code,
@@ -520,7 +529,7 @@ wb_bundle_code <- function() {
     "library(DDESONN)",
     "# 1. Load the saved bundle (replace this path with your downloaded file).\nbundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model",
     "# 2. Read new rows to predict (replace this path with your CSV).\n# Include the original predictor column names; the target is not required.\nnew_data <- read.csv('new-data.csv', check.names = FALSE)",
-    "# 3. Select predictors in saved order and reuse training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nsettings <- bundle$prepared\nx_new <- as.matrix(new_data[settings$features])\nx_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')",
+    "# 3. Reuse saved encoding, imputation, predictor order and training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nsettings <- bundle$prepared\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\nx_new <- workbench$wb_prediction_inputs(new_data, settings)",
     "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\n# This preserves Custom member/seed combination and Basic behavior.\nprobabilities <- workbench$wb_predictions(model, settings, list(x = x_new))\nprint(probabilities)",
     "# Optional: save a copy of the whole bundle for use again later.\n# This retains the model AND its preprocessing, split and settings.\nsaveRDS(bundle, 'my-workbench-model.rds')",
     "# Optional: export only the API model.\n# This file omits preprocessing and the Custom orchestration workflow; keep the bundle.\nsaveRDS(model, 'api-model.rds')", sep = "\n\n")
@@ -601,7 +610,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
     "Choose what the model learns" = paste0("target <- ", value(p$target), "\nfeatures <- ", value(p$features),
       "\nstopifnot(!target %in% features)"),
     "Target" = paste0("target <- ", value(p$target), "\noutcome <- data[[target]]"),
-    "Predictors" = paste0("features <- ", value(p$features), "\nx <- as.matrix(data[features])"),
+    "Predictors" = paste0("features <- ", value(p$features), "\npredictor_data <- data[features]\n# Raw attributes: Prepare data applies encoding and missing-value rules."),
     "Task" = paste0("mode <- ", value(p$mode), "\n", switch(p$mode,
       regression = "y <- matrix(as.numeric(data[[target]]), ncol = 1)",
       binary = "classes <- sort(unique(as.character(data[[target]][split_rows$train])))\ny <- matrix(match(as.character(data[[target]]), classes) - 1L, ncol = 1)",
@@ -629,7 +638,7 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
       "  x = x[i, , drop = FALSE], y = y[i, , drop = FALSE],",
       "  actual = data[[target]][i], row = i))", sep = "\n"),
     "About your split" = "lapply(parts, function(part) part$row)\n# Disjoint row indices; this does not detect related subjects or duplicates.\nintersect(parts$train$row, parts$test$row)",
-    "Build & Train" = paste0("model <- ddesonn_model(input_size = length(features),\n  output_size = ",
+    "Build & Train" = paste0("model <- ddesonn_model(input_size = ncol(parts$train$x),\n  output_size = ",
       if (p$mode == "multiclass") "length(classes)" else "1", ", classification_mode = mode,\n  hidden_sizes = ",
       value(cfg$hidden), ", ML_NN = ", value(length(cfg$hidden) > 0), ",\n  lambda = ", value(cfg$lambda), ", num_networks = 1)"),
     "Hidden-layer sizes" = paste0("hidden_sizes <- ", value(cfg$hidden),
@@ -667,11 +676,13 @@ wb_help_code <- function(topic, prepared = NULL, config = NULL, completed = NULL
         "      Predicted = factor(classes[predicted_index], levels = classes))", sep = "\n")
     },
     "Save or restore" = "# Load the .rds file downloaded with Save model.\n# The bundle contains the trained model and preprocessing settings.\nbundle <- readRDS('ddesonn-workbench-model.rds')\n\n# Save a copy for later; this does not train or predict.\nsaveRDS(bundle, 'my-workbench-model.rds')",
-    "Predict on new rows" = paste("# First load bundle using Save or restore; no retraining occurs here.",
-      "settings <- bundle$prepared", "new_data <- read.csv('new-data.csv', check.names = FALSE)",
-      "\n# Reuse the saved predictor order and training scaling.\nx_new <- as.matrix(new_data[settings$features])",
-      "x_new <- sweep(sweep(x_new, 2, settings$center, '-'), 2, settings$scale, '/')",
-      "\n# Class probabilities for classification; numeric values for regression.\npredictions <- ddesonn_predict(bundle$model, x_new)$prediction", sep = "\n"),
+    "Predict on new rows" = paste(
+      "# Run the complete saved-model prediction example first to create x_new.",
+      "# That script reuses fitted encoding, imputation and scaling; it does not refit.",
+      "settings <- bundle$prepared",
+      "stopifnot(is.matrix(x_new), ncol(x_new) == length(settings$center))",
+      "# Basic API probabilities; the full script also preserves Custom fusion.",
+      "predictions <- ddesonn_predict(bundle$model, x_new)$prediction", sep = "\n"),
     "Another fit from saved weights" = "model <- bundle$model\nparts <- bundle$prepared$parts\n# Reuse saved data/settings; restart optimizer schedules.\nself_org <- FALSE",
     "Additional epochs" = {
       epochs <- tryCatch(wb_config(epochs = more_epochs)$epochs, error = function(e) NULL)
@@ -820,7 +831,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     do_ensemble = config$structure %in% c("main", "temp"),
     reg_type = if (config$reg == "none") NULL else config$reg,
     dropout_rates = as.list(rep(config$dropout, max(1, length(config$hidden)))),
-    numeric_columns = NULL, batch_normalize_data = FALSE,
+    numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
     validation_metrics = best, best_weights_on_latest_weights_off = best,
     threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics)
   if (is.null(previous)) {
@@ -908,7 +919,7 @@ wb_bundle_manifest <- function(bundle) {
       paste(p$mode, "·", paste(p$features, collapse = ", ")),
       if (identical(cfg$workflow, "custom")) paste(length(cfg$seeds), "seeds ×", cfg$members, if (cfg$structure %in% c("main", "temp")) "MAIN members; complete weights and biases; saved member/seed combination and weights" else "members per model; complete weights and biases; saved member/seed combination and weights") else "Selected model's complete weights and biases",
       paste(paste(names(p$parts), vapply(p$parts, function(part) nrow(part$x), integer(1)), sep = ": "), collapse = "; "),
-      "Predictor order, training centers/scales, row indices, split data and labels",
+      "Raw/encoded predictor order, fitted encoding and imputation rules, training centers/scales, row indices, split data and labels",
       paste(vapply(names(cfg), function(name) paste0(name, " = ", paste(cfg[[name]], collapse = ",")), character(1)), collapse = "; "), paste(length(bundle$evaluation), "evaluation splits;", if (is.data.frame(bundle$history)) nrow(bundle$history) else 0L, "recorded loss rows"),
       paste(length(bundle$training_log), "retained log lines"),
       if (is.null(bundle$recipe)) "No saved replay recipe in this older bundle" else paste(length(strsplit(bundle$recipe, "\n")[[1]]), "lines of saved R code"),
@@ -949,4 +960,136 @@ wb_data_profile <- function(data) {
       Min = q[1], Q1 = q[2], Median = q[3], Q3 = q[4], Max = q[5], check.names = FALSE)
   })
   do.call(rbind, rows)
+}
+
+# Portable preprocessing: these functions are also embedded in generated recipes.
+wb_pp_config <- function(mode = "auto", numeric = "auto", encoding = "auto",
+                         categorical_missing = "auto", identifiers = "auto", overrides = list()) {
+  mode <- match.arg(mode, c("auto", "manual"))
+  resolve <- function(x, choices, automatic, manual) {
+    x <- match.arg(x, c("auto", choices))
+    if (x == "auto") if (mode == "auto") automatic else manual else x
+  }
+  list(mode = mode,
+    numeric = resolve(numeric, c("median", "mean", "zero", "error"), "median", "error"),
+    encoding = resolve(encoding, c("onehot", "ordinal", "error"), "onehot", "error"),
+    categorical_missing = resolve(categorical_missing, c("level", "mode", "error"), "level", "error"),
+    identifiers = resolve(identifiers, c("exclude", "keep"), "exclude", "keep"), overrides = overrides)
+}
+
+wb_pp_plan <- function(data, features, config) {
+  do.call(rbind, lapply(features, function(name) {
+    x <- data[[name]]; o <- config$overrides[[name]]
+    action <- if (is.null(o$action) || o$action == "auto") {
+      if (config$identifiers == "exclude" && grepl("(^id$|_id$|^id_)", name, ignore.case = TRUE)) "exclude" else "keep"
+    } else match.arg(o$action, c("exclude", "keep"))
+    numeric <- if (is.null(o$numeric) || o$numeric == "auto") config$numeric else o$numeric
+    encoding <- if (is.null(o$encoding) || o$encoding == "auto") config$encoding else o$encoding
+    missing <- if (is.null(o$missing) || o$missing == "auto") config$categorical_missing else o$missing
+    data.frame(Column = name, Type = if (is.numeric(x)) "numeric" else "categorical",
+      Role = action, Encoding = if (is.numeric(x) || action == "exclude") "none" else encoding,
+      Missing = if (action == "exclude") "not used" else if (is.numeric(x)) numeric else missing,
+      Reason = if (action == "exclude") "Identifier-name rule or explicit column override" else if (is.numeric(x))
+        if (numeric == "zero") "Retain numeric values; fill missing/nonfinite values with zero" else if (numeric == "error") "Require complete, finite numeric values" else
+          "Learn replacement from training rows only" else if (encoding == "ordinal")
+        "Use explicit low-to-high order; missing = 0, unseen = -1" else "Use training categories; reserve Missing/Unknown inputs", stringsAsFactors = FALSE)
+  }))
+}
+
+wb_pp_fit <- function(data, features, config) {
+  plan <- wb_pp_plan(data, features, config)
+  features <- plan$Column[plan$Role == "keep"]
+  if (!length(features)) stop("Preprocessing excludes every predictor. Keep at least one column.")
+  specs <- lapply(features, function(name) {
+    x <- data[[name]]; row <- plan[plan$Column == name, ]; o <- config$overrides[[name]]
+    if (is.numeric(x)) {
+      method <- row$Missing
+      if (!method %in% c("median", "mean", "zero", "error")) stop("Unsupported numeric missing-value method.")
+      values <- x[is.finite(x)]
+      if (!length(values) && method %in% c("median", "mean"))
+        stop(paste(name, "has no finite training values. Exclude it or choose zero filling."))
+      fill <- switch(method, median = stats::median(values), mean = mean(values), zero = 0, error = NA_real_)
+      return(list(name = name, type = "numeric", missing = method, fill = fill, columns = name))
+    }
+    if (!is.character(x) && !is.factor(x) && !is.logical(x)) stop(paste("Unsupported column type:", name))
+    x <- trimws(as.character(x)); x[is.na(x) | x == ""] <- NA_character_
+    method <- row$Missing
+    if (!method %in% c("level", "mode", "error")) stop("Unsupported categorical missing-value method.")
+    values <- sort(unique(x[!is.na(x)]))
+    if (length(values) > 200) stop(paste(name, "has over 200 training categories. Exclude identifiers/free text or preprocess it separately."))
+    if (method == "mode" && !length(values)) stop(paste(name, "has no observed training category. Choose a Missing level or exclude it."))
+    fill <- if (method == "mode") names(sort(table(x), decreasing = TRUE))[1] else NA_character_
+    encoding <- row$Encoding
+    if (!encoding %in% c("onehot", "ordinal")) stop(paste("Choose one-hot or ordinal encoding for", name))
+    if (encoding == "ordinal") {
+      order <- o$order
+      if (!length(order) || anyNA(order) || any(!nzchar(order)) || anyDuplicated(order) || any(!values %in% order))
+        stop(paste("Specify a unique low-to-high ordinal order containing every training category for", name))
+      values <- order
+    }
+    columns <- if (encoding == "ordinal") name else paste0(name, "__", c(values, "[Missing]", "[Unknown]"))
+    list(name = name, type = "categorical", missing = method, fill = fill,
+      encoding = encoding, levels = values, columns = columns)
+  })
+  columns <- make.unique(unlist(lapply(specs, `[[`, "columns")), sep = "__")
+  if (length(columns) > 2000) stop("Preprocessing creates over 2,000 inputs. Reduce categorical cardinality or selected columns.")
+  at <- 0L
+  for (i in seq_along(specs)) {
+    n <- length(specs[[i]]$columns); specs[[i]]$columns <- columns[at + seq_len(n)]; at <- at + n
+  }
+  list(version = 1L, features = features, specs = specs, columns = columns, config = config, plan = plan)
+}
+
+wb_pp_apply <- function(data, preprocessing) {
+  if (any(!preprocessing$features %in% names(data))) stop("Prediction data must include every saved predictor.")
+  matrices <- lapply(preprocessing$specs, function(s) {
+    x <- data[[s$name]]
+    if (s$type == "numeric") {
+      if (!is.numeric(x)) stop(paste(s$name, "must remain numeric, as in the training data."))
+      bad <- !is.finite(x)
+      if (any(bad) && s$missing == "error") stop(paste(s$name, "contains missing/nonfinite values. Choose a missing-value treatment."))
+      x[bad] <- s$fill
+      return(matrix(x, ncol = 1, dimnames = list(NULL, s$columns)))
+    }
+    x <- trimws(as.character(x)); bad <- is.na(x) | x == ""
+    if (any(bad) && s$missing == "error") stop(paste(s$name, "contains missing categories. Choose a Missing level or mode filling."))
+    if (s$missing == "mode") { x[bad] <- s$fill; bad[] <- FALSE }
+    k <- match(x, s$levels)
+    # Ordinal: 0 means missing and -1 means unseen; known levels are 1..K.
+    if (s$encoding == "ordinal") {
+      k[is.na(k)] <- -1L; k[bad] <- 0L
+      return(matrix(as.numeric(k), ncol = 1, dimnames = list(NULL, s$columns)))
+    }
+    k[is.na(k)] <- length(s$levels) + 2L; k[bad] <- length(s$levels) + 1L
+    m <- matrix(0, nrow = length(x), ncol = length(s$columns), dimnames = list(NULL, s$columns))
+    m[cbind(seq_along(k), k)] <- 1
+    m
+  })
+  out <- do.call(cbind, matrices)
+  if (any(!is.finite(out))) stop("Preprocessing produced nonfinite inputs.")
+  out
+}
+
+wb_pp_code <- function() {
+  functions <- c("wb_pp_config", "wb_pp_plan", "wb_pp_fit", "wb_pp_apply")
+  paste(vapply(functions, function(name) paste0(name, " <- ", paste(deparse(get(name)), collapse = "\n")), character(1)), collapse = "\n\n")
+}
+
+wb_prediction_inputs <- function(data, p) {
+  x <- if (!is.null(p$preprocessing)) wb_pp_apply(data, p$preprocessing) else {
+    x <- data[p$features]
+    if (!all(vapply(x, function(v) is.numeric(v) && all(is.finite(v)), logical(1))))
+      stop("Prediction features must be finite numeric values.")
+    as.matrix(x)
+  }
+  sweep(sweep(x, 2, p$center, "-"), 2, p$scale, "/")
+}
+
+wb_pp_summary <- function(preprocessing) {
+  do.call(rbind, lapply(preprocessing$specs, function(s) data.frame(
+    Column = s$name, Encoding = if (s$type == "numeric") "numeric" else s$encoding,
+    Missing = s$missing,
+    Replacement = if (!is.na(s$fill)) as.character(s$fill) else if (s$missing == "level") "Separate Missing level" else "Reject missing",
+    Training_categories = if (s$type == "numeric") "not applicable" else paste(utils::head(s$levels, 20), collapse = " | "),
+    Output_inputs = length(s$columns), stringsAsFactors = FALSE)))
 }
