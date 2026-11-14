@@ -189,6 +189,10 @@ wb_ui <- function() {
           shiny::p(class = "wb-guidance", shiny::textOutput("wb_csv_instructions")),
           shiny::fileInput("wb_new_data", "Your data (CSV, up to 10 MB)", accept = ".csv", width = "100%"),
           shiny::tags$details(shiny::tags$summary("Required CSV columns"), shiny::textOutput("wb_prediction_columns")),
+          shiny::conditionalPanel("input.wb_csv_purpose === 'evaluate'",
+            shiny::tags$details(shiny::tags$summary("Optional: labeled example for the downloadable customer model"),
+              shiny::p("For the provided customer-segmentation-model-7.3.31.rds only: these 20 labeled rows come from its original test set. This demonstrates evaluation, not a new independent test; its subset accuracy can differ from the full-test score above. For your own model, supply your own compatible labeled CSV."),
+              shiny::downloadButton("wb_eval_example_download", "Download labeled evaluation example"))),
           shiny::conditionalPanel("input.wb_csv_purpose === 'predict'", shiny::tags$details(shiny::tags$summary("Optional: try an unlabeled customer example"),
             shiny::p("These example rows have no correct Segmentation labels, so they demonstrate prediction only, not accuracy. They may match inputs stored in a compatible customer model."),
             shiny::actionButton("wb_example_predict", "Use packaged customer rows"),
@@ -909,6 +913,12 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_example_download <- shiny::downloadHandler(
     filename = function() "DDESONN-customer-prediction.csv",
     content = function(file) wb_write_example("customer_test", file))
+  output$wb_eval_example_download <- shiny::downloadHandler(
+    filename = function() "customer-segmentation-original-test-example.csv",
+    content = function(file) {
+      path <- system.file("shiny", "benchmark", "examples", "customer-segmentation-original-test-example.csv", package = "DDESONN")
+      stopifnot(nzchar(path), file.copy(path, file, overwrite = TRUE))
+    })
   shiny::observeEvent(input$wb_example_predict, attempt({
     busy(); new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL)
     if (is.null(active_model())) stop("Train or load a compatible model before choosing example rows.")
