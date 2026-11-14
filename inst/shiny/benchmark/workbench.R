@@ -136,7 +136,7 @@ wb_ui <- function() {
           wb_heading("Start with Data", "Choose a labeled dataset or upload a CSV with known target values. Shiny divides this one dataset into training, validation and test sets on Features. Each row is an observation and each column is a variable. Loading data does not train a model. Choose the target and predictors next, on Features."),
           shiny::selectInput("wb_example", "Packaged training example", wb_example_choices(), selected = "iris", selectize = FALSE),
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_example_note")),
-          shiny::actionButton("wb_demo", "Load selected example"),
+          shiny::actionButton("wb_demo", "Reload selected example"),
           shiny::downloadButton("wb_example_download", "Download example CSV"),
           wb_vignette_link("wb_data_vignettes", "Packaged-data guide in Vignettes"),
           shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/inst/extdata", target = "_blank", rel = "noopener noreferrer", "Browse dataset source on GitHub"),
@@ -145,11 +145,24 @@ wb_ui <- function() {
           shiny::div(class = "wb-action-right", shiny::actionButton("wb_next_features", "Next: choose features", class = "btn-primary"))),
         shiny::mainPanel(
           shiny::div(class = "panel-body-custom",
-            wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. The preview shows the first ten rows; the full dataset is used when you prepare it."),
+            wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. Choosing a packaged example loads it immediately. Browse first, last or specific rows and choose columns. Inspection does not change training data."),
             shiny::textOutput("wb_data_source"),
             shiny::p("Predictors must be numeric. Encode categories and handle missing values before training. A classification target can contain class labels."),
+            shiny::fluidRow(
+              shiny::column(4, shiny::selectInput("wb_inspect_view", "Rows to view", c("First rows (head)" = "head", "Last rows (tail)" = "tail", "From row number" = "range"), selectize = FALSE)),
+              shiny::column(4, shiny::numericInput("wb_inspect_n", "Number of rows (1–100)", 5, min = 1, max = 100)),
+              shiny::column(4, shiny::numericInput("wb_inspect_start", "Starting row (From row number)", 1, min = 1))),
+            shiny::uiOutput("wb_inspect_columns_ui"),
+            shiny::textOutput("wb_inspect_range"),
             shiny::div(class = "scroll-table", shiny::tableOutput("wb_preview")),
-            wb_code_panel("wb_data_code")),
+            wb_code_panel("wb_data_code", "R code — load data and inspect these rows"),
+            shiny::tags$details(shiny::tags$summary("Descriptive summary — full dataset"),
+              shiny::p("All rows and columns, independent of the row preview. Missing counts include blank text. Numeric summaries use finite values; NA means not applicable or unavailable. No data is removed or imputed."),
+              shiny::div(class = "scroll-table", shiny::tableOutput("wb_data_profile"))),
+            shiny::tags$details(shiny::tags$summary("Box-and-whisker plot"),
+              shiny::uiOutput("wb_box_column_ui"),
+              shiny::p("Uses all finite values in the chosen numeric column. The box shows the middle 50%, the line is the median, and whiskers extend to values within 1.5 × IQR. Points beyond are potential outliers; they are kept in your data."),
+              shiny::plotOutput("wb_data_box", height = "280px"))),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_data_error"))))),
     shiny::tabPanel("2. Features", value = "features",
       shiny::sidebarLayout(
@@ -501,14 +514,16 @@ wb_server <- function(input, output, session, helper) {
   }))
   example_id <- shiny::reactive(if (is.null(input$wb_example)) "iris" else input$wb_example)
   output$wb_example_note <- shiny::renderText(wb_example_catalog()[[example_id()]]$note)
-  shiny::observeEvent(input$wb_demo, attempt({
+  load_example <- function() {
     busy(); example <- wb_example(example_id())
     if (isTRUE(example$prediction_only)) stop("Use unlabeled examples under Predict on new rows, after training a compatible model.")
     dataset_preset(example); raw(example$data); prepared(NULL); data_origin(example$source)
     data_source(paste0("Included ", example$label, " · ", nrow(example$data), " rows"))
     if (!is.null(example$mode)) shiny::updateSelectInput(session, "wb_mode", selected = example$mode)
     if (!is.null(example$split)) shiny::updateSelectInput(session, "wb_split", selected = example$split)
-  }))
+  }
+  shiny::observeEvent(input$wb_demo, attempt(load_example()))
+  shiny::observeEvent(input$wb_example, attempt(load_example()), ignoreInit = TRUE)
   output$wb_example_download <- shiny::downloadHandler(
     filename = function() paste0("DDESONN-", example_id(), ".csv"),
     content = function(file) wb_write_example(example_id(), file))
@@ -669,7 +684,13 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_full_download <- shiny::downloadHandler(filename = function() full_script()$filename,
     content = function(file) writeLines(full_script()$code, file))
-  output$wb_data_code <- shiny::renderText(wb_data_code(code_source()))
+  inspected <- shiny::reactive(wb_inspect_rows(raw(),
+    if (is.null(input$wb_inspect_view)) "head" else input$wb_inspect_view,
+    if (is.null(input$wb_inspect_n)) 5 else input$wb_inspect_n,
+    if (is.null(input$wb_inspect_start)) 1 else input$wb_inspect_start,
+    if (is.null(input$wb_inspect_columns)) names(raw()) else input$wb_inspect_columns))
+  output$wb_data_code <- shiny::renderText(paste(wb_data_code(code_source()),
+    "# Inspect a subset; the full data remains unchanged.", inspected()$expression, sep = "\n\n"))
   output$wb_features_code <- shiny::renderText({
     shiny::validate(shiny::need(!is.null(prepared()), "Choose features and click Prepare data first."))
     paste("# Run the Data snippet first.", wb_features_code(prepared()), sep = "\n")
@@ -742,7 +763,33 @@ wb_server <- function(input, output, session, helper) {
   output$wb_checkpoint_results <- shiny::renderText(if (!is.null(result())) wb_checkpoint_summary(result()))
   output$wb_model_error <- shiny::renderText(model_error())
   output$wb_data_source <- shiny::renderText(data_source())
-  output$wb_preview <- shiny::renderTable(utils::head(raw(), 10), rownames = FALSE)
+  output$wb_inspect_columns_ui <- shiny::renderUI(shiny::selectizeInput("wb_inspect_columns", "Columns to view (empty = all)", names(raw()), selected = names(raw()), multiple = TRUE))
+  shiny::observeEvent(raw(), shiny::updateNumericInput(session, "wb_inspect_start", value = 1, max = max(1, nrow(raw()))), ignoreInit = TRUE)
+  output$wb_inspect_range <- shiny::renderText({
+    ids <- inspected()$rows
+    paste0(if (length(ids)) paste0("Rows ", min(ids), "–", max(ids)) else "No rows",
+      " of ", nrow(raw()), " · ", length(inspected()$columns), " of ", ncol(raw()), " columns. Row names identify the original rows.")
+  })
+  output$wb_preview <- shiny::renderTable({
+    data <- inspected()$data
+    shiny::validate(shiny::need(ncol(data) > 0, "Choose columns from the loaded dataset."))
+    data
+  }, rownames = TRUE)
+  output$wb_data_profile <- shiny::renderTable(wb_data_profile(raw()), digits = 4, na = "NA")
+  output$wb_box_column_ui <- shiny::renderUI({
+    choices <- names(raw())[vapply(raw(), is.numeric, logical(1))]
+    if (!length(choices)) return(shiny::p("No numeric columns in this dataset."))
+    shiny::selectInput("wb_box_column", "Numeric column", choices, selectize = FALSE)
+  })
+  output$wb_data_box <- shiny::renderPlot({
+    column <- input$wb_box_column
+    shiny::validate(shiny::need(length(column) == 1 && column %in% names(raw()) && is.numeric(raw()[[column]]), "Choose a numeric column."))
+    values <- raw()[[column]]
+    finite <- values[is.finite(values)]
+    shiny::validate(shiny::need(length(finite) > 0, "No finite numeric values to plot."))
+    graphics::boxplot(finite, horizontal = TRUE, main = column, xlab = "Value", col = "#dce9f6", border = "#326ea5")
+    graphics::mtext(paste(length(finite), "finite values;", length(values) - length(finite), "missing/nonfinite omitted from plot only"), side = 3, cex = .8)
+  })
   output$wb_prepared <- shiny::renderText({
     p <- prepared()
     if (is.null(p)) return("Not prepared. Choose your columns and task, then click Prepare data.")

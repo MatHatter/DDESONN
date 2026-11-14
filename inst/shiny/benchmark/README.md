@@ -1,5 +1,12 @@
 # DDESONN model workbench
 
+## Dataset inspector (7.3.24)
+
+Example changes load immediately. Inspect head, tail or a row range, choose
+columns, and copy the equivalent R code. Descriptive summaries cover the full
+dataset; numeric box plots use all finite values in one chosen column. Browsing
+does not modify training inputs. Reload restores the selected packaged example.
+
 ## Separate training and optional prediction examples (7.3.23)
 
 Data offers five labeled datasets. Provide one dataset and use Features to split

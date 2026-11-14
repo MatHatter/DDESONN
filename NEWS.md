@@ -1,3 +1,12 @@
+# DDESONN 7.3.24
+
+- Load packaged examples immediately when the dropdown changes, keeping inspector
+  data, source code and feature defaults aligned with the selected example.
+- Browse head, tail or a row range (up to 100 rows), select visible columns and
+  view the matching reproducible R code without executing arbitrary scripts.
+- Add full-dataset descriptive statistics, missing/blank and nonfinite counts,
+  and numeric box plots. Inspection leaves data and trained models unchanged.
+
 # DDESONN 7.3.23
 
 - Limit the Data example selector to labeled datasets, and clarify that Features

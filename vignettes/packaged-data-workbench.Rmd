@@ -9,7 +9,7 @@ vignette: >
 
 ## Choose an example
 
-On **1. Data**, choose a **Packaged training example** and click **Load selected example**.
+On **1. Data**, choose a **Packaged training example** to load it immediately. Use **Reload selected example** to restore it after an upload.
 Provide one labeled dataset. On Features, Shiny divides it into training,
 validation and test sets; no separate unlabeled file is required.
 Loading or downloading data does not train a model. The app reads files from
@@ -95,3 +95,18 @@ The app's contextual links take you to **Vignettes** for this guide, the
 standard-AdaGrad research record, single-run/ensemble plot controls and ensemble
 logs. Installed HTML guides open locally when present; otherwise the links open
 their online source. All guide navigation preserves your current session.
+
+## Browse and profile the loaded data
+
+The inspector follows the selected example or uploaded CSV. Choose first rows
+(`head`), last rows (`tail`) or a starting row number, and show 1–100 rows at a
+time. Choose visible columns to inspect wide files. The row count identifies the
+subset and the full dataset size; the displayed R code reproduces that view.
+These controls do not execute arbitrary R scripts or alter training inputs.
+
+Open **Descriptive summary — full dataset** for types, distinct counts, missing
+values and numeric means, standard deviations and quartiles across all rows.
+Blank text counts as missing; infinite values are counted separately. Numeric
+summaries and plots use finite values only, without cleaning the underlying data.
+Open **Box-and-whisker plot** and choose a numeric column to explore its median,
+spread and potential outliers. Columns use separate plots because units differ.
