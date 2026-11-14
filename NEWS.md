@@ -1,3 +1,16 @@
+# DDESONN 7.3.29
+
+- Make dataset profiling visible by default and explain that descriptive summaries
+  and box plots are optional discovery tools, not transformations of training data.
+- Replace the ambiguous “empty = all” column selector with an explicit Show all
+  columns control. Require a column selection when that control is off.
+- Explain when category encoding, missing-value handling and predictor exclusion
+  are needed, using customer segmentation and complete numeric examples.
+- Label the existing standardization control “Scale inputs using training means
+  and SDs”. Clarify that scaling is preprocessing for any task, remains independent
+  of Auto/Manual, and is enabled by default. Prepare data splits first, then learns
+  rules from training rows and reuses them for validation, test and prediction.
+
 # DDESONN 7.3.28
 
 - Retain fit number and within-fit epoch in training-loss logs. Draw separate

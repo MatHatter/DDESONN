@@ -152,16 +152,18 @@ wb_ui <- function() {
           shiny::div(class = "panel-body-custom",
             wb_heading("Inspect your dataset", "Check the column names, values and overall structure before selecting features. Choosing a packaged example loads it immediately. Browse first, last or specific rows and choose columns. Inspection does not change training data."),
             shiny::textOutput("wb_data_source"),
-            shiny::p("Auto preprocessing can encode categories and handle missing predictors. Inspect the suggested plan on Features. A classification target can contain class labels."),
+            shiny::p(class = "wb-guidance", "Optional discovery only: browse rows, descriptive statistics and box plots to understand your dataset. Profiling does not clean, scale or otherwise change the data, and it is not required before training. Choose and apply any needed preprocessing on Features."),
             shiny::fluidRow(
               shiny::column(4, shiny::selectInput("wb_inspect_view", "Rows to view", c("First rows (head)" = "head", "Last rows (tail)" = "tail", "From row number" = "range"), selectize = FALSE)),
               shiny::column(4, shiny::numericInput("wb_inspect_n", "Number of rows (1–100)", 5, min = 1, max = 100)),
               shiny::column(4, shiny::numericInput("wb_inspect_start", "Starting row (From row number)", 1, min = 1))),
-            shiny::uiOutput("wb_inspect_columns_ui"),
+            shiny::checkboxInput("wb_inspect_all", "Show all columns", value = TRUE),
+            shiny::conditionalPanel("input.wb_inspect_all === false",
+              shiny::uiOutput("wb_inspect_columns_ui")),
             shiny::textOutput("wb_inspect_range"),
             shiny::div(class = "scroll-table", shiny::tableOutput("wb_preview")),
             wb_code_panel("wb_data_code", "R code — load data and inspect these rows"),
-            shiny::tags$details(shiny::tags$summary("Descriptive summary — full dataset"),
+            shiny::tags$details(open = "open", shiny::tags$summary("Dataset profiling — descriptive summary"),
               shiny::p("All rows and columns, independent of the row preview. Missing counts include blank text. Numeric summaries use finite values; NA means not applicable or unavailable. No data is removed or imputed."),
               shiny::div(class = "scroll-table", shiny::tableOutput("wb_data_profile"))),
             shiny::tags$details(shiny::tags$summary("Box-and-whisker plot"),
@@ -177,7 +179,9 @@ wb_ui <- function() {
           shiny::uiOutput("wb_columns"),
           shiny::tags$details(class = "wb-settings-section", open = "open", shiny::tags$summary("Preprocessing — Auto / Manual"),
             wb_pp_field("wb_pp_mode", "Overall preprocessing", shiny::radioButtons("wb_pp_mode", NULL, c("Auto" = "auto", "Manual" = "manual"), selected = "auto", inline = TRUE)),
-            shiny::p("Auto proposes rules locally. Manual requires complete numeric inputs unless you choose treatments. Standardization below is controlled independently. Each step can override the overall mode. Rules are fitted on training rows only; target labels are not imputed."),
+            shiny::p("Preprocessing prepares predictors for the model, for binary classification, multiclass classification and regression alike. Use category encoding for text/category inputs and missing-value treatment for incomplete predictors. Exclude identifiers or answer-derived columns when they should not be learned."),
+            shiny::p("For example, customer segmentation has category inputs that need encoding and missing predictors may need filling. Complete numeric examples such as iris or heart failure do not need category encoding or missing-value filling when their selected predictors are already complete and finite. Scaling can still help when numeric ranges differ."),
+            shiny::p("Auto proposes rules locally; a step makes no changes when no treatment is needed. Manual requires complete numeric inputs unless you choose treatments. Standardization is a separate switch below, enabled by default in both modes. Review the plan, then click Prepare data: the split happens first, rules are fitted on training rows only, and validation, test and future predictions reuse them. Target labels are not imputed."),
             wb_pp_field("wb_pp_numeric", "Missing numeric values / infinities", shiny::selectInput("wb_pp_numeric", NULL, c("Use Auto default (see info)" = "auto", "Training median" = "median", "Training mean" = "mean", "Fill with zero" = "zero", "Require complete values" = "error"))),
             wb_pp_field("wb_pp_encoding", "Categorical encoding", shiny::selectInput("wb_pp_encoding", NULL, c("Use Auto default (see info)" = "auto", "One-hot: separate 0/1 inputs" = "onehot", "Ordinal: use an explicit order per column" = "ordinal", "Require numeric predictors" = "error"))),
             wb_pp_field("wb_pp_missing", "Missing categorical values", shiny::selectInput("wb_pp_missing", NULL, c("Use Auto default (see info)" = "auto", "Separate Missing level" = "level", "Most frequent training category" = "mode", "Require complete categories" = "error"))),
@@ -206,8 +210,8 @@ wb_ui <- function() {
           wb_field("wb_seed", "Data-split seed", "Controls repeatable random row splitting. Ordered splits keep row order. Basic reuses this value for its one training run; Custom uses the separate Training-run seed values on Build & Train. A value of 42 is one reproducibility seed, not 42 runs.",
             shiny::numericInput("wb_seed", NULL, 42, min = 0, max = 2147483646, step = 1)),
           shiny::p(class = "wb-guidance", "42 is a seed value, not a run count. Basic reuses it for one training run. Custom has a separate list of training-run seeds on Build & Train.")),
-          wb_switch("wb_scale", "Standardize using training means and SDs",
-            "Subtracts each predictor's training average and divides by its training standard deviation (SD, a measure of spread). This puts inputs on comparable scales. Validation, test and new rows reuse those same training values; the target is unchanged.", TRUE,
+          wb_switch("wb_scale", "Scale inputs using training means and SDs",
+            "Subtracts each predictor's training average and divides by its training standard deviation (SD, a measure of spread). This puts inputs on comparable scales and can improve training when ranges differ, regardless of task type. It is preprocessing too, separate from category encoding and missing-value filling; Auto/Manual does not turn it on or off. Validation, test and new rows reuse those same training values; the target is unchanged.", TRUE,
             api = paste("center <- colMeans(x_train)", "spread <- apply(x_train, 2, sd)",
               "spread[!is.finite(spread) | spread == 0] <- 1",
               "x_train_scaled <- sweep(sweep(x_train, 2, center, '-'), 2, spread, '/')", sep = "\n")),
@@ -792,11 +796,15 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_full_download <- shiny::downloadHandler(filename = function() full_script()$filename,
     content = function(file) writeLines(full_script()$code, file))
-  inspected <- shiny::reactive(wb_inspect_rows(raw(),
+  inspected <- shiny::reactive({
+    columns <- if (!identical(input$wb_inspect_all, FALSE)) names(raw()) else input$wb_inspect_columns
+    shiny::validate(shiny::need(length(columns) > 0, "Choose at least one column, or select Show all columns."))
+    wb_inspect_rows(raw(),
     if (is.null(input$wb_inspect_view)) "head" else input$wb_inspect_view,
     if (is.null(input$wb_inspect_n)) 5 else input$wb_inspect_n,
     if (is.null(input$wb_inspect_start)) 1 else input$wb_inspect_start,
-    if (is.null(input$wb_inspect_columns)) names(raw()) else input$wb_inspect_columns))
+    columns)
+  })
   output$wb_data_code <- shiny::renderText(paste(wb_data_code(code_source()),
     "# Inspect a subset; the full data remains unchanged.", inspected()$expression, sep = "\n\n"))
   output$wb_features_code <- shiny::renderText({
@@ -871,7 +879,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_checkpoint_results <- shiny::renderText(if (!is.null(result())) wb_checkpoint_summary(result()))
   output$wb_model_error <- shiny::renderText(model_error())
   output$wb_data_source <- shiny::renderText(data_source())
-  output$wb_inspect_columns_ui <- shiny::renderUI(shiny::selectizeInput("wb_inspect_columns", "Columns to view (empty = all)", names(raw()), selected = names(raw()), multiple = TRUE))
+  output$wb_inspect_columns_ui <- shiny::renderUI(shiny::selectizeInput("wb_inspect_columns", "Choose columns to view", names(raw()), selected = names(raw()), multiple = TRUE))
   shiny::observeEvent(raw(), shiny::updateNumericInput(session, "wb_inspect_start", value = 1, max = max(1, nrow(raw()))), ignoreInit = TRUE)
   output$wb_inspect_range <- shiny::renderText({
     ids <- inspected()$rows
