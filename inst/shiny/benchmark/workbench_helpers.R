@@ -916,3 +916,39 @@ wb_bundle_manifest <- function(bundle) {
       if (is.null(bundle$recipe)) "No saved replay recipe in this older bundle" else paste(length(strsplit(bundle$recipe, "\n")[[1]]), "lines of saved R code"),
       paste(names(bundle), collapse = ", ")), stringsAsFactors = FALSE)
 }
+
+
+# Inspection never changes the data supplied to preparation or prediction.
+wb_inspect_rows <- function(data, view = "head", n = 5, start = 1, columns = names(data)) {
+  bounded <- function(x, default, maximum) {
+    if (length(x) != 1L || !is.finite(x)) x <- default
+    as.integer(max(1, min(maximum, floor(x))))
+  }
+  n <- bounded(n, 5, 100)
+  start <- bounded(start, 1, max(1, nrow(data)))
+  ids <- seq_len(nrow(data))
+  if (identical(view, "tail")) ids <- utils::tail(ids, n) else {
+    if (!identical(view, "range")) start <- 1L
+    ids <- ids[ids >= start & ids < start + n]
+  }
+  columns <- intersect(columns, names(data))
+  list(data = data[ids, columns, drop = FALSE], rows = ids, columns = columns,
+    expression = if (identical(view, "head") || identical(view, "tail"))
+      paste0(view, "(data[, ", wb_literal(columns), ", drop = FALSE], ", n, ")") else
+      paste0("data[", wb_literal(ids), ", ", wb_literal(columns), ", drop = FALSE]"))
+}
+
+wb_data_profile <- function(data) {
+  rows <- lapply(names(data), function(name) {
+    x <- data[[name]]
+    missing <- is.na(x) | (is.character(x) & trimws(x) == "")
+    values <- if (is.numeric(x)) x[is.finite(x)] else numeric()
+    q <- if (length(values)) stats::quantile(values, c(0, .25, .5, .75, 1), names = FALSE) else rep(NA_real_, 5)
+    data.frame(Column = name, Type = class(x)[1], Missing = sum(missing),
+      Nonfinite = if (is.numeric(x)) sum(!is.finite(x) & !is.na(x)) else 0L,
+      Distinct = length(unique(x[!missing])), Mean = if (length(values)) mean(values) else NA_real_,
+      SD = if (length(values) > 1) stats::sd(values) else NA_real_,
+      Min = q[1], Q1 = q[2], Median = q[3], Q3 = q[4], Max = q[5], check.names = FALSE)
+  })
+  do.call(rbind, rows)
+}

@@ -2,6 +2,12 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.24 — browse and profile your dataset
+
+The inspector follows the selected example immediately. Browse head, tail or
+specific rows and columns, view matching R code, and explore full-dataset
+statistics and numeric box plots before preparing your split.
+
 ## Version 7.3.23 — one dataset for training, validation and test
 
 Data now offers five labeled examples. Shiny splits your selected dataset on
