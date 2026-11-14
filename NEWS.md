@@ -7,6 +7,19 @@
 - Include an adaptable customer-segmentation prompt and clarify that generated
   instructions are not a trained model; held-out evaluation still needs review.
 
+# DDESONN 7.3.30 (proposed)
+
+- For binary workbench preparation, split groups of identical retained predictor
+  inputs rather than individual rows. Keep conflicting labels in the same group;
+  excluded identifiers do not mask duplicate inputs. Random splits approximate
+  class balance and requested fractions at group level, so row fractions can vary.
+- Reject binary ordered splits with overlapping inputs and fail preparation if
+  encoding or filling creates overlap after splitting. Save the split audit and
+  frozen row indices in generated recipes for exact replay.
+- This prevents exact input overlap, not all subject or near-duplicate leakage.
+  Existing datasets, saved models and archived benchmark results are unchanged.
+  A new matched Keras/DDESONN benchmark remains a separate experiment.
+
 # DDESONN 7.3.29
 
 - Make dataset profiling visible by default and explain that descriptive summaries
