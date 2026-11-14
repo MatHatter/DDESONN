@@ -2,6 +2,17 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.33 — separate training and saved-model workflows
+
+Choose **Train a new model** (light blue) or **Use a saved model** (light teal).
+Saved-model uploads stay separate from the training tabs. Their summary shows
+original training, validation and test scores plus any saved training history.
+Upload your prediction CSV, run it, and read its separately labeled chart/table.
+An overlap report identifies inputs matching saved splits. CSV accuracy appears
+only when compatible target labels are supplied; demonstration rows are not
+presented as an independent evaluation. Extra training starts only through an
+explicit transition that works on a copy and preserves the uploaded original.
+
 ## Version 7.3.32 — load a model, upload rows, view predictions
 
 Saved models & predictions now guides you through a named model, a separate

@@ -1217,3 +1217,39 @@ wb_pp_help <- function() list(
   wb_pp_column_numeric = list(title = "Numeric missing-value override", text = "Use numeric step above inherits the chosen numeric filling method. Median, Mean, Zero and Require complete apply only to this numeric column. They have the same meanings as the main numeric step. Apply column override stores the choice; numeric rules do not encode text categories.", code = "column_numeric_rule <- 'mean'\ncolumn_fill <- mean(training_column[is.finite(training_column)])\n# Learn this value only from this column's training rows."),
   wb_pp_column_encoding = list(title = "Category encoding override", text = "Use encoding step above inherits the main encoding method. One-hot or Ordinal changes only this category column. Ordinal also needs the explicit order entered below. Require numeric rejects categorical data. Apply column override stores the choice; it does not create an order automatically.", code = "column_encoding_rule <- 'ordinal'\nordered_levels <- c('Low', 'Average', 'High')\nranked <- match(category_values, ordered_levels)\n# The saved rules also distinguish missing and unseen values."),
   wb_pp_column_missing = list(title = "Categorical missing-value override", text = "Use categorical-missing step above inherits the main categorical missing-value treatment. Missing level, Most frequent and Require complete apply only to this category column. Apply column override stores the choice. These rules do not fill missing numeric values or target labels.", code = "column_category_missing_rule <- 'mode'\ncounts <- table(training_categories)\nmost_frequent <- names(sort(counts, decreasing = TRUE))[1]\n# Reuse the chosen category for later rows; do not recalculate it."))
+
+# Compare scored inputs with the stored splits; equality does not imply identity
+# of people, and does not detect near-duplicates or other forms of leakage.
+wb_prediction_report <- function(bundle, data) {
+  p <- bundle$prepared
+  x <- wb_prediction_inputs(data, p)
+  keys <- function(inputs) apply(inputs, 1, function(v)
+    digest::digest(as.numeric(v), algo = "sha256"))
+  scored <- keys(x)
+  matches <- lapply(p$parts[c("train", "validation", "test")], function(part) scored %in% keys(part$x))
+  matched <- Reduce(`|`, matches)
+  report <- list(rows = nrow(data), matched_rows = sum(matched),
+    overlap = data.frame(`Saved split` = c("Training", "Validation", "Test"),
+      `Matching CSV rows` = vapply(matches, sum, integer(1)), check.names = FALSE),
+    metrics = NULL,
+    evaluation_note = paste0("Predictions only: no accuracy is available because this CSV has no ", p$target, " target column. Saved model evaluation above belongs to the original splits."))
+  if (!p$target %in% names(data)) return(report)
+  actual <- data[[p$target]]
+  valid <- if (p$mode == "regression") is.numeric(actual) && all(is.finite(actual)) else
+    !anyNA(actual) && all(as.character(actual) %in% p$classes)
+  if (!valid) {
+    report$evaluation_note <- "The supplied target labels are incomplete or incompatible with the model. Predictions are shown without evaluation."
+    return(report)
+  }
+  y <- if (p$mode == "regression") matrix(actual, ncol = 1) else if (p$mode == "binary")
+    matrix(match(as.character(actual), p$classes) - 1L, ncol = 1) else {
+      encoded <- matrix(0, nrow(data), length(p$classes))
+      encoded[cbind(seq_len(nrow(data)), match(as.character(actual), p$classes))] <- 1
+      encoded
+    }
+  part <- list(x = x, y = y, actual = actual, row = seq_len(nrow(data)))
+  report$metrics <- wb_evaluate(p, part, wb_predictions(bundle$model, p, part))$metrics
+  report$evaluation_note <- paste0("Uploaded CSV evaluation: compared with the supplied ", p$target, " labels. ",
+    if (report$matched_rows) "This includes inputs matching saved splits, so it is not an independent unseen-input score." else "These scores describe this labeled CSV, separately from the saved training/validation/test scores.")
+  report
+}

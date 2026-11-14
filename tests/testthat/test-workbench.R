@@ -234,7 +234,7 @@ test_that("session action states and failed/cancelled workers preserve completed
     expect_false(action_states()$wb_start)
     expect_false(action_states()$wb_cancel)
     expect_false(action_states()$wb_save)
-    prepared(p); result(completed); session$flushReact()
+    prepared(p); result(completed); add_saved(completed); session$flushReact()
     expect_true(action_states()$wb_start)
     expect_true(action_states()$wb_save)
     expect_true(action_states()$wb_continue)

@@ -1,5 +1,41 @@
 # DDESONN model workbench
 
+## Two independent workflows (7.3.33)
+
+At the top, choose **Train a new model** or **Use a saved model**. Blue and teal
+containers reinforce the labels; results use neutral white containers.
+
+Training follows Data → Features → Build & Train → Model / Results. Use
+**Predict with this trained model** to explicitly copy a completed training model
+into the saved-model prediction workflow. Switching workflows preserves each one's
+state. Saved uploads do not change the training dataset, prepared data, controls,
+completed models or attempts.
+
+Saved-model prediction follows upload `.rds` → model summary → upload prediction
+CSV → Run predictions → chart and table. The summary lists all original saved
+split scores: training, validation and test. These are separate from evaluating
+your uploaded CSV. Stored loss history/logs are optional disclosures, labeled as
+saved history; loading a model does not start training or create live progress.
+
+Prediction results report exact transformed-input matches to each saved split.
+Counts refer to CSV rows matching a split, and one row can match more than one
+split in an older overlapping bundle. No exact match does not establish a new
+person or detect near-duplicates. Packaged example rows are demonstrations and
+may overlap. Without a target column, show predictions and probabilities only.
+With complete compatible target labels, show uploaded-CSV metrics (accuracy as a
+percentage) and actual labels alongside predictions. Repeated-input evaluations
+are explicitly identified as not independent unseen-input scores.
+
+**Train further (optional)** requires clicking **Switch to training and start
+extra fit**. It copies the saved model into training, clears unrelated prepared
+data, and runs the requested extra epochs using the copy's original data and
+settings. The original upload remains unchanged. The context explains that Data
+and Features are not reconstructed; prepare them again for a different new model.
+Exports and prediction downloads remain optional tools, not required next steps.
+
+Earlier version notes below describe their interfaces at the time; the workflow
+above supersedes the earlier shared training/prediction navigation.
+
 ## Streamlined saved-model prediction (7.3.32)
 
 Open **4. Model / Results → Saved models & predictions**. Load the `.rds`
