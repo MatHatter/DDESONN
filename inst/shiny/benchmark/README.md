@@ -1,5 +1,21 @@
 # DDESONN model workbench
 
+## Help preparing and loading a model (7.3.31)
+
+Open **4. Model / Results → Saved models & predictions → Need help preparing a
+model?** for numbered instructions and an adaptable customer-segmentation prompt.
+Use ChatGPT separately and reference this repository, the installed DDESONN
+version, task, target and predictors. Request an actually trained compatible
+workbench `.rds` bundle with preprocessing and class labels, plus a prediction CSV
+example. If R execution is unavailable, request a reproducible script to run
+instead. Ordinary RDS model formats and generated instructions alone are not
+workbench bundles.
+
+Load the trusted bundle under **Save or restore**, then upload a CSV with its
+saved predictors under **Predict on new rows**. Target labels are optional;
+saved preprocessing is reused. Review the held-out evaluation and download the
+new predictions. Alternatively, train in the app and download its model bundle.
+
 ## Profiling and preparation guidance (7.3.29)
 
 On Data, the descriptive summary starts expanded. Profiling is optional discovery:
