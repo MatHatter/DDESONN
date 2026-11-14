@@ -2,6 +2,16 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.32 — load a model, upload rows, view predictions
+
+Saved models & predictions now guides you through a named model, a separate
+prediction CSV and one **Run predictions** action. A dedicated graphing area and
+results table appear below the CSV; downloading comes afterward as an option.
+The selected filename stays in sync with Current completed model. Export controls
+and extra training are separate tools, with a clear explanation of what additional
+epochs mean for uploaded models. Packaged customer rows are a collapsed alternative
+to your own CSV and use the same prediction action.
+
 ## Version 7.3.31 — help preparing and loading a model
 
 The Saved models & predictions tab now includes **Need help preparing a model?**
