@@ -1,5 +1,8 @@
 # DDESONN 7.3.38
 
+- Remove the redundant labeled customer-example section from the saved-model
+  workflow and its unused download handler.
+
 - Put the two-upload example instructions before Browse. Place the italic model
   status immediately below the file picker and identify loaded weights as already
   trained. Hide empty model details and add visible collapsed/expanded carets to
