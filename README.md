@@ -2,6 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.28 — separate fit curves, chart exports and clearer help
+
+Training charts label separate member/seed/stage fits and leave their curves
+unconnected. Download PNG, SVG or loss records, or copy the chart image in
+supported browsers. Every preprocessing dropdown now has explanatory help;
+inherited Auto/Manual choices name the actual default treatment.
+
 ## Version 7.3.27 — Auto/Manual preprocessing
 
 On Features, review a suggested preprocessing plan, override any step or column,

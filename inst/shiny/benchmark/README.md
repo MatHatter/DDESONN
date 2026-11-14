@@ -1,5 +1,20 @@
 # DDESONN model workbench
 
+## Fit-aware charts and preprocessing help (7.3.28)
+
+Training-loss records retain fit number, local epoch and cumulative logged
+position. Curves are grouped by fit, with boundaries and an explanation of
+member/seed/MAIN/TEMP logging. Fit numbers express log order, not known stage
+or seed identities. Old Custom histories use the configured epoch budget to
+infer boundaries, with a visible notice. Checkpoints are marked only on a
+single-fit curve. Hover and CSV exports include local epochs and fit numbers.
+
+Download PNG, SVG or loss CSV next to the chart. Copy chart image uses the
+browser clipboard when available/allowed; otherwise use the download buttons.
+All preprocessing dropdowns have info icons covering every option, training-only
+learning, inheritance and per-column application. Default labels state the
+effective Auto/Manual treatment; explicit per-step choices survive mode changes.
+
 ## Auto/Manual preprocessing (7.3.27)
 
 Features includes an overall mode, per-step methods, per-column keep/exclude and

@@ -1,3 +1,16 @@
+# DDESONN 7.3.28
+
+- Retain fit number and within-fit epoch in training-loss logs. Draw separate
+  curves with labeled boundaries instead of connecting Custom fits. Explain
+  member/seed/MAIN/TEMP logging and distinguish it from one continuous model.
+  Older Custom bundle boundaries can be inferred from the epoch budget and
+  are labeled as inferred; fit numbers do not claim seed or stage identity.
+- Export the displayed loss chart as PNG/SVG and its records as CSV. Copy the
+  chart image to the clipboard where supported, with a clear download fallback.
+- Add contextual info icons and focused R examples for every preprocessing
+  dropdown and the overall mode. Replace abstract inherited-default wording
+  with actual Auto/Manual treatments, preserving explicit user overrides.
+
 # DDESONN 7.3.27
 
 - Add Auto/Manual preprocessing with per-step and per-column overrides, an
