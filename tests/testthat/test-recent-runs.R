@@ -12,7 +12,7 @@ test_that("recent CSV runs survive workspace clear and restore independently", {
     session$setInputs(wb_new_data = list(name = "answers.csv", datapath = csv, size = file.info(csv)$size), wb_predict = 1)
     expect_length(recent_runs(), 2)
     expect_match(output$wb_recent_items$html, "CSV evaluation", fixed = TRUE)
-    expect_match(output$wb_recent_items$html, "Loaded model", fixed = TRUE)
+    expect_match(output$wb_recent_items$html, "Uploaded saved model", fixed = TRUE)
     id <- names(recent_runs())[1]
     expected <- serialize(list(prediction_data(), new_predictions(), prediction_report()), NULL)
     expect_identical(recent_runs()[[id]]$kind, "CSV evaluation")

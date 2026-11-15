@@ -1,3 +1,12 @@
+# DDESONN 7.3.41
+
+- Keep further training of saved weights in the saved-model workspace, with its
+  own progress, loss, log, cancellation, evaluation and explicit use-new-copy action.
+  Preserve the original uploaded model and the new-model training workspace.
+- Stop echoing user workflow choices back to the radio input to avoid switching
+  feedback loops. Identify uploaded, newly trained and further-trained models in
+  Recent runs. Remove the reserved upload-progress gap beneath Browse.
+
 # DDESONN 7.3.40
 
 - Add space above CSV purpose choices and their help icons. Compact the model

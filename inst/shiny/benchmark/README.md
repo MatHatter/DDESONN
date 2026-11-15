@@ -18,9 +18,13 @@ needs no extra epochs for evaluation/prediction. It shows the previous requested
 epoch budget and saved checkpoint, a compact **Additional epochs** field, and
 **Start additional training**. For example, 10 means ten extra epochs starting from
 the saved weights, not rerunning the original fit. Editing the number alone starts
-nothing. The button explicitly switches to training on a copy with the saved data
-and settings; the original stays unchanged. Optimizer state/schedules restart as
-before, and the saved checkpoint policy applies to this extra fit.
+nothing. As of 7.3.41 the button stays in the saved-model workflow, with its own
+expandable progress, loss chart, values, log, cancel action and saved-split scores.
+The original model and Train a new model workspace stay unchanged. Use this newly
+trained copy explicitly selects the result for CSV evaluation/prediction or export.
+Optimizer state/schedules restart; this is an extra fit, not an exact resume.
+Recent runs distinguishes uploaded models, newly trained models and further-trained
+saved models, and shows the origin alongside CSV runs.
 
 ## Recent runs and exact clear scopes (7.3.37)
 

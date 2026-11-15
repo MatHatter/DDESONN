@@ -149,7 +149,7 @@ wb_ui <- function() {
   models <- shiny::tabPanel("Saved model → evaluate or predict", value = "saved",
     shiny::div(class = "panel-body-custom",
       shiny::h3("1. Choose a model"),
-      shiny::p("A saved model already contains trained weights. Loading it lets you evaluate or predict without training again. Data, Features and Build & Train stay unchanged unless you explicitly start additional training."),
+      shiny::p("A saved model already contains trained weights. Loading it lets you evaluate or predict without training again. Additional training also stays in this saved-model workspace; Data, Features and Build & Train stay unchanged."),
       shiny::actionButton("wb_clear_saved", "Clear saved-model workspace"),
       shiny::p("Starts this Saved model → evaluate or predict tab blank: clears its open models/selection, model summary and history display, CSV, results, file pickers, errors and purpose choice. Keeps Recent runs, all training data/settings/results and files on your computer. A replacement file becomes active only after it validates successfully."),
       shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
@@ -236,7 +236,20 @@ wb_ui <- function() {
               shiny::numericInput("wb_more_epochs", NULL, 10, min = 1, max = 5000, step = 1, width = "110px")),
             shiny::p(class = "help-block", "For example, 10 means run 10 more epochs from these saved weights. Nothing starts until you click the button."),
             shiny::actionButton("wb_continue", "Start additional training", disabled = "disabled", `aria-disabled` = "true"),
-            shiny::p("This button switches to the training workflow and runs the additional epochs on a copy, using the model's original data and settings. A completed extra fit becomes a separate training result. Your saved model stays unchanged."))))))
+            shiny::tags$details(id = "wb_saved_fit_panel", open = "open",
+              shiny::tags$summary("Additional training — progress and results"),
+              shiny::textOutput("wb_saved_fit_status"),
+              shiny::uiOutput("wb_saved_fit_progress"),
+              shiny::actionButton("wb_saved_cancel", "Cancel additional training", disabled = "disabled"),
+              shiny::div(class = "error", role = "alert", shiny::textOutput("wb_saved_fit_error")),
+              shiny::plotOutput("wb_saved_fit_loss", height = "280px"),
+              shiny::tags$details(shiny::tags$summary("Additional training loss values"), shiny::tableOutput("wb_saved_fit_values")),
+              shiny::tags$details(shiny::tags$summary("Additional training log"), shiny::verbatimTextOutput("wb_saved_fit_log")),
+              shiny::h4("New copy: saved-split evaluation"),
+              shiny::p("These scores use the original saved training/validation/test splits after this extra fit. Reusing the test set to choose further training weakens its value as an independent final assessment."),
+              shiny::tableOutput("wb_saved_fit_evaluation"),
+              shiny::actionButton("wb_saved_use_fit", "Use this newly trained copy", disabled = "disabled")),
+            shiny::p("This button trains a copy here, using the selected saved model’s weights, original data and settings. Your original model and the Train a new model workspace stay unchanged. The progress and results above belong to this extra fit; when complete, use the new copy for evaluation or export."))))))
 
 
   list(
@@ -567,11 +580,11 @@ wb_server <- function(input, output, session, helper) {
   active_model <- shiny::reactive({ if (is.null(selected_saved())) NULL else saved_models()[[selected_saved()]] })
   task_flow <- shiny::reactiveVal("train")
   last_training_page <- shiny::reactiveVal("data")
-  set_flow <- function(flow, page = NULL) {
+  set_flow <- function(flow, page = NULL, sync_radio = TRUE) {
     if (!flow %in% c("train", "saved")) return(invisible(NULL))
     if (identical(flow, task_flow()) && is.null(page)) return(invisible(NULL))
     task_flow(flow)
-    shiny::updateRadioButtons(session, "wb_task_flow", selected = flow)
+    if (sync_radio) shiny::updateRadioButtons(session, "wb_task_flow", selected = flow)
     for (tab in c("data", "features", "train", "results")) {
       if (flow == "train") shiny::showTab("workspace", tab, session = session) else shiny::hideTab("workspace", tab, session = session)
     }
@@ -579,7 +592,7 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateTabsetPanel(session, "workspace", selected = if (flow == "saved") "saved" else if (is.null(page)) last_training_page() else page)
     session$sendCustomMessage("wb-flow-theme", list(flow = flow))
   }
-  shiny::observeEvent(input$wb_task_flow, set_flow(input$wb_task_flow))
+  shiny::observeEvent(input$wb_task_flow, set_flow(input$wb_task_flow, sync_radio = FALSE))
   shiny::observeEvent(input$workspace, {
     if (input$workspace %in% c("data", "features", "train", "results")) last_training_page(input$workspace)
   })
@@ -591,6 +604,8 @@ wb_server <- function(input, output, session, helper) {
   attempts <- shiny::reactiveVal(list())
   latest_attempt <- shiny::reactiveVal(NULL)
   job <- shiny::reactiveVal(NULL)
+  saved_fit <- shiny::reactiveVal(NULL)
+  saved_fit_counter <- shiny::reactiveVal(0L)
   training_context <- shiny::reactiveVal(NULL)
   status <- shiny::reactiveVal("Prepare data, then train a new model.")
   error <- shiny::reactiveVal(NULL)
@@ -707,7 +722,7 @@ wb_server <- function(input, output, session, helper) {
   }
   shiny::observeEvent(input$wb_clear_saved, attempt({
     busy()
-    selected_saved(NULL); saved_models(list()); clear_saved_rows(); load_error(NULL)
+    selected_saved(NULL); saved_models(list()); saved_fit(NULL); clear_saved_rows(); load_error(NULL)
     session$sendCustomMessage("wb-reset-files", list(ids = c("wb_load", "wb_new_data")))
     shiny::updateRadioButtons(session, "wb_csv_purpose", selected = "evaluate")
     shiny::updateTabsetPanel(session, "wb_model_tools", selected = "predict")
@@ -737,7 +752,7 @@ wb_server <- function(input, output, session, helper) {
             if (metric == "Accuracy") sprintf(" · CSV accuracy %.2f%%", value * 100) else sprintf(" · CSV RMSE %.4f", value)
           } else " · predictions only")
         shiny::tagList(shiny::strong(paste(record$kind, record$bundle$model_name, sep = " · ")),
-          shiny::tags$span(class = "wb-run-summary", paste(record$id, detail, sep = " · ")))
+          shiny::tags$span(class = "wb-run-summary", paste(record$id, if (is.null(record$bundle$model_origin)) "Saved model" else record$bundle$model_origin, detail, sep = " · ")))
       })))
   })
   shiny::observeEvent(input$wb_recent_remove, attempt({
@@ -790,8 +805,10 @@ wb_server <- function(input, output, session, helper) {
   # Per-session states are also enforced by server guards, not just the browser.
   action_states <- shiny::reactive({
     running <- !is.null(job()); completed <- !is.null(result()); saved <- !is.null(active_model())
-    list(wb_start = !is.null(prepared()) && !running, wb_cancel = running,
+    list(wb_start = !is.null(prepared()) && !running, wb_cancel = running && !identical(job()$destination, "saved"),
       wb_continue = saved && !running, wb_save = saved,
+      wb_saved_cancel = running && identical(job()$destination, "saved"),
+      wb_saved_use_fit = !running && !is.null(saved_fit()$bundle),
       wb_review_results = completed, wb_predictions_download = completed,
       wb_new_download = !is.null(new_predictions()), wb_new_data = saved,
       wb_use_trained_model = completed && !running,
@@ -876,7 +893,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_training_log <- shiny::renderText({
     shiny::invalidateLater(500, session)
-    lines <- if (!is.null(job())) read_job_log(job()) else if (!is.null(result())) result()$training_log else if (!is.null(latest_attempt()))
+    lines <- if (!is.null(job()) && !identical(job()$destination, "saved")) read_job_log(job()) else if (!is.null(result())) result()$training_log else if (!is.null(latest_attempt()))
       attempts()[[latest_attempt()]]$training_log else character()
     paste(tail(lines, 2000L), collapse = "\n")
   })
@@ -935,16 +952,24 @@ wb_server <- function(input, output, session, helper) {
     if (is.null(latest_attempt())) status("Data prepared. Ready to train a new model.")
     shiny::updateTabsetPanel(session, "workspace", selected = "train")
   }))
-  launch <- function(p, cfg, old = NULL) {
+  launch <- function(p, cfg, old = NULL, destination = "train") {
     busy()
-    training_success(NULL)
-    id <- begin_attempt(cfg, if (is.null(old)) "New training" else
-      paste0("Warm start from Run ", if (is.null(selected_run())) "loaded model" else selected_run()))
+    if (destination == "saved") {
+      saved_fit_counter(saved_fit_counter() + 1L)
+      id <- paste0("saved-fit-", saved_fit_counter())
+    } else {
+      training_success(NULL)
+      id <- begin_attempt(cfg, "New training")
+    }
     next_job <- wb_start(helper, p, cfg, old)
+    next_job$destination <- destination
     next_job$run_id <- id
     next_job$parent_name <- if (is.null(old)) NULL else old$model_name
-    job(next_job); history(data.frame(epoch = integer(), loss = numeric()))
-    status(paste0("Run ", id, " · Starting training in a separate R process…"))
+    job(next_job)
+    if (destination == "train") {
+      history(data.frame(epoch = integer(), loss = numeric()))
+      status(paste0("Run ", id, " · Starting training in a separate R process…"))
+    }
   }
   shiny::observeEvent(input$wb_start, training_attempt({
     if (is.null(prepared())) stop("Choose target and predictors on Features, then click Prepare data before training.")
@@ -952,20 +977,30 @@ wb_server <- function(input, output, session, helper) {
     training_context(NULL)
     launch(prepared(), cfg)
   }))
-  shiny::observeEvent(input$wb_continue, training_attempt({
+  shiny::observeEvent(input$wb_continue, attempt({
     if (is.null(active_model())) stop("Load or select a saved model first.")
     busy()
     old <- unserialize(serialize(active_model(), NULL)); cfg <- old$config
     cfg$epochs <- wb_config(epochs = input$wb_more_epochs)$epochs
-    # Entering training is an explicit action, never a side effect of upload.
-    set_flow("train", "train")
-    prepared(NULL)
-    training_context(paste0("Extra fit from ", old$model_name, ": uses the prepared data saved in that model. Data and Features are not reconstructed. Prepare those tabs again before starting a different new model."))
-    begin_attempt(old$config, "Copy for extra training"); add_completed(old); finish_attempt("Completed")
-    launch(old$prepared, cfg, old)
-  }))
+    launch(old$prepared, cfg, old, destination = "saved")
+    saved_fit(list(parent = old$model_name, state = "Running", history = data.frame(epoch = integer(), loss = numeric()), bundle = NULL, error = NULL, log = character()))
+    shiny::updateTabsetPanel(session, "wb_model_tools", selected = "continue")
+  }, model_error))
+  shiny::observeEvent(input$wb_saved_use_fit, attempt({
+    shiny::req(saved_fit()$bundle)
+    busy(); add_saved(saved_fit()$bundle)
+    shiny::updateTabsetPanel(session, "wb_model_tools", selected = "predict")
+  }, model_error))
+  shiny::observeEvent(input$wb_saved_cancel, {
+    active <- job()
+    if (!is.null(active) && identical(active$destination, "saved")) {
+      h <- wb_log_history(active$log)
+      fit <- saved_fit(); fit$history <- h; fit$log <- read_job_log(active); fit$state <- "Cancelled"; saved_fit(fit)
+      wb_stop(active); job(NULL)
+    }
+  })
   shiny::observeEvent(input$wb_cancel, training_attempt({
-    if (!is.null(job())) {
+    if (!is.null(job()) && !identical(job()$destination, "saved")) {
       history(wb_log_history(job()$log))
       finish_attempt("Cancelled")
       wb_stop(job()); job(NULL)
@@ -975,10 +1010,15 @@ wb_server <- function(input, output, session, helper) {
     shiny::invalidateLater(300, session)
     active <- shiny::isolate(job())
     if (!is.null(active)) {
-      h <- wb_log_history(active$log); history(h)
-      elapsed <- as.integer(difftime(Sys.time(), active$started, units = "secs"))
-      status(sprintf("Run %s · Running · %s seconds · %s of %s epochs logged", active$run_id, elapsed,
-        if (nrow(h)) max(h$epoch) else 0L, active$epochs))
+      h <- wb_log_history(active$log)
+      if (identical(active$destination, "saved")) {
+        fit <- shiny::isolate(saved_fit()); fit$history <- h; fit$log <- read_job_log(active); saved_fit(fit)
+      } else {
+        history(h)
+        elapsed <- as.integer(difftime(Sys.time(), active$started, units = "secs"))
+        status(sprintf("Run %s · Running · %s seconds · %s of %s epochs logged", active$run_id, elapsed,
+          if (nrow(h)) max(h$epoch) else 0L, active$epochs))
+      }
       if (!active$process$is_alive()) {
         tryCatch({
           complete <- active$process$get_result()
@@ -986,12 +1026,25 @@ wb_server <- function(input, output, session, helper) {
           complete$history <- h
           complete$training_log <- read_job_log(active)
           complete <- wb_validate_bundle(complete)
-          add_completed(complete); error(NULL)
-          remember_recent(result(), "Trained model", key = paste0("trained-", selected_run()))
-          finish_attempt("Completed")
-          training_success("Model trained—nice work. Review its held-out results before using it for new predictions.")
+          if (identical(active$destination, "saved")) {
+            complete$model_origin <- paste0("Further-trained saved model from ", active$parent_name)
+            complete$upload_sha256 <- NULL
+            fit <- saved_fit(); fit$bundle <- complete; fit$state <- "Completed"; saved_fit(fit)
+            remember_recent(complete, "Further-trained saved model", key = paste0("saved-fit-", active$run_id))
+          } else {
+            complete$model_origin <- "Trained in Train a new model"
+            add_completed(complete); error(NULL)
+            remember_recent(result(), "Newly trained model", key = paste0("trained-", selected_run()))
+          }
+          if (!identical(active$destination, "saved")) {
+            finish_attempt("Completed")
+            training_success("Model trained—nice work. Review its held-out results before using it for new predictions.")
+          }
         }, error = function(e) {
-          finish_attempt("Failed", wb_training_error(e, if (file.exists(active$error))
+          if (identical(active$destination, "saved")) {
+            fit <- saved_fit(); fit$state <- "Failed"; fit$error <- paste(unlist(wb_training_error(e)), collapse = "\n\n"); saved_fit(fit)
+          }
+          if (!identical(active$destination, "saved")) finish_attempt("Failed", wb_training_error(e, if (file.exists(active$error))
             readLines(active$error, warn = FALSE) else character()))
         })
         wb_stop(active); job(NULL)
@@ -1003,11 +1056,12 @@ wb_server <- function(input, output, session, helper) {
     busy()
     if (input$wb_load$size > 50 * 1024^2) stop("Model bundle exceeds 50 MB.")
     candidate <- wb_validate_bundle(readRDS(input$wb_load$datapath))
+    candidate$model_origin <- "Uploaded saved model (.rds)"
     candidate$model_name <- if (is.null(input$wb_load$name)) "Loaded workbench model" else basename(input$wb_load$name)
     candidate$source_filename <- candidate$model_name
     candidate$upload_sha256 <- digest::digest(file = input$wb_load$datapath, algo = "sha256")
     add_saved(candidate)
-    remember_recent(active_model(), "Loaded model", key = paste0("upload-", candidate$upload_sha256))
+    remember_recent(active_model(), "Uploaded saved model", key = paste0("upload-", candidate$upload_sha256))
     set_flow("saved")
     shiny::updateTabsetPanel(session, "wb_model_tools", selected = "predict")
   }, load_error))
@@ -1062,6 +1116,32 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_result_info <- shiny::renderText({
     provenance <- prediction_provenance(); shiny::req(provenance)
     paste0(provenance$model, " · ", provenance$source, " · ", provenance$rows, " predictions. Showing the first ", min(20L, provenance$rows), " rows; the optional CSV contains every row.")
+  })
+  output$wb_saved_fit_status <- shiny::renderText({
+    fit <- saved_fit(); if (is.null(fit)) return("No additional training started. Choose the number of extra epochs, then click Start additional training.")
+    paste0(fit$state, " · additional training from saved model: ", fit$parent,
+      if (fit$state == "Running") paste0(" · ", if (nrow(fit$history)) max(fit$history$epoch) else 0, " epochs logged") else
+        if (fit$state == "Completed") " · new copy ready; original unchanged" else " · original unchanged")
+  })
+  output$wb_saved_fit_error <- shiny::renderText(if (!is.null(saved_fit()$error)) saved_fit()$error else model_error())
+  output$wb_saved_fit_progress <- shiny::renderUI({
+    active <- job(); shiny::req(identical(active$destination, "saved"))
+    h <- saved_fit()$history
+    shiny::tags$progress(value = if (nrow(h)) max(h$epoch) else 0, max = active$epochs, style = "width:100%;")
+  })
+  output$wb_saved_fit_loss <- shiny::renderPlot({
+    fit <- saved_fit(); shiny::req(nrow(fit$history) > 0)
+    h <- wb_chart_history(fit$history, if (!is.null(fit$bundle)) fit$bundle$config else NULL)
+    print(ggplot2::ggplot(h, ggplot2::aes(epoch, loss, group = fit)) + ggplot2::geom_line(colour = "#078391") +
+      ggplot2::labs(title = "Additional training from saved weights", x = "Logged epoch position in this extra fit", y = "Training loss") + ggplot2::theme_minimal())
+  })
+  output$wb_saved_fit_values <- shiny::renderTable(saved_fit()$history)
+  output$wb_saved_fit_log <- shiny::renderText(paste(tail(saved_fit()$log, 2000L), collapse = "\n"))
+  output$wb_saved_fit_evaluation <- shiny::renderTable({
+    b <- saved_fit()$bundle; shiny::req(b)
+    do.call(rbind, lapply(c("train", "validation", "test"), function(split) {
+      m <- b$evaluation[[split]]$metrics; cbind(Split = split, m)
+    }))
   })
   output$wb_warm_start_summary <- shiny::renderText({
     r <- active_model(); if (is.null(r)) return("Load or select a model before training further.")
@@ -1308,7 +1388,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_status <- shiny::renderText(status())
   output$wb_running_status <- shiny::renderText(status())
   output$wb_attempt_title <- shiny::renderText(if (is.null(latest_attempt())) "Training status" else "Latest attempt")
-  output$wb_running_flag <- shiny::renderText(if (!is.null(job())) "yes" else "no")
+  output$wb_running_flag <- shiny::renderText(if (!is.null(job()) && !identical(job()$destination, "saved")) "yes" else "no")
   output$wb_error_flag <- shiny::renderText(if (!is.null(training_error())) "yes" else "no")
   output$wb_csv_has_metrics <- shiny::renderText(if (!is.null(prediction_report()$metrics)) "yes" else "no")
   output$wb_has_saved_model <- shiny::renderText(if (!is.null(active_model())) "yes" else "no")
@@ -1333,7 +1413,7 @@ wb_server <- function(input, output, session, helper) {
     r <- result()
     if (!is.null(r)) {
       if (is.data.frame(r$history)) r$history else data.frame(epoch = integer(), loss = numeric())
-    } else if (!is.null(job())) history() else {
+    } else if (!is.null(job()) && !identical(job()$destination, "saved")) history() else {
       id <- latest_attempt()
       record <- if (is.null(id)) NULL else attempts()[[id]]
       if (is.data.frame(record$history)) record$history else data.frame(epoch = integer(), loss = numeric())
