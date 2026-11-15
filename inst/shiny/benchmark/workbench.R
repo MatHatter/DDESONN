@@ -108,6 +108,13 @@ wb_vignette_link <- function(id, label = "See related vignettes") {
   shiny::div(class = "wb-vignette-link", shiny::actionLink(id, label))
 }
 
+wb_saved_pager <- function(id) {
+  shiny::div(class = "wb-saved-pager",
+    shiny::actionButton(paste0(id, "_prev"), "Previous"),
+    shiny::textOutput(paste0(id, "_page"), inline = TRUE),
+    shiny::actionButton(paste0(id, "_next"), "Next"))
+}
+
 wb_optimizer_choices <- function() {
   values <- DDESONN::ddesonn_optimizer_options()
   labels <- c(adagrad = "Standard AdaGrad", adam = "Adam", lamb = "LAMB",
@@ -234,17 +241,29 @@ wb_ui <- function() {
             shiny::textOutput("wb_warm_start_summary"),
             wb_field("wb_more_epochs", "Additional epochs", "Number of extra epochs to run when you click Start additional training. Starts from the selected saved weights, keeps the original data/settings and restarts optimizer schedules. It does not repeat the previous epochs.",
               shiny::numericInput("wb_more_epochs", NULL, 10, min = 1, max = 5000, step = 1, width = "110px")),
-            shiny::p(class = "help-block", "For example, 10 means run 10 more epochs from these saved weights. Nothing starts until you click the button."),
+            shiny::div(class = "wb-epoch-shortcuts", `aria-label` = "Set additional epochs",
+              shiny::actionButton("wb_epochs_10", "10"), shiny::actionButton("wb_epochs_100", "100"),
+              shiny::actionButton("wb_epochs_1000", "1000"), shiny::actionButton("wb_epochs_clear", "Clear")),
+            shiny::p(class = "help-block", "Shortcuts only set the number; Clear empties it. Enter 1–5000 extra epochs before starting. For example, 10 runs 10 more epochs from the saved weights."),
+            shiny::uiOutput("wb_saved_checkpoint_ui"),
             shiny::actionButton("wb_continue", "Start additional training", disabled = "disabled", `aria-disabled` = "true"),
             shiny::tags$details(id = "wb_saved_fit_panel", open = "open",
               shiny::tags$summary("Additional training — progress and results"),
               shiny::textOutput("wb_saved_fit_status"),
               shiny::uiOutput("wb_saved_fit_progress"),
-              shiny::actionButton("wb_saved_cancel", "Cancel additional training", disabled = "disabled"),
+              shiny::div(class = "wb-saved-cancel", shiny::actionButton("wb_saved_cancel", "Cancel additional training", disabled = "disabled")),
               shiny::div(class = "error", role = "alert", shiny::textOutput("wb_saved_fit_error")),
-              shiny::plotOutput("wb_saved_fit_loss", height = "280px"),
-              shiny::tags$details(shiny::tags$summary("Additional training loss values"), shiny::tableOutput("wb_saved_fit_values")),
-              shiny::tags$details(shiny::tags$summary("Additional training log"), shiny::verbatimTextOutput("wb_saved_fit_log")),
+              shiny::textOutput("wb_saved_fit_checkpoint"),
+              shiny::div(class = "wb-loss-chart",
+                shiny::plotOutput("wb_saved_fit_loss", height = "280px",
+                  hover = shiny::hoverOpts("wb_saved_loss_hover", delay = 100, delayType = "throttle", nullOutside = TRUE)),
+                shiny::uiOutput("wb_saved_loss_marker")),
+              shiny::textOutput("wb_saved_loss_inspection"),
+              shiny::tags$details(shiny::tags$summary("Additional training loss values"),
+                wb_saved_pager("wb_saved_values"), shiny::tableOutput("wb_saved_fit_values")),
+              shiny::tags$details(shiny::tags$summary("Additional training log"),
+                shiny::p("25 lines per page from the most recent 2,000 retained log lines."),
+                wb_saved_pager("wb_saved_log"), shiny::verbatimTextOutput("wb_saved_fit_log")),
               shiny::h4("New copy: saved-split evaluation"),
               shiny::p("These scores use the original saved training/validation/test splits after this extra fit. Reusing the test set to choose further training weakens its value as an independent final assessment."),
               shiny::tableOutput("wb_saved_fit_evaluation"),
@@ -806,9 +825,13 @@ wb_server <- function(input, output, session, helper) {
   action_states <- shiny::reactive({
     running <- !is.null(job()); completed <- !is.null(result()); saved <- !is.null(active_model())
     list(wb_start = !is.null(prepared()) && !running, wb_cancel = running && !identical(job()$destination, "saved"),
-      wb_continue = saved && !running, wb_save = saved,
+      wb_continue = saved && !running && valid_extra_epochs(), wb_save = saved,
       wb_saved_cancel = running && identical(job()$destination, "saved"),
       wb_saved_use_fit = !running && !is.null(saved_fit()$bundle),
+      wb_saved_values_prev = saved_values_page()$page > 1,
+      wb_saved_values_next = saved_values_page()$page < saved_values_page()$pages,
+      wb_saved_log_prev = saved_log_page()$page > 1,
+      wb_saved_log_next = saved_log_page()$page < saved_log_page()$pages,
       wb_review_results = completed, wb_predictions_download = completed,
       wb_new_download = !is.null(new_predictions()), wb_new_data = saved,
       wb_use_trained_model = completed && !running,
@@ -977,13 +1000,31 @@ wb_server <- function(input, output, session, helper) {
     training_context(NULL)
     launch(prepared(), cfg)
   }))
+  valid_extra_epochs <- shiny::reactive({
+    n <- input$wb_more_epochs
+    length(n) == 1L && is.finite(n) && n >= 1 && n <= 5000 && n == floor(n)
+  })
+  for (n in c(10, 100, 1000)) local({
+    value <- n
+    shiny::observeEvent(input[[paste0("wb_epochs_", value)]], shiny::updateNumericInput(session, "wb_more_epochs", value = value))
+  })
+  shiny::observeEvent(input$wb_epochs_clear, shiny::updateNumericInput(session, "wb_more_epochs", value = NA_real_))
+  output$wb_saved_checkpoint_ui <- shiny::renderUI({
+    b <- active_model(); shiny::req(b)
+    shiny::tagList(shiny::selectInput("wb_saved_checkpoint", "Weights to keep after this extra fit",
+      c("Last epoch weights" = "final", "Best validation weights" = "best_validation"),
+      selected = b$config$checkpoint, width = "260px"),
+      shiny::p(class = "help-block", "Last epoch keeps the final weights. Best validation keeps the epoch with the highest validation accuracy for classification, or the lowest validation loss for regression. It does not select the lowest training loss. The completed graph marks the selected epoch when a single checkpoint applies; multiple Custom members may keep different epochs."))
+  })
   shiny::observeEvent(input$wb_continue, attempt({
     if (is.null(active_model())) stop("Load or select a saved model first.")
     busy()
     old <- unserialize(serialize(active_model(), NULL)); cfg <- old$config
+    if (!valid_extra_epochs()) stop("Enter a whole number of additional epochs from 1 to 5000.")
     cfg$epochs <- wb_config(epochs = input$wb_more_epochs)$epochs
+    if (length(input$wb_saved_checkpoint) == 1L && input$wb_saved_checkpoint %in% c("final", "best_validation")) cfg$checkpoint <- input$wb_saved_checkpoint
     launch(old$prepared, cfg, old, destination = "saved")
-    saved_fit(list(parent = old$model_name, state = "Running", history = data.frame(epoch = integer(), loss = numeric()), bundle = NULL, error = NULL, log = character()))
+    saved_fit(list(parent = old$model_name, state = "Running", config = cfg, history = data.frame(epoch = integer(), loss = numeric()), bundle = NULL, error = NULL, log = character()))
     shiny::updateTabsetPanel(session, "wb_model_tools", selected = "continue")
   }, model_error))
   shiny::observeEvent(input$wb_saved_use_fit, attempt({
@@ -1129,14 +1170,35 @@ wb_server <- function(input, output, session, helper) {
     h <- saved_fit()$history
     shiny::tags$progress(value = if (nrow(h)) max(h$epoch) else 0, max = active$epochs, style = "width:100%;")
   })
-  output$wb_saved_fit_loss <- shiny::renderPlot({
-    fit <- saved_fit(); shiny::req(nrow(fit$history) > 0)
-    h <- wb_chart_history(fit$history, if (!is.null(fit$bundle)) fit$bundle$config else NULL)
-    print(ggplot2::ggplot(h, ggplot2::aes(epoch, loss, group = fit)) + ggplot2::geom_line(colour = "#078391") +
-      ggplot2::labs(title = "Additional training from saved weights", x = "Logged epoch position in this extra fit", y = "Training loss") + ggplot2::theme_minimal())
+  saved_plot_history <- shiny::reactive({
+    fit <- saved_fit(); wb_chart_history(fit$history, fit$config)
   })
-  output$wb_saved_fit_values <- shiny::renderTable(saved_fit()$history)
-  output$wb_saved_fit_log <- shiny::renderText(paste(tail(saved_fit()$log, 2000L), collapse = "\n"))
+  output$wb_saved_fit_loss <- shiny::renderPlot({
+    fit <- saved_fit(); shiny::req(nrow(saved_plot_history()) > 0)
+    wb_loss_plot(saved_plot_history(), fit$config, if (!is.null(fit$bundle)) fit$bundle$selected_epoch else NULL)
+  })
+  output$wb_saved_fit_checkpoint <- shiny::renderText({
+    fit <- saved_fit(); if (is.null(fit)) return(NULL)
+    if (!is.null(fit$bundle)) paste0(wb_checkpoint_summary(fit$bundle),
+      if (length(unique(saved_plot_history()$fit)) == 1L) ". Dashed line marks the retained epoch." else ". Separate member fits can retain different checkpoints; no single checkpoint line is shown.") else
+      paste0("This extra fit will retain ", if (identical(fit$config$checkpoint, "best_validation")) "best validation weights" else "last epoch weights", ". The retained checkpoint is shown after completion.")
+  })
+  bind_saved_pager <- function(id, source) {
+    force(id); force(source)
+    page <- shiny::reactiveVal(1L)
+    view <- shiny::reactive(wb_page(source(), page()))
+    shiny::observeEvent(input[[paste0(id, "_prev")]], page(max(1L, view()$page - 1L)))
+    shiny::observeEvent(input[[paste0(id, "_next")]], page(min(view()$pages, view()$page + 1L)))
+    shiny::observeEvent(input$wb_continue, page(1L), ignoreInit = TRUE)
+    output[[paste0(id, "_page")]] <- shiny::renderText({
+      v <- view(); paste0("Page ", v$page, " of ", v$pages, " · ", v$total, " ", if (id == "wb_saved_log") "lines" else "rows", " · 25 per page")
+    })
+    view
+  }
+  saved_values_page <- bind_saved_pager("wb_saved_values", saved_plot_history)
+  saved_log_page <- bind_saved_pager("wb_saved_log", shiny::reactive(tail(saved_fit()$log, 2000L)))
+  output$wb_saved_fit_values <- shiny::renderTable(saved_values_page()$data, digits = 8)
+  output$wb_saved_fit_log <- shiny::renderText(paste(saved_log_page()$data, collapse = "\n"))
   output$wb_saved_fit_evaluation <- shiny::renderTable({
     b <- saved_fit()$bundle; shiny::req(b)
     do.call(rbind, lapply(c("train", "validation", "test"), function(split) {
@@ -1435,6 +1497,33 @@ wb_server <- function(input, output, session, helper) {
       if (!is.null(job())) "Live training loss" else if (!is.null(latest_attempt()) && nrow(plot_history()))
         paste0("Training loss from Run ", latest_attempt(), " · ", attempts()[[latest_attempt()]]$state,
           " · loss curve retained for inspection.") else NULL
+  })
+  saved_inspected_point <- shiny::reactive({
+    h <- saved_plot_history()
+    if (is.null(input$wb_saved_loss_hover) || !nrow(h)) return(NULL)
+    point <- shiny::nearPoints(h, input$wb_saved_loss_hover, xvar = "epoch", yvar = "loss",
+      threshold = 20, maxpoints = 1)
+    if (nrow(point)) point else NULL
+  })
+  output$wb_saved_loss_inspection <- shiny::renderText({
+    point <- saved_inspected_point()
+    if (is.null(point)) return(NULL)
+    sprintf("Fit %s · epoch %s within fit · logged position %s · training loss: %.8g", point$fit, point$fit_epoch, point$epoch, point$loss)
+  })
+  output$wb_saved_loss_marker <- shiny::renderUI({
+    point <- saved_inspected_point(); hover <- input$wb_saved_loss_hover
+    if (is.null(point) || is.null(hover$domain) || is.null(hover$range)) return(NULL)
+    x <- (point$epoch - hover$domain$left) / (hover$domain$right - hover$domain$left) *
+      (hover$range$right - hover$range$left) + hover$range$left
+    y <- (point$loss - hover$domain$bottom) / (hover$domain$top - hover$domain$bottom) *
+      (hover$range$top - hover$range$bottom) + hover$range$bottom
+    ratio <- hover$img_css_ratio
+    if (is.null(ratio)) ratio <- list(x = 1, y = 1)
+    shiny::div(class = "wb-loss-dot", style = sprintf("left:%.2fpx;top:%.2fpx;", x / ratio$x, y / ratio$y),
+      shiny::span(class = "wb-loss-tooltip",
+        style = if (x > (hover$range$left + hover$range$right) / 2)
+          "left:auto;right:0;transform:none;" else "left:0;transform:none;",
+        sprintf("Fit %s · epoch %s · Loss %.6g", point$fit, point$fit_epoch, point$loss)))
   })
   inspected_point <- shiny::reactive({
     h <- plot_history()

@@ -1,0 +1,41 @@
+test_that("saved training pages preserve every row and clamp boundaries", {
+  h <- prediction_flow_fixture()$h
+  d <- data.frame(epoch = 1:60, loss = 60:1)
+  expect_equal(h$wb_page(d)$data$epoch, 1:25)
+  expect_equal(h$wb_page(d, 2)$data$epoch, 26:50)
+  expect_equal(h$wb_page(d, 99)$data$epoch, 51:60)
+  expect_equal(h$wb_page(d, -1)$page, 1)
+  expect_equal(h$wb_page(character())$pages, 1)
+  expect_length(h$wb_page(character())$data, 0)
+  expect_equal(h$wb_page(as.character(1:60), 3)$data, as.character(51:60))
+})
+
+test_that("saved loss and log navigation is independent and checkpoint details are explicit", {
+  f <- prediction_flow_fixture()
+  shiny::testServer(f$server, {
+    b <- f$bundle; b$config$epochs <- 60; b$config$checkpoint <- "best_validation"; b$selected_epoch <- 17
+    saved_fit(list(parent = "fixture.rds", state = "Completed", config = b$config,
+      history = data.frame(epoch = 1:60, loss = 60:1), bundle = b, log = paste("line", 1:60)))
+    expect_equal(nrow(saved_values_page()$data), 25)
+    expect_length(saved_log_page()$data, 25)
+    session$setInputs(wb_saved_values_next = 1)
+    expect_equal(saved_values_page()$data$epoch, 26:50)
+    expect_equal(saved_log_page()$page, 1)
+    session$setInputs(wb_saved_values_next = 2, wb_saved_log_next = 1)
+    expect_equal(saved_values_page()$data$epoch, 51:60)
+    expect_equal(saved_log_page()$data, paste("line", 26:50))
+    expect_false(action_states()$wb_saved_values_next)
+    session$setInputs(wb_saved_values_prev = 1)
+    expect_equal(saved_values_page()$page, 2)
+    expect_match(output$wb_saved_fit_checkpoint, "Best validation", fixed = TRUE)
+    expect_match(output$wb_saved_fit_checkpoint, "17", fixed = TRUE)
+    plot <- f$h$wb_loss_plot(saved_plot_history(), b$config, b$selected_epoch)
+    expect_equal(nrow(ggplot2::ggplot_build(plot)$data[[2]]), 60)
+    expect_equal(ggplot2::ggplot_build(plot)$data[[3]]$xintercept, 17)
+    add_saved(f$bundle)
+    session$setInputs(wb_more_epochs = NA_real_)
+    expect_false(action_states()$wb_continue)
+    session$setInputs(wb_more_epochs = 100)
+    expect_true(action_states()$wb_continue)
+  })
+})
