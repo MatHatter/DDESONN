@@ -1,5 +1,18 @@
 # DDESONN model workbench
 
+## Additional training controls (7.3.42)
+
+Loss values and the most recent 2,000 log lines have independent Previous/Next
+controls, showing 25 rows or lines per page. The extra-fit chart uses the same
+points, hover details and selected-checkpoint marker as the main training chart.
+Choose **Last epoch weights** or **Best validation weights** before starting;
+best validation means highest validation accuracy for classification or lowest
+validation loss for regression, rather than lowest training loss. Multiple
+Custom fits can retain different checkpoints, so no single marker is invented.
+Quick buttons set 10, 100 or 1000 extra epochs. **Clear** empties the field and
+requires a new valid number; shortcuts do not start training. Cancel has extra
+spacing above and below it.
+
 ## Upload, disclosure and extra-training clarity (7.3.38)
 
 The two-file example guidance appears before the model Browse control. An italic

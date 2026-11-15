@@ -2,9 +2,13 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
-## Version 7.3.42 - restore upload progress bar
+## Version 7.3.42 - upload progress and additional-training controls
 
-Restored the standard full-field model-upload progress bar.
+Restored the standard full-field model-upload progress bar. Additional-training
+loss values and logs show 25 items per page. The graph matches the main chart
+with points, hover details and checkpoint information. Choose last-epoch or
+best-validation weights, set epochs with 10/100/1000/Clear shortcuts, and use the
+Cancel button with more surrounding space.
 
 ## Version 7.3.41 - saved-model training stays separate
 

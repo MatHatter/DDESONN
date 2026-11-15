@@ -1,5 +1,10 @@
 # DDESONN 7.3.42
 
+- Page additional-training loss values and logs in groups of 25. Match the main
+  loss chart with points, hover details and retained-checkpoint information. Let
+  users keep last-epoch or best-validation weights for the extra fit. Add padding
+  around Cancel and 10/100/1000/Clear epoch shortcuts; Clear requires a new value.
+
 - Restore the standard full-field model-upload progress bar. Revert the thin,
   absolutely positioned strip introduced in 7.3.41.
 

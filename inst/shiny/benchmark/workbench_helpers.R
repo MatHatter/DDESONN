@@ -1282,3 +1282,13 @@ wb_export_filename <- function(value = NULL, suggested = "ddesonn-workbench-mode
   if (stem %in% c("CON", "PRN", "AUX", "NUL", paste0("COM", 1:9), paste0("LPT", 1:9))) value <- paste0("model-", value)
   paste0(value, ".rds")
 }
+
+# Keep saved-model logs and loss tables bounded without dropping retained data.
+wb_page <- function(data, page = 1L, size = 25L) {
+  total <- if (is.data.frame(data)) nrow(data) else length(data)
+  pages <- max(1L, ceiling(total / size))
+  if (length(page) != 1L || !is.finite(page)) page <- 1L
+  page <- max(1L, min(pages, as.integer(page)))
+  ids <- if (total) seq.int((page - 1L) * size + 1L, min(page * size, total)) else integer()
+  list(data = if (is.data.frame(data)) data[ids, , drop = FALSE] else data[ids], page = page, pages = pages, total = total)
+}

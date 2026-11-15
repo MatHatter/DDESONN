@@ -252,6 +252,8 @@ ui <- shiny::fluidPage(
     .wb-model-upload { width:360px; max-width:100%; }
     .wb-model-upload > .form-group { margin-bottom:0; }
     .wb-model-upload .progress { margin-bottom:0; }
+    .wb-saved-cancel { padding:16px 0; }
+    .wb-saved-pager, .wb-epoch-shortcuts { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
     .wb-model-status { margin:2px 0 12px; color:#53677b; text-align:right; overflow-wrap:anywhere; }
     .wb-saved-pane .shiny-input-container { max-width:100%; }
     #wb_csv_purpose { padding-top:14px; }
