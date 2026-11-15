@@ -1,5 +1,10 @@
 # DDESONN 7.3.40
 
+- Add space above CSV purpose choices and their help icons. Compact the model
+  performance split selector, place Evaluate/Run predictions inside its results
+  container, and put download help above right-aligned result downloads. Explain
+  that the loaded model determines CSV inputs and evaluation needs known answers.
+
 - Narrow the saved-model and CSV Browse fields and open-model dropdown to 360px,
   with responsive sizing on smaller screens. Align the italic model status right,
   directly below Browse. Move trust and file-saving explanations above the model
