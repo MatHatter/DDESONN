@@ -1,3 +1,10 @@
+# DDESONN 7.3.40
+
+- Narrow the saved-model and CSV Browse fields and open-model dropdown to 360px,
+  with responsive sizing on smaller screens. Align the italic model status right,
+  directly below Browse. Move trust and file-saving explanations above the model
+  upload control.
+
 # DDESONN 7.3.39
 
 - Remove the redundant labeled customer-example section from the saved-model
