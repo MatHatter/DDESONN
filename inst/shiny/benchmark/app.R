@@ -249,7 +249,15 @@ ui <- shiny::fluidPage(
     .wb-saved-pane details:not(.wb-inline-help) > summary::-webkit-details-marker { display:none; }
     .wb-saved-pane details:not(.wb-inline-help) > summary::before { content:'▸ '; }
     .wb-saved-pane details[open]:not(.wb-inline-help) > summary::before { content:'▾ '; }
-    .wb-model-status { margin:4px 0 12px; color:#53677b; }
+    .wb-model-upload { width:360px; max-width:100%; }
+    .wb-model-upload > .form-group { margin-bottom:0; }
+    .wb-model-upload .progress { margin-bottom:0; }
+    .wb-model-status { margin:2px 0 12px; color:#53677b; text-align:right; overflow-wrap:anywhere; }
+    .wb-saved-pane .shiny-input-container { max-width:100%; }
+    #wb_csv_purpose { padding-top:14px; }
+    .wb-performance .shiny-input-container { max-width:100%; }
+    .wb-csv-performance { margin-top:18px; }
+    .wb-export-right .wb-download-row { flex-direction:column-reverse; align-items:flex-end; }
     .wb-purpose-choice { display:flex; align-items:center; gap:8px; }
     .wb-purpose-choice > label { margin-bottom:0; }
     .wb-purpose-choice > .wb-inline-help { margin:0; }

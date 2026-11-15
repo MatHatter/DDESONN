@@ -121,11 +121,11 @@ wb_optimizer_choices <- function() {
 
 wb_ui <- function() {
   performance <- shiny::tabPanel("Performance", value = "evaluate",
-    shiny::div(class = "panel-body-custom",
+    shiny::div(class = "panel-body-custom wb-performance",
       wb_heading("Model performance", "Performance measures how well the completed model predicts known outcomes. These results use its saved data split and preprocessing, not any new selections on Features."),
       shiny::p(class = "wb-guidance", "Finally, review results and outputs. Use validation to compare your choices, and reserve test results for your final assessment."),
       wb_field("wb_eval_split", "Evaluation split", "Training measures fit to examples the model learned from. Validation helps you assess settings. Test is held aside for a final assessment; repeatedly choosing settings from it weakens that assessment.",
-        shiny::selectInput("wb_eval_split", NULL, c("Test" = "test", "Validation" = "validation", "Training" = "train"))),
+        shiny::selectInput("wb_eval_split", NULL, c("Test" = "test", "Validation" = "validation", "Training" = "train"), width = "180px")),
       shiny::textOutput("wb_selected_model"),
       shiny::textOutput("wb_checkpoint_results"),
       shiny::tableOutput("wb_metrics"),
@@ -153,11 +153,12 @@ wb_ui <- function() {
       shiny::actionButton("wb_clear_saved", "Clear saved-model workspace"),
       shiny::p("Starts this Saved model → evaluate or predict tab blank: clears its open models/selection, model summary and history display, CSV, results, file pickers, errors and purpose choice. Keeps Recent runs, all training data/settings/results and files on your computer. A replacement file becomes active only after it validates successfully."),
       shiny::p("To evaluate the downloadable example, only two uploads are needed: the .rds model here, then its labeled CSV below. No other files or retraining are required."),
-      shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds", width = "100%"),
-      shiny::tags$p(class = "wb-model-status", `aria-live` = "polite", shiny::tags$em(shiny::textOutput("wb_active_model", inline = TRUE))),
-      shiny::div(class = "error", role = "alert", shiny::textOutput("wb_load_error")),
       shiny::p("Load only workbench bundles from sources you trust. Other RDS model formats are not supported."),
       shiny::p("Loading a model does not create a new file on disk. Recent runs keeps session snapshots; Save & export downloads a model file for permanent keeping."),
+      shiny::div(class = "wb-model-upload",
+        shiny::fileInput("wb_load", "Load trusted workbench model (.rds, up to 50 MB)", accept = ".rds", width = "100%"),
+        shiny::tags$p(class = "wb-model-status", `aria-live` = "polite", shiny::tags$em(shiny::textOutput("wb_active_model", inline = TRUE)))),
+      shiny::div(class = "error", role = "alert", shiny::textOutput("wb_load_error")),
       shiny::div(`aria-live` = "polite", shiny::textOutput("wb_workspace_notice")),
       shiny::uiOutput("wb_prediction_model_ui"),
       shiny::conditionalPanel("output.wb_has_saved_model === 'yes'",
@@ -187,14 +188,17 @@ wb_ui <- function() {
           shiny::h3("2. What do you want to do with your CSV?"),
           wb_csv_purpose_control(),
           shiny::p(class = "wb-guidance", shiny::textOutput("wb_csv_instructions")),
-          shiny::fileInput("wb_new_data", "Your data (CSV, up to 10 MB)", accept = ".csv", width = "100%"),
-          shiny::tags$details(shiny::tags$summary("Required CSV columns"), shiny::textOutput("wb_prediction_columns")),
+          shiny::fileInput("wb_new_data", "Your data (CSV, up to 10 MB)", accept = ".csv", width = "360px"),
+          shiny::tags$details(shiny::tags$summary("CSV columns this loaded model needs"),
+            shiny::p("The loaded .rds model determines this list: these are the input columns it used during training. Your CSV must contain those same column names and compatible values. The model reuses its saved preprocessing. To measure accuracy, also include its target column with the known correct answers; for production predictions, answers are not needed."),
+            shiny::textOutput("wb_prediction_columns")),
           shiny::conditionalPanel("input.wb_csv_purpose === 'predict'", shiny::tags$details(shiny::tags$summary("Optional: try an unlabeled customer example"),
             shiny::p("These example rows have no correct Segmentation labels, so they demonstrate prediction only, not accuracy. They may match inputs stored in a compatible customer model."),
             shiny::actionButton("wb_example_predict", "Use packaged customer rows"),
             shiny::downloadButton("wb_prediction_example_download", "Download example input CSV"),
             wb_vignette_link("wb_prediction_vignettes", "Packaged-data and prediction guide"))),
-          shiny::h3("3. Run and view your results"),
+          shiny::div(class = "wb-result-area wb-csv-performance",
+          shiny::h3("3. Model performance / predictions"),
           shiny::actionButton("wb_predict", "Evaluate model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"),
           shiny::div(`aria-live` = "polite", shiny::textOutput("wb_prediction_status")),
           shiny::div(class = "error", role = "alert", shiny::textOutput("wb_model_error")),
@@ -209,7 +213,7 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-overlap-report", shiny::tags$summary("Optional data checks: matching inputs (not accuracy)"),
               shiny::p("These are counts of identical inputs, not scores. A zero means no matching rows, not 0% accuracy."),
               shiny::textOutput("wb_prediction_overlap_note"), shiny::tableOutput("wb_prediction_overlap_table")),
-            shiny::downloadButton("wb_new_download", "Download results (CSV)"))),
+            shiny::div(class = "wb-export-right", wb_download_info("wb_new_download", shiny::downloadButton("wb_new_download", "Download results (CSV)")))))),
           shiny::tags$details(shiny::tags$summary("R example for prediction"),
             wb_code_panel("wb_model_code", "R example — load a saved model and predict new rows"))),
         shiny::tabPanel("Save & export", value = "export",
@@ -712,7 +716,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_model_ui <- shiny::renderUI({
     models <- saved_models(); if (!length(models)) return(NULL)
     labels <- vapply(names(models), function(id) paste0(models[[id]]$model_name, " · ", id), character(1))
-    shiny::selectInput("wb_prediction_model", "Models open in this saved-model workspace", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "100%")
+    shiny::selectInput("wb_prediction_model", "Models open in this saved-model workspace", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "360px")
   })
   shiny::observeEvent(input$wb_use_trained_model, attempt({
     if (is.null(result())) stop("Train a model before using it for prediction.")
@@ -1031,8 +1035,8 @@ wb_server <- function(input, output, session, helper) {
   output$wb_load_error <- shiny::renderText(if (!is.null(load_error())) paste0("Saved-model action failed: ", load_error(), " The previous active model, if any, is still selected."))
   output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Trained model loaded:", active_model()$model_name))
   output$wb_prediction_columns <- shiny::renderText({
-    if (is.null(active_model())) return("Load a model to see its required columns.")
-    paste0(paste(active_model()$prepared$features, collapse = ", "), if (csv_purpose() == "evaluate") paste0("; plus ", active_model()$prepared$target, " with known answers. Saved preprocessing is reused.") else ". Target labels are not evaluated in prediction-only mode. Saved preprocessing is reused.")
+    if (is.null(active_model())) return("Load a .rds model first. Its saved training inputs determine the CSV columns listed here.")
+    paste0("Input columns saved in this model: ", paste(active_model()$prepared$features, collapse = ", "), if (csv_purpose() == "evaluate") paste0("; plus ", active_model()$prepared$target, " with known answers. Saved preprocessing is reused.") else ". Target labels are not evaluated in prediction-only mode. Saved preprocessing is reused.")
   })
   output$wb_prediction_status <- shiny::renderText({
     if (is.null(active_model())) return("Step 1: load or select a model.")

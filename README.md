@@ -2,6 +2,12 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.40 - compact saved-model upload controls
+
+Model and CSV Browse fields and the model dropdown use compact widths. The italic
+model status sits close below Browse, aligned right. Upload explanations appear
+before the model upload control.
+
 ## Version 7.3.39 - simpler saved-model evaluation
 
 Removed the redundant labeled customer-example section and download button from
