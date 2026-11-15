@@ -1,3 +1,8 @@
+# DDESONN 7.3.42
+
+- Restore the standard full-field model-upload progress bar. Revert the thin,
+  absolutely positioned strip introduced in 7.3.41.
+
 # DDESONN 7.3.41
 
 - Keep further training of saved weights in the saved-model workspace, with its

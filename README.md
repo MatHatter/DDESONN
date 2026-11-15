@@ -2,6 +2,10 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.42 - restore upload progress bar
+
+Restored the standard full-field model-upload progress bar.
+
 ## Version 7.3.41 - saved-model training stays separate
 
 Additional training stays under the saved-model Train further tab, with live loss,
