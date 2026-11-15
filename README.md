@@ -2,6 +2,12 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.3.41 - saved-model training stays separate
+
+Additional training stays under the saved-model Train further tab, with live loss,
+logs, cancellation and results. The original model and new-model training workspace
+stay unchanged. Recent runs identifies model origins.
+
 ## Version 7.3.40 - compact saved-model upload controls
 
 Model and CSV Browse fields and the model dropdown use compact widths. The italic
