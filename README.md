@@ -1774,8 +1774,8 @@ If you are interested in helping move the project toward a cleaner and more stab
 
 ## License
 
-DDESONN is released for personal, educational, and research use only.  
-Commercial use requires written authorization.
+DDESONN is released under the MIT License, which permits commercial use.
+See [LICENSE.md](LICENSE.md) for the full license text.
 
 ---
 
