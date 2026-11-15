@@ -237,6 +237,9 @@ test_that("session action states and failed/cancelled workers preserve completed
     prepared(p); result(completed); add_saved(completed); session$flushReact()
     expect_true(action_states()$wb_start)
     expect_true(action_states()$wb_save)
+    # testServer does not initialize the numeric input from the browser UI.
+    expect_false(action_states()$wb_continue)
+    session$setInputs(wb_more_epochs = 10)
     expect_true(action_states()$wb_continue)
     original <- serialize(result(), NULL)
     # Launch a real failing callr worker, exercising the completion error path.

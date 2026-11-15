@@ -149,7 +149,11 @@ ui <- shiny::fluidPage(
         var subpane = subnav.parentElement.querySelector(':scope > .tab-content > .tab-pane.active');
         reference = subpane && subpane.querySelector('.panel-body-custom');
       } else reference = pane.querySelector('.well');
-      if (!reference) return;
+      if (!reference) {
+        bar.style.width = '';
+        bar.style.marginLeft = '';
+        return;
+      }
       var rect = reference.getBoundingClientRect();
       if (!rect.width) return;
       bar.style.width = rect.width + 'px';
