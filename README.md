@@ -2,6 +2,60 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Version 7.4.0 - clean-split evaluation preparation
+
+Add clean-split heart-failure evaluation that keeps identical predictor inputs in
+one partition. [Section Three](dev/research/section-three/README.md) retains a
+small ten-seed results table and scripts for reproducing or extending it.
+No per-seed model artifacts are included. Historical overlapping scores remain
+separate; this is not a replacement 1,000-seed or strict framework-parity study.
+
+### Gradient aggregation: an explicit Boolean choice
+
+`average_gradients <- FALSE` is the 7.4.0 default: sum both dense weight and bias
+batch gradients. Set it to `TRUE` to average both. The API, the main
+`inst/scripts/TestDDESONN.R` script and Shiny's **Average weight and bias gradients**
+switch use this same Boolean choice. In Shiny, off means summed and on means
+averaged. This changes training before tensor clipping and regularization; no
+accuracy advantage is assumed for either choice.
+
+| Verified training path | Weight gradients | Bias gradients |
+| --- | --- | --- |
+| 7.1.11-7.2.0 legacy multilayer AdaGrad | Summed | Summed layer errors |
+| 7.3.0-7.3.42 standard AdaGrad | Summed | Averaged |
+| 7.4.0, `average_gradients = FALSE` (default) | Summed | Summed |
+| 7.4.0, `average_gradients = TRUE` | Averaged | Averaged |
+| Usual Keras mean binary-cross-entropy data loss | Averaged | Averaged |
+
+The historical rows describe the verified AdaGrad path, not every old optimizer.
+The 7.1.11 learning function calculated means, but its AdaGrad bias update replaced
+them with summed layer errors. Version 7.3.0 removed that override. Summing in
+7.4.0 does not restore the old double weight-update behavior or legacy optimizer
+state. The separate SSM encoder's gradient contract is unchanged.
+
+```r
+model <- ddesonn_model(12, 1, average_gradients = FALSE)
+ddesonn_fit(model, x_train, y_train, average_gradients = FALSE) # sum both
+# Use average_gradients = TRUE to average both instead.
+```
+
+Models and workbench bundles retain their selected mode. With no fit-time override,
+`ddesonn_fit()` inherits it. Older 7.3-era bundles without this field retain the
+historical summed-weight/averaged-bias mode for continuation. To reproduce that
+mixed reduction explicitly with a current model, use the compatibility override
+`gradient_reduction = "legacy_mixed"`; a single Boolean cannot express that mode.
+Older serialized training methods may require a newly created model to switch
+modes. New generated recipes record the Boolean, or the explicit compatibility
+mode for an old bundle. Previously downloaded recipes need an explicit setting
+when replayed against a new default.
+
+[Section Three](dev/research/section-three/README.md) records the archived-settings
+comparison on a clean split. Across ten seeds, mean test accuracy was 91.27% for
+DDESONN sum, 80.69% for DDESONN average, 87.93% for Keras average, and 89.21% for
+Keras sum. Framework settings still differ. Only the small results table and
+rerunnable scripts are retained; no per-seed model files are included.
+See the [session notes](dev/SESSION_HANDOFF.md) for continuing with more seeds.
+
 ## Version 7.3.42 - upload progress and additional-training controls
 
 Restored the standard full-field model-upload progress bar. Additional-training

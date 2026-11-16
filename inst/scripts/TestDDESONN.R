@@ -25,6 +25,8 @@ suppressPackageStartupMessages(library(DDESONN))
 CLASSIFICATION_MODE <- "binary"
 # CLASSIFICATION_MODE <- "regression"
 self_org <- FALSE
+# FALSE sums both dense weight and bias gradients; TRUE averages both.
+average_gradients <- FALSE
 set.seed(111)
 #number of seeds;if doing seed loop
 x <- 1
@@ -822,6 +824,7 @@ if (CLASSIFICATION_MODE == "binary") {
       # store activations and dropout etc.
       meta$activation_functions <- activation_functions
       meta$dropout_rates        <- dropout_rates
+      meta$average_gradients    <- average_gradients
       meta$hidden_sizes         <- self$hidden_sizes %||% meta$hidden_sizes
       meta$output_size          <- self$output_size %||% meta$output_size
       meta$ML_NN                <- self$ML_NN %||% meta$ML_NN
@@ -1257,7 +1260,7 @@ if(train) {
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
         X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off=best_weights_on_latest_weights_off, ML_NN=ML_NN,
-        train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
+        train=train, average_gradients=average_gradients, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       
       ## === STAMP MAIN_0 METADATA with best_* including best_val_prediction_time ===
@@ -2155,7 +2158,7 @@ if(train) {
         epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
         shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
         X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off=best_weights_on_latest_weights_off, ML_NN=ML_NN,
-        train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
+        train=train, average_gradients=average_gradients, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
       )
       ensembles$main_ensemble[[1]] <- main_model
       
@@ -2506,7 +2509,7 @@ if(train) {
             epsilon_bn=epsilon_bn, momentum_bn=momentum_bn, is_training_bn=is_training_bn,
             shuffle_bn=shuffle_bn, loss_type=loss_type, update_weights=update_weights, update_biases=update_biases, sample_weights=sample_weights, preprocessScaledData=preprocessScaledData,
             X_validation=X_validation, y_validation=y_validation, validation_metrics=validation_metrics, threshold_function=threshold_function, best_weights_on_latest_weights_off= best_weights_on_latest_weights_off, ML_NN=ML_NN,
-            train=train, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
+            train=train, average_gradients=average_gradients, grouped_metrics=grouped_metrics, viewTables=viewTables, verbose=verbose
           )
           
           #  models/temp_eXX directory for this iteration

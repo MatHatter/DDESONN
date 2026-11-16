@@ -25,7 +25,9 @@ node dev/browser-tests/workbench.cjs
 ```
 
 The script exits nonzero on failure. It trains with every supported optimizer,
-alternates final/best-validation checkpoint selection, checks progress logs for
+alternates final/best-validation checkpoint selection and the average-gradients
+Boolean (off sums both; on averages both), checks the generated code and saved
+mode summaries, and checks progress logs for
 debug leakage, cancels a background fit while preserving the completed model,
 downloads and reloads a model, uploads a CSV and repeats predictions, runs
 additional training as a separate copy, checks epoch controls, verifies mobile

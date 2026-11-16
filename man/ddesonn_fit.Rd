@@ -17,6 +17,7 @@ ddesonn_fit(
   verbose = FALSE,
   verboseLow = FALSE,
   debug = FALSE,
+  average_gradients = NULL,
   sequence_data = NULL,
   sequence_length = 48L,
   ssm_state_dim = 16L,
@@ -48,6 +49,11 @@ supervised prediction-loss term.}
 \item{verboseLow}{Logical; emit important progress output when TRUE.}
 
 \item{debug}{Logical; emit debug diagnostics when TRUE.}
+
+\item{average_gradients}{Optional logical switch: FALSE sums dense weight and
+bias gradients; TRUE averages both. NULL inherits the model's saved setting.
+Older models without this metadata retain summed weights/averaged biases.
+This does not change the separate SSM encoder gradient contract.}
 
 \item{sequence_data}{Aligned samples by timesteps by channels sequence array.}
 \item{sequence_length, ssm_state_dim, ssm_conv}{Compatibility arguments;

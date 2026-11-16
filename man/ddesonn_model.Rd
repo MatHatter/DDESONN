@@ -29,7 +29,8 @@ ddesonn_model(
   sequence_data = NULL,
   sequence_length = 48L,
   ssm_state_dim = 16L,
-  ssm_conv = 4L
+  ssm_conv = 4L,
+  average_gradients = FALSE
 )
 }
 \arguments{
@@ -79,6 +80,9 @@ ddesonn_model(
 \item{ssm_state_dim}{Number of encoder state dimensions.}
 
 \item{ssm_conv}{Width of the encoder's causal convolution.}
+
+\item{average_gradients}{Logical. FALSE (default) sums dense weight and bias
+gradients over the batch; TRUE averages both before clipping/regularization.}
 }
 \value{
 Same as \code{\link[=ddesonn_model]{ddesonn_model()}}.
