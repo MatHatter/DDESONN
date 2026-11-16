@@ -387,6 +387,9 @@ wb_ui <- function() {
             shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
           wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
             shiny::selectInput("wb_optimizer", NULL, wb_optimizer_choices(), selected = "adagrad")),
+          wb_switch("wb_average_gradients", "Average weight and bias gradients",
+            "Off (default) sums both over the batch. On averages both. This changes training before clipping and regularization; neither option guarantees higher accuracy. Saved models retain their original setting.",
+            api = "average_gradients <- FALSE # TRUE averages both; FALSE sums both"),
           wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. Basic keeps it fixed. Custom also offers exponential decay in Learning-rate scheduling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           wb_switch("wb_self_org", "Self-organize before initial training",
@@ -672,6 +675,7 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateNumericInput(session, "wb_epochs", value = cfg$epochs)
     shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
     shiny::updateSelectInput(session, "wb_optimizer", choices = wb_optimizer_choices(), selected = cfg$optimizer)
+    shiny::updateCheckboxInput(session, "wb_average_gradients", value = identical(wb_gradient_mode(cfg), "mean"))
     shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
     shiny::updateSelectInput(session, "wb_reg", choices = c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm"), selected = if (identical(cfg$reg, "none")) "L2" else cfg$reg)
     shiny::updateNumericInput(session, "wb_lambda", value = if (identical(cfg$reg, "none") && cfg$lambda == 0) .0001 else cfg$lambda)
@@ -904,7 +908,8 @@ wb_server <- function(input, output, session, helper) {
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
       input$wb_optimizer, if (regularize) input$wb_lambda else 0,
       if (regularize) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),
-      checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint)
+      checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint,
+      average_gradients = isTRUE(input$wb_average_gradients))
     if (!identical(input$wb_workflow, "custom")) return(cfg)
     wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
       input$wb_temp, input$wb_activation, input$wb_init,
@@ -1037,14 +1042,16 @@ wb_server <- function(input, output, session, helper) {
     if (!is.null(active) && identical(active$destination, "saved")) {
       h <- wb_log_history(active$log)
       fit <- saved_fit(); fit$history <- h; fit$log <- read_job_log(active); fit$state <- "Cancelled"; saved_fit(fit)
-      wb_stop(active); job(NULL)
+      job(NULL); wb_stop(active)
     }
   })
   shiny::observeEvent(input$wb_cancel, training_attempt({
-    if (!is.null(job()) && !identical(job()$destination, "saved")) {
-      history(wb_log_history(job()$log))
+    active <- job()
+    if (!is.null(active) && !identical(active$destination, "saved")) {
+      history(wb_log_history(active$log))
       finish_attempt("Cancelled")
-      wb_stop(job()); job(NULL)
+      # Detach before waiting for process shutdown so polling cannot record failure.
+      job(NULL); wb_stop(active)
     }
   }))
   shiny::observe({

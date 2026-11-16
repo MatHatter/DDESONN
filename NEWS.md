@@ -1,3 +1,19 @@
+# DDESONN 7.4.0
+
+- Add the Boolean `average_gradients` switch to the API, main experiment script
+  and Shiny. FALSE (new default) sums both dense weight and bias gradients; TRUE
+  averages both. Save the mode, record it in recipes, and retain the 7.3-era mixed
+  reduction for old-model continuation and benchmark reproduction. Document the
+  verified historical AdaGrad behavior without claiming an accuracy advantage.
+
+- Add a clean-split evaluation helper using grouped binary partitioning and
+  training-only preprocessing. Report row- and group-weighted accuracy while
+  keeping historical overlap-heavy results separate.
+
+- Record Section Three's ten-seed DDESONN/Keras sum/average results with
+  rerunnable scripts and brief continuation notes. Keep stored seed/model
+  artifacts out of the repository and the package.
+
 # DDESONN 7.3.42
 
 - Page additional-training loss values and logs in groups of 25. Match the main

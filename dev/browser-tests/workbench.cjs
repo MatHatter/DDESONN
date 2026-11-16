@@ -50,7 +50,14 @@ async function select(page, id, value) {
     await page.locator('#wb_epochs').press('Tab');
     const checkpoints = await page.locator('select').evaluateAll(es => es.filter(e=>e.id.includes('checkpoint')).map(e=>({id:e.id,options:[...e.options].map(o=>o.value)})));
     console.log('checkpoint controls', JSON.stringify(checkpoints));
+    assert.equal(await page.locator('#wb_average_gradients').isChecked(), false);
+    await page.locator('details:has(#wb_training_code) > summary').click();
     for (const [index, method] of methods.entries()) {
+      const average = index % 2 === 1;
+      if (await page.locator('#wb_average_gradients').isChecked() !== average)
+        await page.locator('label.wb-switch:has(#wb_average_gradients)').click();
+      await page.waitForFunction(average => document.querySelector('#wb_training_code')?.textContent.includes(
+        `average_gradients = ${average ? 'TRUE' : 'FALSE'}`), average);
       await select(page, 'wb_optimizer', method);
       const checkpoint = checkpoints.find(e=>e.options.includes('best_validation'));
       if (checkpoint) await select(page, checkpoint.id, index % 2 ? 'best_validation' : 'final');
@@ -67,7 +74,9 @@ async function select(page, id, value) {
       const log=await page.locator('#wb_training_log').textContent();
       assert.match(log,/Epoch 1 .*Loss:/);
       assert.doesNotMatch(log,/\[OPT=|Grad norm|\[LEARN\]|FUSE-DBG/);
-      console.log(`${method}: browser training completed, clean progress log`);
+      await page.waitForFunction(average => document.querySelector('#wb_checkpoint_summary')?.textContent.includes(
+        average ? 'averaged gradients' : 'summed gradients'), average);
+      console.log(`${method}: browser training completed, clean progress log; average_gradients=${average}`);
     }
     const retainedModel = await page.locator('#wb_model_info').textContent();
     await page.fill('#wb_epochs', '5000');

@@ -770,7 +770,8 @@ SONN <- R6::R6Class(
     },
     #the magical function
     #the magical function
-    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE) {  
+    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE, average_gradients = NULL, gradient_reduction = "sum") {
+      gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
       if (verbose) { print("----------------------------------------learn-begin----------------------------------------") }
       start_time <- Sys.time()
@@ -1128,9 +1129,10 @@ SONN <- R6::R6Class(
           delta <- self$dropout_backward(delta, mask, rate)
           
           # Gradients
-          bias_gradients[[layer]] <- matrix(colMeans(delta), nrow = 1)        # average over batch
           input_for_grad <- if (layer == 1) input_matrix else hidden_outputs[[layer - 1]]
-          grads_matrix[[layer]] <- t(input_for_grad) %*% delta                # weight grads
+          reduced <- .ddesonn_reduce_gradients(input_for_grad, delta, gradient_reduction)
+          bias_gradients[[layer]] <- reduced$biases
+          grads_matrix[[layer]] <- reduced$weights
           
           errors[[layer]] <- delta
           
@@ -1258,8 +1260,9 @@ SONN <- R6::R6Class(
         grads_matrix <- vector("list", max(1L, self$num_layers))
         bias_gradients <- vector("list", max(1L, self$num_layers))
         
-        bias_gradients[[1]] <- matrix(colMeans(delta), nrow = 1)
-        grads_matrix[[1]] <- t(X_dropped) %*% delta
+        reduced <- .ddesonn_reduce_gradients(X_dropped, delta, gradient_reduction)
+        bias_gradients[[1]] <- reduced$biases
+        grads_matrix[[1]] <- reduced$weights
         errors[[1]] <- delta
       }
       
@@ -1574,7 +1577,8 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, lr_decay_rate = 0.5, lr_decay_epoch = 20, lr_min = 1e-6, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch) {  
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, lr_decay_rate = 0.5, lr_decay_epoch = 20, lr_min = 1e-6, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum") {
+      gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
       log_important <- function(...) {
         ddesonn_console_log(
@@ -1686,6 +1690,7 @@ SONN <- R6::R6Class(
             activation_functions = activation_functions,
             dropout_rates = dropout_rates,
             sample_weights = sample_weights,
+            gradient_reduction = gradient_reduction,
             verbose = verbose,
             verboseLow = verboseLow
           )
@@ -3451,7 +3456,8 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, output_root, plot_controls, save_per_epoch) {  
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, output_root, plot_controls, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum") {
+      gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
       if(verbose){print("----------------------------------------train-begin----------------------------------------")}
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
@@ -3623,7 +3629,7 @@ DDESONN <- R6::R6Class(
           
           predicted_outputAndTime <- suppressMessages(
             self$ensemble[[i]]$train_network(
-              Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, output_root = output_root
+              Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, gradient_reduction = gradient_reduction, output_root = output_root
             ))
           
           # [SSM] Final reports must use the member's latest embeddings too.

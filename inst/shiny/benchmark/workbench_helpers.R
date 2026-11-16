@@ -208,7 +208,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
 }
 
 wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
-                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation") {
+                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation", average_gradients = FALSE) {
   h <- if (!nzchar(trimws(hidden))) integer() else suppressWarnings(as.numeric(strsplit(hidden, ",", fixed = TRUE)[[1]]))
   if (length(h) > 5 || any(!is.finite(h) | h < 1 | h > 512 | h %% 1 != 0))
     stop("Use up to five hidden layers, each 1–512 units, separated by commas; leave blank for a single-layer model.")
@@ -220,8 +220,11 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   if (!is.logical(self_org) || length(self_org) != 1 || is.na(self_org))
     stop("Self-organization must be TRUE or FALSE.")
   checkpoint <- match.arg(checkpoint, c("best_validation", "final"))
+  if (!is.logical(average_gradients) || length(average_gradients) != 1L || is.na(average_gradients))
+    stop("Average gradients must be TRUE or FALSE.")
   list(hidden = as.integer(h), epochs = as.integer(epochs), lr = lr,
-    optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org, checkpoint = checkpoint)
+    optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org, checkpoint = checkpoint,
+    average_gradients = average_gradients, gradient_reduction = if (average_gradients) "mean" else "sum")
 }
 
 wb_predictions <- function(model, prepared, part) {
@@ -264,7 +267,18 @@ wb_evaluate <- function(prepared, part, p) {
   list(metrics = metrics, predictions = cbind(pred, prob), confusion = as.data.frame.matrix(confusion))
 }
 
+wb_gradient_mode <- function(config) {
+  if (!is.null(config$average_gradients)) {
+    if (!is.logical(config$average_gradients) || length(config$average_gradients) != 1L || is.na(config$average_gradients))
+      stop("Average gradients must be TRUE or FALSE.")
+    return(if (config$average_gradients) "mean" else "sum")
+  }
+  mode <- if (is.null(config$gradient_reduction)) "legacy_mixed" else config$gradient_reduction
+  match.arg(mode, c("sum", "mean", "legacy_mixed"))
+}
+
 wb_run <- function(prepared, config, previous = NULL) {
+  config$gradient_reduction <- wb_gradient_mode(config)
   if (identical(config$workflow, "custom")) return(wb_custom_run(prepared, config, previous))
   # callr isolates RNG, package globals, graphics and all mutable model state.
   set.seed(prepared$seed)
@@ -284,6 +298,7 @@ wb_run <- function(prepared, config, previous = NULL) {
   self_org_applied <- is.null(previous) && config$self_org
   DDESONN::ddesonn_fit(model, tr$x, tr$y, validation = va,
     num_epochs = config$epochs, optimizer = config$optimizer, lr = config$lr,
+    gradient_reduction = wb_gradient_mode(config),
     lr_decay_rate = 1, lr_min = config$lr, self_org = self_org_applied,
     reg_type = if (config$reg == "none") NULL else config$reg,
     dropout_rates = NULL, numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
@@ -328,19 +343,20 @@ wb_checkpoint <- function(bundle) {
 
 wb_checkpoint_summary <- function(bundle) {
   if (is.null(bundle)) return("No completed checkpoint yet.")
+  reduction_label <- switch(wb_gradient_mode(bundle$config), sum = "summed gradients", mean = "averaged gradients", legacy_mixed = "historical summed weights / averaged biases")
   if (identical(bundle$config$workflow, "custom")) return(paste(
     if (identical(bundle$config$checkpoint, "best_validation")) "Each member uses its own best validation checkpoint (weights and biases)." else "Each member uses the final epoch.",
-    "All requested epochs ran; results combine members within seeds, then across seeds."))
+    paste0("All requested epochs ran; results combine members within seeds, then across seeds. ", reduction_label, ".")))
   checkpoint <- wb_checkpoint(bundle)
   score <- if (length(checkpoint$score) != 1 || !is.finite(checkpoint$score)) "not recorded" else
     if (identical(bundle$prepared$mode, "regression")) format(signif(checkpoint$score, 6), trim = TRUE) else
       paste0(format(round(100 * checkpoint$score, 2), trim = TRUE), "%")
   epoch <- if (length(checkpoint$epoch) == 1 && is.finite(checkpoint$epoch)) checkpoint$epoch else "not recorded"
   if (identical(checkpoint$mode, "best_validation"))
-    sprintf("Epoch %s of %s · best %s: %s · Best validation checkpoint", epoch,
-      checkpoint$epochs, checkpoint$criterion, score) else
-    sprintf("Epoch %s of %s · final epoch · %s: %s", epoch,
-      checkpoint$epochs, checkpoint$criterion, score)
+    sprintf("Epoch %s of %s · best %s: %s · Best validation checkpoint · %s", epoch,
+      checkpoint$epochs, checkpoint$criterion, score, reduction_label) else
+    sprintf("Epoch %s of %s · final epoch · %s: %s · %s", epoch,
+      checkpoint$epochs, checkpoint$criterion, score, reduction_label)
 }
 
 wb_training_error <- function(error, stderr = character()) {
@@ -366,6 +382,7 @@ wb_validate_bundle <- function(bundle) {
       !inherits(bundle$model, "ddesonn_model") || !is.list(bundle$prepared) ||
       !is.list(bundle$config) || !all(c("train", "validation", "test") %in% names(bundle$evaluation)))
     stop("Load a completed model bundle saved by this workbench.")
+  bundle$config$gradient_reduction <- wb_gradient_mode(bundle$config)
   if (is.null(bundle$config$checkpoint)) bundle$config$checkpoint <- "final"
   if (is.null(bundle$selected_epoch) && identical(bundle$config$checkpoint, "final"))
     bundle$selected_epoch <- bundle$config$epochs
@@ -530,6 +547,10 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
       "model <- bundle$model", sep = "\n\n"))
   }
   best <- identical(cfg$checkpoint, "best_validation")
+  reduction <- wb_gradient_mode(cfg)
+  gradient_argument <- if (reduction == "legacy_mixed")
+    'gradient_reduction = "legacy_mixed"' else
+    paste0("average_gradients = ", wb_literal(reduction == "mean"))
   start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
     "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = ncol(parts$train$x), output_size = ",
@@ -539,6 +560,7 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
   code <- paste0(start, "\n# Train with a fixed learning rate.\n", wb_lr_comments(cfg$lr), "\n\n",
     "ddesonn_fit(model, parts$train$x, parts$train$y, validation = parts$validation,\n",
     "  num_epochs = ", cfg$epochs, ", optimizer = ", wb_literal(cfg$optimizer), ", lr = ", wb_literal(cfg$lr), ",\n",
+    "  ", gradient_argument, ",\n",
     "  lr_decay_rate = 1, lr_min = ", wb_literal(cfg$lr), ", self_org = ", wb_literal(create && isTRUE(cfg$self_org)), ",\n",
     "  reg_type = ", wb_literal(if (cfg$reg == "none") NULL else cfg$reg), ", dropout_rates = NULL,\n",
     "  numeric_columns = ", if (is.null(p$preprocessing)) "NULL" else "integer(0)", ", batch_normalize_data = FALSE, threshold = 0.5,\n",
@@ -897,6 +919,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
   # Resolve supported activation names to functions through the package namespace.
   acts <- lapply(acts, function(name) get(name, envir = asNamespace("DDESONN")))
   train <- list(num_epochs = config$epochs, optimizer = config$optimizer, lr = config$lr,
+    gradient_reduction = wb_gradient_mode(config),
     lr_min = config$minimum, lr_decay_rate = config$decay, lr_decay_epoch = config$interval,
     self_org = is.null(previous) && config$self_org,
     do_ensemble = config$structure %in% c("main", "temp"),

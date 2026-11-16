@@ -224,6 +224,7 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
     lr_decay_epoch = lr_decay_epoch_default,
     lr_min = 1e-5,
     num_epochs = 3L,
+    average_gradients = FALSE,
     self_org = FALSE,
     threshold = .ddesonn_threshold_default(mode),
     reg_type = "L1",
@@ -311,6 +312,8 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
 #' )
 #'
 #' @seealso [DDESONN-package]
+#' @param average_gradients Logical. FALSE (default) sums dense weight and bias
+#'   gradients over the batch; TRUE averages both before clipping/regularization.
 #' @export
 ddesonn_model <- function(input_size,  
                           output_size,  
@@ -331,7 +334,9 @@ ddesonn_model <- function(input_size,
                           debug = FALSE,
                           # [SSM] BEGIN: optional sequence-encoder arguments.
                           sequence_encoder = "none", sequence_data = NULL,
-                          sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L) {
+                          sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
+                          average_gradients = FALSE) {
+  gradient_reduction <- .ddesonn_gradient_reduction(average_gradients)
   # [SSM] END: optional sequence-encoder arguments.
   classification_mode <- match.arg(classification_mode)
   # [SSM] BEGIN: configure the model input shape.
@@ -370,6 +375,8 @@ ddesonn_model <- function(input_size,
     custom_scale = custom_scale
   )
   
+  attr(model, "gradient_reduction") <- gradient_reduction
+  attr(model, "average_gradients") <- average_gradients
   attr(model, "classification_mode") <- classification_mode
   attr(model, "activation_functions") <- activation_functions
   attr(model, "activation_functions_predict") <- activation_functions_predict
@@ -459,8 +466,13 @@ ddesonn_model <- function(input_size,
 #' )
 #'
 #' @seealso [DDESONN-package]
+#' @param average_gradients Optional logical switch: FALSE sums dense weight and
+#'   bias gradients; TRUE averages both. NULL inherits the model's saved setting.
+#'   Older models without this metadata retain summed weights/averaged biases.
+#'   This does not change the separate SSM encoder gradient contract.
 #' @export
 ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., verbose = FALSE, verboseLow = FALSE, debug = FALSE,
+                        average_gradients = NULL,
                         # [SSM] BEGIN: fit-time sequence arguments.
                         sequence_data = NULL, sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
                         ssm_training = c("joint", "pretrain"), ssm_lr = NULL) {
@@ -469,6 +481,12 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   
+  overrides <- list(...)
+  # Old saved models predate the Boolean switch and used mixed reductions.
+  reduction <- .ddesonn_gradient_reduction(average_gradients,
+    overrides$gradient_reduction %||% attr(model, "gradient_reduction") %||% "legacy_mixed")
+  overrides$gradient_reduction <- reduction
+
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
   debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   
@@ -509,7 +527,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   # [SSM] END: train the encoder and augment aligned train/validation data.
   data_prep <- .prepare_training_data(x)
   
-  overrides <- list(...)  # <-- move earlier so we can use it for mode  
   if (is.null(overrides$self_org) && !is.null(self_org)) overrides$self_org <- self_org
   if (is.null(overrides$verbose)) overrides$verbose <- verbose  
   if (is.null(overrides$verboseLow)) overrides$verboseLow <- verboseLow  
@@ -592,6 +609,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
+  cfg$average_gradients <- if (reduction == "legacy_mixed") NULL else reduction == "mean"
   if (identical(cfg$optimizer, "adagrad_x")) {
     stop('Optimizer adagrad_x has been removed. Use optimizer = "adagrad" with a new model; legacy optimizer state is incompatible.', call. = FALSE)
   }
@@ -735,6 +753,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     }, add = TRUE)
   }
   train_args <- list(
+    gradient_reduction = reduction,
     Rdata = data_prep$data,
     labels = labels,
     X_train = data_prep$data,
@@ -803,7 +822,14 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     verboseLow = verboseLow                                                                           
   )                                                                                                   
   
+  if (!"gradient_reduction" %in% names(formals(model$train))) {
+    if (reduction != "legacy_mixed")
+      stop("This saved model has older training methods. Create a new model to change average_gradients; its original mixed mode can still be continued.", call. = FALSE)
+    train_args$gradient_reduction <- NULL
+  }
   result <- do.call(model$train, train_args)
+  attr(model, "gradient_reduction") <- reduction
+  attr(model, "average_gradients") <- cfg$average_gradients
   model$last_training <- result
   # [SSM] Keep each trained network paired with its encoder during TEMP promotion.
   if (identical(seq_cfg$encoder, "ssm")) {
