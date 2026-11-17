@@ -1,3 +1,9 @@
+# DDESONN 7.4.5
+
+- Simplify the Shiny tab label to "Recent runs" while retaining "Global recent
+  runs" in its page heading. Use consistent "Local" prefixes for completed-model,
+  completed-run and saved-model selectors, without parenthetical scope labels.
+
 # DDESONN 7.4.0
 
 - Add the Boolean `average_gradients` switch to the API, main experiment script

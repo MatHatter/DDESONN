@@ -146,7 +146,7 @@ wb_ui <- function() {
           shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"),
             shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))),
           shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")))))
-  recent <- shiny::tabPanel("Recent runs (global)", value = "recent",
+  recent <- shiny::tabPanel("Recent runs", value = "recent",
     shiny::div(class = "panel-body-custom",
       shiny::h3("Global recent runs — this session"),
       shiny::p("Keeps the latest 10 completed training models, loaded models and CSV evaluation/prediction runs in memory for this Shiny session. Nothing here is automatically saved to disk. Restore a model and use Save & export to download its .rds before ending the session."),
@@ -499,7 +499,7 @@ wb_ui <- function() {
           shiny::conditionalPanel("output.wb_chart_ready === 'yes'",
           shiny::div(class = "context", "Training runs for all requested epochs. Choose best-validation or final-epoch weights using the dropdown. Automatic early stopping is not implemented. Self-organization is optional; Custom exposes dropout. Internal batch normalization is off. Cancelled or failed runs retain any previous completed model.")),
           shiny::div(class = "panel-body-custom",
-            wb_heading("Current completed model (local)", "Select a successful training run below. Uploaded models live separately in Use a saved model. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
+            wb_heading("Local completed model", "Select a successful training run below. Uploaded models live separately in Use a saved model. Its saved settings, chart, results and downloads follow your selection. Failed or cancelled attempts are kept separately in Attempt history. Changing controls affects the next new model, not this completed model."),
             shiny::conditionalPanel("output.wb_has_model === 'yes'", shiny::p("Select a completed run to show its settings, chart and results. Completed models and Recent runs are in this session only; download the .rds to keep it after the session ends.")),
             shiny::uiOutput("wb_run_choices"),
             shiny::textOutput("wb_settings_origin"),
@@ -757,7 +757,7 @@ wb_server <- function(input, output, session, helper) {
   output$wb_prediction_model_ui <- shiny::renderUI({
     models <- saved_models(); if (!length(models)) return(NULL)
     labels <- vapply(names(models), function(id) paste0(models[[id]]$model_name, " · ", id), character(1))
-    shiny::selectInput("wb_prediction_model", "Open saved models (local)", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "360px")
+    shiny::selectInput("wb_prediction_model", "Local saved models", choices = stats::setNames(names(models), labels), selected = selected_saved(), selectize = FALSE, width = "360px")
   })
   shiny::observeEvent(input$wb_use_trained_model, attempt({
     if (is.null(result())) stop("Train a model before using it for prediction.")
@@ -1372,7 +1372,7 @@ wb_server <- function(input, output, session, helper) {
     runs <- completed_runs()
     if (!length(runs)) return(shiny::p("No completed training models yet. Train here; uploaded models stay in Use a saved model."))
     ids <- rev(names(runs)); records <- shiny::isolate(attempts())
-    shiny::radioButtons("wb_selected_run", "Completed runs (local)", width = "100%", selected = selected_run(),
+    shiny::radioButtons("wb_selected_run", "Local completed runs", width = "100%", selected = selected_run(),
       choiceValues = ids, choiceNames = lapply(ids, function(id) shiny::tagList(
         shiny::strong(paste0(runs[[id]]$model_name, " · Run ", id, " · ", records[[id]]$kind)),
         shiny::tags$span(class = "wb-run-summary", wb_checkpoint_summary(runs[[id]])))))
