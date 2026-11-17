@@ -1,23 +1,63 @@
 # DDESONN 7.4.7
 
-- Make experiment tests independent of checkout-only paths and verify bundled
-  source hashes. Use two epochs for the 360-epoch plotting and logging examples
-  during R CMD check; normal example runs and builds retain 360 epochs.
+## Shiny Vignettes page
 
-- Show the ensemble vignette's C/D example code even when its optional full
-  training runs are disabled.
+- Add introductory context before the guide links so users understand how the
+  plotting documentation relates to the Shiny workbench. Explain that Shiny
+  displays training curves in Build & Train and evaluation plots in Model /
+  Results; using these pages does not require configuring plot_controls or
+  opening a separate Plots tab.
 
-- Declare test dependencies jsonlite and withr, and use an ASCII-safe Unicode
-  escape in the probability-validation error message for portable package code.
+- Rename the plotting links to "Plot controls: single model (A), two
+  configuration methods" and "Plot controls: ensemble examples (C and D)".
+  Explain that methods 1 and 2 mean separate training_overrides settings versus
+  the unified plot_controls interface, rather than different training setups.
 
-- Add separate Vignettes-page links for package contributions through a fork
-  and pull request, and for sharing applications or results through an editable
-  GitHub issue template.
+- Explain all four training scenarios: A is one model without an ensemble;
+  B uses multiple independent members without MAIN/TEMP orchestration;
+  C uses a main ensemble; D adds temporary challenger ensembles. Relate these
+  setups to the workbench's Basic and Custom workflows.
+
+- Explain where each scenario is documented: the single-model plotting guide
+  covers A, the ensemble plotting guide covers C and D, and B is included in
+  the linked existing A-D example script. Keep the existing guides rather than
+  adding another vignette solely to fill the lettering gap.
+
+- Separate "Contribute to DDESONN" from "Share what you built". The contribution
+  button opens GitHub's fork page, with instructions to create a branch in the
+  user's fork and submit a pull request for package code, tests or documentation.
+
+- Add a "Share your work on GitHub" button that opens an editable issue template
+  for applications and experiments. The template asks about the goal, data/task,
+  package version, settings, results and limitations. Explain that this route
+  needs no fork or branch, requires a GitHub account, and creates a public post
+  only after the user reviews and submits it. Retain author contact links.
+
+## Documentation examples
+
+- Use two epochs for the affected 360-epoch single-model plotting and ensemble
+  logging examples during R CMD check. Normal runs and R CMD build retain 360
+  epochs. Explain that shortened check-run output demonstrates plots and log
+  structure, rather than convergence or realistic model performance. The
+  single-model guide's separate one-epoch example remains one epoch.
+
+- Show the ensemble guide's C/D example code even when its optional full
+  training runs are disabled, and make its opt-in flag cover both examples.
+  These documentation controls do not alter Shiny's user-selected epoch budgets
+  or the frozen apples-to-apples Keras/DDESONN study scripts and results.
+
+## Package-check fixes
+
+- Load the installed Shiny app in experiment tests instead of relying on
+  checkout-only inst/ and dev/ paths. Verify the bundled reproduction sources
+  against their recorded SHA-256 hashes.
+
+- Declare jsonlite and withr in Suggests because the tests use them directly.
+
+- Use an ASCII-safe Unicode escape in the probability-validation error message
+  while preserving its displayed text.
 
 # DDESONN 7.4.6
-
-- Clarify the plot-guide titles and add an A–D scenario overview with a link
-  to the existing example script, distinguishing R plotting options from Shiny.
 
 - Add more space above the evaluated-predictions download and CSV preview
   controls on the Performance tab.
