@@ -1,11 +1,43 @@
 ---
-title: "Packaged datasets and your first model"
+title: "Shiny workbench: launch, data and first model"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Packaged datasets and your first model}
+  %\VignetteIndexEntry{Shiny workbench: launch, data and first model}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+
+## Launch the Shiny graphical interface
+
+DDESONN includes an optional Shiny graphical user interface (GUI) for preparing
+data, training and evaluating models, using saved models and viewing research
+results. After installing DDESONN, install the app dependencies once and launch
+from an interactive R session:
+
+```{r launch-workbench, eval=FALSE}
+install.packages(c("shiny", "callr")) # once, if needed
+shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN",
+                          mustWork = TRUE))
+```
+
+For new training, follow **Data → Features → Build & Train → Model / Results**.
+For an existing model, choose **Use a saved model**, load its workbench `.rds`
+bundle and a CSV, then select holdout evaluation or production prediction.
+Information icons explain the controls, and **Show full R code** provides the
+corresponding workflow script. Plots appear within these pages automatically.
+Stop the app with the RStudio Stop button or Ctrl+C in an R terminal.
+
+## Current and historical experiments
+
+**Experiments** displays saved study results without starting training:
+
+- **Current: clean matched study** compares DDESONN and Keras with 100 seeds per
+  condition (four conditions, 400 fits). Identical predictor inputs are kept in
+  separate partitions. The study uses an experimental native float32 adapter
+  on one fixed split; its scope is described on the page.
+- **Historical: overlapping inputs** pairs 1,000 standard-AdaGrad DDESONN runs
+  with archived legacy DDESONN observations. Training/test inputs overlap;
+  this is a descriptive historical comparison. Keras was not rerun for this view.
 
 ## Choose an example
 
@@ -95,8 +127,12 @@ a fake target. The original CSV upload and prediction-upload paths remain availa
 A seed value of 42 is not 42 runs. Basic uses the Features seed for one run.
 Custom's training seed list repeats complete training runs on the same prepared
 split: `42,43` with Single model and 100 epochs means two 100-epoch runs, 200 total.
-Neither random nor ordered splitting automatically groups duplicate inputs or
-related subjects. The heart-failure split correction remains separate future work.
+Binary preparation groups identical selected predictor inputs and checks for
+overlap again after preprocessing. Ordered binary splitting rejects boundaries
+that separate identical inputs. Other task types use their configured random
+or ordered split without this binary grouping safeguard. Review related subjects,
+identifiers and leakage separately; these checks do not establish generalization
+to other datasets.
 
 The app's contextual links take you to **Vignettes** for this guide, the
 standard-AdaGrad research record, single-run/ensemble plot controls and ensemble

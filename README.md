@@ -2,6 +2,45 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+## Optional Shiny GUI: launch and first steps
+
+DDESONN includes a Shiny graphical user interface (GUI) for preparing data,
+training and evaluating models, using saved models, and browsing research results.
+After installing DDESONN, install the two optional app dependencies once and
+launch it from an interactive R session:
+
+```r
+install.packages(c("shiny", "callr")) # once, if needed
+shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN",
+                          mustWork = TRUE))
+```
+
+- **Train a new model:** start with Iris on **1. Data**, review the target,
+  predictors and preprocessing on **2. Features**, click **Prepare data**, then
+  configure and train on **3. Build & Train**. Review scores and plots on
+  **4. Model / Results**, and export your model bundle when ready.
+- **Use a saved model:** load a workbench `.rds` bundle and your CSV, then choose
+  holdout evaluation (known answers) or production predictions (unknown answers).
+- **Experiments:** browse saved results without launching training. **Current**
+  shows the clean matched DDESONN/Keras study, with 100 seeds per condition and
+  identical predictor inputs kept in separate partitions. It uses an experimental
+  native float32 adapter on one fixed split. **Historical** pairs 1,000
+  standard-AdaGrad DDESONN runs with archived legacy DDESONN observations and
+  retains overlapping training/test inputs; Keras was not rerun for that view.
+- **Help and R code:** use the information icons, **Vignettes**, and
+  **Show full R code** for explanations and the corresponding workflow script.
+
+Shiny handles its plots automatically. For a short installed guide, run:
+
+```r
+vignette("packaged-data-workbench", package = "DDESONN")
+help("DDESONN", package = "DDESONN")
+```
+
+Stop the app with the RStudio Stop button or Ctrl+C in an R terminal.
+See the [workbench guide](inst/shiny/benchmark/README.md) for more detail and
+[NEWS](NEWS.md) for release changes.
+
 ## Version 7.4.0 - clean-split evaluation preparation
 
 Add clean-split heart-failure evaluation that keeps identical predictor inputs in
@@ -423,21 +462,19 @@ changes](#historical-1000-seed-research) for the affected paths and archive link
 
 ## Optional Shiny model workbench
 
-Build and train a single model, evaluate it, save/load model bundles, and predict
-on new data through a native R interface. The Experiments page retains the saved
-AdaGrad benchmark viewer.
+See [launch and first steps](#optional-shiny-gui-launch-and-first-steps) near the
+top of this README for the GUI quick start. From a source checkout, launch with
+`shiny::runApp("inst/shiny/benchmark")`.
 
-```r
-# Once if needed: install.packages(c("shiny", "callr"))
-shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN"))
-```
-
-From a source checkout, use `shiny::runApp("inst/shiny/benchmark")`.
-Start with the included iris example: Data, Features, Prepare data, then Train new model.
 Training runs in a cancellable background R process. Basic and Custom support
-binary/multiclass classification and regression with numeric predictors. Custom
-adds member, seed and MAIN/TEMP orchestration; sequence workflows use the R API.
-See the [workbench guide](inst/shiny/benchmark/README.md) for supported settings,
+binary/multiclass classification and regression; review the preprocessing plan
+for categorical predictors and missing values. Custom adds member, seed and
+MAIN/TEMP orchestration. The optional sequence/SSM workflow uses the R API.
+
+The Experiments selector separates the current clean matched DDESONN/Keras study
+from the historical overlap-compromised legacy/standard AdaGrad comparison.
+Viewing these saved results does not start training. The
+[workbench guide](inst/shiny/benchmark/README.md) describes supported settings,
 saved model contents and warm-start limitations. Shiny and callr remain optional.
 
 ## Optional native-R sequence encoder
