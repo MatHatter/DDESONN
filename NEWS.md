@@ -8,7 +8,8 @@
 
 - Lower the evaluated-predictions download and CSV preview area. Align the
   preview label's text baseline with the evaluate/predict button on desktop,
-  while keeping the controls stacked on narrow screens.
+  while keeping the controls stacked on narrow screens. Bring the download
+  button and its information icon closer to the preview label.
 
 # DDESONN 7.4.7
 
