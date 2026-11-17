@@ -2,6 +2,9 @@
 import os
 os.environ.update(TF_NUM_INTRAOP_THREADS='1', TF_NUM_INTEROP_THREADS='1', OMP_NUM_THREADS='1')
 import ast, pathlib, random, sys
+# Direct execution adds this directory to sys.path, where keras.py would shadow
+# the installed Keras package imported by TensorFlow and the adapter below.
+sys.path = [p for p in sys.path if pathlib.Path(p).resolve() != pathlib.Path(__file__).resolve().parent]
 import numpy as np
 import pandas as pd
 import tensorflow as tf

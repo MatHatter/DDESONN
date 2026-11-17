@@ -6,7 +6,7 @@ Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
 Add clean-split heart-failure evaluation that keeps identical predictor inputs in
 one partition. [Section Three](dev/research/section-three/README.md) retains a
-small ten-seed results table and scripts for reproducing or extending it.
+100-seed results table and scripts for reproducing or extending it.
 No per-seed model artifacts are included. Historical overlapping scores remain
 separate; this is not a replacement 1,000-seed or strict framework-parity study.
 
@@ -50,11 +50,17 @@ mode for an old bundle. Previously downloaded recipes need an explicit setting
 when replayed against a new default.
 
 [Section Three](dev/research/section-three/README.md) records the archived-settings
-comparison on a clean split. Across ten seeds, mean test accuracy was 91.27% for
-DDESONN sum, 80.69% for DDESONN average, 87.93% for Keras average, and 89.21% for
-Keras sum. Framework settings still differ. Only the small results table and
+comparison on a clean split. Across 100 seeds, mean test accuracy was 89.45% for
+DDESONN sum, 81.83% for DDESONN average, 87.62% for Keras average, and 87.48% for
+Keras sum. Seeds 1–10 are retained; seeds 11–100 extend the same protocol. Framework settings still differ. Only the small results table and
 rerunnable scripts are retained; no per-seed model files are included.
 See the [session notes](dev/SESSION_HANDOFF.md) for continuing with more seeds.
+
+A corrected [matched-settings, no-overlap comparison](dev/research/keras-clean-reference/README.md)
+now contains 100 completed seeds per condition. It keeps the original training settings,
+including batch size 16, and changes only the split to keep identical predictor
+vectors together. The earlier overlapping-split comparison is superseded for
+this purpose; its near-perfect scores do not answer the requested clean comparison.
 
 ## Version 7.3.42 - upload progress and additional-training controls
 

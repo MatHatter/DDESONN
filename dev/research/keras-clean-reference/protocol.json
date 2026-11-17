@@ -1,0 +1,201 @@
+{
+  "reference_sha256": "c24c5c824ba96e23675e6f9fe3243d63ee895af4d316427a3d36e5847fe77fa9",
+  "dataset_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+  "rows": {
+    "train": 3500,
+    "validation": 698,
+    "test": 802
+  },
+  "split_sha256": "7a6d7eca4d4f171e3c42b833f05d1b8451288b86d5375cee3d210efb2c29c7e7",
+  "audit": {
+    "rows": {
+      "train": 3500,
+      "validation": 698,
+      "test": 802
+    },
+    "raw_predictor_overlap": {
+      "train_validation": 0,
+      "train_test": 0,
+      "validation_test": 0
+    },
+    "float32_input_overlap": {
+      "train_validation": 0,
+      "train_test": 0,
+      "validation_test": 0
+    },
+    "predictor_groups": {
+      "train": 923,
+      "validation": 197,
+      "test": 199
+    },
+    "split_sha256": "7a6d7eca4d4f171e3c42b833f05d1b8451288b86d5375cee3d210efb2c29c7e7",
+    "dataset_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+    "standardized_float32_sha256": "c3f56893ab7b63a27debb67f60e872dab89342329bda8f38e1734a63962f97e9",
+    "labels_sha256": "09a359cd2cad5725a9a2fc92fe82525852d8a8cb6936b6de250167081a854e56"
+  },
+  "batch_size": 16,
+  "epochs": 360,
+  "optimizer_updates": 78840,
+  "tensorflow": "2.20.0",
+  "optimizer": {
+    "name": "adagrad",
+    "learning_rate": 0.125,
+    "weight_decay": null,
+    "clipnorm": null,
+    "global_clipnorm": null,
+    "clipvalue": null,
+    "use_ema": false,
+    "ema_momentum": 0.99,
+    "ema_overwrite_frequency": null,
+    "loss_scale_factor": null,
+    "gradient_accumulation_steps": null,
+    "initial_accumulator_value": 0.1,
+    "epsilon": 1e-07
+  },
+  "initialization": "Shared original Keras per-seed initial tensors",
+  "native_precision": "float32",
+  "stochastic_draws": "Framework-native shuffled batches and dropout; same distributions, different RNG engines",
+  "status": "complete",
+  "target_fits": 400,
+  "seed_range": [
+    1,
+    100
+  ],
+  "split_seed": 42,
+  "split_method": "Identical predictor groups stay together; reuse frozen group-disjoint row assignment",
+  "only_protocol_change": "Group-disjoint split replacing overlapping contiguous split",
+  "shared_settings": {
+    "architecture": [
+      12,
+      64,
+      32,
+      1
+    ],
+    "activations": [
+      "relu",
+      "relu",
+      "sigmoid"
+    ],
+    "dense_bias_initialization": "zeros",
+    "hidden_batch_normalization": {
+      "after": "hidden ReLU, before dropout",
+      "momentum": 0.9,
+      "epsilon": 1e-06,
+      "gamma_initializer": 0.6,
+      "beta_initializer": 0.6,
+      "trainable": true,
+      "moving_mean_initializer": 0,
+      "moving_variance_initializer": 1
+    },
+    "hidden_dropout": [
+      0.1,
+      0.0
+    ],
+    "input_scaler": {
+      "name": "StandardScaler",
+      "fit_partition": "train",
+      "variance_ddof": 0,
+      "additional_scaling": null
+    },
+    "kernel_initializer": {
+      "name": "VarianceScaling",
+      "scale": 1.04349,
+      "mode": "fan_in",
+      "distribution": "truncated_normal",
+      "shared_initial_tensors": true
+    },
+    "class_weights": null,
+    "sample_weights": null,
+    "training_batch_size": 16,
+    "shuffle_training": true,
+    "epochs": 360,
+    "validation_frequency": 1,
+    "validation_batch_size": 16,
+    "evaluation_batch_size": 32,
+    "checkpoint": "final",
+    "early_stopping": false,
+    "loss": "binary_crossentropy",
+    "label_smoothing": 0,
+    "regularization": {
+      "type": "L1",
+      "coefficient": 0.00028,
+      "targets": "dense kernels only",
+      "applications_per_optimizer_step": 1
+    },
+    "gradient_clipping": null,
+    "optimizer": {
+      "name": "AdaGrad",
+      "learning_rate": 0.125,
+      "decay": null,
+      "initial_accumulator": 0.1,
+      "epsilon": 1e-07,
+      "denominator": "sqrt(accumulator + epsilon)"
+    },
+    "accuracy_threshold": 0.5,
+    "accuracy_comparison": ">"
+  },
+  "conditions": [
+    {
+      "name": "Original Keras mean",
+      "framework": "keras",
+      "data_loss_reduction": "mean"
+    },
+    {
+      "name": "DDESONN FALSE",
+      "framework": "ddesonn",
+      "average_gradients": false,
+      "data_loss_reduction": "sum",
+      "implementation": "opt-in native original-Keras clean-split protocol adapter"
+    },
+    {
+      "name": "DDESONN TRUE",
+      "framework": "ddesonn",
+      "average_gradients": true,
+      "data_loss_reduction": "mean",
+      "implementation": "opt-in native original-Keras clean-split protocol adapter"
+    },
+    {
+      "name": "Keras sum",
+      "framework": "keras",
+      "data_loss_reduction": "sum"
+    }
+  ],
+  "software": {
+    "R": {
+      "R": "R version 4.5.0 (2025-04-11)",
+      "DDESONN": "7.4.0",
+      "Rcpp": "1.0.14",
+      "jsonlite": "1.9.1"
+    },
+    "python": {
+      "tensorflow_cpu": "2.20.0",
+      "keras": "3.15.1",
+      "numpy": "2.5.5",
+      "pandas": "3.1.1",
+      "scikit-learn": "1.9.1"
+    },
+    "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+    "blas_sha256": "2b3fdbf8e9daa85ce62e449b9738cad4c8b50ba220342f51501c9ade19670895"
+  },
+  "validation_batch_size": 16,
+  "evaluation_batch_size": 32,
+  "validation_frequency": 1,
+  "validation_steps_per_fit": 15840,
+  "numerical_checks": 146,
+  "float32_check_tolerance": 0.0002,
+  "adapter_sha256": {
+    "R/keras_clean_reference.R": "5411af6939c1fe4a76476e2912a86f516185ddca5f17a8e2c4825d13242f6904",
+    "dev/research/keras-clean-reference/reference.py": "4c5ad4e60cbb680d51fd96ceaea7596895e86301e7cd7b9dffcdc136b5a94d91",
+    "dev/research/keras-clean-reference/native_reference.cpp": "467008d8945931bcc17e5f64a65edfbb55dfb85162f197ff4fa3a69fab39d439",
+    "dev/research/keras-clean-reference/run_keras.py": "0e235ba15d51c43b74ccb01b49a42f913504c8e30ac9bf1cdc87c25b9fde9acc",
+    "dev/research/keras-clean-reference/run_ddesonn.R": "5bc580deb99915ce81db968a7c02ebb469567ef3c09116690e7d87f1a6a011b4",
+    "dev/research/keras-clean-reference/compile.R": "460fd33ee45c7371cf471b21abb4daa155d76a561a67e8597b4616c8f2370de5",
+    "dev/research/keras-clean-reference/check_native.R": "175e1ca9e0ced05e068656652673c45ab8600f8925a58c7836ad4f5469fb9518",
+    "dev/research/keras-clean-reference/check_tensorflow.py": "bca27a2a6b718a3afb88b68b966f4ac33ec3a531bed27345599f4d4003ad30ac",
+    "dev/research/keras-clean-reference/audit_split.py": "6522c170bfc8574a767ff76b0fba3ab742a8ce1dcbea12fc3f27f5fb3d165c44",
+    "dev/research/keras-clean-reference/summarize.py": "c75eed2be1650f86dfc482d19c455151e0bbb036c646e187c1bb8d8004a1c6f6"
+  },
+  "tensorflow_fixture_sha256": "731dc8cc68a20d503276491d0dec38c2897a7fe9e8bcdbac3bf55bc378c1c131",
+  "validated_fits": 400,
+  "completed_at_utc": "2026-11-17T01:27:49.526780+00:00"
+}
