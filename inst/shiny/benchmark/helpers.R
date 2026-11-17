@@ -16,8 +16,8 @@ dashboard_vignettes <- function(doc_dir = "") {
       "plot-contols_scenario1_ensemble-runs_scenarioC-D",
       "logs_main-change-movement_ensemble_runs_scenarioD", "community-and-next-steps"),
     title = c("Packaged datasets and your first model", "New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
-      "Plot controls: single-run scenarios 1 and 2",
-      "Plot controls: ensemble scenarios C and D",
+      "Plot controls: single model (A), two configuration methods",
+      "Plot controls: ensemble examples (C and D)",
       "Main, change and movement logs: ensemble scenario D", "Share your results, contribute and connect"),
     stringsAsFactors = FALSE)
   guides$local <- nzchar(doc_dir) & file.exists(file.path(doc_dir, paste0(guides$file, ".html")))
@@ -32,6 +32,16 @@ dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
   if (any(guides$local)) shiny::addResourcePath("ddesonn-vignettes", doc_dir)
   shiny::tagList(shiny::h3("Vignettes"),
     shiny::p("Read the package guides and research context. Links open in a new tab; online source is used when a guide is not installed."),
+    shiny::h4("Using Shiny or writing R scripts?"),
+    shiny::p("Shiny takes care of displaying its plots automatically: training curves appear in Build & Train, and evaluation plots appear in Model / Results. You do not need to configure plot_controls to use these pages. There is no separate Plots tab."),
+    shiny::p("The plotting guides below are optional examples for people running DDESONN from R scripts who want to configure plots themselves. They show two methods: separate settings through training_overrides, or the unified plot_controls interface. The names ‘1’ and ‘2’ refer to these configuration methods."),
+    shiny::h4("What do scenarios A–D mean?"),
+    shiny::p("These letters describe training setups used in the R examples: A is one model without an ensemble; B is multiple independent members without ensemble orchestration; C is a main ensemble; D adds temporary challenger ensembles that can update the main ensemble. Basic uses the single-model workflow; Custom exposes the corresponding run structures."),
+    shiny::p("A is included in the single-model plot guide, which demonstrates both configuration methods. B has no dedicated plotting vignette; it is included alongside A, C and D in the existing ",
+      shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/blob/main/inst/scripts/DDESONN_mtcars_A-D_examples.R",
+        "A–D example script", target = "_blank", rel = "noopener noreferrer"),
+      ". The ensemble plotting guide covers C and D. Methods 1 and 2 and scenarios A–D describe different things."),
+    shiny::h4("Guides and examples"),
     shiny::tags$ul(lapply(seq_len(nrow(guides)), function(i)
       shiny::tags$li(shiny::tags$a(href = guides$href[i], guides$title[i],
         target = "_blank", rel = "noopener noreferrer")))),

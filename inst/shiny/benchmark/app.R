@@ -204,6 +204,8 @@ ui <- shiny::fluidPage(
   ")),
   shiny::tags$head(shiny::tags$style(shiny::HTML("
     body { background:#f4f7fa; color:#233247; font-family:system-ui,sans-serif; }
+    code { color:#233247; background-color:#eaf0f5; }
+    pre code { color:inherit; background-color:transparent; }
     .container-fluid { max-width:1500px; margin:auto; padding:28px; }
     .masthead { background:#152b40; color:white; border-radius:16px; padding:28px 32px; margin-bottom:24px; }
     .masthead { display:flex; align-items:center; justify-content:space-between; gap:24px; }
@@ -317,7 +319,7 @@ ui <- shiny::fluidPage(
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
     #wb_show_full_code { font-size:14px; padding:6px 24px; min-width:190px; min-height:0; }
     .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
-    .wb-evaluation-exports { margin-top:12px; text-align:left; }
+    .wb-evaluation-exports { margin-top:36px; text-align:left; }
     .wb-evaluation-exports > .wb-download-row { justify-content:flex-start; }
     .wb-evaluation-actions { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:10px; }
     .wb-evaluation-actions > details { flex:1 1 auto; min-width:0; text-align:left; }
