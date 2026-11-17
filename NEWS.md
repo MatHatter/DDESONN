@@ -1,5 +1,15 @@
 # DDESONN 7.4.7
 
+- Make the optional Shiny GUI easy to discover: add launch instructions and a
+  brief workflow near the top of README, in package help and in the introductory
+  vignette, whose title now identifies the Shiny workbench in the vignette index.
+  Describe the current matched study and historical overlap-compromised results
+  separately, and refresh the vignette's binary-split guidance.
+
+- Lower the evaluated-predictions download and CSV preview area. Align the
+  preview label's text baseline with the evaluate/predict button on desktop,
+  while keeping the controls stacked on narrow screens.
+
 - Fix the saved-model "R example for prediction" disclosure so one click reveals
   its code directly, without a second collapsed panel inside it.
 
