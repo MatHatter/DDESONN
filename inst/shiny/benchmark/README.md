@@ -923,3 +923,13 @@ Maintainers: rebuild the packaged ZIP with
 `python dev/research/keras-clean-reference/build_shiny_reproduction.py` after
 changes to bundled reproduction documentation or scripts. Tests compare its
 frozen adapter sources against the original study sources byte for byte.
+
+### Choice-only dropdowns
+
+Selectize dropdowns throughout the workbench use a readonly, visually collapsed
+combobox input: there is no typing caret, mobile text keyboard or extra blank
+input line after a wrapped selection. The focusable input is retained for keyboard
+and screen-reader navigation, including arrow-key selection. This also applies
+to dynamically rendered controls and multiple-selection dropdowns; choose their
+options from the menu instead of typing search text. Research-study descriptions
+are vertically centered beside the selector card on desktop and stack on mobile.

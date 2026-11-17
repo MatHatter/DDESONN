@@ -71,6 +71,8 @@ benchmark_ui <- shiny::tagList(
   shiny::conditionalPanel("input.experiment_study === 'historical'", historical_ui))
 
 ui <- shiny::fluidPage(
+  shiny::tags$link(rel = "stylesheet", href = "choice-dropdowns.css"),
+  shiny::tags$script(src = "choice-dropdowns.js"),
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
   shiny::tags$script(shiny::HTML("
     Shiny.addCustomMessageHandler('wb-flow-theme', function(message) {
@@ -221,10 +223,10 @@ ui <- shiny::fluidPage(
     .stat span { display:block; color:#63748a; font-size:11px; letter-spacing:1px; }
     .stat strong { display:block; font-size:25px; margin-top:8px; color:#087f8c; }
     .stat small { color:#63748a; }
-    .study-header { display:flex; align-items:stretch; gap:20px; margin:18px 0; }
+    .study-header { display:flex; align-items:center; gap:20px; margin:18px 0; }
     .study-picker.panel-body-custom { flex:0 0 330px; width:330px; max-width:100%; margin:0; }
     .study-description { flex:1 1 0; min-width:0; }
-    .study-description .context { margin:0; height:100%; }
+    .study-description .context { margin:0; }
     .study-header h3 { margin-top:0; }
     .study-comparison { max-width:600px; margin-top:18px; }
     .study-picker .selectize-input, .study-comparison .selectize-input {
