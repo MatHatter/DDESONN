@@ -46,6 +46,11 @@ clean_study_ui <- function() shiny::tagList(
     shiny::code("FALSE"), " sums the data-loss gradients, while ", shiny::code("TRUE"),
     " averages them. Each choice applies to every trainable parameter in this study. All four conditions use 360 epochs and batches of 16, with a smaller final batch. Standardization is fitted on training data only, and evaluation uses the final checkpoint."),
   shiny::h4("Held-out accuracy and paired advantage"),
+  shiny::p("Table notation: ", shiny::code("_pct"), " means percent accuracy; ",
+    shiny::code("_pp"), " means percentage points. For example, 90% versus 86% accuracy is a +4 percentage-point difference. ",
+    shiny::code("advantage_pp"), " is the average paired accuracy difference (DDESONN minus Keras). ",
+    shiny::code("low_pp"), " and ", shiny::code("high_pp"),
+    " are the lower and upper bounds of its 95% paired-t confidence interval across training seeds. They describe uncertainty in the average difference, not the lowest and highest individual scores. Positive differences favor DDESONN; negative differences favor Keras. This notation applies to the overall, block and cumulative tables below; the intervals concern this fixed dataset split, not variation across datasets."),
   shiny::div(class = "scroll-table", shiny::tableOutput("clean_overall")),
   shiny::tabsetPanel(
     shiny::tabPanel("Blocks of ten", shiny::p("Disjoint blocks in numerical seed order. Positive differences favor DDESONN; units are percentage points. All ten block averages are positive for both reductions, although individual seeds lose."),
