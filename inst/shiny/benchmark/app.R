@@ -298,6 +298,9 @@ ui <- shiny::fluidPage(
     #wb_csv_purpose { padding-top:14px; }
     .wb-performance .shiny-input-container { max-width:100%; }
     .wb-csv-performance { margin-top:18px; }
+    .wb-performance > .wb-evaluation-exports { margin-top:60px; }
+    .wb-performance > .wb-evaluation-exports > .wb-download-row { margin-bottom:0; }
+    .wb-performance .wb-evaluation-actions { margin-top:2px; }
     .wb-export-right .wb-download-row { flex-direction:column-reverse; align-items:flex-end; }
     .wb-purpose-choice { display:flex; align-items:center; gap:8px; }
     .wb-purpose-choice > label { margin-bottom:0; }
@@ -319,9 +322,9 @@ ui <- shiny::fluidPage(
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
     #wb_show_full_code { font-size:14px; padding:6px 24px; min-width:190px; min-height:0; }
     .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
-    .wb-evaluation-exports { margin-top:60px; text-align:left; }
-    .wb-evaluation-exports > .wb-download-row { justify-content:flex-start; margin-bottom:0; }
-    .wb-evaluation-actions { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-top:2px; }
+    .wb-evaluation-exports { margin-top:52px; text-align:left; }
+    .wb-evaluation-exports > .wb-download-row { justify-content:flex-start; }
+    .wb-evaluation-actions { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-top:10px; }
     .wb-evaluation-actions > details { flex:1 1 auto; min-width:0; width:100%; text-align:left; }
     .wb-evaluation-actions > .btn { flex:0 0 auto; }
     @media(max-width:767px) {
