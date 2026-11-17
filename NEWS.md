@@ -26,15 +26,14 @@
   the linked existing A-D example script. Keep the existing guides rather than
   adding another vignette solely to fill the lettering gap.
 
-- Separate "Contribute to DDESONN" from "Share what you built". The contribution
-  button opens GitHub's fork page, with instructions to create a branch in the
-  user's fork and submit a pull request for package code, tests or documentation.
+- Replace the combined community-guide entry and lengthy action sections with
+  two direct links in the Vignettes list: "Share results" and "Contribute".
+  Keep the existing author contact links separate.
 
-- Add a "Share your work on GitHub" button that opens an editable issue template
+- "Share results" opens an editable GitHub issue template
   for applications and experiments. The template asks about the goal, data/task,
-  package version, settings, results and limitations. Explain that this route
-  needs no fork or branch, requires a GitHub account, and creates a public post
-  only after the user reviews and submits it. Retain author contact links.
+  package version, settings, results and limitations. "Contribute" opens GitHub's
+  fork page for proposing package changes through a pull request.
 
 ## Documentation examples
 

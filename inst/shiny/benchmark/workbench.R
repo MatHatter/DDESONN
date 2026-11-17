@@ -503,7 +503,7 @@ wb_ui <- function() {
             shiny::uiOutput("wb_run_choices"),
             shiny::textOutput("wb_settings_origin"),
             shiny::p(class = "wb-guidance", shiny::textOutput("wb_training_success")),
-            wb_vignette_link("wb_community_vignettes", "Share what you built or contribute ideas"),
+            wb_vignette_link("wb_community_vignettes", "Share results or contribute"),
             shiny::textOutput("wb_model_info"),
             shiny::textOutput("wb_checkpoint_summary"),
             wb_code_panel("wb_training_code", "Equivalent R code — next new model"),

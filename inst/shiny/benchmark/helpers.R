@@ -14,11 +14,11 @@ dashboard_vignettes <- function(doc_dir = "") {
     file = c("packaged-data-workbench", "heart-failure-standard-adagrad-1000-seeds",
       "plot-controls_scenario1-2_single-run_scenarioA",
       "plot-contols_scenario1_ensemble-runs_scenarioC-D",
-      "logs_main-change-movement_ensemble_runs_scenarioD", "community-and-next-steps"),
+      "logs_main-change-movement_ensemble_runs_scenarioD"),
     title = c("Packaged datasets and your first model", "New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
       "Plot controls: single model (A), two configuration methods",
       "Plot controls: ensemble examples (C and D)",
-      "Main, change and movement logs: ensemble scenario D", "Share your results, contribute and connect"),
+      "Main, change and movement logs: ensemble scenario D"),
     stringsAsFactors = FALSE)
   guides$local <- nzchar(doc_dir) & file.exists(file.path(doc_dir, paste0(guides$file, ".html")))
   guides$href <- ifelse(guides$local,
@@ -52,17 +52,12 @@ dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
     shiny::h4("Guides and examples"),
     shiny::tags$ul(lapply(seq_len(nrow(guides)), function(i)
       shiny::tags$li(shiny::tags$a(href = guides$href[i], guides$title[i],
-        target = "_blank", rel = "noopener noreferrer")))),
-    shiny::hr(), shiny::h4("Contribute to DDESONN"),
-    shiny::p("Help improve the package's code, tests or documentation. Fork the repository to your GitHub account, create a branch in your fork, make your changes, and open a pull request back to MatHatter/DDESONN for review."),
-    shiny::p(shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/fork", class = "btn btn-default",
-      target = "_blank", rel = "noopener noreferrer", "Contribute to DDESONN")),
-    shiny::h4("Share what you built"),
-    shiny::p("Show the community an application, experiment or results produced with DDESONN. This opens a GitHub issue with a template you can edit; no fork, branch or package changes are needed."),
-    shiny::p(shiny::tags$a(href = share_url, class = "btn btn-default",
-      target = "_blank", rel = "noopener noreferrer", "Share your work on GitHub")),
-    shiny::p("Both links require a GitHub account. Shared posts are public: review your text and attachments for private information. Nothing is uploaded or posted by Shiny; you review and submit on GitHub."),
-    shiny::h4("Connect with the author"),
+        target = "_blank", rel = "noopener noreferrer"))),
+      shiny::tags$li(shiny::tags$a(href = share_url,
+        target = "_blank", rel = "noopener noreferrer", "Share results")),
+      shiny::tags$li(shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/fork",
+        target = "_blank", rel = "noopener noreferrer", "Contribute"))),
+    shiny::hr(), shiny::h4("Connect with the author"),
     shiny::p(shiny::tags$a(href = "https://www.linkedin.com/in/mathewfok", target = "_blank", rel = "noopener noreferrer", "Connect on LinkedIn"),
       " · ", shiny::tags$a(href = "mailto:quiksilver67213@yahoo.com", "Email the author")))
 }
