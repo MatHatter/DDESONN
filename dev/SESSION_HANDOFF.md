@@ -169,3 +169,11 @@ community contribution bundles. `SEED_COUNT_RATIONALE.md`, `SEED_DECILES.md` and
 figures document the retrospective resource/precision rationale, without claiming a prospective
 stopping rule. `PR_DESCRIPTION.md` is a local draft for the next PR; no PR has been opened.
 See `COMMUNITY_VALIDATION.md` for smoke-check coverage and remaining limits.
+
+## User preference: descriptive PR titles
+
+Always write PR titles that name the concrete changes and user-visible outcome.
+Never use a branch name or vague study label (for example, "clean seed comparison")
+as the PR title. Rewrite the title to match the final scope before creating or
+updating a PR. For the current Shiny follow-up, the preferred title is:
+"Fix Shiny experiment layout, sync displayed R code, and add benchmark reproduction downloads".
