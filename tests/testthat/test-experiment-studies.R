@@ -1,5 +1,5 @@
 study_fixture <- function() {
-  app <- normalizePath(testthat::test_path("..", "..", "inst", "shiny", "benchmark"))
+  app <- system.file("shiny", "benchmark", package = "DDESONN", mustWork = TRUE)
   env <- new.env(parent = globalenv())
   sys.source(file.path(app, "studies.R"), env)
   list(h = env, data = utils::read.csv(file.path(app, "data", "clean-matched-100.csv")), app = app)
@@ -75,14 +75,13 @@ test_that("installed reproduction bundle contains exact frozen training sources"
   entries <- utils::unzip(archive, list = TRUE)$Name
   expect_true(all(c("RUN_STUDY.R", "prepare_original.py", "keras_mean.R",
     "keras_sum.R", "ddesonn_mean.R", "ddesonn_sum.R") %in% entries))
-  repo <- normalizePath(file.path(f$app, "../../.."))
-  protocol <- jsonlite::fromJSON(file.path(repo, "dev/research/keras-clean-reference/protocol.json"))
   temp <- tempfile(); dir.create(temp)
   on.exit(unlink(temp, recursive = TRUE))
   utils::unzip(archive, exdir = temp)
+  protocol <- jsonlite::fromJSON(file.path(temp, "dev/research/keras-clean-reference/protocol.json"))
   for (name in names(protocol$adapter_sha256)) {
-    expect_identical(readBin(file.path(temp, name), "raw", file.info(file.path(temp, name))$size),
-      readBin(file.path(repo, name), "raw", file.info(file.path(repo, name))$size), info = name)
+    expect_identical(digest::digest(file = file.path(temp, name), algo = "sha256"),
+      protocol$adapter_sha256[[name]], info = name)
   }
   # Core native fitting/metric block is unchanged by portable compilation.
   old <- paste(readLines(file.path(temp, "dev/research/keras-clean-reference/run_ddesonn.R")), collapse="\n")

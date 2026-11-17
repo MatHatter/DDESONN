@@ -1,3 +1,19 @@
+# DDESONN 7.4.7
+
+- Make experiment tests independent of checkout-only paths and verify bundled
+  source hashes. Use two epochs for the 360-epoch plotting and logging examples
+  during R CMD check; normal example runs and builds retain 360 epochs.
+
+- Show the ensemble vignette's C/D example code even when its optional full
+  training runs are disabled.
+
+- Declare test dependencies jsonlite and withr, and use an ASCII-safe Unicode
+  escape in the probability-validation error message for portable package code.
+
+- Add separate Vignettes-page links for package contributions through a fork
+  and pull request, and for sharing applications or results through an editable
+  GitHub issue template.
+
 # DDESONN 7.4.6
 
 - Clarify the plot-guide titles and add an A–D scenario overview with a link
