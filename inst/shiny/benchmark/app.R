@@ -2,12 +2,14 @@
 if (!requireNamespace("shiny", quietly = TRUE) || !requireNamespace("callr", quietly = TRUE))
   stop("Install optional packages 'shiny' and 'callr' to use the workbench.")
 source("helpers.R", local = TRUE)
+source("studies.R", local = TRUE)
+clean_data <- utils::read.csv("data/clean-matched-100.csv")
 source("workbench_helpers.R", local = TRUE)
 source("workbench.R", local = TRUE)
 options(shiny.maxRequestSize = 50 * 1024^2)
 default_data <- dashboard_validate(utils::read.csv("data/heart-failure-1000.csv"))
 
-benchmark_ui <- shiny::sidebarLayout(
+historical_ui <- shiny::sidebarLayout(
     shiny::sidebarPanel(width = 3,
       shiny::h3("Choose your results"),
       shiny::tags$details(shiny::tags$summary("What are legacy and standard AdaGrad?"),
@@ -51,6 +53,19 @@ benchmark_ui <- shiny::sidebarLayout(
             shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000", "Read the protocol, results and artifact provenance", target = "_blank", rel = "noopener"),
             shiny::h3("Local, native R"),
             shiny::p("This optional app uses Shiny, callr and ggplot2. Experiments reads saved CSV results; the training pages call the native R model API. No Python, external deep-learning backend, database or credentials are needed. Uploaded data stays with the running app; use a trusted deployment if serving private results."))))))
+
+
+benchmark_ui <- shiny::tagList(
+  shiny::div(class = "panel-body-custom", shiny::h3("Research studies"),
+    shiny::selectInput("experiment_study", "Choose a study", choices = c(
+      "Current: matched DDESONN / Keras, no exact predictor overlap — 100 seeds each" = "clean",
+      "Historical: legacy / standard AdaGrad, overlapping inputs — 1,000 seeds" = "historical"), selected = "clean")),
+  shiny::conditionalPanel("input.experiment_study === 'clean'", clean_study_ui()),
+  shiny::conditionalPanel("input.experiment_study === 'historical'",
+    shiny::div(class = "context", role = "note", shiny::h3("Historical only: overlapping training and test inputs"),
+      shiny::p("‘Bad apples versus bad apples’ describes this compromised evaluation setup, not the models. Of 750 test inputs, 738 also appear in training. The 1,000-seed record compares standard AdaGrad with archived legacy observations; Keras was not rerun."),
+      shiny::p("We retain this record for transparency. We no longer use this overlapping split for the current comparison. Select the clean matched study above for mean-versus-mean and sum-versus-sum results.")),
+    historical_ui))
 
 ui <- shiny::fluidPage(
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
@@ -370,5 +385,6 @@ ui <- shiny::fluidPage(
 
 shiny::shinyApp(ui, function(input, output, session) {
   dashboard_server(default_data)(input, output, session)
+  clean_study_server(clean_data)(input, output, session)
   wb_server(input, output, session, normalizePath("workbench_helpers.R"))
 })
