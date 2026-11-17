@@ -16,8 +16,8 @@ dashboard_vignettes <- function(doc_dir = "") {
       "plot-contols_scenario1_ensemble-runs_scenarioC-D",
       "logs_main-change-movement_ensemble_runs_scenarioD", "community-and-next-steps"),
     title = c("Packaged datasets and your first model", "New standard-AdaGrad heart-failure benchmark: 1,000 seeds",
-      "Plot controls: single-run scenarios 1 and 2",
-      "Plot controls: ensemble scenarios C and D",
+      "Plot controls: single model (A), two configuration methods",
+      "Plot controls: ensemble examples (C and D)",
       "Main, change and movement logs: ensemble scenario D", "Share your results, contribute and connect"),
     stringsAsFactors = FALSE)
   guides$local <- nzchar(doc_dir) & file.exists(file.path(doc_dir, paste0(guides$file, ".html")))
@@ -35,6 +35,12 @@ dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
     shiny::tags$ul(lapply(seq_len(nrow(guides)), function(i)
       shiny::tags$li(shiny::tags$a(href = guides$href[i], guides$title[i],
         target = "_blank", rel = "noopener noreferrer")))),
+    shiny::h4("Training scenarios A–D"),
+    shiny::p("A: one model, no ensemble. B: multiple independent members, no MAIN/TEMP orchestration. C: a MAIN ensemble without TEMP iterations. D: a MAIN ensemble with TEMP challenger iterations. Basic uses the single-model workflow; Custom exposes the corresponding run structures."),
+    shiny::p("The single-model plot guide uses scenario A and compares two plotting configuration methods: separate training_overrides settings and the unified plot_controls interface. Its methods 1 and 2 are not training scenarios A and B. The ensemble plot guide covers C and D; B is covered in the existing ",
+      shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/blob/main/inst/scripts/DDESONN_mtcars_A-D_examples.R",
+        "A–D example script", target = "_blank", rel = "noopener noreferrer"), "."),
+    shiny::p("These plot-control guides describe the R API. Shiny has no separate Plots tab: training curves appear in Build & Train, and evaluation plots appear in Model / Results. The R plotting interfaces are not additional Shiny controls."),
     shiny::hr(), shiny::h4("Share what you built"),
     shiny::p("Mathew William Armitage Fok welcomes applications, results, suggestions and contributions following these recent updates."),
     shiny::p(shiny::tags$a(href = "https://www.linkedin.com/in/mathewfok", target = "_blank", rel = "noopener noreferrer", "Connect on LinkedIn"),

@@ -1,5 +1,8 @@
 # DDESONN 7.4.6
 
+- Clarify the plot-guide titles and add an A–D scenario overview with a link
+  to the existing example script, distinguishing R plotting options from Shiny.
+
 - Add more space above the evaluated-predictions download and CSV preview
   controls on the Performance tab.
 
