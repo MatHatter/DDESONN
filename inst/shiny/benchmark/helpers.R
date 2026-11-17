@@ -220,5 +220,6 @@ dashboard_server <- function(default_data) {
       content = function(file) utils::write.csv(selected(), file, row.names = FALSE))
     output$download_summary <- shiny::downloadHandler(filename = function() "ddesonn-metric-summary.csv",
       content = function(file) utils::write.csv(summary(), file, row.names = FALSE))
+    list(current = current, selected = selected, metric = metric)
   }
 }

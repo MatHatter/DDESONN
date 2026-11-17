@@ -56,16 +56,19 @@ historical_ui <- shiny::sidebarLayout(
 
 
 benchmark_ui <- shiny::tagList(
-  shiny::div(class = "panel-body-custom", shiny::h3("Research studies"),
-    shiny::selectInput("experiment_study", "Choose a study", choices = c(
-      "Current: matched DDESONN / Keras, no exact predictor overlap — 100 seeds each" = "clean",
-      "Historical: legacy / standard AdaGrad, overlapping inputs — 1,000 seeds" = "historical"), selected = "clean")),
+  shiny::div(class = "study-header",
+    shiny::div(class = "panel-body-custom study-picker", shiny::h3("Research studies"),
+      shiny::selectInput("experiment_study", "Choose a study", width = "100%", choices = c(
+        "Current: clean matched study — 100 seeds each" = "clean",
+        "Historical: overlapping inputs — 1,000 seeds" = "historical"), selected = "clean")),
+    shiny::div(class = "study-description",
+      shiny::conditionalPanel("input.experiment_study === 'clean'", clean_study_context()),
+      shiny::conditionalPanel("input.experiment_study === 'historical'",
+        shiny::div(class = "context", role = "note", shiny::h3("Historical only: overlapping training and test inputs"),
+          shiny::p("‘Bad apples versus bad apples’ describes this compromised evaluation setup, not the models. Of 750 test inputs, 738 also appear in training. The 1,000-seed record compares standard AdaGrad with archived legacy observations; Keras was not rerun."),
+          shiny::p("We retain this record for transparency. We no longer use this overlapping split for the current comparison. Select the clean matched study for mean-versus-mean and sum-versus-sum results."))))),
   shiny::conditionalPanel("input.experiment_study === 'clean'", clean_study_ui()),
-  shiny::conditionalPanel("input.experiment_study === 'historical'",
-    shiny::div(class = "context", role = "note", shiny::h3("Historical only: overlapping training and test inputs"),
-      shiny::p("‘Bad apples versus bad apples’ describes this compromised evaluation setup, not the models. Of 750 test inputs, 738 also appear in training. The 1,000-seed record compares standard AdaGrad with archived legacy observations; Keras was not rerun."),
-      shiny::p("We retain this record for transparency. We no longer use this overlapping split for the current comparison. Select the clean matched study above for mean-versus-mean and sum-versus-sum results.")),
-    historical_ui))
+  shiny::conditionalPanel("input.experiment_study === 'historical'", historical_ui))
 
 ui <- shiny::fluidPage(
   shiny::tags$script(shiny::HTML("$(document).on('shown.bs.modal', '#shiny-modal', function() { this.focus(); });")),
@@ -218,6 +221,19 @@ ui <- shiny::fluidPage(
     .stat span { display:block; color:#63748a; font-size:11px; letter-spacing:1px; }
     .stat strong { display:block; font-size:25px; margin-top:8px; color:#087f8c; }
     .stat small { color:#63748a; }
+    .study-header { display:flex; align-items:stretch; gap:20px; margin:18px 0; }
+    .study-picker.panel-body-custom { flex:0 0 330px; width:330px; max-width:100%; margin:0; }
+    .study-description { flex:1 1 0; min-width:0; }
+    .study-description .context { margin:0; height:100%; }
+    .study-header h3 { margin-top:0; }
+    .study-comparison { max-width:600px; margin-top:18px; }
+    .study-picker .selectize-input, .study-comparison .selectize-input {
+      padding-right:36px !important; white-space:normal; }
+    .study-picker .selectize-input .item, .study-comparison .selectize-input .item {
+      max-width:100%; overflow-wrap:anywhere; white-space:normal; }
+    .study-downloads { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+    @media(max-width:767px) { .study-header { flex-direction:column; }
+      .study-picker.panel-body-custom { flex-basis:auto; width:100%; } }
     .panel-body-custom { padding:22px; background:white; border:1px solid #dde5ec; border-radius:12px; margin-top:18px; }
     .scroll-table { overflow-x:auto; }
     .wb-preprocessing-table table { min-width:900px; }
@@ -380,11 +396,17 @@ ui <- shiny::fluidPage(
         shiny::div(class = "panel-body-custom",
           dashboard_vignettes_ui(dashboard_vignette_dir())))))),
   shiny::conditionalPanel("input.workspace !== 'recent'", shiny::div(class = "wb-full-code-bar",
-    shiny::actionButton("wb_show_full_code", "Show full R code"),
-    shiny::p("Help icons show one topic at a time. View or download the complete workflow here."))))
+    shiny::conditionalPanel("input.workspace !== 'experiments'",
+      shiny::actionButton("wb_show_full_code", "Show full R code")),
+    shiny::conditionalPanel("input.workspace === 'experiments'",
+      shiny::actionButton("study_show_full_code", "Show full R code")),
+    shiny::conditionalPanel("input.workspace !== 'experiments'",
+      shiny::p("Help icons show one topic at a time. View or download the complete workflow here.")),
+    shiny::conditionalPanel("input.workspace === 'experiments'",
+      shiny::p("View or download the selected study analysis. Training scripts are under Reproduce & extend in the current study.")))))
 
 shiny::shinyApp(ui, function(input, output, session) {
-  dashboard_server(default_data)(input, output, session)
-  clean_study_server(clean_data)(input, output, session)
+  historical_state <- dashboard_server(default_data)(input, output, session)
+  clean_study_server(clean_data, historical_state)(input, output, session)
   wb_server(input, output, session, normalizePath("workbench_helpers.R"))
 })

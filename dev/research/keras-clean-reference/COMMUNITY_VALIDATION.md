@@ -8,3 +8,10 @@
 - Frozen adapter fingerprints still match the completed cohort. `git diff --check` passed.
 
 Full end-to-end training/export for a new cohort was not exercised because that would consume additional training compute. Cross-machine reproducibility and additional community seed results remain untested. The existing completed 400-fit cohort and original independent numerical/completion evidence are preserved.
+
+## Shiny reproduction and session-code follow-up
+
+- Generated sum, mean and selected-row historical R analysis scripts executed and reproduced the expected values without fitting models.
+- Packaged ZIP tests compare every frozen adapter source byte-for-byte with the canonical study files and verify all four launchers are present.
+- Extracted-bundle preparation generated original seeds 1–100 and reproduced the frozen input audit in a fresh temporary directory; no full fits ran.
+- Headless Chromium checks passed desktop/mobile layout, reserved dropdown-arrow spacing, study switching, correct experiment-code routing, reproduction ZIP, four individual launchers, the selected-pair launcher, and analysis downloads. Downloaded clean/historical analysis scripts also ran successfully in separate R processes.

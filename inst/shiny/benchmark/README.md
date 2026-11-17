@@ -898,3 +898,28 @@ it is not the current comparison protocol. The existing CSV format below applies
 to historical-explorer uploads only. Current-study downloads use explicit DDESONN
 and Keras column labels, with accuracy in percent and differences in percentage
 points. Historical metric values remain fractions.
+
+### Study layout, code and reproduction downloads
+
+The compact study selector and selected description sit side by side on desktop
+and stack on narrow screens. Both selectors reserve space for the dropdown arrow.
+In Experiments, **Show full R code** opens a complete saved-result analysis for
+that study and matched reduction; the historical analysis follows the current
+seed/metric filters and uploaded data. Other workbench pages retain their model
+recipe code. Analysis scripts include the selected values and can run without
+starting training.
+
+**Reproduce & extend** provides a complete offline reproduction ZIP, individual
+R launchers for all four conditions, and a launcher for the selected pair. Extract
+the full ZIP before using an individual launcher. These launchers use the frozen
+original settings and seeds 1–100 and call Python for Keras and shared initial
+weights; use the documented community workflow for extra seeds. The ZIP includes
+the dataset, split, native source, protocol and checks. No fitting starts from a
+download. Proposed mixed weight/bias reductions have illustrative R/native and
+Keras custom-loop snippets, with data-loss and L1 gradients kept separate and BN
+reduction explicitly requiring a design choice.
+
+Maintainers: rebuild the packaged ZIP with
+`python dev/research/keras-clean-reference/build_shiny_reproduction.py` after
+changes to bundled reproduction documentation or scripts. Tests compare its
+frozen adapter sources against the original study sources byte for byte.
