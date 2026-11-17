@@ -44,3 +44,49 @@ test_that("clean comparison switching uses the right records and labels", {
   expect_match(app, 'selected = "clean"', fixed = TRUE)
   expect_match(app, "738 also appear in training", fixed = TRUE)
 })
+
+test_that("downloaded analysis code reproduces the selected study without training", {
+  f <- study_fixture()
+  for (r in c("sum", "mean")) {
+    code <- f$h$study_analysis_code(f$data, r)
+    env <- new.env(parent = globalenv())
+    grDevices::pdf(tempfile(fileext = ".pdf"))
+    invisible(capture.output(eval(parse(text = code), env)))
+    grDevices::dev.off()
+    expect_equal(tail(env$cumulative$advantage_pp, 1),
+      if (r == "sum") 3.876558603491271 else 2.769326683291771)
+    expect_false(grepl("run_study\\(", code))
+  }
+  sys.source(file.path(f$app, "helpers.R"), f$h)
+  data <- f$h$dashboard_validate(data.frame(seed = 12:13,
+    accuracy_legacy = c(.7, .8), accuracy_corrected = c(.8, .9)))
+  code <- f$h$study_analysis_code(data, historical = TRUE, metric = "accuracy")
+  env <- new.env(parent = globalenv())
+  grDevices::pdf(tempfile(fileext = ".pdf"))
+  invisible(capture.output(eval(parse(text = code), env)))
+  grDevices::dev.off()
+  expect_equal(env$data$seed, 12:13)
+  expect_equal(env$delta, c(.1, .1))
+})
+
+test_that("installed reproduction bundle contains exact frozen training sources", {
+  f <- study_fixture()
+  archive <- file.path(f$app, "reproduction.zip")
+  entries <- utils::unzip(archive, list = TRUE)$Name
+  expect_true(all(c("RUN_STUDY.R", "prepare_original.py", "keras_mean.R",
+    "keras_sum.R", "ddesonn_mean.R", "ddesonn_sum.R") %in% entries))
+  repo <- normalizePath(file.path(f$app, "../../.."))
+  protocol <- jsonlite::fromJSON(file.path(repo, "dev/research/keras-clean-reference/protocol.json"))
+  temp <- tempfile(); dir.create(temp)
+  on.exit(unlink(temp, recursive = TRUE))
+  utils::unzip(archive, exdir = temp)
+  for (name in names(protocol$adapter_sha256)) {
+    expect_identical(readBin(file.path(temp, name), "raw", file.info(file.path(temp, name))$size),
+      readBin(file.path(repo, name), "raw", file.info(file.path(repo, name))$size), info = name)
+  }
+  # Core native fitting/metric block is unchanged by portable compilation.
+  old <- paste(readLines(file.path(temp, "dev/research/keras-clean-reference/run_ddesonn.R")), collapse="\n")
+  portable <- paste(readLines(file.path(temp, "dev/research/keras-clean-reference/community/run_native.R")), collapse="\n")
+  expect_identical(strsplit(old,"x <- matrix",fixed=TRUE)[[1]][2],
+    strsplit(portable,"x <- matrix",fixed=TRUE)[[1]][2])
+})
