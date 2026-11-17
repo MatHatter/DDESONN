@@ -1,0 +1,23 @@
+/* The focusable combobox input stays available to keyboard/screen-reader users,
+   but never takes a second line, shows a caret, or opens a mobile text keyboard. */
+.selectize-control .selectize-input > input {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 0 !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  caret-color: transparent !important;
+  pointer-events: none;
+}
+.selectize-control .selectize-input { cursor: pointer !important; }
+.selectize-control.single .selectize-input {
+  padding-right: 36px !important;
+}
+.selectize-control.single .selectize-input > .item {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-bottom: 0;
+}

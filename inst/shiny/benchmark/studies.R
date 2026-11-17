@@ -42,7 +42,9 @@ clean_study_ui <- function() shiny::tagList(
   shiny::div(class = "study-comparison", shiny::selectInput("clean_reduction", "Matched comparison", choices = c(
     "Sum vs. sum — DDESONN FALSE / Keras sum" = "sum",
     "Mean vs. mean — DDESONN TRUE / Keras mean" = "mean"), width = "100%")),
-  shiny::p("average_gradients = FALSE sums data-loss gradients; TRUE averages them. In this study each setting applies to all trainable parameters. Both comparisons use 360 epochs, batch size 16, train-only standardization and the final checkpoint."),
+  shiny::p("The ", shiny::code("average_gradients"), " setting controls how gradients from each training batch are combined: ",
+    shiny::code("FALSE"), " sums the data-loss gradients, while ", shiny::code("TRUE"),
+    " averages them. Each choice applies to every trainable parameter in this study. All four conditions use 360 epochs and batches of 16, with a smaller final batch. Standardization is fitted on training data only, and evaluation uses the final checkpoint."),
   shiny::h4("Held-out accuracy and paired advantage"),
   shiny::div(class = "scroll-table", shiny::tableOutput("clean_overall")),
   shiny::tabsetPanel(
