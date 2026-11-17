@@ -1,5 +1,9 @@
 # DDESONN 7.4.6
 
+- Add separate Vignettes-page links for package contributions through a fork
+  and pull request, and for sharing applications or results through an editable
+  GitHub issue template.
+
 - Clarify the plot-guide titles and add an A–D scenario overview with a link
   to the existing example script, distinguishing R plotting options from Shiny.
 

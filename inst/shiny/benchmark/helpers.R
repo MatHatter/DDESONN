@@ -30,6 +30,14 @@ dashboard_vignettes <- function(doc_dir = "") {
 dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
   guides <- dashboard_vignettes(doc_dir)
   if (any(guides$local)) shiny::addResourcePath("ddesonn-vignettes", doc_dir)
+  share_url <- paste0("https://github.com/MatHatter/DDESONN/issues/new?title=",
+    utils::URLencode("Share your work: ", reserved = TRUE), "&body=",
+    utils::URLencode(paste(
+      "## What I built with DDESONN", "Describe your application or experiment.",
+      "", "## Data and task", "Describe the dataset and prediction task without sharing private data.",
+      "", "## Settings and package version", "Include the DDESONN version and relevant model/training settings.",
+      "", "## Results and limitations", "Describe evaluation, findings and limitations. Add public links or screenshots if useful.",
+      sep = "\n"), reserved = TRUE))
   shiny::tagList(shiny::h3("Vignettes"),
     shiny::p("Read the package guides and research context. Links open in a new tab; online source is used when a guide is not installed."),
     shiny::h4("Using Shiny or writing R scripts?"),
@@ -45,11 +53,18 @@ dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
     shiny::tags$ul(lapply(seq_len(nrow(guides)), function(i)
       shiny::tags$li(shiny::tags$a(href = guides$href[i], guides$title[i],
         target = "_blank", rel = "noopener noreferrer")))),
-    shiny::hr(), shiny::h4("Share what you built"),
-    shiny::p("Mathew William Armitage Fok welcomes applications, results, suggestions and contributions following these recent updates."),
+    shiny::hr(), shiny::h4("Contribute to DDESONN"),
+    shiny::p("Help improve the package's code, tests or documentation. Fork the repository to your GitHub account, create a branch in your fork, make your changes, and open a pull request back to MatHatter/DDESONN for review."),
+    shiny::p(shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/fork", class = "btn btn-default",
+      target = "_blank", rel = "noopener noreferrer", "Contribute to DDESONN")),
+    shiny::h4("Share what you built"),
+    shiny::p("Show the community an application, experiment or results produced with DDESONN. This opens a GitHub issue with a template you can edit; no fork, branch or package changes are needed."),
+    shiny::p(shiny::tags$a(href = share_url, class = "btn btn-default",
+      target = "_blank", rel = "noopener noreferrer", "Share your work on GitHub")),
+    shiny::p("Both links require a GitHub account. Shared posts are public: review your text and attachments for private information. Nothing is uploaded or posted by Shiny; you review and submit on GitHub."),
+    shiny::h4("Connect with the author"),
     shiny::p(shiny::tags$a(href = "https://www.linkedin.com/in/mathewfok", target = "_blank", rel = "noopener noreferrer", "Connect on LinkedIn"),
-      " · ", shiny::tags$a(href = "mailto:quiksilver67213@yahoo.com", "Email the author"),
-      " · ", shiny::tags$a(href = "https://github.com/MatHatter/DDESONN/issues", target = "_blank", rel = "noopener noreferrer", "Share an idea or result on GitHub")))
+      " · ", shiny::tags$a(href = "mailto:quiksilver67213@yahoo.com", "Email the author")))
 }
 
 dashboard_metrics <- c(accuracy = "Accuracy", precision = "Precision",
