@@ -204,6 +204,8 @@ ui <- shiny::fluidPage(
   ")),
   shiny::tags$head(shiny::tags$style(shiny::HTML("
     body { background:#f4f7fa; color:#233247; font-family:system-ui,sans-serif; }
+    code { color:#233247; background-color:#eaf0f5; }
+    pre code { color:inherit; background-color:transparent; }
     .container-fluid { max-width:1500px; margin:auto; padding:28px; }
     .masthead { background:#152b40; color:white; border-radius:16px; padding:28px 32px; margin-bottom:24px; }
     .masthead { display:flex; align-items:center; justify-content:space-between; gap:24px; }

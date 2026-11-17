@@ -1,3 +1,12 @@
+# DDESONN 7.4.6
+
+- Use neutral text and a pale gray-blue background for inline code labels
+  instead of red, while retaining code-block colors.
+
+- Explain percentage-point notation and the lower and upper 95% confidence
+  interval bounds above the Shiny experiment tables, with an accuracy example
+  and clarification that the intervals describe average differences across seeds.
+
 # DDESONN 7.4.5
 
 - Simplify the Shiny tab label to "Recent runs" while retaining "Global recent
