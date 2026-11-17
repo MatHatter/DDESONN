@@ -140,8 +140,12 @@ wb_ui <- function() {
       wb_code_panel("wb_evaluation_code", "Equivalent R code — displayed results"),
       wb_heading("Confusion matrix (classification)", "Rows are actual classes and columns are predicted classes. Counts on the diagonal are correct predictions; the other cells show which classes were confused.", level = 4),
       shiny::tableOutput("wb_confusion"), shiny::plotOutput("wb_diagnostics", height = "300px"),
-      shiny::div(class = "wb-export-right", wb_download_button("wb_predictions_download", "Download evaluated predictions"),
-      shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"), shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))))))
+      shiny::div(class = "wb-evaluation-exports",
+        wb_download_button("wb_predictions_download", "Download evaluated predictions"),
+        shiny::div(class = "wb-evaluation-actions",
+          shiny::tags$details(shiny::tags$summary("Preview evaluated CSV (first 20 rows)"),
+            shiny::div(class = "scroll-table", shiny::tableOutput("wb_predictions_preview"))),
+          shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")))))
   recent <- shiny::tabPanel("Recent runs", value = "recent",
     shiny::div(class = "panel-body-custom",
       shiny::h3("Recent runs — this browser session"),
@@ -511,8 +515,7 @@ wb_ui <- function() {
               shiny::uiOutput("wb_attempt_history")))))),
     shiny::tabPanel("4. Model / Results", value = "results",
       shiny::p(class = "wb-step-intro", "Finally, review performance and outputs, save the model, or use it for new predictions. Results reflect the saved choices from the earlier steps."),
-      shiny::tabsetPanel(id = "wb_results_tabs", performance),
-      shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")),
+      shiny::tabsetPanel(id = "wb_results_tabs", performance)),
     models, recent
   )
 }

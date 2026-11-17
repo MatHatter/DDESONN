@@ -223,7 +223,7 @@ ui <- shiny::fluidPage(
     .stat span { display:block; color:#63748a; font-size:11px; letter-spacing:1px; }
     .stat strong { display:block; font-size:25px; margin-top:8px; color:#087f8c; }
     .stat small { color:#63748a; }
-    .study-header { display:flex; align-items:center; gap:20px; margin:18px 0; }
+    .study-header { display:flex; align-items:flex-start; gap:20px; margin:18px 0; }
     .study-picker.panel-body-custom { flex:0 0 330px; width:330px; max-width:100%; margin:0; }
     .study-description { flex:1 1 0; min-width:0; }
     .study-description .context { margin:0; }
@@ -317,6 +317,12 @@ ui <- shiny::fluidPage(
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
     #wb_show_full_code { font-size:14px; padding:6px 24px; min-width:190px; min-height:0; }
     .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
+    .wb-evaluation-exports { margin-top:12px; text-align:left; }
+    .wb-evaluation-exports > .wb-download-row { justify-content:flex-start; }
+    .wb-evaluation-actions { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:10px; }
+    .wb-evaluation-actions > details { flex:1 1 auto; min-width:0; text-align:left; }
+    .wb-evaluation-actions > .btn { flex:0 0 auto; }
+    @media(max-width:767px) { .wb-evaluation-actions { flex-direction:column; } }
     .wb-export-right { display:flex; flex-direction:column; align-items:flex-end; }
     .wb-export-right .wb-download-row { justify-content:flex-end; }
     .wb-export-right > details { width:100%; text-align:right; }
