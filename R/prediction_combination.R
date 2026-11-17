@@ -9,7 +9,7 @@
   if (any(vapply(predictions, function(p) !identical(dim(p), shape) || any(!is.finite(p)), logical(1))))
     stop("Member predictions must have identical dimensions and finite values.")
   if (mode != "regression" && any(vapply(predictions, function(p) any(p < 0 | p > 1), logical(1))))
-    stop("Classification probabilities must be within 0–1.")
+    stop("Classification probabilities must be within 0\u20131.")
   if (method %in% c("majority", "proportion")) {
     if (mode == "regression" || (method == "proportion" && mode != "binary"))
       stop("This vote method does not apply to this task.")

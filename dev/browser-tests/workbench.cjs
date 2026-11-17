@@ -40,6 +40,14 @@ async function select(page, id, value) {
   try {
     await page.goto(url);
     await page.waitForFunction(() => window.Shiny?.shinyapp?.$socket?.readyState === 1);
+    await page.waitForFunction(() => document.querySelector('#wb_flow_guide')?.textContent.includes('Train a new model:'));
+    await page.locator('input[name="wb_task_flow"][value="saved"]').check();
+    await page.getByText('R example for prediction', {exact:true}).click();
+    await page.locator('#wb_model_code').waitFor({state:'visible'});
+    await page.waitForFunction(() => document.querySelector('#wb_model_code')?.textContent.includes('readRDS('));
+    assert.ok((await page.locator('#wb_model_code').textContent()).includes('library(DDESONN)'));
+    await page.locator('input[name="wb_task_flow"][value="train"]').check();
+    await page.waitForFunction(() => document.querySelector('#wb_flow_guide')?.textContent.includes('Train a new model:'));
     await page.click('#wb_next_features');
     await enabled(page, 'wb_prepare');
     await page.click('#wb_prepare');

@@ -67,10 +67,10 @@ if (!nzchar(.fig_root)) .fig_root <- "figure/"
 
 # ============================================================
 # SECTION: RUN FLAGS (Scenario 1 — Ensemble)                    
-# - Default: run both
+# - Full training is opt-in; otherwise show the example code.
 # ============================================================
-RUN_SCENARIO_C_S1 <- RUN_SCENARIO_C_S1 <- identical(tolower(Sys.getenv("DDESONN_VIGNETTE_FULL", "false")), "true")   
-RUN_SCENARIO_D_S1 <- FALSE
+RUN_SCENARIO_C_S1 <- identical(tolower(Sys.getenv("DDESONN_VIGNETTE_FULL", "false")), "true")
+RUN_SCENARIO_D_S1 <- RUN_SCENARIO_C_S1
 
 # ============================================================
 # FIX: DO NOT put DDESONN outputs under vignette _files/
@@ -244,7 +244,10 @@ if (isTRUE(DATA_OK)) {                                           #$$$$$$$$$$$$$
 
 ## Plot Controls: Scenario 1 — Ensemble Run — Scenario C
 
-```{r scenarioC_s1, results="asis", echo=FALSE, eval=RUN_SCENARIO_C_S1}
+The code is shown without running training by default. Set
+`DDESONN_VIGNETTE_FULL=true` before rendering to execute both ensemble examples.
+
+```{r scenarioC_s1, results="asis", echo=TRUE, eval=RUN_SCENARIO_C_S1}
 options(DDESONN_OUTPUT_ROOT = outC)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outC)
 
@@ -341,7 +344,7 @@ if (exists("include_saved_plots")) {
 
 ## Plot Controls: Scenario 1 — Ensemble Runs — Scenario D
 
-```{r scenarioD_s1, results="asis", echo=FALSE, eval=RUN_SCENARIO_D_S1}
+```{r scenarioD_s1, results="asis", echo=TRUE, eval=RUN_SCENARIO_D_S1}
 options(DDESONN_OUTPUT_ROOT = outD)
 Sys.setenv(DDESONN_ARTIFACTS_ROOT = outD)
 
