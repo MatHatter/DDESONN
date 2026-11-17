@@ -1,5 +1,8 @@
 # DDESONN 7.4.7
 
+- Fix the saved-model "R example for prediction" disclosure so one click reveals
+  its code directly, without a second collapsed panel inside it.
+
 ## Shiny Vignettes page
 
 - Add introductory context before the guide links so users understand how the
