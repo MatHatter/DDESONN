@@ -876,3 +876,25 @@ including ID; there is no hidden Age-only preset. Review identifiers and leakage
 and encode categorical predictors/handle missing values before preparing. The
 existing numeric/finite checks remain in force; selecting a column does not
 silently preprocess it or make it suitable for training.
+
+## Research study selector
+
+Experiments now defaults to **Current: matched DDESONN / Keras, no exact predictor
+  overlap — 100 seeds each**. Choose sum versus sum (DDESONN FALSE), or mean
+versus mean (DDESONN TRUE). The packaged CSV contains all 400 completed fits;
+viewing results needs no Python or training. The page shows paired accuracy,
+disjoint blocks of ten, cumulative pointwise 95% intervals, the retrospective
+precision/compute rationale for 100 seeds, and links to four scripts for optional
+community extensions. It identifies the experimental float32 adapter and the
+single-split scope of the evidence. Proposed separate weight/bias reductions are
+explicitly untested and require additional implementation.
+
+**Historical: legacy / standard AdaGrad, overlapping inputs — 1,000 seeds** keeps
+the original explorer, uploads, filters and downloads. A prominent notice explains
+that 738 of 750 test inputs also appear in training, distinguishes this
+legacy/standard comparison from the matched Keras study, and directs readers to
+the current clean study. This overlapping evaluation is retained for transparency;
+it is not the current comparison protocol. The existing CSV format below applies
+to historical-explorer uploads only. Current-study downloads use explicit DDESONN
+and Keras column labels, with accuracy in percent and differences in percentage
+points. Historical metric values remain fractions.
