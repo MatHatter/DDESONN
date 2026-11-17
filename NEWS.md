@@ -1,5 +1,8 @@
 # DDESONN 7.4.6
 
+- Add more space above the evaluated-predictions download and CSV preview
+  controls on the Performance tab.
+
 - Use neutral text and a pale gray-blue background for inline code labels
   instead of red, while retaining code-block colors.
 

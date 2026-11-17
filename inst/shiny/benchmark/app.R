@@ -319,7 +319,7 @@ ui <- shiny::fluidPage(
     .wb-full-code-bar { margin-top:20px; padding:16px; background:#e8f3f2; border-radius:10px; }
     #wb_show_full_code { font-size:14px; padding:6px 24px; min-width:190px; min-height:0; }
     .wb-action-right { display:flex; justify-content:flex-end; margin-top:12px; }
-    .wb-evaluation-exports { margin-top:12px; text-align:left; }
+    .wb-evaluation-exports { margin-top:36px; text-align:left; }
     .wb-evaluation-exports > .wb-download-row { justify-content:flex-start; }
     .wb-evaluation-actions { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:10px; }
     .wb-evaluation-actions > details { flex:1 1 auto; min-width:0; text-align:left; }
