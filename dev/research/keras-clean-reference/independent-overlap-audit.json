@@ -1,0 +1,26 @@
+{
+  "rows": {
+    "train": 3500,
+    "validation": 698,
+    "test": 802
+  },
+  "raw_predictor_overlap": {
+    "train_validation": 0,
+    "train_test": 0,
+    "validation_test": 0
+  },
+  "float32_input_overlap": {
+    "train_validation": 0,
+    "train_test": 0,
+    "validation_test": 0
+  },
+  "predictor_groups": {
+    "train": 923,
+    "validation": 197,
+    "test": 199
+  },
+  "split_sha256": "7a6d7eca4d4f171e3c42b833f05d1b8451288b86d5375cee3d210efb2c29c7e7",
+  "dataset_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+  "standardized_float32_sha256": "c3f56893ab7b63a27debb67f60e872dab89342329bda8f38e1734a63962f97e9",
+  "labels_sha256": "09a359cd2cad5725a9a2fc92fe82525852d8a8cb6936b6de250167081a854e56"
+}

@@ -1,0 +1,590 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "FALSE 1 loss",
+      "maximum_relative_scaled_error": 1.5160451586898161e-06
+    },
+    {
+      "check": "FALSE 1 probability",
+      "maximum_relative_scaled_error": 6.927394394989776e-08
+    },
+    {
+      "check": "FALSE 1 gradients 1",
+      "maximum_relative_scaled_error": 1.0931227887748588e-06
+    },
+    {
+      "check": "FALSE 1 gradients 2",
+      "maximum_relative_scaled_error": 5.5609923524120972e-07
+    },
+    {
+      "check": "FALSE 1 gradients 3",
+      "maximum_relative_scaled_error": 1.5933525440808132e-06
+    },
+    {
+      "check": "FALSE 1 gradients 4",
+      "maximum_relative_scaled_error": 8.0076448849994294e-07
+    },
+    {
+      "check": "FALSE 1 gradients 5",
+      "maximum_relative_scaled_error": 6.9392741696734839e-06
+    },
+    {
+      "check": "FALSE 1 gradients 6",
+      "maximum_relative_scaled_error": 3.0493854065359306e-06
+    },
+    {
+      "check": "FALSE 1 gradients 7",
+      "maximum_relative_scaled_error": 2.5581247793480335e-07
+    },
+    {
+      "check": "FALSE 1 gradients 8",
+      "maximum_relative_scaled_error": 6.7413336784896183e-08
+    },
+    {
+      "check": "FALSE 1 gradients 9",
+      "maximum_relative_scaled_error": 6.2536153713865823e-07
+    },
+    {
+      "check": "FALSE 1 gradients 10",
+      "maximum_relative_scaled_error": 2.1219281111975206e-07
+    },
+    {
+      "check": "FALSE 1 parameters 1",
+      "maximum_relative_scaled_error": 3.1573611300282917e-07
+    },
+    {
+      "check": "FALSE 1 parameters 2",
+      "maximum_relative_scaled_error": 2.1024521031188162e-07
+    },
+    {
+      "check": "FALSE 1 parameters 3",
+      "maximum_relative_scaled_error": 3.8102682996612938e-07
+    },
+    {
+      "check": "FALSE 1 parameters 4",
+      "maximum_relative_scaled_error": 1.9067034009601626e-07
+    },
+    {
+      "check": "FALSE 1 parameters 5",
+      "maximum_relative_scaled_error": 2.4682556307239797e-06
+    },
+    {
+      "check": "FALSE 1 parameters 6",
+      "maximum_relative_scaled_error": 1.2121836417436249e-06
+    },
+    {
+      "check": "FALSE 1 parameters 7",
+      "maximum_relative_scaled_error": 7.4151427744957947e-08
+    },
+    {
+      "check": "FALSE 1 parameters 8",
+      "maximum_relative_scaled_error": 3.9261853595296271e-08
+    },
+    {
+      "check": "FALSE 1 parameters 9",
+      "maximum_relative_scaled_error": 4.8775211244743112e-08
+    },
+    {
+      "check": "FALSE 1 parameters 10",
+      "maximum_relative_scaled_error": 0
+    },
+    {
+      "check": "FALSE 1 moving 1",
+      "maximum_relative_scaled_error": 7.202412269369801e-09
+    },
+    {
+      "check": "FALSE 1 moving 2",
+      "maximum_relative_scaled_error": 3.1218107776209002e-08
+    },
+    {
+      "check": "FALSE 1 moving 3",
+      "maximum_relative_scaled_error": 1.4281339554375291e-08
+    },
+    {
+      "check": "FALSE 1 moving 4",
+      "maximum_relative_scaled_error": 3.1269914049325349e-08
+    },
+    {
+      "check": "FALSE 1 accumulators 1",
+      "maximum_relative_scaled_error": 7.4801098269618718e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 2",
+      "maximum_relative_scaled_error": 2.056792144699441e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 3",
+      "maximum_relative_scaled_error": 9.7808386024221744e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 4",
+      "maximum_relative_scaled_error": 4.2169141966360486e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 5",
+      "maximum_relative_scaled_error": 1.2989416149496156e-06
+    },
+    {
+      "check": "FALSE 1 accumulators 6",
+      "maximum_relative_scaled_error": 2.0412457171475408e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 7",
+      "maximum_relative_scaled_error": 2.5034576400885345e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 8",
+      "maximum_relative_scaled_error": 1.6391110248574464e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 9",
+      "maximum_relative_scaled_error": 8.0758170627155032e-07
+    },
+    {
+      "check": "FALSE 1 accumulators 10",
+      "maximum_relative_scaled_error": 5.0153167774382962e-07
+    },
+    {
+      "check": "FALSE 2 loss",
+      "maximum_relative_scaled_error": 1.4309772078958746e-07
+    },
+    {
+      "check": "FALSE 2 probability",
+      "maximum_relative_scaled_error": 3.6682269328840036e-06
+    },
+    {
+      "check": "FALSE 2 gradients 1",
+      "maximum_relative_scaled_error": 1.7975241051225452e-05
+    },
+    {
+      "check": "FALSE 2 gradients 2",
+      "maximum_relative_scaled_error": 1.6580700254037763e-05
+    },
+    {
+      "check": "FALSE 2 gradients 3",
+      "maximum_relative_scaled_error": 1.7532461322622908e-05
+    },
+    {
+      "check": "FALSE 2 gradients 4",
+      "maximum_relative_scaled_error": 1.7093460095584492e-05
+    },
+    {
+      "check": "FALSE 2 gradients 5",
+      "maximum_relative_scaled_error": 1.8074942186254631e-05
+    },
+    {
+      "check": "FALSE 2 gradients 6",
+      "maximum_relative_scaled_error": 1.7510721577239088e-05
+    },
+    {
+      "check": "FALSE 2 gradients 7",
+      "maximum_relative_scaled_error": 3.2830615796127119e-05
+    },
+    {
+      "check": "FALSE 2 gradients 8",
+      "maximum_relative_scaled_error": 4.1378032721630052e-07
+    },
+    {
+      "check": "FALSE 2 gradients 9",
+      "maximum_relative_scaled_error": 4.67681104741277e-05
+    },
+    {
+      "check": "FALSE 2 gradients 10",
+      "maximum_relative_scaled_error": 5.420249564550701e-07
+    },
+    {
+      "check": "FALSE 2 parameters 1",
+      "maximum_relative_scaled_error": 3.3847074874658682e-06
+    },
+    {
+      "check": "FALSE 2 parameters 2",
+      "maximum_relative_scaled_error": 2.4761222201971652e-06
+    },
+    {
+      "check": "FALSE 2 parameters 3",
+      "maximum_relative_scaled_error": 1.3218881487742055e-06
+    },
+    {
+      "check": "FALSE 2 parameters 4",
+      "maximum_relative_scaled_error": 1.7228833946775537e-06
+    },
+    {
+      "check": "FALSE 2 parameters 5",
+      "maximum_relative_scaled_error": 2.468509293751122e-06
+    },
+    {
+      "check": "FALSE 2 parameters 6",
+      "maximum_relative_scaled_error": 1.2121836417436249e-06
+    },
+    {
+      "check": "FALSE 2 parameters 7",
+      "maximum_relative_scaled_error": 4.3548634975060679e-06
+    },
+    {
+      "check": "FALSE 2 parameters 8",
+      "maximum_relative_scaled_error": 6.0215281675044615e-08
+    },
+    {
+      "check": "FALSE 2 parameters 9",
+      "maximum_relative_scaled_error": 2.6630699441265732e-06
+    },
+    {
+      "check": "FALSE 2 parameters 10",
+      "maximum_relative_scaled_error": 2.125513800450983e-08
+    },
+    {
+      "check": "FALSE 2 moving 1",
+      "maximum_relative_scaled_error": 2.1024811106263957e-08
+    },
+    {
+      "check": "FALSE 2 moving 2",
+      "maximum_relative_scaled_error": 6.2832010232569862e-08
+    },
+    {
+      "check": "FALSE 2 moving 3",
+      "maximum_relative_scaled_error": 7.0533698638330492e-08
+    },
+    {
+      "check": "FALSE 2 moving 4",
+      "maximum_relative_scaled_error": 3.2886295665622404e-08
+    },
+    {
+      "check": "FALSE 2 accumulators 1",
+      "maximum_relative_scaled_error": 3.7910568691736715e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 2",
+      "maximum_relative_scaled_error": 3.713973381065216e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 3",
+      "maximum_relative_scaled_error": 3.6699849387538178e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 4",
+      "maximum_relative_scaled_error": 3.6856143489894494e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 5",
+      "maximum_relative_scaled_error": 3.8492536499764993e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 6",
+      "maximum_relative_scaled_error": 3.57737345296451e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 7",
+      "maximum_relative_scaled_error": 2.9276679890664148e-06
+    },
+    {
+      "check": "FALSE 2 accumulators 8",
+      "maximum_relative_scaled_error": 5.2170972026446509e-07
+    },
+    {
+      "check": "FALSE 2 accumulators 9",
+      "maximum_relative_scaled_error": 1.6409360599418626e-05
+    },
+    {
+      "check": "FALSE 2 accumulators 10",
+      "maximum_relative_scaled_error": 8.7334227506438954e-07
+    },
+    {
+      "check": "FALSE inference",
+      "maximum_relative_scaled_error": 1.1487845208791203e-06
+    },
+    {
+      "check": "TRUE 1 loss",
+      "maximum_relative_scaled_error": 6.2969671287521079e-07
+    },
+    {
+      "check": "TRUE 1 probability",
+      "maximum_relative_scaled_error": 6.927394394989776e-08
+    },
+    {
+      "check": "TRUE 1 gradients 1",
+      "maximum_relative_scaled_error": 8.7692326444974419e-08
+    },
+    {
+      "check": "TRUE 1 gradients 2",
+      "maximum_relative_scaled_error": 3.7086397383670372e-08
+    },
+    {
+      "check": "TRUE 1 gradients 3",
+      "maximum_relative_scaled_error": 1.0832701054651499e-07
+    },
+    {
+      "check": "TRUE 1 gradients 4",
+      "maximum_relative_scaled_error": 5.4613824439405222e-08
+    },
+    {
+      "check": "TRUE 1 gradients 5",
+      "maximum_relative_scaled_error": 4.586450250026347e-07
+    },
+    {
+      "check": "TRUE 1 gradients 6",
+      "maximum_relative_scaled_error": 1.9525814733773662e-07
+    },
+    {
+      "check": "TRUE 1 gradients 7",
+      "maximum_relative_scaled_error": 1.7982259113154468e-08
+    },
+    {
+      "check": "TRUE 1 gradients 8",
+      "maximum_relative_scaled_error": 7.1091910607894129e-09
+    },
+    {
+      "check": "TRUE 1 gradients 9",
+      "maximum_relative_scaled_error": 7.4209498162721243e-08
+    },
+    {
+      "check": "TRUE 1 gradients 10",
+      "maximum_relative_scaled_error": 4.8920483911642757e-08
+    },
+    {
+      "check": "TRUE 1 parameters 1",
+      "maximum_relative_scaled_error": 3.8619129761936624e-08
+    },
+    {
+      "check": "TRUE 1 parameters 2",
+      "maximum_relative_scaled_error": 1.4758556557295358e-08
+    },
+    {
+      "check": "TRUE 1 parameters 3",
+      "maximum_relative_scaled_error": 3.7492473385967766e-08
+    },
+    {
+      "check": "TRUE 1 parameters 4",
+      "maximum_relative_scaled_error": 3.7480298481103409e-08
+    },
+    {
+      "check": "TRUE 1 parameters 5",
+      "maximum_relative_scaled_error": 1.6503303929157545e-07
+    },
+    {
+      "check": "TRUE 1 parameters 6",
+      "maximum_relative_scaled_error": 7.71916244052441e-08
+    },
+    {
+      "check": "TRUE 1 parameters 7",
+      "maximum_relative_scaled_error": 0
+    },
+    {
+      "check": "TRUE 1 parameters 8",
+      "maximum_relative_scaled_error": 0
+    },
+    {
+      "check": "TRUE 1 parameters 9",
+      "maximum_relative_scaled_error": 2.5617746663259676e-08
+    },
+    {
+      "check": "TRUE 1 parameters 10",
+      "maximum_relative_scaled_error": 1.3912861135093019e-08
+    },
+    {
+      "check": "TRUE 1 moving 1",
+      "maximum_relative_scaled_error": 7.202412269369801e-09
+    },
+    {
+      "check": "TRUE 1 moving 2",
+      "maximum_relative_scaled_error": 3.1218107776209002e-08
+    },
+    {
+      "check": "TRUE 1 moving 3",
+      "maximum_relative_scaled_error": 1.4281339554375291e-08
+    },
+    {
+      "check": "TRUE 1 moving 4",
+      "maximum_relative_scaled_error": 3.1269914049325349e-08
+    },
+    {
+      "check": "TRUE 1 accumulators 1",
+      "maximum_relative_scaled_error": 6.7729384507931429e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 2",
+      "maximum_relative_scaled_error": 6.7727483596792908e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 3",
+      "maximum_relative_scaled_error": 6.7730106093115487e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 4",
+      "maximum_relative_scaled_error": 6.7730674472690116e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 5",
+      "maximum_relative_scaled_error": 1.3429768742336805e-08
+    },
+    {
+      "check": "TRUE 1 accumulators 6",
+      "maximum_relative_scaled_error": 6.7732385632630739e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 7",
+      "maximum_relative_scaled_error": 6.7661723885265826e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 8",
+      "maximum_relative_scaled_error": 6.7482117424458342e-09
+    },
+    {
+      "check": "TRUE 1 accumulators 9",
+      "maximum_relative_scaled_error": 3.9146979998398625e-08
+    },
+    {
+      "check": "TRUE 1 accumulators 10",
+      "maximum_relative_scaled_error": 2.596704421147649e-08
+    },
+    {
+      "check": "TRUE 2 loss",
+      "maximum_relative_scaled_error": 5.0233488603930303e-07
+    },
+    {
+      "check": "TRUE 2 probability",
+      "maximum_relative_scaled_error": 8.2174292331429294e-08
+    },
+    {
+      "check": "TRUE 2 gradients 1",
+      "maximum_relative_scaled_error": 4.1346314617057585e-08
+    },
+    {
+      "check": "TRUE 2 gradients 2",
+      "maximum_relative_scaled_error": 1.2021506347242303e-08
+    },
+    {
+      "check": "TRUE 2 gradients 3",
+      "maximum_relative_scaled_error": 2.3029337429445515e-08
+    },
+    {
+      "check": "TRUE 2 gradients 4",
+      "maximum_relative_scaled_error": 1.4649503335416316e-08
+    },
+    {
+      "check": "TRUE 2 gradients 5",
+      "maximum_relative_scaled_error": 9.0616136002392788e-08
+    },
+    {
+      "check": "TRUE 2 gradients 6",
+      "maximum_relative_scaled_error": 2.5748320401196496e-08
+    },
+    {
+      "check": "TRUE 2 gradients 7",
+      "maximum_relative_scaled_error": 3.0781659149643667e-08
+    },
+    {
+      "check": "TRUE 2 gradients 8",
+      "maximum_relative_scaled_error": 9.1847165926466372e-09
+    },
+    {
+      "check": "TRUE 2 gradients 9",
+      "maximum_relative_scaled_error": 5.976462268403236e-08
+    },
+    {
+      "check": "TRUE 2 gradients 10",
+      "maximum_relative_scaled_error": 3.2073971644855686e-08
+    },
+    {
+      "check": "TRUE 2 parameters 1",
+      "maximum_relative_scaled_error": 4.6262156538184324e-08
+    },
+    {
+      "check": "TRUE 2 parameters 2",
+      "maximum_relative_scaled_error": 1.6631577764289403e-08
+    },
+    {
+      "check": "TRUE 2 parameters 3",
+      "maximum_relative_scaled_error": 3.740139589489759e-08
+    },
+    {
+      "check": "TRUE 2 parameters 4",
+      "maximum_relative_scaled_error": 3.7536211652583892e-08
+    },
+    {
+      "check": "TRUE 2 parameters 5",
+      "maximum_relative_scaled_error": 1.6863636452031828e-07
+    },
+    {
+      "check": "TRUE 2 parameters 6",
+      "maximum_relative_scaled_error": 7.9227085174440826e-08
+    },
+    {
+      "check": "TRUE 2 parameters 7",
+      "maximum_relative_scaled_error": 3.6788336978812275e-08
+    },
+    {
+      "check": "TRUE 2 parameters 8",
+      "maximum_relative_scaled_error": 0
+    },
+    {
+      "check": "TRUE 2 parameters 9",
+      "maximum_relative_scaled_error": 3.8878963449510629e-08
+    },
+    {
+      "check": "TRUE 2 parameters 10",
+      "maximum_relative_scaled_error": 6.8626279556712393e-09
+    },
+    {
+      "check": "TRUE 2 moving 1",
+      "maximum_relative_scaled_error": 1.3634831267258714e-08
+    },
+    {
+      "check": "TRUE 2 moving 2",
+      "maximum_relative_scaled_error": 3.2453146661968318e-08
+    },
+    {
+      "check": "TRUE 2 moving 3",
+      "maximum_relative_scaled_error": 2.1139793974364882e-08
+    },
+    {
+      "check": "TRUE 2 moving 4",
+      "maximum_relative_scaled_error": 3.2775096956930573e-08
+    },
+    {
+      "check": "TRUE 2 accumulators 1",
+      "maximum_relative_scaled_error": 6.7726451534812441e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 2",
+      "maximum_relative_scaled_error": 6.7727454239928613e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 3",
+      "maximum_relative_scaled_error": 1.3506808387033759e-08
+    },
+    {
+      "check": "TRUE 2 accumulators 4",
+      "maximum_relative_scaled_error": 6.7727454698629421e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 5",
+      "maximum_relative_scaled_error": 2.6541575689610022e-08
+    },
+    {
+      "check": "TRUE 2 accumulators 6",
+      "maximum_relative_scaled_error": 6.7732385632630739e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 7",
+      "maximum_relative_scaled_error": 6.7622817694178367e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 8",
+      "maximum_relative_scaled_error": 6.7475784998775383e-09
+    },
+    {
+      "check": "TRUE 2 accumulators 9",
+      "maximum_relative_scaled_error": 3.82394023415949e-08
+    },
+    {
+      "check": "TRUE 2 accumulators 10",
+      "maximum_relative_scaled_error": 2.592065400091062e-08
+    },
+    {
+      "check": "TRUE inference",
+      "maximum_relative_scaled_error": 3.6936370379601726e-08
+    }
+  ],
+  "tolerance": 0.00020000000000000001
+}

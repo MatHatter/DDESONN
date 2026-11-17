@@ -1,0 +1,186 @@
+{
+  "reference_sha256": "c24c5c824ba96e23675e6f9fe3243d63ee895af4d316427a3d36e5847fe77fa9",
+  "dataset_sha256": "9d108ba49bd9c4fb264fdf0218ae685abf9c2849a997f128fa4f685caab3e931",
+  "rows": {
+    "train": 3500,
+    "validation": 750,
+    "test": 750
+  },
+  "batch_size": 16,
+  "epochs": 360,
+  "optimizer_updates": 78840,
+  "tensorflow": "2.20.0",
+  "optimizer": {
+    "name": "adagrad",
+    "learning_rate": 0.125,
+    "weight_decay": null,
+    "clipnorm": null,
+    "global_clipnorm": null,
+    "clipvalue": null,
+    "use_ema": false,
+    "ema_momentum": 0.99,
+    "ema_overwrite_frequency": null,
+    "loss_scale_factor": null,
+    "gradient_accumulation_steps": null,
+    "initial_accumulator_value": 0.1,
+    "epsilon": 1e-07
+  },
+  "initialization": "Shared original Keras per-seed initial tensors",
+  "native_precision": "float32",
+  "stochastic_draws": "Framework-native shuffled batches and dropout; same distributions, different RNG engines",
+  "adapter_sha256": {
+    "R/keras_reference.R": "9d21a6d519e9b048e38269bf76c6b9686a45f042e459325f567b267f2bd1b8ac",
+    "dev/research/keras-original-reference/native_reference.cpp": "68bc966a2a4a3ed7573b07de713661d5907d5fccafc57cdf0a5647839d421184",
+    "dev/research/keras-original-reference/reference.py": "968e8dcb37aa10ccc626bab428b045c6de08d18af927b3eba2118e0339852a72",
+    "dev/research/keras-original-reference/run_keras.py": "2d179dffe5ec9e64eb6fd30939fed28e39fd7f0ee0e8a68d5bb6e5bb69815588",
+    "dev/research/keras-original-reference/run_ddesonn.R": "a9c0ceda68921290bfed8f6a4b92db57a18e50ecd1b5a4890f134791c9c6b57a",
+    "dev/research/keras-original-reference/compile.R": "e404ef6ed8abfd71bfa4266a80400d397b5f51bb2800224585091818e5039e68",
+    "dev/research/keras-original-reference/check_native.R": "8c2d06ab86b9f34c8d8181ed276c894f39d9716431d6c84817b9054af1e89976",
+    "dev/research/keras-original-reference/check_tensorflow.py": "5dfb5d68903d649eca734751e1e1ceea3e136f2f0536730c14ef86aa26489fb8"
+  },
+  "status": "complete",
+  "target_fits": 400,
+  "seed_range": [
+    1,
+    100
+  ],
+  "tensorflow_fixture_sha256": "731dc8cc68a20d503276491d0dec38c2897a7fe9e8bcdbac3bf55bc378c1c131",
+  "numerical_checks": 146,
+  "maximum_scaled_error": 4.67681104741277e-05,
+  "float32_check_tolerance": 0.0002,
+  "evaluation_batch_size": 32,
+  "superseded_native_fits": 200,
+  "superseded_reason": "Historical predictor overlap was retained in error. The requested comparison retains original training settings but removes overlap; see ../keras-clean-reference.",
+  "validation_batch_size": 16,
+  "validation_frequency": 1,
+  "validation_steps_per_fit": 16920,
+  "superseded_final_only_validation_fits": 24,
+  "shared_settings": {
+    "architecture": [
+      12,
+      64,
+      32,
+      1
+    ],
+    "activations": [
+      "relu",
+      "relu",
+      "sigmoid"
+    ],
+    "dense_bias_initialization": "zeros",
+    "hidden_batch_normalization": {
+      "after": "hidden ReLU, before dropout",
+      "momentum": 0.9,
+      "epsilon": 1e-06,
+      "gamma_initializer": 0.6,
+      "beta_initializer": 0.6,
+      "trainable": true,
+      "moving_mean_initializer": 0,
+      "moving_variance_initializer": 1
+    },
+    "hidden_dropout": [
+      0.1,
+      0.0
+    ],
+    "input_scaler": {
+      "name": "StandardScaler",
+      "fit_partition": "train",
+      "variance_ddof": 0,
+      "additional_scaling": null
+    },
+    "kernel_initializer": {
+      "name": "VarianceScaling",
+      "scale": 1.04349,
+      "mode": "fan_in",
+      "distribution": "truncated_normal",
+      "shared_initial_tensors": true
+    },
+    "class_weights": null,
+    "sample_weights": null,
+    "training_batch_size": 16,
+    "shuffle_training": true,
+    "epochs": 360,
+    "validation_frequency": 1,
+    "validation_batch_size": 16,
+    "evaluation_batch_size": 32,
+    "checkpoint": "final",
+    "early_stopping": false,
+    "loss": "binary_crossentropy",
+    "label_smoothing": 0,
+    "regularization": {
+      "type": "L1",
+      "coefficient": 0.00028,
+      "targets": "dense kernels only",
+      "applications_per_optimizer_step": 1
+    },
+    "gradient_clipping": null,
+    "optimizer": {
+      "name": "AdaGrad",
+      "learning_rate": 0.125,
+      "decay": null,
+      "initial_accumulator": 0.1,
+      "epsilon": 1e-07,
+      "denominator": "sqrt(accumulator + epsilon)"
+    },
+    "accuracy_threshold": 0.5,
+    "accuracy_comparison": ">"
+  },
+  "conditions": [
+    {
+      "name": "Original Keras mean",
+      "framework": "keras",
+      "data_loss_reduction": "mean"
+    },
+    {
+      "name": "DDESONN FALSE",
+      "framework": "ddesonn",
+      "average_gradients": false,
+      "data_loss_reduction": "sum",
+      "implementation": "opt-in native original-Keras protocol adapter"
+    },
+    {
+      "name": "DDESONN TRUE",
+      "framework": "ddesonn",
+      "average_gradients": true,
+      "data_loss_reduction": "mean",
+      "implementation": "opt-in native original-Keras protocol adapter"
+    },
+    {
+      "name": "Keras sum",
+      "framework": "keras",
+      "data_loss_reduction": "sum"
+    }
+  ],
+  "software": {
+    "R": {
+      "R": "R version 4.5.0 (2025-04-11)",
+      "DDESONN": "7.4.0",
+      "Rcpp": "1.0.14",
+      "jsonlite": "1.9.1"
+    },
+    "python": {
+      "tensorflow_cpu": "2.20.0",
+      "keras": "3.15.1",
+      "numpy": "2.5.5",
+      "pandas": "3.1.1",
+      "scikit-learn": "1.9.1"
+    },
+    "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+    "blas_sha256": "2b3fdbf8e9daa85ce62e449b9738cad4c8b50ba220342f51501c9ade19670895"
+  },
+  "end_to_end_smoke": {
+    "passed": true,
+    "reductions": [
+      "sum",
+      "mean"
+    ],
+    "epochs": 1,
+    "training_updates": 219,
+    "validation_batches": 47,
+    "evaluation_batch_size": 32,
+    "log_sha256": "3a2a85e02379df426a9003004efd26a52d3cdff46d8b1bb4877ad0fe6d156f9b"
+  },
+  "validated_fits": 400,
+  "completed_at_utc": "2026-11-16T22:58:25.923394+00:00",
+  "superseded_for_requested_goal": true
+}
