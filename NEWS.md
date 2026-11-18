@@ -2,8 +2,8 @@
 
 - Set weight and bias gradient reduction independently. Shiny defaults to Sum
   for both and preserves the recorded reductions when loading a model.
-- Show a readable split-overlap status when the loaded engine lacks the
-  overlap helpers.
+- Keep the Shiny split check and data help working when the loaded engine
+  lacks the overlap helpers.
 
 # DDESONN 7.5.1
 

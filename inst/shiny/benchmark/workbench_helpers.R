@@ -103,7 +103,7 @@ wb_binary_split <- function(x, y, seed, train_fraction, validation_fraction, spl
     train_test = length(intersect(sets$train, sets$test)),
     validation_test = length(intersect(sets$validation, sets$test)))
   if (any(overlaps)) stop("Repeated predictor inputs cross the ordered split. ",
-    DDESONN:::.overlap_text(overlaps),
+    wb_overlap_details(overlaps)$text,
     ". Use Random grouped splitting or supply a chronological split with no shared groups.")
   list(ids = ids, audit = list(method = if (split == "random") "grouped_predictors" else "ordered_checked",
     unique_predictors = length(members), overlap_groups = overlaps,
@@ -133,9 +133,6 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
       train_fraction < .1 || validation_fraction < .05 ||
       train_fraction + validation_fraction > .95) stop("Leave at least 5% for testing and validation.")
   if (!split %in% c("random", "ordered")) stop("Choose random or ordered splitting.")
-  check_overlap <- get0(".split_overlap", envir = asNamespace("DDESONN"), inherits = FALSE)
-  if (!is.function(check_overlap))
-    stop("Restart R and load the matching DDESONN package to prepare and check the splits.")
   split_audit <- NULL
   if (mode == "binary") {
     grouping <- x
@@ -186,11 +183,11 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
   x <- sweep(sweep(x, 2, center, "-"), 2, scale, "/")
-  overlap <- do.call(check_overlap, lapply(ids, function(i) x[i, , drop = FALSE]))
+  overlap <- wb_check_overlap(lapply(ids, function(i) x[i, , drop = FALSE]))
   if (mode == "binary") {
     # Keep the existing binary safeguards after imputation and encoding.
     if (any(overlap > 0L)) stop("Preprocessing created identical inputs across splits. ",
-      DDESONN:::.overlap_text(overlap),
+      wb_overlap_details(overlap)$text,
       ". Choose different predictors or preprocessing, or prepare a grouped split externally.")
     split_audit$transformed_overlap_groups <- overlap
   }
@@ -1107,18 +1104,46 @@ wb_recorded_overlap <- function(prepared) {
   if (!is.null(prepared$overlap)) prepared$overlap else prepared$split_audit$transformed_overlap_groups
 }
 
-wb_overlap_ui <- function(overlap) {
+wb_check_overlap <- function(splits) {
+  check <- get0(".split_overlap", envir = asNamespace("DDESONN"), inherits = FALSE)
+  if (is.function(check)) return(do.call(check, splits))
+
+  # A source checkout can run with an older installed runtime in RStudio.
+  # Every prepared part uses the same numeric predictor columns.
+  keys <- lapply(splits, function(part) unique(apply(part, 1L, function(row) {
+    values <- as.double(row)
+    values[which(values == 0)] <- 0
+    digest::digest(values, algo = "sha256")
+  })))
+  c(train_validation = length(intersect(keys$train, keys$validation)),
+    train_test = length(intersect(keys$train, keys$test)),
+    validation_test = length(intersect(keys$validation, keys$test)))
+}
+
+wb_overlap_details <- function(overlap) {
   ns <- asNamespace("DDESONN")
   status_for <- get0(".overlap_status", envir = ns, inherits = FALSE)
   describe <- get0(".overlap_text", envir = ns, inherits = FALSE)
-  if (!is.function(status_for) || !is.function(describe)) {
-    return(shiny::p(class = "text-muted", shiny::strong("Split overlap: "),
-      "Check unavailable. Restart R and load the matching DDESONN package."))
-  }
-  status <- status_for(overlap)
+  if (is.function(status_for) && is.function(describe))
+    return(list(status = status_for(overlap), text = describe(overlap)))
+  if (!length(overlap) || all(is.na(overlap)))
+    return(list(status = "unavailable", text = "Check unavailable"))
+  status <- if (any(overlap > 0L, na.rm = TRUE)) "detected" else if (anyNA(overlap)) "partial" else "clear"
+  label <- switch(status, detected = "Exact predictor overlap detected",
+    partial = "No exact predictor overlap in comparable splits",
+    clear = "No exact predictor overlap detected")
+  pairs <- c("Train-Validation", "Train-Test", "Validation-Test")
+  counts <- paste(pairs, ifelse(is.na(overlap), "unavailable", overlap))
+  list(status = status, text = paste0(label, " (distinct shared vectors: ",
+    paste(counts, collapse = ", "), ")"))
+}
+
+wb_overlap_ui <- function(overlap) {
+  details <- wb_overlap_details(overlap)
+  status <- details$status
   tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
   shiny::tagList(
-    shiny::p(class = tone, shiny::strong("Split overlap: "), describe(overlap)),
+    shiny::p(class = tone, shiny::strong("Split overlap: "), details$text),
     if (identical(status, "detected")) shiny::p(
       "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs.")
   )
