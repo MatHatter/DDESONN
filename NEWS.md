@@ -1,10 +1,12 @@
+# DDESONN 7.5.3
+
+- Keep the Shiny split check and data help working when the loaded engine
+  lacks the overlap helpers.
+
 # DDESONN 7.5.2
 
 - Set weight and bias gradient reduction independently. Shiny defaults to Sum
   for both and preserves the recorded reductions when loading a model.
-- Keep the Shiny split check and data help working when the loaded engine
-  lacks the overlap helpers.
-
 # DDESONN 7.5.1
 
 - Keep epoch trace settings in the Custom workflow's equivalent R code.
