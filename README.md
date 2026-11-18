@@ -754,9 +754,8 @@ for omitted methods. Epoch numbers start at 1 and restart for each fit.
 Ranges include both endpoints, so `learn = 1:10` traces epochs 1 through 10.
 Epoch 0 is invalid.
 
-In Shiny, open **Custom > Diagnostics > Select method trace epochs**.
-Use the default switch to turn all methods on or off, and select an epoch
-range with the slider for each method you want to limit.
+In Shiny, the **Equivalent R code** for Custom training includes commented
+epoch trace examples. Uncomment one when running the recipe in R.
 
 | Setting | What it adds |
 |---|---|

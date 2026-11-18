@@ -69,42 +69,6 @@ wb_switch <- function(id, title, help, value = FALSE, api = NULL) {
       wb_help(title, help, api)))
 }
 
-wb_epoch_trace_controls <- function() {
-  methods <- DDESONN:::.trace_methods
-  shiny::tagList(
-    shiny::checkboxInput("wb_trace_enabled", "Select method trace epochs", FALSE),
-    shiny::conditionalPanel("input.wb_trace_enabled",
-      shiny::checkboxInput("wb_trace_all", "Trace all methods by default", FALSE),
-      lapply(methods, function(method) {
-        mode <- paste0("wb_trace_mode_", method)
-        shiny::tagList(
-          shiny::selectInput(mode, paste(method, "markers"),
-            c("Use default" = "inherit", "All epochs" = "on", "Off" = "off", "Epoch range" = "range")),
-          shiny::conditionalPanel(paste0("input.", mode, " === 'range'"),
-            shiny::sliderInput(paste0("wb_trace_range_", method), paste(method, "epoch range"),
-              min = 1L, max = 50L, value = c(1L, 50L), step = 1L, sep = "")))
-      }),
-      shiny::p("These settings filter begin/end markers. Training still runs for the full epoch budget.")))
-}
-
-wb_epoch_trace_config <- function(input, epochs) {
-  if (!isTRUE(input$wb_trace_enabled)) return(NULL)
-  trace <- list(all = isTRUE(input$wb_trace_all))
-  for (method in DDESONN:::.trace_methods) {
-    mode <- input[[paste0("wb_trace_mode_", method)]]
-    if (is.null(mode)) next
-    trace[[method]] <- switch(mode,
-      on = TRUE, off = FALSE,
-      range = {
-        bounds <- input[[paste0("wb_trace_range_", method)]]
-        if (length(bounds) != 2L) bounds <- c(1L, epochs)
-        bounds <- pmin(bounds, epochs)
-        seq.int(bounds[1L], bounds[2L])
-      })
-  }
-  trace
-}
-
 wb_code_panel <- function(output_id, title = "Equivalent R code") {
   shiny::tags$details(class = "wb-code-panel", shiny::tags$summary(title),
     shiny::verbatimTextOutput(output_id))
@@ -493,8 +457,9 @@ wb_ui <- function() {
               wb_field("wb_seed_aggregate", "Combine across training seeds", "Combines the already-combined prediction from each training seed, by mean or median. Each seed contributes equally at this stage. This is separate from weighting members within a seed. Binary classification then uses >= 0.5; multiclass chooses the first maximum.",
                 shiny::selectInput("wb_seed_aggregate", NULL, c("Average" = "mean", "Median" = "median")))),
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
-              wb_switch("wb_diagnostics", "Detailed training diagnostics", "Off shows ordinary epoch progress and genuine warnings/errors. On also emits detailed tensor, gradient/error, optimizer and training summaries. Read the Training log disclosure under the chart: it shows the most recent 2,000 lines, retained with completed bundles. These are diagnostic logs, not extra training, a model-quality guarantee or a separate file export. If you are writing R code in the console, set verbose = TRUE inside training_overrides in ddesonn_run() for class-level training traces. Top-level verbose = TRUE shows the full run report and split prediction traces. In Shiny, use this switch to see detailed training logs."),
-              wb_epoch_trace_controls())),
+              wb_switch("wb_diagnostics", "Detailed training diagnostics",
+                paste("Show tensor, gradient, optimizer and training summaries in the Training log.",
+                  "For specific methods and epochs, open Equivalent R code and uncomment a trace example to run in R.")))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'", shiny::div(class = "wb-workload-explanation", shiny::textOutput("wb_workload"))),
           wb_vignette_link("wb_training_vignettes", "Training and plotting guides in Vignettes"),
           shiny::div(class = "wb-training-actions",
@@ -735,16 +700,6 @@ wb_server <- function(input, output, session, helper) {
       shiny::updateSelectInput(session, "wb_fusion", choices = wb_fusion_choices(mode), selected = cfg$fusion)
       shiny::updateTextInput(session, "wb_seeds", value = paste(cfg$seeds, collapse = ","))
       shiny::updateCheckboxInput(session, "wb_diagnostics", value = isTRUE(cfg$diagnostics))
-      shiny::updateCheckboxInput(session, "wb_trace_enabled", value = length(cfg$trace_epochs) > 0L)
-      shiny::updateCheckboxInput(session, "wb_trace_all", value = isTRUE(cfg$trace_epochs$all))
-      for (method in DDESONN:::.trace_methods) {
-        selection <- cfg$trace_epochs[[method]]
-        mode <- if (is.null(selection)) "inherit" else if (isTRUE(selection)) "on" else if (isFALSE(selection)) "off" else "range"
-        shiny::updateSelectInput(session, paste0("wb_trace_mode_", method), selected = mode)
-        bounds <- if (identical(mode, "range")) pmin(range(selection), cfg$epochs) else c(1L, cfg$epochs)
-        shiny::updateSliderInput(session, paste0("wb_trace_range_", method),
-          max = max(2L, cfg$epochs), value = bounds)
-      }
     }
 
   }
@@ -980,18 +935,6 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateSelectInput(session, "wb_fusion", choices = choices,
       selected = if (length(input$wb_fusion) == 1 && input$wb_fusion %in% choices) input$wb_fusion else "mean")
   })
-  shiny::observeEvent(input$wb_epochs, {
-    epochs <- input$wb_epochs
-    if (length(epochs) != 1L || !is.finite(epochs) || epochs < 1L || epochs > 5000L ||
-        epochs != floor(epochs)) return()
-    for (method in DDESONN:::.trace_methods) {
-      id <- paste0("wb_trace_range_", method)
-      bounds <- input[[id]]
-      if (length(bounds) != 2L || !identical(input[[paste0("wb_trace_mode_", method)]], "range"))
-        bounds <- c(1L, epochs)
-      shiny::updateSliderInput(session, id, max = max(2L, epochs), value = pmin(bounds, epochs))
-    }
-  })
   next_config <- shiny::reactive({
     regularize <- isTRUE(input$wb_reg_enabled)
     cfg <- wb_config(input$wb_hidden, input$wb_epochs, input$wb_lr,
@@ -1000,13 +943,11 @@ wb_server <- function(input, output, session, helper) {
       checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint,
       average_gradients = isTRUE(input$wb_average_gradients))
     if (!identical(input$wb_workflow, "custom")) return(cfg)
-    cfg <- wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
+    wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
       input$wb_temp, input$wb_activation, input$wb_init,
       if (isTRUE(input$wb_dropout_enabled)) input$wb_dropout else 0,
       if (isTRUE(input$wb_schedule_enabled)) input$wb_schedule else "fixed", input$wb_minimum, input$wb_decay, input$wb_interval,
       input$wb_fusion, input$wb_seed_aggregate, input$wb_diagnostics)
-    cfg$trace_epochs <- wb_epoch_trace_config(input, cfg$epochs)
-    cfg
   })
   output$wb_basic_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))
   output$wb_workload <- shiny::renderText(tryCatch(wb_workload(next_config()), error = function(e) conditionMessage(e)))

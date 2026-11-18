@@ -13,6 +13,8 @@ test_that("the console defaults to evaluation tables and preserves the full repo
   expect_true(all(c("===== TRAIN =====", "===== VALIDATION =====", "===== TEST =====") %in% out))
   render <- DDESONN:::.report_console_text
   medium <- render(report, FALSE, TRUE)
+  expect_identical(medium[1:4], c("", "===== DDESONN run summary =====",
+    "", "Scenario: A | Single model"))
   expect_true(all(c("===== DDESONN run summary =====", "Epochs completed / requested per model: 1 / 1",
     "Training: 12 | 60%") %in% medium))
   expect_false(any(grepl("Effective configuration", medium)))

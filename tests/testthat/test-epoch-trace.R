@@ -44,19 +44,24 @@ test_that("method trace filters select independent epochs without changing train
 })
 
 
-test_that("Custom Diagnostics converts sliders to the same trace settings as R", {
-  skip_if_not_installed("shiny")
+test_that("Custom R recipes offer trace examples with tracing off as generated", {
   h <- new.env(parent = globalenv())
-  sys.source(system.file("shiny", "benchmark", "workbench.R", package = "DDESONN"), h)
-  input <- list(wb_trace_enabled = TRUE, wb_trace_all = TRUE,
-    wb_trace_mode_train = "off", wb_trace_mode_train_network = "inherit",
-    wb_trace_mode_learn = "range", wb_trace_range_learn = c(2, 5),
-    wb_trace_mode_predict = "on")
-  expect_identical(h$wb_epoch_trace_config(input, 4L),
-    list(all = TRUE, train = FALSE, learn = 2:4, predict = TRUE))
-  input$wb_trace_enabled <- FALSE
-  expect_null(h$wb_epoch_trace_config(input, 4L))
-  expect_match(as.character(h$wb_epoch_trace_controls()), "wb_trace_range_learn", fixed = TRUE)
+  sys.source(system.file("shiny", "benchmark", "workbench_helpers.R", package = "DDESONN"), h)
+  cfg <- h$wb_custom_config(h$wb_config())
+  recipe <- h$wb_fit_code(list(), cfg)
+  recipe_env <- new.env(parent = baseenv())
+  setup <- Filter(function(expr) is.call(expr) && identical(expr[[1L]], as.name("<-")) &&
+    identical(expr[[2L]], quote(config)), as.list(parse(text = recipe)))
+  expect_length(setup, 1L)
+  eval(setup[[1L]], recipe_env)
+  expect_null(recipe_env$config$trace_epochs)
+
+  examples <- grep("^# config\\$trace_epochs", strsplit(recipe, "\n", fixed = TRUE)[[1L]], value = TRUE)
+  expect_length(examples, 2L)
+  for (example in examples) {
+    eval(parse(text = sub("^# ", "", example)), recipe_env)
+    expect_silent(DDESONN:::.validate_trace_epochs(recipe_env$config$trace_epochs))
+  }
 })
 
 test_that("debug fit markers work without an environment gate or epoch selection", {

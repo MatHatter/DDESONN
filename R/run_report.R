@@ -202,6 +202,6 @@
 
 .report_console_text <- function(report, verbose, verbose_low) {
   if (isTRUE(verbose)) return(.report_text(report))
-  if (isTRUE(verbose_low)) return(c(.report_heading("DDESONN run summary"), report$compact))
+  if (isTRUE(verbose_low)) return(c("", .report_heading("DDESONN run summary"), "", report$compact))
   character()
 }
