@@ -68,7 +68,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_identical(output$wb_error_flag, "no")
     history(final$history) # unrelated live output cannot replace the selected plot
     expect_identical(plot_history()[names(best$history)], best$history)
-    job()$process$wait(30000); session$elapse(400)
+    wait_for_workbench_job(job()); session$elapse(400)
     expect_null(job())
     expect_identical(attempts()[["3"]]$state, "Failed")
     expect_identical(output$wb_running_flag, "no")
@@ -98,7 +98,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     h$wb_start <- function(helper, ...) start(success, ...)
     launch(p, final$config); session$flushReact()
     expect_null(training_error())
-    job()$process$wait(30000); session$elapse(400)
+    wait_for_workbench_job(job()); session$elapse(400)
     expect_null(job()); expect_null(training_error())
     expect_identical(attempts()[["5"]]$state, "Completed")
     expect_identical(attempts()[["3"]]$state, "Failed")

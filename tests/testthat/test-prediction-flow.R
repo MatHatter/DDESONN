@@ -79,7 +79,7 @@ test_that("extra epochs create a named new model without replacing the upload", 
     expect_identical(serialize(saved_models()[[original_id]], NULL), original)
     session$setInputs(wb_more_epochs = 1, wb_saved_checkpoint = "best_validation", wb_continue = 1)
     expect_equal(job()$epochs, 1)
-    job()$process$wait(30000); session$elapse(400)
+    wait_for_workbench_job(job()); session$elapse(400)
     expect_null(job()); expect_null(training_error())
     expect_identical(task_flow(), "saved")
     expect_identical(active_model()$model_name, "original.rds")
