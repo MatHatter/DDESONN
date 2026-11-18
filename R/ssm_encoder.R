@@ -57,38 +57,12 @@
   invisible(TRUE)
 }
 
-#' Native-R selective state-space sequence encoder
-#'
-#' Initialise, evaluate, differentiate, scale, and reset the optional native-R
-#' causal selective state-space encoder.
-#'
-#' @details
-#' The encoder is experimental and opt-in; `sequence_encoder = "none"` is the
-#' default. The backward pass takes per-sample embedding gradients before sample
-#' averaging and returns parameter and input gradients averaged over samples.
-#' For mean squared error across states, supply twice the embedding residual
-#' divided by the number of states; do not also divide by the sample count.
-#' Encoding and supervised encoder training reuse identical sequence windows.
-#' Scaling statistics and the mean-loss gradient retain the original sample
-#' multiplicities, including different labels attached to the same window.
-#'
-#' @param sequence_features Number of input channels in each sequence.
-#' @param state_dim Number of encoder state dimensions.
-#' @param conv_width Width of the causal convolution.
-#' @param seed Optional seed for parameter initialization.
-#' @param encoder Encoder returned by [ddesonn_ssm_init()].
-#' @param sequence_data Numeric array with dimensions samples by timesteps by
-#'   channels.
-#' @param return_cache Whether to return intermediate values needed by the
-#'   backward pass.
-#' @param cache Forward-pass cache returned with `return_cache = TRUE`.
-#' @param grad_embedding Per-sample embedding gradients before averaging over
-#'   samples.
-#' @param fit_scale Whether to fit scaling statistics on these sequences.
-#' @param state Optional replacement state, or `NULL` to clear the stored state.
-#' @return An encoder, forward result, gradient list, or embedding matrix,
-#'   depending on the function called.
-#' @rdname ddesonn_ssm
+#' Initialise a native-R selective state-space encoder
+#' @param sequence_features Number of input channels.
+#' @param state_dim Temporal embedding width.
+#' @param conv_width Causal convolution width.
+#' @param seed Optional initialization seed.
+#' @return A mutable encoder list.
 #' @export
 ddesonn_ssm_init <- function(sequence_features, state_dim = 16L, conv_width = 4L, seed = NULL) {
   f <- as.integer(sequence_features); h <- as.integer(state_dim); k <- as.integer(conv_width)
@@ -104,7 +78,9 @@ ddesonn_ssm_init <- function(sequence_features, state_dim = 16L, conv_width = 4L
                  scale=NULL, state=numeric(h), optimizer=list(step=0L,m=list(),v=list())), class="ddesonn_ssm")
 }
 
-#' @rdname ddesonn_ssm
+#' Reset the streaming state of an SSM encoder
+#' @param encoder Encoder returned by [ddesonn_ssm_init()].
+#' @param state Optional replacement state.
 #' @export
 ddesonn_ssm_reset_state <- function(encoder, state = NULL) {
   h <- encoder$config$state_dim; state <- state %||% numeric(h)
@@ -112,7 +88,10 @@ ddesonn_ssm_reset_state <- function(encoder, state = NULL) {
   encoder$state <- as.numeric(state); encoder
 }
 
-#' @rdname ddesonn_ssm
+#' Run the selective SSM forward pass
+#' @param encoder SSM encoder.
+#' @param sequence_data Numeric three-dimensional sequence array.
+#' @param return_cache Include intermediates needed by backward propagation.
 #' @export
 ddesonn_ssm_forward <- function(encoder, sequence_data, return_cache = FALSE) {
   d <- .ddesonn_validate_sequence(sequence_data); cfg <- encoder$config; p <- encoder$params
@@ -135,7 +114,10 @@ ddesonn_ssm_forward <- function(encoder, sequence_data, return_cache = FALSE) {
   ans
 }
 
-#' @rdname ddesonn_ssm
+#' Encode sequences using saved training-only scaling
+#' @param encoder SSM encoder.
+#' @param sequence_data Sequence array.
+#' @param fit_scale Fit channel means/standard deviations (training only).
 #' @export
 ddesonn_ssm_encode <- function(encoder, sequence_data, fit_scale = FALSE) {
   .ddesonn_validate_sequence(sequence_data)
@@ -152,7 +134,13 @@ ddesonn_ssm_encode <- function(encoder, sequence_data, fit_scale = FALSE) {
   attr(embedding,"encoder") <- encoder; embedding
 }
 
-#' @rdname ddesonn_ssm
+#' Back-propagate through the selective recurrence and causal convolution
+#' @param encoder SSM encoder.
+#' @param cache Cache returned by `ddesonn_ssm_forward(..., return_cache=TRUE)`.
+#' @param grad_embedding Per-sample loss gradients with respect to the final
+#'   embedding, before averaging over samples. Returned gradients are averaged
+#'   over the sample dimension.
+#' @return Gradients for every parameter and for the sequence input.
 #' @export
 ddesonn_ssm_backward <- function(encoder, cache, grad_embedding) {
   p<-encoder$params; cfg<-encoder$config; x<-cache$x; z<-cache$z; n<-dim(x)[1];T<-dim(x)[2];f<-dim(x)[3];h<-cfg$state_dim;k<-cfg$conv_width
