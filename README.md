@@ -699,17 +699,14 @@ DDESONN supports structured diagnostics designed to keep runs scientifically ins
 
 ### Diagnostic tiers
 
-DDESONN exposes two verbosity tiers via `verboseLow` and `verbose`:
+| Console setting for `ddesonn_run()` | Output |
+|---|---|
+| Default (both flags off) | Usual evaluation output, including the Train, Validation and Test tables when available |
+| `verboseLow = TRUE` | Important progress messages and a compact run summary with dataset, split counts and percentages, epochs, checkpoint and overlap |
+| `verbose = TRUE` | Detailed diagnostics and the full run report, including effective settings and per-model outcomes |
 
-- **Low verbosity (`verboseLow = TRUE`, `verbose = FALSE`)**
-  - prints the **most important** trust diagnostics
-  - focuses on compact, layer-oriented structural and sanity output
-  - intended for routine runs where you want inspectability with low noise
-
-- **High verbosity (`verbose = TRUE`)**
-  - prints deeper tracing intended for debugging/research inspection
-  - includes richer per-layer forward/backward summaries and update sanity context
-  - useful when diagnosing shape alignment, gradient flow, or training instability
+The returned `run_report` always includes the full details. The overlap check
+compares exact tabular predictor vectors in the supplied splits.
 
 ### Debug mode (`debug`)
 

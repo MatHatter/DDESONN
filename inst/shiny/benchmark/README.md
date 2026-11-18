@@ -39,6 +39,14 @@ Optimizer state/schedules restart; this is an extra fit, not an exact resume.
 Recent runs distinguishes uploaded models, newly trained models and further-trained
 saved models, and shows the origin alongside CSV runs.
 
+After preparation, **Build & Train** shows the split overlap check. It counts
+distinct exact matches between pairs of prepared predictor matrices, excluding
+the target. A warning identifies which splits share inputs and suggests keeping
+duplicates together or grouping related observations by subject. Binary
+preparation still rejects cross-split duplicates. For other tasks, the monitor
+reports overlap so you can decide whether to revise the split. The recorded
+result is also available in Recent runs and its report download.
+
 ## Recent runs and exact clear scopes (7.3.37)
 
 **Recent runs** is a separate tab in both workflows. It keeps the latest 10

@@ -465,6 +465,7 @@ wb_ui <- function() {
             shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_training_context")),
+          shiny::uiOutput("wb_split_overlap"),
           shiny::conditionalPanel("output.wb_running_flag !== 'yes' || output.wb_error_flag === 'yes'",
             shiny::div(class = "wb-latest-attempt wb-attempt-above", role = "status",
               shiny::conditionalPanel("output.wb_running_flag !== 'yes'",
@@ -789,8 +790,9 @@ wb_server <- function(input, output, session, helper) {
   output$wb_recent_details <- shiny::renderUI({
     report <- selected_run_report()
     if (is.null(report)) return(NULL)
-    shiny::tagList(shiny::h4("Run details"),
-      shiny::tags$pre(style = "white-space: pre-wrap;", paste(report$overview, collapse = "\n")),
+    shiny::tagList(shiny::h4("Run details"), wb_overlap_ui(report$overlap),
+      shiny::tags$pre(style = "white-space: pre-wrap;",
+        paste(report$overview[!startsWith(report$overview, "Split overlap: ")], collapse = "\n")),
       shiny::tags$details(shiny::tags$summary("Effective configuration and training stages"),
         shiny::tags$pre(style = "white-space: pre-wrap;", paste(report$details, collapse = "\n"))),
       shiny::downloadButton("wb_recent_report", "Download run report"))
@@ -1482,6 +1484,7 @@ wb_server <- function(input, output, session, helper) {
       paste0("· ", length(p$features), " source predictors → ", ncol(p$parts$train$x), " numeric model inputs"),
       if (p$mode == "binary") paste("· positive class:", p$classes[2]) else "")
   })
+  output$wb_split_overlap <- shiny::renderUI(wb_overlap_ui(wb_recorded_overlap(prepared())))
   output$wb_training_context <- shiny::renderText(training_context())
   output$wb_status <- shiny::renderText(status())
   output$wb_running_status <- shiny::renderText(status())
