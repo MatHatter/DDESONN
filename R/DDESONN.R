@@ -3183,6 +3183,7 @@ if(verbose){print("----------------------------------------train_network-end----
 return(list(
   predicted_output_l2      = predicted_output_train_reg,
   training_time            = training_time,
+  completed_epochs         = if (isTRUE(train)) as.integer(epoch) else 0L,
   best_train_acc           = best_train_acc,
   best_epoch_train         = best_epoch_train,
   best_train_loss          = best_train_loss,
@@ -3611,6 +3612,7 @@ DDESONN <- R6::R6Class(
       all_activation_functions         <- vector("list", length(self$ensemble))
       all_activation_functions_predict <- vector("list", length(self$ensemble))
       
+      report_members <- vector("list", length(self$ensemble))
       for (i in 1:length(self$ensemble)) {
         # Add Ensemble and Model names to performance_list
         ensemble_name <- attr(self$ensemble[[i]], "ensemble_name")
@@ -3632,6 +3634,15 @@ DDESONN <- R6::R6Class(
               Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, gradient_reduction = gradient_reduction, output_root = output_root
             ))
           
+          report_members[[i]] <- list(
+            completed = predicted_outputAndTime$completed_epochs,
+            best_loss = predicted_outputAndTime$best_val_loss,
+            best_epoch = predicted_outputAndTime$best_val_epoch_loss,
+            best_checkpoint_epoch = if (CLASSIFICATION_MODE == "regression")
+              predicted_outputAndTime$best_val_epoch_loss else predicted_outputAndTime$best_val_epoch,
+            prediction_epoch = predicted_outputAndTime$completed_epochs
+          )
+
           # [SSM] Final reports must use the member's latest embeddings too.
           joint_context <- attr(self$ensemble[[i]], "ssm_joint_context")
           if (!is.null(joint_context)) {
@@ -4003,7 +4014,8 @@ DDESONN <- R6::R6Class(
       
       if(verbose){print("----------------------------------------train-end----------------------------------------")}
       
-      return(list(predicted_outputAndTime = predicted_outputAndTime, performance_relevance_data = performance_relevance_data))
+      return(list(predicted_outputAndTime = predicted_outputAndTime,
+        performance_relevance_data = performance_relevance_data, report_members = Filter(Negate(is.null), report_members)))
     }
     , # Method for updating performance and relevance metrics
 

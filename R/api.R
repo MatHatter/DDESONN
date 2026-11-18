@@ -384,6 +384,7 @@ ddesonn_model <- function(input_size,
   attr(model, "lambda") <- lambda
   attr(model, "ML_NN") <- ML_NN
   attr(model, "engineered_input_size") <- engineered_input_size
+  attr(model, "report_initialization") <- sprintf("%s (custom scale %s)", init_method, custom_scale)
   # [SSM] BEGIN: attach encoder metadata/state to the model.
   attr(model, "sequence_config") <- list(encoder=sequence_encoder, sequence_length=as.integer(sequence_length), state_dim=as.integer(ssm_state_dim), conv_width=as.integer(ssm_conv))
   if (sequence_encoder == "ssm" && !is.null(sequence_data)) {
@@ -481,6 +482,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   
+  fit_started <- proc.time()[["elapsed"]]
   overrides <- list(...)
   # Old saved models predate the Boolean switch and used mixed reductions.
   reduction <- .ddesonn_gradient_reduction(average_gradients,
@@ -830,7 +832,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   result <- do.call(model$train, train_args)
   attr(model, "gradient_reduction") <- reduction
   attr(model, "average_gradients") <- cfg$average_gradients
-  model$last_training <- result
+  restored_checkpoint <- logical(length(model$ensemble))
   # [SSM] Keep each trained network paired with its encoder during TEMP promotion.
   if (identical(seq_cfg$encoder, "ssm")) {
     for (i in seq_along(model$ensemble)) {
@@ -842,6 +844,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
           model$ensemble[[i]]$weights <- model$ensemble[[i]]$best_weights
           model$ensemble[[i]]$biases <- model$ensemble[[i]]$best_biases
           member_encoder <- context$best_encoder
+          restored_checkpoint[i] <- TRUE
         }
         attr(model$ensemble[[i]], "ssm_training_history") <- list(
           gradient_norm = context$gradient_norm, parameter_change = context$parameter_change,
@@ -853,6 +856,22 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     attr(model, "ssm_encoder") <- attr(model$ensemble[[1L]], "ssm_encoder")
     attr(model, "ssm_training") <- ssm_training
   }
+  result$run_report_fit <- .report_fit(model, cfg, result,
+    proc.time()[["elapsed"]] - fit_started, data_prep$data, ncol(labels), mode, reduction)
+  if (identical(seq_cfg$encoder, "ssm")) {
+    result$run_report_fit$settings[["SSM training"]] <- ssm_training
+    result$run_report_fit$settings[["SSM learning rate"]] <- ssm_lr %||% "Automatic"
+  }
+  if (any(restored_checkpoint)) {
+    result$run_report_fit$checkpoint <- if (all(restored_checkpoint)) "Best validation checkpoint" else
+      "Best validation checkpoint where available, otherwise final epoch"
+    for (i in which(restored_checkpoint)) {
+      member <- result$run_report_fit$members[[i]]
+      result$run_report_fit$members[[i]]$prediction_epoch <- member$best_checkpoint_epoch
+    }
+  }
+  model$last_training <- result
+
   attr(model, "threshold") <- cfg$threshold
   
   # ============================================================  
@@ -3376,6 +3395,11 @@ ddesonn_predict <- function(model, new_data,
 #' @param prediction_sequence_data Sequence array aligned to matrix-form
 #'   `prediction_data`. Alternatively, supply both in a `prediction_data` list.
 #'
+#' @param dataset_name Optional built-in dataset name or input filename for the
+#'   run report. Directory components are removed.
+#' @param print_report Logical. Print the run report before the final evaluation
+#'   output. The returned result includes the report regardless of this setting.
+#'
 #' @details
 #' **Discovering available training overrides**
 #'
@@ -3604,7 +3628,9 @@ ddesonn_run <- function(x,
                         # [SSM] BEGIN: run-level sequence bridge arguments.
                         sequence_encoder = "none", sequence_data = NULL,
                         sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
-                        prediction_sequence_data = NULL) {
+                        prediction_sequence_data = NULL, dataset_name = NULL,
+                        print_report = TRUE) {
+  run_started <- proc.time()[["elapsed"]]
   # [SSM] END: run-level sequence bridge arguments.
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
@@ -4303,6 +4329,8 @@ ddesonn_run <- function(x,
     # [SSM] BEGIN: retain the fitted encoder returned with the trained model.
     mdl <- do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
     # [SSM] END: all subsequent split and saved-model predictions use it.
+    main_fit <- .report_model_fit(mdl, sprintf("Seed %s \u00b7 %s", seed_i,
+      if (isTRUE(do_ensemble)) "MAIN" else "Independent fit"))
     
     if (isTRUE(debug)) {                                                                # 
       ddesonn_console_log(                                                              # 
@@ -4532,7 +4560,9 @@ ddesonn_run <- function(x,
       main = list(model = mdl, predictions = main_pred),
       temp_iterations = temp_summary,
       tables = log_tables,
-      predictions = run_predictions
+      predictions = run_predictions,
+      report_fits = c(list(main_fit), lapply(temp_summary, function(entry)
+        .report_model_fit(entry$model, sprintf("Seed %s \u00b7 TEMP %s", seed_i, entry$iteration))))
     )
   })
   
@@ -4608,6 +4638,7 @@ ddesonn_run <- function(x,
       do_ensemble = isTRUE(do_ensemble),
       num_networks = as.integer(base_model_args$num_networks),
       num_temp_iterations = as.integer(num_temp_iterations),
+      temp_selection_metric = if (isTRUE(do_ensemble) && num_temp_iterations > 0L) target_metric else NULL,
       aggregate = aggregate,
       seed_aggregate = seed_aggregate,
       prediction_type = prediction_type
@@ -4662,6 +4693,28 @@ ddesonn_run <- function(x,
     result$temp_predictions <- temp_summary
   }
   
+  fits <- Filter(Negate(is.null), unlist(lapply(runs, `[[`, "report_fits"), recursive = FALSE))
+  retained <- vapply(runs, function(run) length(run$main$model$ensemble), integer(1))
+  validation_rows <- runs[[1L]]$report_fits[[1L]]$validation_rows %||% NROW(validation_data$x)
+  counts <- c(Training = nrow(x_matrix), Validation = validation_rows, Test = NROW(test_matrix))
+  scenario <- .report_scenario(do_ensemble, base_model_args$num_networks, length(runs[[1L]]$temp_iterations))
+  temp_fits <- unlist(lapply(runs, function(run) run$report_fits[-1L]), recursive = FALSE)
+  stage <- list(fits = fits, elapsed = proc.time()[["elapsed"]] - run_started,
+    overview = .report_field_lines(list(`Seed runs` = length(runs),
+      `Prediction models per seed` = .report_epoch_range(retained),
+      `Prediction-only rows` = NROW(prediction_matrix),
+      `TEMP models trained` = sum(vapply(temp_fits,
+        function(fit) length(fit$members), integer(1))))),
+    settings = list(`Training seeds` = seeds, `Model aggregation` = aggregate,
+      `Seed aggregation` = seed_aggregate, `Prediction type` = prediction_type,
+      `TEMP iterations per seed` = if (isTRUE(do_ensemble)) num_temp_iterations else 0L,
+      `TEMP selection metric` = if (length(temp_fits)) target_metric else "Disabled"))
+  result$run_report <- .report_format(classification_mode, scenario, .report_dataset(dataset_name),
+    counts, list(stage), list(`DDESONN version` = as.character(utils::packageVersion("DDESONN")),
+      `R version` = as.character(getRversion()), `RNG kind` = RNGkind()),
+    preprocessing = list(`Data split` = "Supplied by caller", Predictors = colnames(x_matrix),
+      Targets = colnames(y_matrix)))
+
   class(result) <- unique(c("ddesonn_run_result", class(result)))
   
   if (!is.null(output_root)) {
@@ -4712,6 +4765,10 @@ ddesonn_run <- function(x,
         verboseLow = verboseLow                                                               
       )                                                                                       
     }
+  }
+  if (isTRUE(print_report)) {
+    cat(.report_text(result$run_report), sep = "\n")
+    cat("\n")
   }
   if (!is.null(final_training)) {
     .emit_final_run_summary(
