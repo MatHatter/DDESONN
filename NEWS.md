@@ -1,3 +1,11 @@
+# DDESONN 7.4.12
+
+- Add a vignette for the clean matched 100-seed DDESONN and Keras benchmark.
+  It uses the same packaged results as Shiny to summarize held-out accuracy
+  across all four conditions and show cumulative paired differences.
+- Link the vignette from Shiny and the workbench guide. Clarify the proposed
+  follow-up with mixed weight and bias gradient reductions in both frameworks.
+
 # DDESONN 7.4.11
 
 - Allow background training tests up to three minutes per worker instead of

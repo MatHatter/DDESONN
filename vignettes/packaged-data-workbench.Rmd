@@ -32,9 +32,9 @@ Stop the app with the RStudio Stop button or Ctrl+C in an R terminal.
 **Experiments** displays saved study results without starting training:
 
 - **Current: clean matched study** compares DDESONN and Keras with 100 seeds per
-  condition (four conditions, 400 fits). Identical predictor inputs are kept in
-  separate partitions. The study uses an experimental native float32 adapter
-  on one fixed split; its scope is described on the page.
+  condition (four conditions, 400 fits). Identical predictor inputs are kept
+  together in the same partition. See the [clean matched benchmark vignette](clean-matched-100-seeds.html)
+  for the graphs, results and study scope.
 - **Historical: overlapping inputs** pairs 1,000 standard-AdaGrad DDESONN runs
   with archived legacy DDESONN observations. Training/test inputs overlap;
   this is a descriptive historical comparison. Keras was not rerun for this view.

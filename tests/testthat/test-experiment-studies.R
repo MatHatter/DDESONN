@@ -38,7 +38,7 @@ test_that("clean comparison switching uses the right records and labels", {
     expect_true(nzchar(output$clean_convergence$src))
   })
   ui <- as.character(f$h$clean_study_ui())
-  expect_match(ui, "not tested here", fixed = TRUE)
+  expect_match(ui, "The completed benchmark uses uniform reductions.", fixed = TRUE)
   expect_match(ui, "retrospective", fixed = TRUE)
   app <- paste(readLines(file.path(f$app, "app.R")), collapse = "\n")
   expect_match(app, 'selected = "clean"', fixed = TRUE)
