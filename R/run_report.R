@@ -49,7 +49,7 @@
       batch <- model$calculate_batch_size(data)
       if (batch %% 1 == 0) min(nrow(data), batch) else paste("Up to", ceiling(batch))
     } else "Disabled",
-    `Gradient reduction` = reduction,
+    `Gradient reduction` = .ddesonn_gradient_label(reduction),
     `Training loss` = cfg$loss_type,
     Regularization = if (!length(cfg$reg_type) || isTRUE(lambda == 0)) "Disabled" else
       sprintf("%s (lambda %s)", .report_value(cfg$reg_type), .report_value(lambda)),

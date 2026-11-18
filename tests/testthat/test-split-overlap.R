@@ -28,3 +28,13 @@ test_that("prepared regression data retains overlap and Shiny shows actionable s
     expect_match(as.character(h$wb_overlap_ui(NULL)), "Check unavailable", fixed = TRUE)
   }
 })
+
+test_that("the overlap display handles an engine namespace missing its helpers", {
+  skip_if_not_installed("shiny")
+  h <- new.env(parent = globalenv())
+  sys.source(system.file("shiny", "benchmark", "workbench_helpers.R", package = "DDESONN"), h)
+  h$asNamespace <- function(...) new.env(parent = emptyenv())
+  expect_match(as.character(h$wb_overlap_ui(NULL)), "Check unavailable. Restart R", fixed = TRUE)
+  expect_error(h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass"),
+    "load the matching DDESONN package", fixed = TRUE)
+})

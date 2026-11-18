@@ -133,6 +133,9 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
       train_fraction < .1 || validation_fraction < .05 ||
       train_fraction + validation_fraction > .95) stop("Leave at least 5% for testing and validation.")
   if (!split %in% c("random", "ordered")) stop("Choose random or ordered splitting.")
+  check_overlap <- get0(".split_overlap", envir = asNamespace("DDESONN"), inherits = FALSE)
+  if (!is.function(check_overlap))
+    stop("Restart R and load the matching DDESONN package to prepare and check the splits.")
   split_audit <- NULL
   if (mode == "binary") {
     grouping <- x
@@ -183,8 +186,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
   x <- sweep(sweep(x, 2, center, "-"), 2, scale, "/")
-  overlap <- do.call(DDESONN:::.split_overlap,
-    lapply(ids, function(i) x[i, , drop = FALSE]))
+  overlap <- do.call(check_overlap, lapply(ids, function(i) x[i, , drop = FALSE]))
   if (mode == "binary") {
     # Keep the existing binary safeguards after imputation and encoding.
     if (any(overlap > 0L)) stop("Preprocessing created identical inputs across splits. ",
@@ -211,7 +213,8 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
 }
 
 wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
-                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation", average_gradients = FALSE) {
+                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation", average_gradients = FALSE,
+                      gradient_reduction = NULL) {
   h <- if (!nzchar(trimws(hidden))) integer() else suppressWarnings(as.numeric(strsplit(hidden, ",", fixed = TRUE)[[1]]))
   if (length(h) > 5 || any(!is.finite(h) | h < 1 | h > 512 | h %% 1 != 0))
     stop("Use up to five hidden layers, each 1–512 units, separated by commas; leave blank for a single-layer model.")
@@ -225,9 +228,13 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   checkpoint <- match.arg(checkpoint, c("best_validation", "final"))
   if (!is.logical(average_gradients) || length(average_gradients) != 1L || is.na(average_gradients))
     stop("Average gradients must be TRUE or FALSE.")
+  reduction <- if (is.null(gradient_reduction)) {
+    if (average_gradients) "mean" else "sum"
+  } else match.arg(gradient_reduction, c("sum", "mean", "legacy_mixed", "mean_weights"))
   list(hidden = as.integer(h), epochs = as.integer(epochs), lr = lr,
     optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org, checkpoint = checkpoint,
-    average_gradients = average_gradients, gradient_reduction = if (average_gradients) "mean" else "sum")
+    average_gradients = if (reduction %in% c("sum", "mean")) reduction == "mean",
+    gradient_reduction = reduction)
 }
 
 wb_predictions <- function(model, prepared, part) {
@@ -277,7 +284,16 @@ wb_gradient_mode <- function(config) {
     return(if (config$average_gradients) "mean" else "sum")
   }
   mode <- if (is.null(config$gradient_reduction)) "legacy_mixed" else config$gradient_reduction
-  match.arg(mode, c("sum", "mean", "legacy_mixed"))
+  match.arg(mode, c("sum", "mean", "legacy_mixed", "mean_weights"))
+}
+
+wb_gradient_selection <- function(weights, biases) {
+  if (is.null(weights)) weights <- "sum"
+  if (is.null(biases)) biases <- "sum"
+  weights <- match.arg(weights, c("sum", "mean"))
+  biases <- match.arg(biases, c("sum", "mean"))
+  if (weights == biases) return(weights)
+  if (weights == "sum") "legacy_mixed" else "mean_weights"
 }
 
 wb_run <- function(prepared, config, previous = NULL) {
@@ -351,7 +367,7 @@ wb_checkpoint <- function(bundle) {
 
 wb_checkpoint_summary <- function(bundle) {
   if (is.null(bundle)) return("No completed checkpoint yet.")
-  reduction_label <- switch(wb_gradient_mode(bundle$config), sum = "summed gradients", mean = "averaged gradients", legacy_mixed = "historical summed weights / averaged biases")
+  reduction_label <- DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(bundle$config))
   if (identical(bundle$config$workflow, "custom")) return(paste(
     if (identical(bundle$config$checkpoint, "best_validation")) "Each member uses its own best validation checkpoint (weights and biases)." else "Each member uses the final epoch.",
     paste0("All requested epochs ran; results combine members within seeds, then across seeds. ", reduction_label, ".")))
@@ -563,9 +579,9 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
   }
   best <- identical(cfg$checkpoint, "best_validation")
   reduction <- wb_gradient_mode(cfg)
-  gradient_argument <- if (reduction == "legacy_mixed")
-    'gradient_reduction = "legacy_mixed"' else
-    paste0("average_gradients = ", wb_literal(reduction == "mean"))
+  gradient_argument <- if (reduction %in% c("sum", "mean"))
+    paste0("average_gradients = ", wb_literal(reduction == "mean")) else
+    paste0("gradient_reduction = ", wb_literal(reduction))
   start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
     "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = ncol(parts$train$x), output_size = ",
@@ -1054,7 +1070,7 @@ wb_legacy_report_stage <- function(bundle) {
       `Minimum learning rate` = cfg$minimum, Dropout = cfg$dropout,
       Regularization = cfg$reg, `Regularization strength` = cfg$lambda,
       `Self-organization applied` = bundle$self_org_applied,
-      `Gradient reduction` = cfg$gradient_reduction)))
+      `Gradient reduction` = DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(cfg)))))
 }
 
 wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode) {
@@ -1092,10 +1108,17 @@ wb_recorded_overlap <- function(prepared) {
 }
 
 wb_overlap_ui <- function(overlap) {
-  status <- DDESONN:::.overlap_status(overlap)
+  ns <- asNamespace("DDESONN")
+  status_for <- get0(".overlap_status", envir = ns, inherits = FALSE)
+  describe <- get0(".overlap_text", envir = ns, inherits = FALSE)
+  if (!is.function(status_for) || !is.function(describe)) {
+    return(shiny::p(class = "text-muted", shiny::strong("Split overlap: "),
+      "Check unavailable. Restart R and load the matching DDESONN package."))
+  }
+  status <- status_for(overlap)
   tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
   shiny::tagList(
-    shiny::p(class = tone, shiny::strong("Split overlap: "), DDESONN:::.overlap_text(overlap)),
+    shiny::p(class = tone, shiny::strong("Split overlap: "), describe(overlap)),
     if (identical(status, "detected")) shiny::p(
       "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs.")
   )

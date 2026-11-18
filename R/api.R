@@ -421,6 +421,8 @@ ddesonn_model <- function(input_size,
 #'   topology error (how well neighborhood structure is organized), not on the
 #'   supervised prediction-loss term.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
+#'   Set `gradient_reduction` to `"legacy_mixed"` to sum weight gradients
+#'   and average bias gradients, or `"mean_weights"` for the reverse.
 #'   Also accepts `trace_epochs` for per-method epoch markers. See [ddesonn_run()].
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
@@ -616,7 +618,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
-  cfg$average_gradients <- if (reduction == "legacy_mixed") NULL else reduction == "mean"
+  cfg$average_gradients <- if (reduction %in% c("sum", "mean")) reduction == "mean"
   if (identical(cfg$optimizer, "adagrad_x")) {
     stop('Optimizer adagrad_x has been removed. Use optimizer = "adagrad" with a new model; legacy optimizer state is incompatible.', call. = FALSE)
   }
@@ -3745,6 +3747,9 @@ ddesonn_run <- function(x,
   # ============================================================
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
+  if (!is.null(training_overrides$gradient_reduction) &&
+      !"average_gradients" %in% names(training_overrides))
+    base_train_overrides$average_gradients <- NULL
   if (is.null(base_train_overrides$verbose)) base_train_overrides$verbose <- verbose  
   if (is.null(base_train_overrides$verboseLow)) base_train_overrides$verboseLow <- verboseLow  
   if (is.null(base_train_overrides$debug)) base_train_overrides$debug <- debug  

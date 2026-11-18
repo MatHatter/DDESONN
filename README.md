@@ -90,6 +90,12 @@ Models and workbench bundles retain their selected mode. With no fit-time overri
 historical summed-weight/averaged-bias mode for continuation. To reproduce that
 mixed reduction explicitly with a current model, use the compatibility override
 `gradient_reduction = "legacy_mixed"`; a single Boolean cannot express that mode.
+
+In Shiny, choose **Sum** or **Average** separately for weight and bias gradients.
+R callers can pass `gradient_reduction = "mean_weights"` to average weights
+and sum biases, or `gradient_reduction = "legacy_mixed"` to sum weights and
+average biases. In `ddesonn_run()`, pass it in `training_overrides`.
+
 Older serialized training methods may require a newly created model to switch
 modes. New generated recipes record the Boolean, or the explicit compatibility
 mode for an old bundle. Previously downloaded recipes need an explicit setting
