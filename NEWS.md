@@ -1,3 +1,11 @@
+# DDESONN 7.4.13
+
+- Print a run report before evaluation metrics in `ddesonn_run()`, with actual
+  split sizes, model counts, fit outcomes and effective configuration.
+- Show the selected snapshot's run details and a text report download in Shiny
+  Recent runs. Preserve the settings and completed epochs of continued fits,
+  and show unavailable fields explicitly for older bundles.
+
 # DDESONN 7.4.12
 
 - Add a vignette for the clean matched 100-seed DDESONN and Keras benchmark.

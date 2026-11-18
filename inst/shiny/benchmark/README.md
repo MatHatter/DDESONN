@@ -49,6 +49,11 @@ Duplicate uploaded-model entries refresh one item; separately completed CSV runs
 are separate records. Failed or cancelled attempts remain in training history,
 not in this successful-run archive.
 
+Select an item to see **Run details**. Expand **Effective configuration and
+training stages** for the recorded settings and per-model outcomes, or choose
+**Download run report** to save the full report as text. A continued run keeps
+its earlier recorded stages. Older model files show which details are unavailable.
+
 | Action | What changes | What remains unchanged |
 |---|---|---|
 | Clear saved-model workspace | Open saved models/selection, CSV, scores/history displays, results, file pickers, saved-workspace errors and purpose choice reset | Recent runs, all training data/settings/models/attempts, files on disk |

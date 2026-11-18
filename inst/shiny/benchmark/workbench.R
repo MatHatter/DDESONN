@@ -156,7 +156,8 @@ wb_ui <- function() {
       shiny::actionButton("wb_recent_remove", "Remove selected history item", disabled = "disabled"),
       shiny::actionButton("wb_recent_clear", "Clear recent history", disabled = "disabled"),
       shiny::div(`aria-live` = "polite", shiny::textOutput("wb_recent_notice")),
-      shiny::div(class = "error", role = "alert", shiny::textOutput("wb_recent_error"))))
+      shiny::div(class = "error", role = "alert", shiny::textOutput("wb_recent_error")),
+      shiny::uiOutput("wb_recent_details")))
   models <- shiny::tabPanel("Saved model → evaluate or predict", value = "saved",
     shiny::div(class = "panel-body-custom",
       shiny::h3("1. Choose a model"),
@@ -780,6 +781,31 @@ wb_server <- function(input, output, session, helper) {
           shiny::tags$span(class = "wb-run-summary", paste(record$id, if (is.null(record$bundle$model_origin)) "Saved model" else record$bundle$model_origin, detail, sep = " · ")))
       })))
   })
+  selected_run_report <- shiny::reactive({
+    record <- selected_recent()
+    if (is.null(record)) return(NULL)
+    wb_run_report(record$bundle, record)
+  })
+  output$wb_recent_details <- shiny::renderUI({
+    report <- selected_run_report()
+    if (is.null(report)) return(NULL)
+    shiny::tagList(shiny::h4("Run details"),
+      shiny::tags$pre(style = "white-space: pre-wrap;", paste(report$overview, collapse = "\n")),
+      shiny::tags$details(shiny::tags$summary("Effective configuration and training stages"),
+        shiny::tags$pre(style = "white-space: pre-wrap;", paste(report$details, collapse = "\n"))),
+      shiny::downloadButton("wb_recent_report", "Download run report"))
+  })
+  output$wb_recent_report <- shiny::downloadHandler(
+    filename = function() {
+      record <- selected_recent()
+      shiny::req(record)
+      paste0("ddesonn-", record$id, "-report.txt")
+    },
+    content = function(file) {
+      report <- selected_run_report()
+      shiny::req(report)
+      writeLines(enc2utf8(DDESONN:::.report_text(report)), file, useBytes = TRUE)
+    })
   shiny::observeEvent(input$wb_recent_remove, attempt({
     record <- selected_recent(); if (is.null(record)) stop("Select a recent item first.")
     records <- recent_runs(); records[[record$id]] <- NULL; recent_runs(records)
@@ -939,7 +965,8 @@ wb_server <- function(input, output, session, helper) {
     busy(); candidate <- read_csv(input$wb_data)
     if (nrow(candidate) < 10 || anyDuplicated(names(candidate))) stop("Use at least 10 rows and unique column names.")
     pp_overrides(list()); dataset_preset(NULL); raw(candidate); data_revision(data_revision() + 1L); prepared(NULL)
-    data_origin(list(file = basename(input$wb_data$name)))
+    data_origin(list(file = basename(input$wb_data$name),
+      sha256 = digest::digest(file = input$wb_data$datapath, algo = "sha256")))
     data_source(paste("Uploaded:", basename(input$wb_data$name)))
   }))
   example_id <- shiny::reactive(if (is.null(input$wb_example)) "iris" else input$wb_example)

@@ -278,6 +278,7 @@ wb_gradient_mode <- function(config) {
 }
 
 wb_run <- function(prepared, config, previous = NULL) {
+  started <- proc.time()[["elapsed"]]
   config$gradient_reduction <- wb_gradient_mode(config)
   if (identical(config$workflow, "custom")) return(wb_custom_run(prepared, config, previous))
   # callr isolates RNG, package globals, graphics and all mutable model state.
@@ -322,6 +323,10 @@ wb_run <- function(prepared, config, previous = NULL) {
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = model, prepared = prepared, config = config, self_org_applied = self_org_applied,
     evaluation = evaluation, selected_epoch = as.integer(selected_epoch),
+    report_r_version = as.character(getRversion()),
+    report_stages = wb_record_report_stage(previous, config, list(DDESONN:::.report_model_fit(
+      model, paste("Seed", prepared$seed), wb_report_checkpoint(config$checkpoint))),
+      proc.time()[["elapsed"]] - started, 1L, prepared$mode),
     recipe = if (!is.null(previous$recipe)) paste(previous$recipe,
       "\n# Additional fit from the previously selected weights\n", wb_fit_code(prepared, config, FALSE),
       wb_evaluation_code(prepared, "test"), sep = "\n") else if (!is.null(previous))
@@ -908,6 +913,7 @@ wb_custom_predictions <- function(model, prepared, part) {
 }
 
 wb_custom_run <- function(prepared, config, previous = NULL) {
+  started <- proc.time()[["elapsed"]]
   if (prepared$mode == "regression" && config$fusion %in% c("majority", "proportion"))
     stop("Voting applies only to classification.")
   if (prepared$mode != "binary" && config$fusion == "proportion")
@@ -935,10 +941,15 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
       num_temp_iterations = config$temp, validation = va,
       model_overrides = list(ML_NN = length(config$hidden) > 0, lambda = config$lambda,
         activation_functions = acts, activation_functions_predict = acts, init_method = config$init),
-      training_overrides = train, save_models = FALSE, verboseLow = TRUE,
+      training_overrides = train, save_models = FALSE, verboseLow = TRUE, print_report = FALSE,
       verbose = config$diagnostics)
     models <- lapply(run$runs, function(r) r$main$model)
     orchestration <- lapply(run$runs, `[[`, "tables")
+    fits <- unlist(lapply(run$runs, `[[`, "report_fits"), recursive = FALSE)
+    for (i in seq_along(fits)) if (grepl("\u00b7 TEMP ", fits[[i]]$label, fixed = TRUE))
+      fits[[i]]$settings[["TEMP selection metric"]] <- run$configuration$temp_selection_metric
+    if (best) fits <- lapply(fits, DDESONN:::.report_fit_checkpoint,
+      checkpoint = wb_report_checkpoint(config$checkpoint))
   } else {
     payload <- attr(previous$model, "workbench_custom")
     if (is.null(payload)) stop("This saved model has no Custom training state.")
@@ -950,6 +961,9 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
       do.call(DDESONN::ddesonn_fit, c(list(model = models[[i]], x = tr$x, y = tr$y, validation = va), train))
     }
     orchestration <- previous$orchestration
+    fits <- lapply(seq_along(models), function(i)
+      DDESONN:::.report_model_fit(models[[i]], paste("Seed", config$seeds[i]),
+        wb_report_checkpoint(config$checkpoint)))
   }
   # Every member has its own best tensors; never reuse the last member's tensors.
   if (best) for (model in models) for (network in model$ensemble) {
@@ -983,10 +997,131 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     self_org_applied = is.null(previous) && config$self_org,
     selected_epoch = if (best) NA_integer_ else config$epochs,
     seed_comparison = do.call(rbind, per_seed), member_weights = weights, orchestration = orchestration,
+    report_r_version = as.character(getRversion()),
+    report_stages = wb_record_report_stage(previous, config, fits,
+      proc.time()[["elapsed"]] - started, vapply(models, function(model) length(model$ensemble), integer(1)),
+      prepared$mode),
     recipe = if (is.null(previous)) wb_recipe(prepared, config) else wb_resume_recipe(prepared, config), completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }
 
+
+wb_report_checkpoint <- function(checkpoint) {
+  if (is.null(checkpoint)) return(NULL)
+  switch(checkpoint, best_validation = "Best validation checkpoint", final = "Final epoch", NULL)
+}
+
+wb_report_stage_settings <- function(config) {
+  list(
+    Workflow = if (identical(config$workflow, "custom")) "Custom" else "Basic",
+    `Training seeds` = config$seeds,
+    `Member combination` = config$fusion,
+    `Seed combination` = config$seed_aggregate,
+    `TEMP iterations configured for new training` = config$temp
+  )
+}
+
+wb_legacy_report_stage <- function(bundle) {
+  cfg <- bundle$config
+  models <- attr(bundle$model, "workbench_custom")$models
+  if (is.null(models)) models <- list(bundle$model)
+  counts <- vapply(models, function(model) length(model$ensemble), integer(1))
+  list(title = "Last saved stage from an older bundle",
+    requested = cfg$epochs,
+    overview = DDESONN:::.report_field_lines(list(
+      `Seed runs` = length(models),
+      `Prediction models per seed` = DDESONN:::.report_epoch_range(counts))),
+    checkpoint = if (is.null(cfg$checkpoint)) NULL else wb_report_checkpoint(cfg$checkpoint),
+    settings = c(wb_report_stage_settings(cfg), list(
+      `Earlier stage settings` = "Unavailable in this saved bundle",
+      `Requested epochs per model` = cfg$epochs,
+      `Selected prediction epoch` = bundle$selected_epoch,
+      `Hidden layer widths` = if (identical(cfg$hidden, integer())) "No hidden layers" else cfg$hidden,
+      Activation = cfg$activation, Initialization = cfg$init,
+      Optimizer = cfg$optimizer, `Initial learning rate` = cfg$lr,
+      `Learning rate multiplier` = cfg$decay, `Learning rate interval` = cfg$interval,
+      `Minimum learning rate` = cfg$minimum, Dropout = cfg$dropout,
+      Regularization = cfg$reg, `Regularization strength` = cfg$lambda,
+      `Self-organization applied` = bundle$self_org_applied,
+      `Gradient reduction` = cfg$gradient_reduction)))
+}
+
+wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode) {
+  old <- previous$report_stages
+  if (is.null(old) && !is.null(previous)) old <- list(wb_legacy_report_stage(previous))
+  fits <- Filter(Negate(is.null), fits)
+  completed <- vapply(unlist(lapply(fits, `[[`, "members"), recursive = FALSE),
+    `[[`, integer(1), "completed")
+  epochs <- if (length(completed) && length(unique(completed)) == 1L) completed[1L] else NA_integer_
+  previous_epochs <- if (!length(old)) 0L else {
+    last <- old[[length(old)]]$cumulative
+    if (is.null(last)) NA_integer_ else last
+  }
+  temp <- fits[grepl("\u00b7 TEMP ", vapply(fits, `[[`, character(1), "label"), fixed = TRUE)]
+  stage <- list(fits = fits, elapsed = elapsed, cumulative = previous_epochs + epochs,
+    checkpoint = if (length(fits)) wb_report_checkpoint(config$checkpoint),
+    r_version = as.character(getRversion()),
+    package_version = as.character(utils::packageVersion("DDESONN")),
+    overview = DDESONN:::.report_field_lines(list(
+      `Seed runs` = length(retained),
+      `Prediction models per seed` = DDESONN:::.report_epoch_range(retained),
+      `TEMP models trained in this stage` = sum(vapply(temp, function(fit) length(fit$members), integer(1))))),
+    settings = c(wb_report_stage_settings(config), list(
+      `Checkpoint selection criterion` = if (identical(config$checkpoint, "best_validation")) {
+        if (identical(mode, "regression")) "Lowest validation loss" else "Highest validation accuracy"
+      } else "Final epoch",
+      `RNG kind` = RNGkind(),
+      `Epochs added per model` = if (length(old)) epochs else "Initial training",
+      `Cumulative epochs per model` = previous_epochs + epochs)))
+  c(old, list(stage))
+}
+
+wb_run_report <- function(bundle, record = NULL) {
+  p <- bundle$prepared
+  cfg <- bundle$config
+  source <- p$source
+  dataset <- c(source$example, source$package_file, source$file)[1L]
+  if (!is.null(source$package_file)) {
+    matches <- Filter(function(entry) identical(entry$file, source$package_file), wb_example_catalog())
+    if (length(matches)) dataset <- sub(" \u2014 .*", "", matches[[1L]]$label)
+  }
+  stages <- if (is.null(bundle$report_stages)) list(wb_legacy_report_stage(bundle)) else bundle$report_stages
+  splits <- c(Training = "train", Validation = "validation", Test = "test")
+  counts <- vapply(splits, function(part) if (is.null(p$parts[[part]]$x)) NA_integer_ else
+    nrow(p$parts[[part]]$x), integer(1))
+  excluded <- if (length(p$rows) == 1L && !anyNA(counts) && p$rows > sum(counts))
+    sprintf("Excluded rows: %s | Reason unavailable in the saved preparation", p$rows - sum(counts))
+  prep <- list(
+    `Data split` = if (identical(p$split_audit$method, "grouped_predictors"))
+      "Random, grouped by identical predictors" else p$split,
+    `Split seed` = p$seed, `Standardize from training data` = p$standardize,
+    Target = p$target, Predictors = p$features, `Encoded inputs` = p$encoded_features,
+    `Class order` = p$classes)
+  if (is.null(p$preprocessing)) {
+    prep[["Categorical encoding and imputation"]] <- "No fitted encoding or imputation recorded"
+  } else {
+    specs <- wb_pp_summary(p$preprocessing)
+    for (i in seq_len(NROW(specs))) {
+      spec <- specs[i, ]
+      prep[[paste("Preprocessing for", spec$Column)]] <- paste(
+        spec$Encoding, spec$Missing, spec$Replacement,
+        paste("Encoded columns:", spec$Output_inputs), sep = " | ")
+    }
+  }
+  scenario <- if (identical(cfg$workflow, "custom"))
+    DDESONN:::.report_scenario(cfg$structure %in% c("main", "temp"), cfg$members, cfg$temp) else
+      DDESONN:::.report_scenario(FALSE, 1L, 0L)
+  provenance <- list(
+    `DDESONN version` = bundle$package_version,
+    `R version during training` = bundle$report_r_version,
+    `Completed (UTC)` = bundle$completed,
+    Model = bundle$model_name, `Model origin` = bundle$model_origin,
+    `Data SHA-256` = source$sha256, `Saved model SHA-256` = bundle$upload_sha256,
+    `Report item` = record$kind, `Scored CSV` = DDESONN:::.report_dataset(record$run$source),
+    `Scored CSV rows` = if (!is.null(record$run$data)) nrow(record$run$data))
+  DDESONN:::.report_format(p$mode, scenario, DDESONN:::.report_dataset(dataset), counts, stages,
+    provenance[!vapply(provenance, is.null, logical(1))], prep, excluded)
+}
 
 wb_fusion_choices <- function(mode) {
   if (identical(mode, "regression")) return(c("Average predictions" = "mean",

@@ -41,7 +41,9 @@ ddesonn_run(
   sequence_length = 48L,
   ssm_state_dim = 16L,
   ssm_conv = 4L,
-  prediction_sequence_data = NULL
+  prediction_sequence_data = NULL,
+  dataset_name = NULL,
+  print_report = TRUE
 )
 }
 \arguments{
@@ -145,6 +147,12 @@ or \code{"ssm"}.}
 
 \item{prediction_sequence_data}{Sequence array aligned to matrix-form
 \code{prediction_data}. Alternatively, supply both in a \code{prediction_data} list.}
+
+\item{dataset_name}{Optional built-in dataset name or input filename for the
+run report. Directory components are removed.}
+
+\item{print_report}{Logical. Print the run report before the final evaluation
+output. The returned result includes the report regardless of this setting.}
 }
 \value{
 Same as \code{\link[=ddesonn_run]{ddesonn_run()}}.
