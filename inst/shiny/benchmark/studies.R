@@ -74,7 +74,7 @@ clean_study_ui <- function() shiny::tagList(
         shiny::downloadButton("study_ddesonn_mean", "DDESONN mean.R"),
         shiny::downloadButton("study_keras_sum", "Keras sum.R")),
       shiny::h4("Proposed research: separate weight and bias reductions"),
-      shiny::p("We welcome experiments that sum weight gradients and average bias gradients, or reverse those choices, for either model. These mixed settings were not tested here. The current TRUE/FALSE control applies one reduction to all parameters; mixed settings require a separate implementation and protocol, including how batch-normalization parameters and regularization are treated."),
+      shiny::p("We welcome a follow-up with four new conditions. In both DDESONN and Keras, run (1) summed weight gradients with averaged bias gradients and (2) averaged weight gradients with summed bias gradients. Compare DDESONN with Keras within each mixed setting using matched seeds and the same split. The completed benchmark uses uniform reductions. The current TRUE/FALSE control applies one reduction to all parameters. This follow-up requires changes to both training loops and a protocol for batch normalization and regularization."),
       shiny::p("Illustrative custom-loop gradients below start with a SUM of per-example data losses. Add the dense-kernel L1 gradient once afterwards; do not divide it by batch size. These snippets are proposed modifications, not executable settings in the current trainer."),
       shiny::h5("R / native adapter proposal: reverse weight and bias choices"),
       shiny::tags$pre("# grad_W_sum and grad_b_sum: gradients of summed data loss
