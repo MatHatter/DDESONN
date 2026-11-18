@@ -1,3 +1,13 @@
+# DDESONN 7.4.9
+
+- Consolidate the five SSM encoder helpers on one roxygen-generated help page.
+  Regenerating documentation removes obsolete individual pages, preventing
+  duplicate Rd names and aliases. Encoder calculations are unchanged.
+
+- Retain the latest evaluated-CSV spacing refinement: the download button and
+  information icon sit closer to the preview while its text stays aligned
+  with the right-hand evaluate/predict button.
+
 # DDESONN 7.4.8
 
 - Make the optional Shiny GUI easy to discover: add launch instructions and a
