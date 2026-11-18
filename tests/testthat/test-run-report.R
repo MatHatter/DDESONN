@@ -1,4 +1,4 @@
-test_that("the console prints one report before the evaluation sections", {
+test_that("the console defaults to evaluation tables and preserves the full report", {
   x <- as.matrix(mtcars[1:20, c("disp", "hp")]) / 500
   y <- matrix(mtcars$am[1:20], ncol = 1)
   out <- capture.output(run <- ddesonn_run(x[1:12, ], y[1:12, , drop = FALSE],
@@ -9,8 +9,24 @@ test_that("the console prints one report before the evaluation sections", {
     validation = list(x = x[13:16, ], y = y[13:16, , drop = FALSE]),
     test = list(x = x[17:20, ], y = y[17:20, , drop = FALSE]), save_models = FALSE))
   report <- run$run_report
-  expect_length(which(out == "DDESONN run report"), 1L)
-  expect_lt(match("Effective configuration", out), grep("TRAIN|Classification Report", out)[1])
+  expect_false(any(grepl("DDESONN run (report|summary)|Effective configuration", out)))
+  expect_true(all(c("===== TRAIN =====", "===== VALIDATION =====", "===== TEST =====") %in% out))
+  render <- DDESONN:::.report_console_text
+  medium <- render(report, FALSE, TRUE)
+  expect_true(all(c("===== DDESONN run summary =====", "Epochs completed / requested per model: 1 / 1",
+    "Training: 12 | 60%") %in% medium))
+  expect_false(any(grepl("Effective configuration", medium)))
+  expect_true(any(startsWith(medium, "Split overlap:")))
+  expect_identical(render(report, TRUE, TRUE), DDESONN:::.report_text(report))
+  full <- render(report, TRUE, FALSE)
+  expect_identical(full, DDESONN:::.report_text(report))
+  sections <- match(paste("=====", c("DDESONN run report", "Data splits", "Training and checkpoint",
+    "Provenance", "Effective configuration", "Training stage 1 (initial)", "Per-model outcomes"),
+    "====="), full)
+  expect_false(anyNA(sections))
+  expect_true(all(diff(sections) > 0))
+  expect_lt(tail(sections, 1), grep("^  Model 1:", full)[1])
+  expect_length(render(report, FALSE, FALSE), 0L)
   expect_true(all(c("Scenario: A | Single model", "Task: Binary classification",
     "Dataset: cars.csv", "Training: 12 | 60%", "Validation: 4 | 20%", "Test: 4 | 20%",
     "Prediction checkpoint: Final epoch") %in% report$overview))
@@ -43,7 +59,7 @@ test_that("TEMP reports keep MAIN and TEMP counts and effective settings distinc
       numeric_columns = integer(), validation_metrics = TRUE),
     temp_overrides = list(num_epochs = 2L, lr = .04, batch_normalize_data = FALSE,
       numeric_columns = integer(), validation_metrics = TRUE),
-    validation = list(x = x[va, ], y = y[va]), save_models = FALSE, print_report = FALSE)
+    validation = list(x = x[va, ], y = y[va]), save_models = FALSE)
   expect_true(all(c("Scenario: D | Main ensemble with TEMP models",
     "Prediction models per seed: 2", "TEMP models trained: 2",
     "Epochs completed / requested per model (latest stage): 1\u20132 / 1\u20132") %in% run$run_report$overview))
@@ -87,6 +103,8 @@ test_that("recent details and downloads follow the recorded run and preserve sta
     expect_true(all(c("Initial learning rate: 0.01", "Initial learning rate: 0.02") %in% expected$details))
     expect_false("Initial learning rate: 0.9" %in% expected$details)
     expect_match(output$wb_recent_details$html, "Download run report")
+    expect_match(output$wb_recent_details$html, "Exact predictor overlap", ignore.case = TRUE)
+    expect_identical(expected$overlap, initial$prepared$overlap)
     expect_identical(enc2utf8(readLines(output$wb_recent_report, encoding = "UTF-8")),
       enc2utf8(DDESONN:::.report_text(expected)))
     session$setInputs(wb_recent_id = "recent-1")

@@ -3397,10 +3397,11 @@ ddesonn_predict <- function(model, new_data,
 #'
 #' @param dataset_name Optional built-in dataset name or input filename for the
 #'   run report. Directory components are removed.
-#' @param print_report Logical. Print the run report before the final evaluation
-#'   output. The returned result includes the report regardless of this setting.
-#'
 #' @details
+#' The default console output includes the usual evaluation output. Set
+#' `verboseLow = TRUE` to add a compact run summary or `verbose = TRUE` for
+#' the full report. The returned run always includes the full report.
+#'
 #' **Discovering available training overrides**
 #'
 #' `training_overrides` is a direct pass-through to [ddesonn_fit()]. To see the
@@ -3628,8 +3629,7 @@ ddesonn_run <- function(x,
                         # [SSM] BEGIN: run-level sequence bridge arguments.
                         sequence_encoder = "none", sequence_data = NULL,
                         sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
-                        prediction_sequence_data = NULL, dataset_name = NULL,
-                        print_report = TRUE) {
+                        prediction_sequence_data = NULL, dataset_name = NULL) {
   run_started <- proc.time()[["elapsed"]]
   # [SSM] END: run-level sequence bridge arguments.
   classification_mode <- match.arg(classification_mode)
@@ -4709,11 +4709,13 @@ ddesonn_run <- function(x,
       `Seed aggregation` = seed_aggregate, `Prediction type` = prediction_type,
       `TEMP iterations per seed` = if (isTRUE(do_ensemble)) num_temp_iterations else 0L,
       `TEMP selection metric` = if (length(temp_fits)) target_metric else "Disabled"))
+  overlap <- .split_overlap(x_matrix, validation_data$x %||% base_train_overrides$X_validation,
+    test_matrix)
   result$run_report <- .report_format(classification_mode, scenario, .report_dataset(dataset_name),
     counts, list(stage), list(`DDESONN version` = as.character(utils::packageVersion("DDESONN")),
       `R version` = as.character(getRversion()), `RNG kind` = RNGkind()),
     preprocessing = list(`Data split` = "Supplied by caller", Predictors = colnames(x_matrix),
-      Targets = colnames(y_matrix)))
+      Targets = colnames(y_matrix)), overlap = overlap)
 
   class(result) <- unique(c("ddesonn_run_result", class(result)))
   
@@ -4766,10 +4768,8 @@ ddesonn_run <- function(x,
       )                                                                                       
     }
   }
-  if (isTRUE(print_report)) {
-    cat(.report_text(result$run_report), sep = "\n")
-    cat("\n")
-  }
+  report_lines <- .report_console_text(result$run_report, verbose, verboseLow)
+  if (length(report_lines)) cat(c(report_lines, ""), sep = "\n")
   if (!is.null(final_training)) {
     .emit_final_run_summary(
       pred_summary_final = final_training$predicted_outputAndTime,

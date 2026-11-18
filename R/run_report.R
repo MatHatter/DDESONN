@@ -123,8 +123,10 @@
     sprintf("%.7g at epoch %s", member$best_loss, member$best_epoch) else NA_character_
 }
 
+.report_heading <- function(title) paste("=====", title, "=====")
+
 .report_format <- function(mode, scenario, dataset, counts, stages, provenance,
-                           preprocessing = list(), excluded = NULL) {
+                           preprocessing = list(), excluded = NULL, overlap = NULL) {
   task <- switch(mode %||% "", binary = "Binary classification",
     multiclass = "Multiclass classification", regression = "Regression", "Unavailable")
   latest <- if (length(stages)) stages[[length(stages)]] else list()
@@ -148,23 +150,28 @@
     "See per-model results in the training stages"
   cumulative <- latest$cumulative
   if (is.null(cumulative) && length(stages) == 1L) cumulative <- .report_epoch_range(completed)
-  overview <- c(.report_field_lines(list(Scenario = scenario, Task = task, Dataset = dataset)),
-    split, excluded, latest$overview,
+  epoch_pair <- paste(.report_epoch_range(completed), "/", .report_epoch_range(requested))
+  checkpoint <- latest$checkpoint %||% unique(vapply(fits, `[[`, character(1), "checkpoint"))
+  overlap_line <- paste("Split overlap:", .overlap_text(overlap))
+  identity <- .report_field_lines(list(Scenario = scenario, Task = task, Dataset = dataset))
+  overview <- c(identity, "", .report_heading("Data splits"), split, excluded, overlap_line,
+    "", .report_heading("Training and checkpoint"), latest$overview,
     .report_field_lines(list(
-      `Epochs completed / requested per model (latest stage)` =
-        paste(.report_epoch_range(completed), "/", .report_epoch_range(requested)),
+      `Epochs completed / requested per model (latest stage)` = epoch_pair,
       `Cumulative epochs per model across recorded stages` = cumulative,
       `Elapsed time (latest stage)` = if (length(seconds) && is.finite(seconds)) sprintf("%.2f s", seconds),
       `Stopping reason` = stopping,
       `Best validation loss` = best_summary,
-      `Prediction checkpoint` = latest$checkpoint %||% unique(vapply(fits, `[[`, character(1), "checkpoint")))),
-    .report_field_lines(provenance))
+      `Prediction checkpoint` = checkpoint)),
+    if (length(provenance)) c("", .report_heading("Provenance"), .report_field_lines(provenance)))
 
-  details <- c("Effective configuration", .report_field_lines(preprocessing))
+  details <- c(.report_heading("Effective configuration"),
+    .report_field_lines(preprocessing))
   for (i in seq_along(stages)) {
     stage <- stages[[i]]
-    details <- c(details, "", if (!is.null(stage$title)) stage$title else
-      paste("Training stage", i, if (i == 1L) "(initial)" else "(continued)"),
+    stage_title <- stage$title %||%
+      paste("Training stage", i, if (i == 1L) "(initial)" else "(continued)")
+    details <- c(details, "", .report_heading(stage_title),
       .report_field_lines(c(list(`Elapsed time` = if (length(stage$elapsed)) sprintf("%.2f s", stage$elapsed),
         `DDESONN version` = stage$package_version, `R version` = stage$r_version), stage$settings)))
     settings <- lapply(stage$fits, `[[`, "settings")
@@ -174,6 +181,7 @@
       labels <- vapply(stage$fits[same], `[[`, character(1), "label")
       details <- c(details, paste(labels, collapse = ", "), .report_field_lines(group))
     }
+    if (length(stage$fits)) details <- c(details, "", .report_heading("Per-model outcomes"))
     for (fit in stage$fits) {
       details <- c(details, sprintf("%s \u2014 %s (fit time %.2f s)", fit$label, fit$checkpoint, fit$elapsed))
       for (j in seq_along(fit$members)) {
@@ -184,7 +192,16 @@
       }
     }
   }
-  list(overview = overview, details = details)
+  compact <- c(identity, split, excluded, .report_field_lines(list(
+    `Epochs completed / requested per model` = epoch_pair, `Prediction checkpoint` = checkpoint)),
+    overlap_line)
+  list(overview = overview, details = details, compact = compact, overlap = overlap)
 }
 
-.report_text <- function(report) c("DDESONN run report", report$overview, "", report$details)
+.report_text <- function(report) c(.report_heading("DDESONN run report"), report$overview, "", report$details)
+
+.report_console_text <- function(report, verbose, verbose_low) {
+  if (isTRUE(verbose)) return(.report_text(report))
+  if (isTRUE(verbose_low)) return(c(.report_heading("DDESONN run summary"), report$compact))
+  character()
+}

@@ -87,6 +87,12 @@ clinical cases, and seed SD is not a patient-population confidence interval.
 The split fix and matched rerun are **future work for a separate PR/task**.
 This iteration deliberately retains the historical split.
 
+Shiny's **Split overlap** monitor flags exact matches between prepared
+predictors in training, validation and test data. The historical
+training–test overlap is the kind of overlap the monitor is designed to flag.
+To evaluate on unseen inputs, keep identical predictors in the same split and
+group related records by subject when applicable.
+
 ## Full record and reproducibility
 
 [Read the full report, per-seed CSVs, graphs and evidence](https://github.com/MatHatter/DDESONN/tree/main/dev/research/heart-failure-adagrad-new-seeds-1-1000).

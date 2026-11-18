@@ -23,6 +23,11 @@ Standardization was fitted on training data only. DDESONN used an
 experimental native float32 adapter for this matched protocol. The results
 apply to that adapter and this split.
 
+Shiny's **Split overlap** monitor checks prepared predictor rows across all
+three split pairs. The clean study's separate audit found zero exact matches
+in each pair. Keeping identical predictors together and using the same split
+for both frameworks made this an apples-to-apples comparison on this split.
+
 ## Held-out accuracy
 
 ```{r study-data, include=FALSE}

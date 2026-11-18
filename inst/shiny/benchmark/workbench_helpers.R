@@ -102,7 +102,9 @@ wb_binary_split <- function(x, y, seed, train_fraction, validation_fraction, spl
   overlaps <- c(train_validation = length(intersect(sets$train, sets$validation)),
     train_test = length(intersect(sets$train, sets$test)),
     validation_test = length(intersect(sets$validation, sets$test)))
-  if (any(overlaps)) stop("Repeated predictor inputs cross the ordered split. Use Random grouped splitting or supply a chronological split with no shared groups.")
+  if (any(overlaps)) stop("Repeated predictor inputs cross the ordered split. ",
+    DDESONN:::.overlap_text(overlaps),
+    ". Use Random grouped splitting or supply a chronological split with no shared groups.")
   list(ids = ids, audit = list(method = if (split == "random") "grouped_predictors" else "ordered_checked",
     unique_predictors = length(members), overlap_groups = overlaps,
     rows = vapply(ids, length, integer(1))))
@@ -181,14 +183,14 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
   x <- sweep(sweep(x, 2, center, "-"), 2, scale, "/")
+  overlap <- do.call(DDESONN:::.split_overlap,
+    lapply(ids, function(i) x[i, , drop = FALSE]))
   if (mode == "binary") {
-    # Filling/encoding may collapse different raw inputs. Fail closed if so.
-    signatures <- apply(x, 1, function(v) digest::digest(unname(v), algo = "sha256"))
-    sets <- lapply(ids, function(i) unique(signatures[i]))
-    if (length(intersect(sets$train, sets$validation)) ||
-        length(intersect(sets$train, sets$test)) || length(intersect(sets$validation, sets$test)))
-      stop("Preprocessing created identical inputs across splits. Choose different predictors or preprocessing, or prepare a grouped split externally.")
-    split_audit$transformed_overlap_groups <- c(train_validation = 0L, train_test = 0L, validation_test = 0L)
+    # Keep the existing binary safeguards after imputation and encoding.
+    if (any(overlap > 0L)) stop("Preprocessing created identical inputs across splits. ",
+      DDESONN:::.overlap_text(overlap),
+      ". Choose different predictors or preprocessing, or prepare a grouped split externally.")
+    split_audit$transformed_overlap_groups <- overlap
   }
   encode <- function(z) {
     if (mode == "regression") return(matrix(as.numeric(z), ncol = 1))
@@ -203,6 +205,7 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   list(parts = parts, features = features, target = target, mode = mode,
     classes = classes, center = center, scale = scale, seed = seed,
     preprocessing = fitted, encoded_features = colnames(x), split_audit = split_audit,
+    overlap = overlap,
     split = split, standardize = standardize, train_fraction = train_fraction,
     validation_fraction = validation_fraction, rows = nrow(data))
 }
@@ -941,7 +944,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
       num_temp_iterations = config$temp, validation = va,
       model_overrides = list(ML_NN = length(config$hidden) > 0, lambda = config$lambda,
         activation_functions = acts, activation_functions_predict = acts, init_method = config$init),
-      training_overrides = train, save_models = FALSE, verboseLow = TRUE, print_report = FALSE,
+      training_overrides = train, save_models = FALSE, verboseLow = TRUE,
       verbose = config$diagnostics)
     models <- lapply(run$runs, function(r) r$main$model)
     orchestration <- lapply(run$runs, `[[`, "tables")
@@ -1076,6 +1079,20 @@ wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mo
   c(old, list(stage))
 }
 
+wb_recorded_overlap <- function(prepared) {
+  if (!is.null(prepared$overlap)) prepared$overlap else prepared$split_audit$transformed_overlap_groups
+}
+
+wb_overlap_ui <- function(overlap) {
+  status <- DDESONN:::.overlap_status(overlap)
+  tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
+  shiny::tagList(
+    shiny::p(class = tone, shiny::strong("Split overlap: "), DDESONN:::.overlap_text(overlap)),
+    if (identical(status, "detected")) shiny::p(
+      "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs.")
+  )
+}
+
 wb_run_report <- function(bundle, record = NULL) {
   p <- bundle$prepared
   cfg <- bundle$config
@@ -1120,7 +1137,8 @@ wb_run_report <- function(bundle, record = NULL) {
     `Report item` = record$kind, `Scored CSV` = DDESONN:::.report_dataset(record$run$source),
     `Scored CSV rows` = if (!is.null(record$run$data)) nrow(record$run$data))
   DDESONN:::.report_format(p$mode, scenario, DDESONN:::.report_dataset(dataset), counts, stages,
-    provenance[!vapply(provenance, is.null, logical(1))], prep, excluded)
+    provenance[!vapply(provenance, is.null, logical(1))], prep, excluded,
+    overlap = wb_recorded_overlap(p))
 }
 
 wb_fusion_choices <- function(mode) {

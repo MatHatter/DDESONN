@@ -42,8 +42,7 @@ ddesonn_run(
   ssm_state_dim = 16L,
   ssm_conv = 4L,
   prediction_sequence_data = NULL,
-  dataset_name = NULL,
-  print_report = TRUE
+  dataset_name = NULL
 )
 }
 \arguments{
@@ -150,9 +149,6 @@ or \code{"ssm"}.}
 
 \item{dataset_name}{Optional built-in dataset name or input filename for the
 run report. Directory components are removed.}
-
-\item{print_report}{Logical. Print the run report before the final evaluation
-output. The returned result includes the report regardless of this setting.}
 }
 \value{
 Same as \code{\link[=ddesonn_run]{ddesonn_run()}}.
@@ -165,6 +161,10 @@ This helper re-creates the four orchestration modes that previously lived in
 \code{TestDDESONN.R}:
 }
 \details{
+The default console output includes the usual evaluation output. Set
+\code{verboseLow = TRUE} to add a compact run summary or \code{verbose = TRUE} for
+the full report. The returned run always includes the full report.
+
 \itemize{
 \item Scenario A – single model (\code{do_ensemble = FALSE}, \code{num_networks = 1}).
 \item Scenario B – single run with multiple members inside a single model

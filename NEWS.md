@@ -1,3 +1,11 @@
+# DDESONN 7.4.14
+
+- Keep the usual evaluation output by default. Use `verboseLow = TRUE` for
+  a compact run summary or `verbose = TRUE` for the full console report. These
+  flags replace the `print_report` argument introduced in 7.4.13.
+- Report exact predictor overlap across training, validation and test splits.
+  Show the result in Shiny after preparation and retain it in run reports.
+
 # DDESONN 7.4.13
 
 - Print a run report before evaluation metrics in `ddesonn_run()`, with actual
