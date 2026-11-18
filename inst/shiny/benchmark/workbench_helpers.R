@@ -548,6 +548,13 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
       "workbench <- new.env(parent = globalenv())",
       "sys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)",
       paste0("config <- ", wb_literal(cfg)),
+      paste(
+        "# Optional: uncomment one example to trace method begin/end markers in R.",
+        "# Track learning at epochs 1 through 3 and in-training predictions at epoch 2:",
+        "# config$trace_epochs <- list(all = FALSE, learn = 1:3, predict = 2L)",
+        "# Trace every method at every epoch except in-training predictions:",
+        "# config$trace_epochs <- list(all = TRUE, predict = FALSE)",
+        sep = "\n"),
       if (create) paste0("prepared <- ", wb_literal(metadata), "\nprepared$parts <- parts\nprepared$center <- center\nprepared$scale <- scale\n",
         if (!is.null(p$preprocessing)) "prepared$preprocessing <- preprocessing\nprepared$features <- preprocessing$features\nprepared$encoded_features <- colnames(parts$train$x)\n" else "",
         "bundle <- workbench$wb_run(prepared, config)") else

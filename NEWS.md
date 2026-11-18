@@ -1,3 +1,9 @@
+# DDESONN 7.5.1
+
+- Keep epoch trace settings in the Custom workflow's equivalent R code.
+  Remove the sliders and the UI's dependency on the trace method registry.
+- Add blank lines around the compact console report heading.
+
 # DDESONN 7.5.0
 
 - Add opt-in, per-method epoch selections for training trace markers.
