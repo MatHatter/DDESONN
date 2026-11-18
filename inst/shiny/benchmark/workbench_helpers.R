@@ -936,7 +936,8 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     dropout_rates = as.list(rep(config$dropout, max(1, length(config$hidden)))),
     numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
     validation_metrics = best, best_weights_on_latest_weights_off = best,
-    threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics)
+    threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics,
+    trace_epochs = config$trace_epochs)
   if (is.null(previous)) {
     run <- DDESONN::ddesonn_run(tr$x, tr$y, classification_mode = prepared$mode,
       hidden_sizes = config$hidden, seeds = config$seeds,

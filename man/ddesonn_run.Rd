@@ -127,11 +127,17 @@ defaults.}
 \item{save_models}{Logical; if \code{TRUE} (default) individual models are
 persisted when \code{output_root} is supplied.}
 
-\item{verbose}{Logical; emit detailed progress output when TRUE.}
+\item{verbose}{Logical. Print the full run report and detailed diagnostics.}
 
-\item{verboseLow}{Logical; emit important progress output when TRUE.}
+\item{verboseLow}{Logical. Print a compact run summary and important progress
+messages. Set this directly on \code{ddesonn_run()} to see the dataset, split
+sizes, epochs and overlap check before the evaluation tables.}
 
-\item{debug}{Logical; emit debug diagnostics when TRUE.}
+\item{debug}{Logical. Enable debug diagnostics.
+Does not set \code{verbose} or \code{verboseLow}. Use \code{verboseLow = TRUE} with debug
+to see MAIN and TEMP fit begin/end markers. Split prediction begin/end
+markers use \code{verbose = TRUE}; additional prediction-data traces also
+require \code{debug = TRUE}.}
 
 \item{sequence_encoder}{Optional sequence encoder, \code{"none"} (the default)
 or \code{"ssm"}.}
@@ -179,6 +185,51 @@ The function accepts a training set, optional validation data, and optional
 prediction features. It repeatedly instantiates \code{\link[=ddesonn_model]{ddesonn_model()}} objects,
 fits them with \code{\link[=ddesonn_fit]{ddesonn_fit()}}, and (when requested) calls
 \code{\link[=ddesonn_predict]{ddesonn_predict()}} to surface aggregated predictions.
+
+\strong{Tracing training methods from R}
+
+Top-level \code{verbose = TRUE} shows the full report and split prediction traces.
+Set \code{verbose = TRUE} inside \code{training_overrides} for finer-grained training
+traces. Add it to the same list as any other training overrides. Both
+settings can be used together.
+
+The two R6 classes are defined in \code{R/DDESONN.R}. \code{DDESONN$train()}
+coordinates the network members. \code{SONN$train_network()} runs one network's
+epoch loop and applies optimizer updates. \code{SONN$learn()} computes the
+forward and backward passes and returns gradients. \code{SONN$predict()}
+runs inference and can be called during training to compute metrics.
+
+\strong{Selecting epochs for method traces}
+
+\code{trace_epochs} selects begin/end markers for four R6 methods in
+\code{R/DDESONN.R}: \code{DDESONN$train()} during batch preparation, and
+\code{SONN$train_network()}, \code{SONN$learn()}, and \code{SONN$predict()} inside the
+training epoch loop.
+
+For example, set
+\code{training_overrides = list(trace_epochs = list(all = FALSE, train = 5:10, learn = 10:15))}.
+A positive whole-number vector selects epochs, \code{TRUE} selects all epochs,
+and \code{FALSE} suppresses that method's markers. Set \code{all = TRUE} or
+\code{all = FALSE} as the default for omitted methods. An explicit method
+selection overrides it. Without \code{all}, omitted methods follow the usual
+verbosity settings. Only begin/end markers are filtered. Other diagnostics
+and the training schedule stay the same.
+
+Without \code{trace_epochs}, no epoch filter is applied. The verbosity and debug
+settings do not activate it. Explicit selections work with \code{debug}, \code{verbose}, and
+\code{verboseLow} all off. Use \code{verbose = TRUE} inside \code{training_overrides}
+if you also need detailed diagnostics from the training methods. The
+epoch filter controls method begin/end markers, and the verbosity flags
+and debug keep their usual behavior.
+
+Epoch numbers start at 1 and restart for each fit. Ranges include both
+endpoints, so \code{learn = 1:10} traces epochs 1 through 10. Epoch 0 is invalid.
+For \code{train}, the markers bracket the
+container's batch preparation for each epoch. For \code{train_network}, they
+bracket one network's full epoch. \code{learn} and in-training \code{predict} are
+traced at the epoch that calls them. Predictions outside the epoch loop
+use the usual verbosity settings. TEMP fits inherit the selection unless
+\code{temp_overrides} supplies its own \code{trace_epochs}.
 
 \strong{Discovering available training overrides}
 
@@ -330,6 +381,10 @@ res <- ddesonn_run(
   x = x_train,
   y = y_train,
   classification_mode = "binary",
+  # For this example, start with verboseLow for a compact summary.
+  # verboseLow = TRUE,
+  # verbose = TRUE,  # Full report and detailed prediction traces.
+  # Verbose output may include more diagnostics in future releases.
 
   hidden_sizes = c(64, 32),
   seeds = 1L,

@@ -421,6 +421,7 @@ ddesonn_model <- function(input_size,
 #'   topology error (how well neighborhood structure is organized), not on the
 #'   supervised prediction-loss term.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
+#'   Also accepts `trace_epochs` for per-method epoch markers. See [ddesonn_run()].
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
 #' @param debug Logical; emit debug diagnostics when TRUE.
@@ -484,13 +485,17 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   fit_started <- proc.time()[["elapsed"]]
   overrides <- list(...)
+  trace_epochs <- overrides$trace_epochs
+  .validate_trace_epochs(trace_epochs)
+  if (length(trace_epochs) && !"trace_epochs" %in% names(formals(model$train))) {
+    stop("Epoch traces require a model created with DDESONN 7.5.0 or later.", call. = FALSE)
+  }
   # Old saved models predate the Boolean switch and used mixed reductions.
   reduction <- .ddesonn_gradient_reduction(average_gradients,
     overrides$gradient_reduction %||% attr(model, "gradient_reduction") %||% "legacy_mixed")
   overrides$gradient_reduction <- reduction
 
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   
   # [SSM] BEGIN: train the encoder and augment aligned train/validation data.
   seq_cfg <- attr(model, "sequence_config") %||% list(encoder="none")
@@ -829,6 +834,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
       stop("This saved model has older training methods. Create a new model to change average_gradients; its original mixed mode can still be continued.", call. = FALSE)
     train_args$gradient_reduction <- NULL
   }
+  if (length(trace_epochs)) train_args$trace_epochs <- trace_epochs
   result <- do.call(model$train, train_args)
   attr(model, "gradient_reduction") <- reduction
   attr(model, "average_gradients") <- cfg$average_gradients
@@ -1691,7 +1697,6 @@ ddesonn_predict <- function(model, new_data,
     stop("'model' must be created with ddesonn_model().", call. = FALSE)
   }
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
   aggregate <- match.arg(aggregate)
   type <- match.arg(type)
   
@@ -3383,9 +3388,15 @@ ddesonn_predict <- function(model, new_data,
 #'   defaults.
 #' @param save_models Logical; if `TRUE` (default) individual models are
 #'   persisted when `output_root` is supplied.
-#' @param verbose Logical; emit detailed progress output when TRUE.
-#' @param verboseLow Logical; emit important progress output when TRUE.
-#' @param debug Logical; emit debug diagnostics when TRUE.
+#' @param verbose Logical. Print the full run report and detailed diagnostics.
+#' @param verboseLow Logical. Print a compact run summary and important progress
+#'   messages. Set this directly on `ddesonn_run()` to see the dataset, split
+#'   sizes, epochs and overlap check before the evaluation tables.
+#' @param debug Logical. Enable debug diagnostics.
+#'   Does not set `verbose` or `verboseLow`. Use `verboseLow = TRUE` with debug
+#'   to see MAIN and TEMP fit begin/end markers. Split prediction begin/end
+#'   markers use `verbose = TRUE`; additional prediction-data traces also
+#'   require `debug = TRUE`.
 #' @param sequence_encoder Optional sequence encoder, `"none"` (the default)
 #'   or `"ssm"`.
 #' @param sequence_data Training sequence array aligned to `x`.
@@ -3401,6 +3412,51 @@ ddesonn_predict <- function(model, new_data,
 #' The default console output includes the usual evaluation output. Set
 #' `verboseLow = TRUE` to add a compact run summary or `verbose = TRUE` for
 #' the full report. The returned run always includes the full report.
+#'
+#' **Tracing training methods from R**
+#'
+#' Top-level `verbose = TRUE` shows the full report and split prediction traces.
+#' Set `verbose = TRUE` inside `training_overrides` for finer-grained training
+#' traces. Add it to the same list as any other training overrides. Both
+#' settings can be used together.
+#'
+#' The two R6 classes are defined in `R/DDESONN.R`. `DDESONN$train()`
+#' coordinates the network members. `SONN$train_network()` runs one network's
+#' epoch loop and applies optimizer updates. `SONN$learn()` computes the
+#' forward and backward passes and returns gradients. `SONN$predict()`
+#' runs inference and can be called during training to compute metrics.
+#'
+#' **Selecting epochs for method traces**
+#'
+#' `trace_epochs` selects begin/end markers for four R6 methods in
+#' `R/DDESONN.R`: `DDESONN$train()` during batch preparation, and
+#' `SONN$train_network()`, `SONN$learn()`, and `SONN$predict()` inside the
+#' training epoch loop.
+#'
+#' For example, set
+#' `training_overrides = list(trace_epochs = list(all = FALSE, train = 5:10, learn = 10:15))`.
+#' A positive whole-number vector selects epochs, `TRUE` selects all epochs,
+#' and `FALSE` suppresses that method's markers. Set `all = TRUE` or
+#' `all = FALSE` as the default for omitted methods. An explicit method
+#' selection overrides it. Without `all`, omitted methods follow the usual
+#' verbosity settings. Only begin/end markers are filtered. Other diagnostics
+#' and the training schedule stay the same.
+#'
+#' Without `trace_epochs`, no epoch filter is applied. The verbosity and debug
+#' settings do not activate it. Explicit selections work with `debug`, `verbose`, and
+#' `verboseLow` all off. Use `verbose = TRUE` inside `training_overrides`
+#' if you also need detailed diagnostics from the training methods. The
+#' epoch filter controls method begin/end markers, and the verbosity flags
+#' and debug keep their usual behavior.
+#'
+#' Epoch numbers start at 1 and restart for each fit. Ranges include both
+#' endpoints, so `learn = 1:10` traces epochs 1 through 10. Epoch 0 is invalid.
+#' For `train`, the markers bracket the
+#' container's batch preparation for each epoch. For `train_network`, they
+#' bracket one network's full epoch. `learn` and in-training `predict` are
+#' traced at the epoch that calls them. Predictions outside the epoch loop
+#' use the usual verbosity settings. TEMP fits inherit the selection unless
+#' `temp_overrides` supplies its own `trace_epochs`.
 #'
 #' **Discovering available training overrides**
 #'
@@ -3556,6 +3612,10 @@ ddesonn_predict <- function(model, new_data,
 #'   x = x_train,
 #'   y = y_train,
 #'   classification_mode = "binary",
+#'   # For this example, start with verboseLow for a compact summary.
+#'   # verboseLow = TRUE,
+#'   # verbose = TRUE,  # Full report and detailed prediction traces.
+#'   # Verbose output may include more diagnostics in future releases.
 #'
 #'   hidden_sizes = c(64, 32),
 #'   seeds = 1L,
@@ -3643,7 +3703,6 @@ ddesonn_run <- function(x,
   verbose <- isTRUE(verbose %||% FALSE)  
   verboseLow <- isTRUE(verboseLow %||% FALSE)  
   debug <- isTRUE(debug %||% getOption("DDESONN.debug", FALSE))  
-  debug <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG"), "1")  
 
   # ============================================================  
   # SECTION: Verbosity resolution (run config)  
@@ -4390,6 +4449,8 @@ ddesonn_run <- function(x,
     
     if (isTRUE(do_ensemble) && num_temp_iterations > 0L) {
       tmp_overrides <- temp_overrides %||% base_train_overrides
+      if (!"trace_epochs" %in% names(tmp_overrides))
+        tmp_overrides$trace_epochs <- base_train_overrides$trace_epochs
       tmp_overrides$output_root <- tmp_overrides$output_root %||% output_root
       
       temp_list <- vector("list", length = num_temp_iterations)

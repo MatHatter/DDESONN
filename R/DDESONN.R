@@ -770,10 +770,10 @@ SONN <- R6::R6Class(
     },
     #the magical function
     #the magical function
-    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE, average_gradients = NULL, gradient_reduction = "sum") {
+    learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE, average_gradients = NULL, gradient_reduction = "sum", trace_epoch = NULL) {
       gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
-      if (verbose) { print("----------------------------------------learn-begin----------------------------------------") }
+      .trace_boundary("learn", "begin", verbose, trace_epoch)
       start_time <- Sys.time()
       
       `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -1288,7 +1288,7 @@ SONN <- R6::R6Class(
         }
       }
 
-      if (verbose) { print("----------------------------------------learn-end----------------------------------------") }
+      .trace_boundary("learn", "end", verbose, trace_epoch)
       
       return(list(
         learn_output = predicted_output_learn,
@@ -1303,8 +1303,8 @@ SONN <- R6::R6Class(
       ))
     },
     # Method to perform prediction
-    predict = function(Rdata, weights, biases, activation_functions_predict, verbose = FALSE, debug = FALSE) {
-      if (verbose) { print("----------------------------------------predict-begin----------------------------------------") }
+    predict = function(Rdata, weights, biases, activation_functions_predict, verbose = FALSE, debug = FALSE, trace_epoch = NULL) {
+      .trace_boundary("predict", "begin", verbose, trace_epoch)
       
       # ---- Debug/Verbose toggles ----
       if (is.null(debug)) {
@@ -1565,9 +1565,7 @@ SONN <- R6::R6Class(
                     prediction_time, nrow(output), ncol(output)))
       }
       
-      if (isTRUE(debug) || isTRUE(verbose)) {
-        print("----------------------------------------predict-end----------------------------------------")
-      }
+      .trace_boundary("predict", "end", isTRUE(debug) || isTRUE(verbose), trace_epoch)
       
       # Return both keys for compatibility with existing codepaths
       return(list(
@@ -1577,7 +1575,7 @@ SONN <- R6::R6Class(
       ))
     }
     ,# Method for training the SONN with L2 regularization
-    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, lr_decay_rate = 0.5, lr_decay_epoch = 20, lr_min = 1e-6, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum") {
+    train_network = function(Rdata, labels,  X_train = NULL, y_train = NULL, lr, lr_decay_rate = 0.5, lr_decay_epoch = 20, lr_min = 1e-6, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train, verbose = FALSE, verboseLow = FALSE, output_root = NULL, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum", trace_epochs = NULL) {
       gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
       log_important <- function(...) {
@@ -1588,8 +1586,13 @@ SONN <- R6::R6Class(
           verboseLow = verboseLow
         )
       }
-      if (isTRUE(debug) || isTRUE(verbose)) {
-      print("----------------------------------------train_network-begin----------------------------------------")
+      if (is.null(trace_epochs$train_network))
+        .trace_boundary("train_network", "begin", isTRUE(debug) || isTRUE(verbose))
+      predict_at_epoch <- self$predict
+      if (!is.null(trace_epochs$predict)) {
+        predict_at_epoch <- function(...) {
+          self$predict(..., trace_epoch = .trace_epoch(trace_epochs$predict, epoch))
+        }
       }
         start_time <- Sys.time()
       
@@ -1663,6 +1666,8 @@ SONN <- R6::R6Class(
         val_loss_log       <- numeric(0)
         
         for (epoch in 1:num_epochs) {
+          network_epoch <- .trace_epoch(trace_epochs$train_network, epoch)
+          .trace_boundary("train_network", "begin", FALSE, network_epoch)
           
           lr_epoch <- lr_scheduler(
             epoch = epoch,
@@ -1692,7 +1697,8 @@ SONN <- R6::R6Class(
             sample_weights = sample_weights,
             gradient_reduction = gradient_reduction,
             verbose = verbose,
-            verboseLow = verboseLow
+            verboseLow = verboseLow,
+            trace_epoch = .trace_epoch(trace_epochs$learn, epoch)
           )
           
           # [SSM] Update the encoder with the same prediction error as the head.
@@ -2422,7 +2428,7 @@ SONN <- R6::R6Class(
               cat(sprintf("[PRED-INVOKE] train_network(): per-epoch VALIDATION predict() | epoch=%d | caller=validation_metrics\n", epoch))  # 
             }  
             predicted_output_val <- tryCatch(
-              self$predict(
+              predict_at_epoch(
                 Rdata                = X_validation,
                 weights              = if (isTRUE(self$ML_NN)) weights_record else self$weights,
                 biases               = if (isTRUE(self$ML_NN)) biases_record  else self$biases,
@@ -2667,7 +2673,7 @@ SONN <- R6::R6Class(
               cat(sprintf("[PRED-INVOKE] train_network(): per-epoch TRAIN predict() (validation disabled) | epoch=%d | caller=train_no_validation\n", epoch))  # 
             }  
             predicted_output_train <- tryCatch(
-              self$predict(
+              predict_at_epoch(
                 Rdata                = X_train,
                 weights              = if (isTRUE(self$ML_NN)) weights_record else self$weights,
                 biases               = if (isTRUE(self$ML_NN)) biases_record  else self$biases,
@@ -2853,7 +2859,7 @@ SONN <- R6::R6Class(
                 cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute TRAIN predict() | epoch=%d | caller=best_snapshot_train\n", epoch))  # 
               }  
               pred_train_best <- tryCatch(
-                self$predict(
+                predict_at_epoch(
                   Rdata                = best_X_train,
                   weights              = best_weights,
                   biases               = best_biases,
@@ -2873,7 +2879,7 @@ SONN <- R6::R6Class(
                 cat(sprintf("[PRED-INVOKE] train_network(): BEST-SNAPSHOT recompute VALIDATION predict() | epoch=%d | caller=best_snapshot_validation\n", epoch))  # 
               }  
               pred_val_best <- tryCatch(
-                self$predict(
+                predict_at_epoch(
                   Rdata                = best_X_validation,
                   weights              = best_weights,
                   biases               = best_biases,
@@ -3012,6 +3018,7 @@ SONN <- R6::R6Class(
             }
           }
 
+          .trace_boundary("train_network", "end", FALSE, network_epoch)
         } # end for epoch
 
         total_learn_time <- total_learn_time + learn_result$learn_time
@@ -3178,7 +3185,7 @@ SONN <- R6::R6Class(
       
       end_time <- Sys.time()
 training_time <- as.numeric(difftime(end_time, start_time, units = "secs"))
-if(verbose){print("----------------------------------------train_network-end----------------------------------------")}
+if (is.null(trace_epochs$train_network)) .trace_boundary("train_network", "end", verbose)
 
 return(list(
   predicted_output_l2      = predicted_output_train_reg,
@@ -3457,10 +3464,11 @@ DDESONN <- R6::R6Class(
       on_all||flag
     },
     
-    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, output_root, plot_controls, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum") {
+    train = function(Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, ensemble_number, do_ensemble, num_epochs, self_org, threshold, reg_type, numeric_columns, CLASSIFICATION_MODE, activation_functions, activation_functions_predict, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, batch_normalize_data, gamma_bn = NULL, beta_bn = NULL, epsilon_bn = 1e-5, momentum_bn = 0.9, is_training_bn = TRUE, shuffle_bn = FALSE, loss_type, update_weights, update_biases, sample_weights, preprocessScaledData, X_validation, y_validation, validation_metrics, threshold_function, best_weights_on_latest_weights_off, ML_NN, train, grouped_metrics, viewTables, verbose = FALSE, verboseLow = FALSE, output_root, plot_controls, save_per_epoch, average_gradients = NULL, gradient_reduction = "sum", trace_epochs = NULL) {
       gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
-      if(verbose){print("----------------------------------------train-begin----------------------------------------")}
+      trace_epochs <- .resolve_trace_epochs(trace_epochs)
+      if (is.null(trace_epochs$train)) .trace_boundary("train", "begin", verbose)
       `%||%` <- function(a, b) if (is.null(a) || !length(a)) b else a
       
       # ============================================================
@@ -3529,6 +3537,8 @@ DDESONN <- R6::R6Class(
       }
       
       for (epoch in 1:num_epochs) {
+        train_epoch <- .trace_epoch(trace_epochs$train, epoch)
+        .trace_boundary("train", "begin", FALSE, train_epoch)
         
         # Create mini-batches
         n <- nrow(Rdata)
@@ -3584,6 +3594,7 @@ DDESONN <- R6::R6Class(
             batch_labels <- labels[batch]
           }
         }#end of batch normalize data
+        .trace_boundary("train", "end", FALSE, train_epoch)
       }
       
       # Initialize lists to store results
@@ -3631,7 +3642,8 @@ DDESONN <- R6::R6Class(
           
           predicted_outputAndTime <- suppressMessages(
             self$ensemble[[i]]$train_network(
-              Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, gradient_reduction = gradient_reduction, output_root = output_root
+              Rdata, labels, X_train, y_train, lr, lr_decay_rate, lr_decay_epoch, lr_min, num_networks, CLASSIFICATION_MODE, num_epochs, model_iter_num, update_weights, update_biases, ensemble_number, do_ensemble, reg_type, activation_functions, dropout_rates, optimizer, beta1, beta2, epsilon, lookahead_step, loss_type, sample_weights, X_validation, y_validation, validation_metrics, threshold_function, ML_NN, train = TRUE, verbose = verbose, verboseLow = verboseLow, gradient_reduction = gradient_reduction, output_root = output_root,
+              trace_epochs = trace_epochs
             ))
           
           report_members[[i]] <- list(
@@ -3797,7 +3809,7 @@ DDESONN <- R6::R6Class(
       # SECTION: performance_relevance trace gating (verbose/debug)   
       # ============================================================  
       pr_trace <- isTRUE(verbose) ||                                                                      
-        (isTRUE(getOption("DDESONN.debug", FALSE)) && identical(Sys.getenv("DDESONN_DEBUG"), "1"))        
+        isTRUE(getOption("DDESONN.debug", FALSE))
       
       pr_cfg_pre <- NULL
       if (!is.null(plot_controls) && is.list(plot_controls) &&
@@ -4012,7 +4024,7 @@ DDESONN <- R6::R6Class(
       invisible(NULL)
       
       
-      if(verbose){print("----------------------------------------train-end----------------------------------------")}
+      if (is.null(trace_epochs$train)) .trace_boundary("train", "end", verbose)
       
       return(list(predicted_outputAndTime = predicted_outputAndTime,
         performance_relevance_data = performance_relevance_data, report_members = Filter(Negate(is.null), report_members)))
@@ -4612,7 +4624,7 @@ DDESONN <- R6::R6Class(
       }                                                                                                        
       pr_verbose <- if (is.null(pr_cfg$verbose)) isTRUE(verbose) else isTRUE(pr_cfg$verbose)                   
       pr_trace <- isTRUE(pr_verbose) ||                                                                        
-        (isTRUE(getOption("DDESONN.debug", FALSE)) && identical(Sys.getenv("DDESONN_DEBUG"), "1"))             
+        isTRUE(getOption("DDESONN.debug", FALSE))
       pr_do_ensemble <- isTRUE(get0("do_ensemble", ifnotfound = FALSE, inherits = TRUE))                       
       if (isTRUE(pr_trace)) {                                                                                  
         cat("[PR] RESOLVED pr_cfg for update_performance_and_relevance (ensemble_number=",                     

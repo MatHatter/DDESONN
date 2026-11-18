@@ -2458,7 +2458,7 @@ optimizers_log_update <- function(
   verboseLow <- isTRUE(verboseLow %||% getOption("DDESONN.verboseLow", FALSE))
   verbose    <- isTRUE(verbose    %||% getOption("DDESONN.verbose",    FALSE))
   
-  debug_allowed <- isTRUE(debug) && identical(Sys.getenv("DDESONN_DEBUG", unset = "0"), "1")
+  debug_allowed <- isTRUE(debug)
   
   # Print when:
   # Tensor diagnostics require detailed verbosity or explicitly allowed debug.
@@ -3239,7 +3239,7 @@ DDESONN_fuse_from_agg <- function(
     classification_mode = c("binary","multiclass","regression")
 ) {
   ## ===================== DEBUG HELPERS =====================
-  DEBUG <- isTRUE(getOption("DDESONN.debug", FALSE)) && identical(Sys.getenv("DDESONN_DEBUG"), "1")
+  DEBUG <- isTRUE(getOption("DDESONN.debug", FALSE))
   dts <- function() format(Sys.time(), "%H:%M:%S")
   dcat <- function(...) if (isTRUE(DEBUG)) cat(sprintf("[FUSE-DBG %s] ", dts()), paste0(..., collapse=""), "\n")
   dhead <- function(x, n=5) { if (isTRUE(DEBUG)) { dcat("head():"); print(utils::head(x, n)); } }

@@ -1,3 +1,14 @@
+# DDESONN 7.5.0
+
+- Add opt-in, per-method epoch selections for training trace markers.
+  Configure `train`, `train_network`, `learn`, and in-training `predict`
+  independently through `training_overrides$trace_epochs` or the range sliders
+  in Shiny Custom Diagnostics. Use `all` to set the default for every method.
+
+- Enable debug diagnostics directly with `debug = TRUE` without requiring
+  the `DDESONN_DEBUG` environment variable. Debug and verbosity remain separate
+  from the opt-in epoch filters.
+
 # DDESONN 7.4.14
 
 - Keep the usual evaluation output by default. Use `verboseLow = TRUE` for
