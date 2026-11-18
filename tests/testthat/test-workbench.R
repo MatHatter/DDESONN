@@ -67,7 +67,7 @@ test_that("background training returns a completed model and cancellation discar
   p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
   j <- h$wb_start(f$path, p, h$wb_config(hidden = "4", epochs = 2))
   on.exit(h$wb_stop(j), add = TRUE)
-  j$process$wait(30000)
+  wait_for_workbench_job(j)
   expect_false(j$process$is_alive())
   r <- h$wb_validate_bundle(j$process$get_result())
   expect_equal(r$fit_runs, 1L)
@@ -80,7 +80,7 @@ test_that("background training returns a completed model and cancellation discar
   expect_identical(h$wb_new_predictions(r, iris), before)
   continuation <- h$wb_start(f$path, p, r$config, r)
   on.exit(h$wb_stop(continuation), add = TRUE)
-  continuation$process$wait(30000)
+  wait_for_workbench_job(continuation)
   expect_equal(continuation$process$get_result()$fit_runs, 2L)
 })
 
@@ -251,7 +251,7 @@ test_that("session action states and failed/cancelled workers preserve completed
     expect_false(action_states()$wb_continue)
     expect_false(action_states()$wb_load)
     expect_true(action_states()$wb_save) # Previous immutable model can still be saved.
-    job()$process$wait(30000); session$elapse(400)
+    wait_for_workbench_job(job()); session$elapse(400)
     expect_null(job())
     expect_identical(serialize(result(), NULL), original)
     expect_match(output$wb_train_error$html, "Technical details")

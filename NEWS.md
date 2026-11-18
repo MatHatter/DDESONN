@@ -1,3 +1,9 @@
+# DDESONN 7.4.11
+
+- Allow background training tests up to three minutes per worker instead of
+  30 seconds, and report worker logs on timeout before requesting a result.
+  Training settings, result assertions and cancellation checks are unchanged.
+
 # DDESONN 7.4.10
 
 - Add the author's Substack link to README and the Shiny Vignettes contact area
