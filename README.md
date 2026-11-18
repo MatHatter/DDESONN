@@ -708,12 +708,85 @@ DDESONN supports structured diagnostics designed to keep runs scientifically ins
 The returned `run_report` always includes the full details. The overlap check
 compares exact tabular predictor vectors in the supplied splits.
 
+### Trace the training methods from R
+
+Top-level `verbose = TRUE` on `ddesonn_run()` prints the full run report
+and split prediction traces. For a closer look inside the training methods,
+set `verbose = TRUE` inside `training_overrides`. Add it to the list you
+already pass for settings such as epochs or learning rate. You can use both
+settings together.
+
+Both R6 classes are defined in [`R/DDESONN.R`](R/DDESONN.R).
+
+| Class and method | Role |
+|---|---|
+| `DDESONN$train()` | Coordinates training across network members and collects their results. |
+| `SONN$train_network()` | Runs the epoch loop for one network, applies optimizer updates, and tracks metrics and checkpoints. |
+| `SONN$learn()` | Runs the forward and backward calculations for a training step and returns the gradients. |
+| `SONN$predict()` | Runs the forward calculation with model weights and biases to produce predictions. |
+
+Training can call `predict()` for metrics and validation, so inner prediction
+traces can appear within a training trace. Each epoch can also call `learn()`,
+so these diagnostics can grow quickly on multi-model runs.
+
+`trace_epochs` selects begin/end markers for four R6 methods in
+[`R/DDESONN.R`](R/DDESONN.R): `DDESONN$train()` during batch preparation,
+and `SONN$train_network()`, `SONN$learn()`, and `SONN$predict()` inside
+the training epoch loop. Add it to your existing `training_overrides` list:
+
+```r
+trace_epochs = list(
+  all = FALSE,         # Omitted methods are off
+  train = 5:10,         # Container batch preparation at epochs 5 through 10
+  train_network = TRUE, # Every epoch of each network
+  learn = 10:15,        # Learning steps at epochs 10 through 15
+  predict = FALSE       # Omit prediction markers inside the epoch loop
+)
+```
+
+Without `trace_epochs`, no epoch filter is applied. Turning on `verboseLow`,
+`verbose`, or `debug` does not select any epochs. The filter applies to method
+begin/end markers. All requested epochs run,
+and predictions outside the epoch loop follow the usual verbosity settings.
+An explicit method setting overrides `all`. Use `all = TRUE` to enable
+every omitted method at every epoch, or omit `all` to keep existing verbosity
+for omitted methods. Epoch numbers start at 1 and restart for each fit.
+Ranges include both endpoints, so `learn = 1:10` traces epochs 1 through 10.
+Epoch 0 is invalid.
+
+In Shiny, open **Custom > Diagnostics > Select method trace epochs**.
+Use the default switch to turn all methods on or off, and select an epoch
+range with the slider for each method you want to limit.
+
+| Setting | What it adds |
+|---|---|
+| Top-level `verboseLow = TRUE` | Important progress messages and the compact run summary. |
+| Top-level `verbose = TRUE` | Full run report and split prediction traces. |
+| `training_overrides = list(verbose = TRUE)` | Detailed diagnostics inside the training methods. |
+| `training_overrides = list(trace_epochs = ...)` | Begin/end markers for the methods and epochs you select. Explicit selections work with both verbosity flags and debug off. |
+| `debug = TRUE` | Extra debug messages. Some also depend on the verbosity flags, as described below. |
+
+Use epoch traces to find where a fit slows down or fails, or to inspect
+what runs around an epoch you are investigating while tuning. These markers
+show when a method runs. For gradients and other detailed diagnostics, use
+the training verbosity override. Keras has standard fit progress and
+callbacks for observing training. DDESONN exposes these R6 method
+boundaries and their epoch filters directly through its training API.
+
 ### Debug mode (`debug`)
 
-`debug = TRUE` enables additional targeted debug diagnostics, but in the public API it is intentionally hard-gated by `DDESONN_DEBUG=1` for safety. In practice, this means:
+`debug = TRUE` enables the public run API's debug diagnostics directly.
+`verbose` and `verboseLow` stay independent. Some debug markers also need
+one of those flags because they pass through the console logger.
 
-- set `debug = TRUE` **and** environment variable `DDESONN_DEBUG=1`
-- then debug-only checkpoints and diagnostics are allowed to print
+| Trace | Settings and scope |
+|---|---|
+| `EVOKE-FIT-BEGIN` / `EVOKE-FIT-END` | Set `debug = TRUE` and `verboseLow = TRUE`. These markers bracket the MAIN and TEMP calls to `ddesonn_fit()` inside `ddesonn_run()`. |
+| `EVOKE-PREDICT-BEGIN` / `EVOKE-PREDICT-END` | Set `verbose = TRUE` for split prediction traces. The extra prediction-data traces around MAIN and TEMP fits also require `debug = TRUE`. |
+| R6 method traces | The verbosity received by the methods controls paired markers for `DDESONN$train()`, `SONN$train_network()`, `SONN$learn()`, self-organization, and performance/relevance updates. They appear when the corresponding methods run with detailed verbosity. |
+
+For example, pass `debug = TRUE, verboseLow = TRUE` to `ddesonn_run()` to trace the fit calls.
+Set `verbose = TRUE` as well to include detailed prediction traces.
 
 ### Table views (`viewTables`)
 
@@ -1149,11 +1222,18 @@ rather than a fixed universal value. The objective is to identify a
 suitable stopping point for each model configuration rather than rely
 on a single epoch count across experiments.
 
-High-level API usage (training split is always `x`/`y`):
+### Console quickstart
+
+Pass `verboseLow = TRUE` directly to `ddesonn_run()` to see a compact run summary
+with the dataset, split sizes, epochs, and overlap check before the evaluation
+tables. Use `verbose = TRUE` when you need the full report and prediction traces.
+
+The training split is always supplied as `x` and `y`.
 
     res <- ddesonn_run(
       x = train_x,
       y = train_y,
+      verboseLow = TRUE,
       validation = list(x = valid_x, y = valid_y),
       test = list(x = test_x, y = test_y),
       training_overrides = list(
