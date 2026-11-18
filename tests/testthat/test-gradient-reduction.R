@@ -19,7 +19,7 @@ gradient_learn <- function(f, average = NULL, reduction = "sum", twice = FALSE) 
     sample_weights=NULL,average_gradients=average,gradient_reduction=reduction)
 }
 
-test_that("both reductions have the expected batch-duplication behavior across tasks and layouts", {
+test_that("all four reductions have the expected batch-duplication behavior across tasks and layouts", {
   for(mode in c("binary","multiclass","regression")) for(ml in c(FALSE,TRUE)) {
     f <- gradient_fixture(mode,ml)
     for(average in c(FALSE,TRUE)) {
@@ -33,6 +33,10 @@ test_that("both reductions have the expected batch-duplication behavior across t
     b <- gradient_learn(f,reduction="legacy_mixed",twice=TRUE)
     expect_equal(b$grads_matrix,lapply(a$grads_matrix,function(x)x*2))
     expect_equal(b$bias_gradients,a$bias_gradients)
+    a <- gradient_learn(f, reduction = "mean_weights")
+    b <- gradient_learn(f, reduction = "mean_weights", twice = TRUE)
+    expect_equal(b$grads_matrix, a$grads_matrix)
+    expect_equal(b$bias_gradients, lapply(a$bias_gradients, function(x) x * 2))
   }
 })
 
@@ -91,7 +95,7 @@ test_that("workbench config, recipes and old bundles identify the correct mode",
   expect_error(h$wb_config(average_gradients=NA),"TRUE or FALSE")
 })
 
-test_that("Shiny Boolean changes the next fit and its generated code", {
+test_that("Shiny gradient choices are independent and reflected in the generated code", {
   h <- new.env(parent=globalenv())
   helper <- system.file("shiny","benchmark","workbench_helpers.R",package="DDESONN")
   sys.source(helper,h)
@@ -99,13 +103,30 @@ test_that("Shiny Boolean changes the next fit and its generated code", {
   server <- h$wb_server;formals(server)$helper <- helper
   shiny::testServer(server, {
     session$setInputs(wb_hidden="2",wb_epochs=1,wb_lr=.001,wb_optimizer="adagrad",
-      wb_checkpoint="final",wb_workflow="basic",wb_average_gradients=FALSE)
-    expect_identical(next_config()$average_gradients,FALSE)
-    expect_identical(next_config()$gradient_reduction,"sum")
-    session$setInputs(wb_average_gradients=TRUE)
-    expect_identical(next_config()$average_gradients,TRUE)
-    expect_identical(next_config()$gradient_reduction,"mean")
+      wb_checkpoint="final",wb_workflow="basic")
+    expect_identical(next_config()$gradient_reduction, "sum")
+    session$setInputs(wb_weight_reduction = "mean")
+    expect_identical(next_config()$gradient_reduction, "mean_weights")
+    expect_null(next_config()$average_gradients)
     p <- h$wb_prepare(iris,"Species",names(iris)[1:4],"multiclass")
-    expect_match(h$wb_fit_code(p,next_config()),"average_gradients = TRUE",fixed=TRUE)
+    expect_match(h$wb_fit_code(p, next_config()), 'gradient_reduction = "mean_weights"', fixed = TRUE)
+    session$setInputs(wb_bias_reduction = "mean")
+    expect_identical(next_config()$gradient_reduction, "mean")
+    session$setInputs(wb_weight_reduction = "sum")
+    expect_identical(next_config()$gradient_reduction, "legacy_mixed")
+    expect_identical(DDESONN:::.ddesonn_gradient_choices(h$wb_gradient_mode(next_config())),
+      c(weights = "sum", biases = "mean"))
   })
+})
+
+test_that("run training overrides preserve the requested mixed reduction", {
+  f <- gradient_fixture("regression", FALSE)
+  capture.output(run <- ddesonn_run(f$x, f$y, classification_mode = "regression",
+    hidden_sizes = integer(), model_overrides = list(ML_NN = FALSE),
+    training_overrides = list(gradient_reduction = "mean_weights", lr = .001,
+      num_epochs = 1L, validation_metrics = FALSE, batch_normalize_data = FALSE,
+      numeric_columns = integer()), save_models = FALSE))
+  expect_identical(attr(run$model, "gradient_reduction"), "mean_weights")
+  expect_null(attr(run$model, "average_gradients"))
+  expect_true("Gradient reduction: Weights: Average | Biases: Sum" %in% run$run_report$details)
 })

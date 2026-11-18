@@ -28,6 +28,8 @@ ddesonn_fit(
 }
 \arguments{
 \item{...}{Named overrides for entries in \code{\link[=ddesonn_training_defaults]{ddesonn_training_defaults()}}.
+Set \code{gradient_reduction} to \code{"legacy_mixed"} to sum weight gradients
+and average bias gradients, or \code{"mean_weights"} for the reverse.
 Also accepts \code{trace_epochs} for per-method epoch markers. See \code{\link[=ddesonn_run]{ddesonn_run()}}.}
 
 \item{model}{A model created by \code{\link[=ddesonn_model]{ddesonn_model()}}.}

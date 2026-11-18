@@ -28,3 +28,19 @@ test_that("prepared regression data retains overlap and Shiny shows actionable s
     expect_match(as.character(h$wb_overlap_ui(NULL)), "Check unavailable", fixed = TRUE)
   }
 })
+
+test_that("Workbench help and split preparation work without the namespace overlap helpers", {
+  skip_if_not_installed("shiny")
+  h <- new.env(parent = globalenv())
+  sys.source(system.file("shiny", "benchmark", "workbench_helpers.R", package = "DDESONN"), h)
+  d <- data.frame(x = rep(1:2, 6), y = seq_len(12))
+  expected <- h$wb_prepare(d, "y", "x", "regression", split = "ordered")$overlap
+  h$asNamespace <- function(...) new.env(parent = emptyenv())
+
+  expect_match(as.character(h$wb_overlap_ui(NULL)), "Check unavailable", fixed = TRUE)
+  prepared <- h$wb_prepare(d, "y", "x", "regression", split = "ordered")
+  expect_identical(prepared$overlap, expected)
+  expect_match(as.character(h$wb_overlap_ui(prepared$overlap)), "Train-Validation 2", fixed = TRUE)
+  expect_match(h$wb_help_code("Start with Data"), "iris", fixed = TRUE)
+  expect_match(h$wb_help_code("Inspect your dataset"), "data", fixed = TRUE)
+})
