@@ -2,12 +2,19 @@
 
 Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 
+Learning notes, startup material and DDESONN modeling updates:
+[Follow on Substack](https://substack.com/@alphalion).
+
 ## Optional Shiny GUI: launch and first steps
 
 DDESONN includes a Shiny graphical user interface (GUI) for preparing data,
 training and evaluating models, using saved models, and browsing research results.
 After installing DDESONN, install the two optional app dependencies once and
 launch it from an interactive R session:
+
+For dependency updates on Windows, close other R/RStudio sessions and install
+from a fresh R session before loading development tools or starting the app.
+This lets Windows replace package DLLs that would otherwise be in use.
 
 ```r
 install.packages(c("shiny", "callr")) # once, if needed

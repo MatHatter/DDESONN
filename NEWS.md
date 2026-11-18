@@ -1,3 +1,11 @@
+# DDESONN 7.4.10
+
+- Add the author's Substack link to README and the Shiny Vignettes contact area
+  for learning notes, startup material and DDESONN modeling updates.
+
+- Clarify that Windows dependency updates should run in a fresh R session so
+  loaded package DLLs do not block installation.
+
 # DDESONN 7.4.9
 
 - Consolidate the five SSM encoder helpers on one roxygen-generated help page.

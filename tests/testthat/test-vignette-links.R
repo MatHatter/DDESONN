@@ -21,6 +21,7 @@ test_that("Shiny vignette links prefer installed guides and retain source fallba
   expect_match(ui, 'rel="noopener noreferrer"', fixed = TRUE)
   expect_match(ui, file, fixed = TRUE)
   expect_match(ui, "https://www.linkedin.com/in/mathewfok", fixed = TRUE)
+  expect_match(ui, '<a href="https://substack.com/@alphalion"[^>]*>Follow on Substack</a>')
   expect_match(ui, '<a href="https://github.com/MatHatter/DDESONN/issues/new\\?[^\"]*"[^>]*>Share results</a>')
   expect_match(ui, '<a href="https://github.com/MatHatter/DDESONN/fork"[^>]*>Contribute</a>')
   expect_false(grepl("Share your results, contribute and connect", ui, fixed = TRUE))

@@ -59,7 +59,8 @@ dashboard_vignettes_ui <- function(doc_dir = dashboard_vignette_dir()) {
         target = "_blank", rel = "noopener noreferrer", "Contribute"))),
     shiny::hr(), shiny::h4("Connect with the author"),
     shiny::p(shiny::tags$a(href = "https://www.linkedin.com/in/mathewfok", target = "_blank", rel = "noopener noreferrer", "Connect on LinkedIn"),
-      " · ", shiny::tags$a(href = "mailto:quiksilver67213@yahoo.com", "Email the author")))
+      " · ", shiny::tags$a(href = "mailto:quiksilver67213@yahoo.com", "Email the author"),
+      " · ", shiny::tags$a(href = "https://substack.com/@alphalion", target = "_blank", rel = "noopener noreferrer", "Follow on Substack")))
 }
 
 dashboard_metrics <- c(accuracy = "Accuracy", precision = "Precision",
