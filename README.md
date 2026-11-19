@@ -722,23 +722,18 @@ set `verbose = TRUE` inside `training_overrides`. Add it to the list you
 already pass for settings such as epochs or learning rate. You can use both
 settings together.
 
+A DDESONN coordinates its network members. Each SONN is one member.
 Both R6 classes are defined in [`R/DDESONN.R`](R/DDESONN.R).
+The table describes the begin/end markers selected by `trace_epochs`.
 
-| Class and method | Role |
-|---|---|
-| `DDESONN$train()` | Coordinates training across network members and collects their results. |
-| `SONN$train_network()` | Runs the epoch loop for one network, applies optimizer updates, and tracks metrics and checkpoints. |
-| `SONN$learn()` | Runs the forward and backward calculations for a training step and returns the gradients. |
-| `SONN$predict()` | Runs the forward calculation with model weights and biases to produce predictions. |
+| Class and method | What it does | What the epoch trace times |
+|---|---|---|
+| `DDESONN$train()` | Coordinates the fit and calls each member's training method. | The container's batch preparation for that epoch. |
+| `SONN$train_network()` | Runs one member's epochs, applies optimizer updates, and tracks checkpoints. | One full network epoch, including any learning and prediction calls inside it. |
+| `SONN$learn()` | Runs the forward and backward calculations and returns gradients. | One gradient calculation. |
+| `SONN$predict()` | Uses the current weights and biases to make predictions. | One prediction call made within a training epoch. |
 
-Training can call `predict()` for metrics and validation, so inner prediction
-traces can appear within a training trace. Each epoch can also call `learn()`,
-so these diagnostics can grow quickly on multi-model runs.
-
-`trace_epochs` selects begin/end markers for four R6 methods in
-[`R/DDESONN.R`](R/DDESONN.R): `DDESONN$train()` during batch preparation,
-and `SONN$train_network()`, `SONN$learn()`, and `SONN$predict()` inside
-the training epoch loop. Add it to your existing `training_overrides` list:
+Add `trace_epochs` to your existing `training_overrides` list:
 
 ```r
 trace_epochs = list(
@@ -754,14 +749,21 @@ Without `trace_epochs`, no epoch filter is applied. Turning on `verboseLow`,
 `verbose`, or `debug` does not select any epochs. The filter applies to method
 begin/end markers. All requested epochs run,
 and predictions outside the epoch loop follow the usual verbosity settings.
+Selected end markers show elapsed wall-clock time for that method or epoch.
+These intervals can be nested, so adding them double-counts time. The full
+run report lists fit time, measured prediction and scoring outside fits,
+and the remaining run work separately. Per-network times are included in
+their parent fit. The R console measurement ends before final evaluation
+reporting. Shiny measures through the scoring for each training stage.
 An explicit method setting overrides `all`. Use `all = TRUE` to enable
 every omitted method at every epoch, or omit `all` to keep existing verbosity
 for omitted methods. Epoch numbers start at 1 and restart for each fit.
 Ranges include both endpoints, so `learn = 1:10` traces epochs 1 through 10.
 Epoch 0 is invalid.
 
-In Shiny, the **Equivalent R code** for Custom training includes commented
-epoch trace examples. Uncomment one when running the recipe in R.
+In Shiny, **Recent runs > Run details** shows the fit and network times.
+The **Equivalent R code** for Custom training includes commented epoch trace
+examples. Uncomment one when running the recipe in R.
 
 | Setting | What it adds |
 |---|---|

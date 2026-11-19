@@ -773,7 +773,7 @@ SONN <- R6::R6Class(
     learn = function(Rdata, labels, lr, CLASSIFICATION_MODE, activation_functions, dropout_rates, sample_weights, verbose = FALSE, verboseLow = FALSE, average_gradients = NULL, gradient_reduction = "sum", trace_epoch = NULL) {
       gradient_reduction <- .ddesonn_gradient_reduction(average_gradients, gradient_reduction)
       # (no local verbosity defaults here)  
-      .trace_boundary("learn", "begin", verbose, trace_epoch)
+      trace_started <- .trace_boundary("learn", "begin", verbose, trace_epoch)
       start_time <- Sys.time()
       
       `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -1288,7 +1288,7 @@ SONN <- R6::R6Class(
         }
       }
 
-      .trace_boundary("learn", "end", verbose, trace_epoch)
+      .trace_boundary("learn", "end", verbose, trace_epoch, started = trace_started)
       
       return(list(
         learn_output = predicted_output_learn,
@@ -1304,7 +1304,7 @@ SONN <- R6::R6Class(
     },
     # Method to perform prediction
     predict = function(Rdata, weights, biases, activation_functions_predict, verbose = FALSE, debug = FALSE, trace_epoch = NULL) {
-      .trace_boundary("predict", "begin", verbose, trace_epoch)
+      trace_started <- .trace_boundary("predict", "begin", verbose, trace_epoch)
       
       # ---- Debug/Verbose toggles ----
       if (is.null(debug)) {
@@ -1565,7 +1565,7 @@ SONN <- R6::R6Class(
                     prediction_time, nrow(output), ncol(output)))
       }
       
-      .trace_boundary("predict", "end", isTRUE(debug) || isTRUE(verbose), trace_epoch)
+      .trace_boundary("predict", "end", isTRUE(debug) || isTRUE(verbose), trace_epoch, started = trace_started)
       
       # Return both keys for compatibility with existing codepaths
       return(list(
@@ -1667,7 +1667,7 @@ SONN <- R6::R6Class(
         
         for (epoch in 1:num_epochs) {
           network_epoch <- .trace_epoch(trace_epochs$train_network, epoch)
-          .trace_boundary("train_network", "begin", FALSE, network_epoch)
+          network_epoch_started <- .trace_boundary("train_network", "begin", FALSE, network_epoch)
           
           lr_epoch <- lr_scheduler(
             epoch = epoch,
@@ -3018,7 +3018,7 @@ SONN <- R6::R6Class(
             }
           }
 
-          .trace_boundary("train_network", "end", FALSE, network_epoch)
+          .trace_boundary("train_network", "end", FALSE, network_epoch, started = network_epoch_started)
         } # end for epoch
 
         total_learn_time <- total_learn_time + learn_result$learn_time
@@ -3538,7 +3538,7 @@ DDESONN <- R6::R6Class(
       
       for (epoch in 1:num_epochs) {
         train_epoch <- .trace_epoch(trace_epochs$train, epoch)
-        .trace_boundary("train", "begin", FALSE, train_epoch)
+        train_epoch_started <- .trace_boundary("train", "begin", FALSE, train_epoch)
         
         # Create mini-batches
         n <- nrow(Rdata)
@@ -3594,7 +3594,7 @@ DDESONN <- R6::R6Class(
             batch_labels <- labels[batch]
           }
         }#end of batch normalize data
-        .trace_boundary("train", "end", FALSE, train_epoch)
+        .trace_boundary("train", "end", FALSE, train_epoch, started = train_epoch_started)
       }
       
       # Initialize lists to store results
@@ -3648,6 +3648,7 @@ DDESONN <- R6::R6Class(
           
           report_members[[i]] <- list(
             completed = predicted_outputAndTime$completed_epochs,
+            elapsed = predicted_outputAndTime$training_time,
             best_loss = predicted_outputAndTime$best_val_loss,
             best_epoch = predicted_outputAndTime$best_val_epoch_loss,
             best_checkpoint_epoch = if (CLASSIFICATION_MODE == "regression")

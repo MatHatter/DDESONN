@@ -31,7 +31,9 @@ test_that("method trace filters select independent epochs without changing train
   for (phase in c("begin", "end")) {
     epochs <- function(method) {
       hits <- grep(paste0("^\\[TRACE\\] ", method, "-", phase, " \\| epoch="), lines, value = TRUE)
-      unique(as.integer(sub(".*epoch=", "", hits, fixed = FALSE)))
+      suffix <- if (phase == "end") " [|] elapsed=[0-9]+[.][0-9]{3} s$" else "epoch=[0-9]+$"
+      expect_true(all(grepl(suffix, hits)))
+      unique(as.integer(sub(".*epoch=([0-9]+).*", "\\1", hits)))
     }
     expect_identical(epochs("train"), 1:2)
     expect_identical(epochs("train_network"), 1:3)
@@ -75,4 +77,13 @@ test_that("debug fit markers work without an environment gate or epoch selection
   expect_true(any(grepl("EVOKE-FIT-BEGIN", output, fixed = TRUE)))
   expect_true(any(grepl("EVOKE-FIT-END", output, fixed = TRUE)))
   expect_false(any(startsWith(output, "[TRACE] ")))
+})
+
+
+test_that("live elapsed labels use complete minutes and seconds", {
+  h <- new.env(parent = globalenv())
+  sys.source(system.file("shiny", "benchmark", "workbench_helpers.R", package = "DDESONN"), h)
+  started <- as.POSIXct("2026-11-18 12:00:00", tz = "UTC")
+  expect_identical(h$wb_elapsed_text(started, started + 75.9), "Elapsed: 1m 15s")
+  expect_identical(h$wb_elapsed_text(started, started - 1), "Elapsed: 0m 00s")
 })

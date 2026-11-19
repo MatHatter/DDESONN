@@ -1,3 +1,10 @@
+# DDESONN 7.5.4
+
+- Include elapsed time in selected R method trace end markers.
+- Display elapsed time consistently for new and continued Shiny training.
+- Highlight main fits and separate measured fit, prediction, and other run
+  time in the detailed report. Show network times within their parent fits.
+
 # DDESONN 7.5.3
 
 - Keep the Shiny split check and data help working when the loaded engine

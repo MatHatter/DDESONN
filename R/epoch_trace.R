@@ -38,10 +38,14 @@
   NA_integer_
 }
 
-.trace_boundary <- function(method, phase, legacy, epoch = NULL) {
+.trace_boundary <- function(method, phase, legacy, epoch = NULL, started = NULL) {
   if (is.null(epoch)) {
     if (isTRUE(legacy)) print(paste0(strrep("-", 40), method, "-", phase, strrep("-", 40)))
   } else if (!is.na(epoch)) {
-    cat(sprintf("[TRACE] %s-%s | epoch=%d\n", method, phase, epoch))
+    now <- proc.time()[["elapsed"]]
+    elapsed <- if (!is.null(started)) sprintf(" | elapsed=%.3f s", now - started) else ""
+    cat(sprintf("[TRACE] %s-%s | epoch=%d%s\n", method, phase, epoch, elapsed))
+    return(invisible(now))
   }
+  invisible(NULL)
 }
