@@ -5,6 +5,9 @@ Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 Learning notes, startup material and DDESONN modeling updates:
 [Follow on Substack](https://substack.com/@alphalion).
 
+See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.1.1.md)
+for a summary of the updates available on GitHub.
+
 ## Optional Shiny GUI: launch and first steps
 
 DDESONN includes a Shiny graphical user interface (GUI) for preparing data,

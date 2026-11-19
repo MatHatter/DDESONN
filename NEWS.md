@@ -1,3 +1,8 @@
+# DDESONN 7.5.6
+
+- Preserve help for both plot-directory functions when regenerating documentation.
+- Link to the changes since the latest CRAN release, 7.1.11, from the README.
+
 # DDESONN 7.5.5
 
 - Add an explanatory Split overlap panel for the selected completed run in
