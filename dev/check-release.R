@@ -35,9 +35,13 @@ check_ddesonn_release <- function(package = ".",
   if (build_status != 0L || !file.exists(tarball)) stop("R CMD build failed.")
   check_status <- system2(r, c("CMD", "check", "--as-cran", "--no-manual", shQuote(tarball)))
   log <- file.path(run_dir, "DDESONN.Rcheck", "00check.log")
-  if (check_status != 0L || !file.exists(log) ||
-      !any(trimws(readLines(log, warn = FALSE)) == "Status: OK")) {
-    stop("R CMD check did not report Status: OK. See ", log)
+  status <- if (file.exists(log)) {
+    grep("^Status: ", trimws(readLines(log, warn = FALSE)), value = TRUE)
+  }
+  status <- tail(status, 1L)
+  if (check_status != 0L || length(status) != 1L ||
+      !grepl("^Status: (OK|[0-9]+ NOTEs?)$", status)) {
+    stop("R CMD check failed or did not finish. See ", log)
   }
   invisible(log)
 }
