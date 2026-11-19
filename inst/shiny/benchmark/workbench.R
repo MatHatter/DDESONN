@@ -47,6 +47,24 @@ wb_heading <- function(title, help, level = 3) {
     if (level == 3) shiny::h3(title) else shiny::h4(title), wb_help(title, help))
 }
 
+wb_overlap_ui <- function(overlap) {
+  details <- wb_overlap_details(overlap)
+  status <- details$status
+  tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
+  shiny::div(class = "wb-overlap-report",
+    shiny::div(class = "wb-title-row",
+      shiny::h4("Split overlap"),
+      wb_help("Split overlap",
+        paste("This check compares predictor values after preparation across training, validation and test.",
+          "Each distinct combination of matching predictor values is counted once per split pair.",
+          "Matches can make held-out scores look better than they would on unseen inputs.",
+          "Identical values alone cannot establish whether two rows come from the same subject."),
+        show_code = FALSE)),
+    shiny::p(class = tone, details$text),
+    if (identical(status, "detected")) shiny::p(
+      "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs."))
+}
+
 wb_field <- function(id, title, help, control, api = NULL) {
   shiny::div(class = "wb-field",
     shiny::div(class = "wb-control-title",
@@ -488,7 +506,6 @@ wb_ui <- function() {
             shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_training_context")),
-          shiny::uiOutput("wb_split_overlap"),
           shiny::conditionalPanel("output.wb_running_flag !== 'yes' || output.wb_error_flag === 'yes'",
             shiny::div(class = "wb-latest-attempt wb-attempt-above", role = "status",
               shiny::conditionalPanel("output.wb_running_flag !== 'yes'",
@@ -531,6 +548,7 @@ wb_ui <- function() {
             wb_vignette_link("wb_community_vignettes", "Share results or contribute"),
             shiny::textOutput("wb_model_info"),
             shiny::textOutput("wb_checkpoint_summary"),
+            shiny::uiOutput("wb_split_overlap"),
             wb_code_panel("wb_training_code", "Equivalent R code — next new model"),
             shiny::uiOutput("wb_next_recipe_button"),
             shiny::br(), shiny::br(), shiny::actionButton("wb_review_results", "View selected results", disabled = "disabled", `aria-disabled` = "true"),
@@ -1518,7 +1536,11 @@ wb_server <- function(input, output, session, helper) {
       paste0("· ", length(p$features), " source predictors → ", ncol(p$parts$train$x), " numeric model inputs"),
       if (p$mode == "binary") paste("· positive class:", p$classes[2]) else "")
   })
-  output$wb_split_overlap <- shiny::renderUI(wb_overlap_ui(wb_recorded_overlap(prepared())))
+  output$wb_split_overlap <- shiny::renderUI({
+    run <- result()
+    if (is.null(run)) return(NULL)
+    wb_overlap_ui(wb_recorded_overlap(run$prepared))
+  })
   output$wb_training_context <- shiny::renderText(training_context())
   output$wb_status <- shiny::renderText(status())
   output$wb_running_status <- shiny::renderText(status())

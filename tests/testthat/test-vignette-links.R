@@ -20,6 +20,7 @@ test_that("Shiny vignette links prefer installed guides and retain source fallba
   on.exit(shiny::removeResourcePath("ddesonn-vignettes"), add = TRUE)
   expect_match(ui, 'target="_blank"', fixed = TRUE)
   expect_match(ui, 'rel="noopener noreferrer"', fixed = TRUE)
+  expect_match(ui, "(?s)Guides and examples.*DDESONN_mtcars_A-D_examples\\.R[^>]*>Scenario B", perl = TRUE)
   expect_match(ui, file, fixed = TRUE)
   expect_match(ui, "https://www.linkedin.com/in/mathewfok", fixed = TRUE)
   expect_match(ui, '<a href="https://substack.com/@alphalion"[^>]*>Follow on Substack</a>')

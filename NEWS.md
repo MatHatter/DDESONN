@@ -4,6 +4,8 @@
 - Display elapsed time consistently for new and continued Shiny training.
 - Highlight main fits and separate measured fit, prediction, and other run
   time in the detailed report. Show network times within their parent fits.
+- Add an explanatory Split overlap panel for the selected completed run in
+  Shiny. List the Scenario B R example under Guides and examples.
 
 # DDESONN 7.5.3
 
