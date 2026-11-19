@@ -334,15 +334,17 @@ wb_run <- function(prepared, config, previous = NULL) {
     network$weights <- network$best_weights
     network$biases <- network$best_biases
   }
+  scoring_started <- proc.time()[["elapsed"]]
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_predictions(model, prepared, part)))
+  scoring_elapsed <- proc.time()[["elapsed"]] - scoring_started
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = model, prepared = prepared, config = config, self_org_applied = self_org_applied,
     evaluation = evaluation, selected_epoch = as.integer(selected_epoch),
     report_r_version = as.character(getRversion()),
     report_stages = wb_record_report_stage(previous, config, list(DDESONN:::.report_model_fit(
       model, paste("Seed", prepared$seed), wb_report_checkpoint(config$checkpoint))),
-      proc.time()[["elapsed"]] - started, 1L, prepared$mode),
+      proc.time()[["elapsed"]] - started, 1L, prepared$mode, scoring_elapsed),
     recipe = if (!is.null(previous$recipe)) paste(previous$recipe,
       "\n# Additional fit from the previously selected weights\n", wb_fit_code(prepared, config, FALSE),
       wb_evaluation_code(prepared, "test"), sep = "\n") else if (!is.null(previous))
@@ -439,6 +441,11 @@ wb_log_history <- function(path) {
   if (!length(epochs)) return(data.frame(epoch = integer(), loss = numeric(), fit = integer(), fit_epoch = integer()))
   data.frame(epoch = if (max(fit) > 1) seq_along(epochs) else epochs,
     loss = as.numeric(sub(".*Loss: ([-+0-9.eE]+).*", "\\1", lines)), fit = fit, fit_epoch = epochs)
+}
+
+wb_elapsed_text <- function(started, now = Sys.time()) {
+  seconds <- max(0, floor(as.numeric(difftime(now, started, units = "secs"))))
+  sprintf("Elapsed: %dm %02ds", seconds %/% 60, seconds %% 60)
 }
 
 wb_start <- function(helper, prepared, config, previous = NULL) {
@@ -958,6 +965,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     validation_metrics = best, best_weights_on_latest_weights_off = best,
     threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics,
     trace_epochs = config$trace_epochs)
+  run_prediction_elapsed <- 0
   if (is.null(previous)) {
     run <- DDESONN::ddesonn_run(tr$x, tr$y, classification_mode = prepared$mode,
       hidden_sizes = config$hidden, seeds = config$seeds,
@@ -967,6 +975,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
         activation_functions = acts, activation_functions_predict = acts, init_method = config$init),
       training_overrides = train, save_models = FALSE, verboseLow = TRUE,
       verbose = config$diagnostics)
+    run_prediction_elapsed <- run$timing$prediction_elapsed
     models <- lapply(run$runs, function(r) r$main$model)
     orchestration <- lapply(run$runs, `[[`, "tables")
     fits <- unlist(lapply(run$runs, `[[`, "report_fits"), recursive = FALSE)
@@ -995,6 +1004,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
       stop("A member has no valid validation checkpoint; no completed model was replaced.")
     network$weights <- network$best_weights; network$biases <- network$best_biases
   }
+  scoring_started <- proc.time()[["elapsed"]]
   weights <- lapply(models, function(model) {
     preds <- DDESONN::ddesonn_predict(model, va$x, aggregate = "none")$per_model
     score <- vapply(preds, function(p) {
@@ -1010,12 +1020,15 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     m <- wb_evaluate(prepared, va, p)$metrics
     data.frame(seed = config$seeds[i], m)
   })
+  scoring_elapsed <- proc.time()[["elapsed"]] - scoring_started
   # Keep the root model API-compatible; serialize the other seeds as model state.
   root <- wb_clone_model(models[[1]])
   attr(root, "workbench_custom") <- list(models = models, weights = weights,
     fusion = config$fusion, seed_aggregate = config$seed_aggregate)
+  scoring_started <- proc.time()[["elapsed"]]
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_custom_predictions(root, prepared, part)))
+  scoring_elapsed <- run_prediction_elapsed + scoring_elapsed + (proc.time()[["elapsed"]] - scoring_started)
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = root, prepared = prepared, config = config, evaluation = evaluation,
     self_org_applied = is.null(previous) && config$self_org,
@@ -1024,7 +1037,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     report_r_version = as.character(getRversion()),
     report_stages = wb_record_report_stage(previous, config, fits,
       proc.time()[["elapsed"]] - started, vapply(models, function(model) length(model$ensemble), integer(1)),
-      prepared$mode),
+      prepared$mode, scoring_elapsed),
     recipe = if (is.null(previous)) wb_recipe(prepared, config) else wb_resume_recipe(prepared, config), completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }
@@ -1070,7 +1083,7 @@ wb_legacy_report_stage <- function(bundle) {
       `Gradient reduction` = DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(cfg)))))
 }
 
-wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode) {
+wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode, scoring_elapsed) {
   old <- previous$report_stages
   if (is.null(old) && !is.null(previous)) old <- list(wb_legacy_report_stage(previous))
   fits <- Filter(Negate(is.null), fits)
@@ -1083,6 +1096,7 @@ wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mo
   }
   temp <- fits[grepl("\u00b7 TEMP ", vapply(fits, `[[`, character(1), "label"), fixed = TRUE)]
   stage <- list(fits = fits, elapsed = elapsed, cumulative = previous_epochs + epochs,
+    prediction_elapsed = scoring_elapsed, timing_scope = "Fit and scoring work in this Shiny training stage",
     checkpoint = if (length(fits)) wb_report_checkpoint(config$checkpoint),
     r_version = as.character(getRversion()),
     package_version = as.character(utils::packageVersion("DDESONN")),

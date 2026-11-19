@@ -204,7 +204,8 @@ runs inference and can be called during training to compute metrics.
 \code{trace_epochs} selects begin/end markers for four R6 methods in
 \code{R/DDESONN.R}: \code{DDESONN$train()} during batch preparation, and
 \code{SONN$train_network()}, \code{SONN$learn()}, and \code{SONN$predict()} inside the
-training epoch loop.
+training epoch loop. Selected end markers include elapsed wall-clock time.
+The durations can include calls to other traced methods.
 
 For example, set
 \code{training_overrides = list(trace_epochs = list(all = FALSE, train = 5:10, learn = 10:15))}.

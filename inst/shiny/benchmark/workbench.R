@@ -148,7 +148,13 @@ wb_ui <- function() {
           shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")))))
   recent <- shiny::tabPanel("Recent runs", value = "recent",
     shiny::div(class = "panel-body-custom",
-      shiny::h3("Global recent runs — this session"),
+      shiny::div(class = "wb-title-row",
+        shiny::h3("Global recent runs — this session"),
+        wb_help("Recent runs timing",
+          paste("Select a run to see fit, scoring and network times in Run details.",
+            "For timing specific methods and epochs, open Equivalent R code for Custom training,",
+            "uncomment one trace_epochs example and run the recipe in R."),
+          show_code = FALSE)),
       shiny::p("Keeps the latest 10 completed training models, loaded models and CSV evaluation/prediction runs in memory for this Shiny session. Nothing here is automatically saved to disk. Restore a model and use Save & export to download its .rds before ending the session."),
       shiny::p("Clear saved-model workspace does not remove this history. Remove selected item and Clear recent history remove only archive entries: they do not close an active model, erase training results or delete files."),
       shiny::uiOutput("wb_recent_items"),
@@ -471,7 +477,10 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
               wb_switch("wb_diagnostics", "Detailed training diagnostics",
                 paste("Show tensor, gradient, optimizer and training summaries in the Training log.",
-                  "For specific methods and epochs, open Equivalent R code and uncomment a trace example to run in R.")))),
+                  "DDESONN$train() coordinates the fit and calls SONN$train_network() for each network member.",
+                  "SONN$train_network() runs one member's epochs, applies updates and tracks checkpoints.",
+                  "SONN$learn() computes the gradients for a learning step. SONN$predict() uses the current weights and biases to make predictions, including during validation.",
+                  "See Run details for fit and network times. To trace specific methods and epochs, uncomment an example in Equivalent R code and run it in R.")))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'", shiny::div(class = "wb-workload-explanation", shiny::textOutput("wb_workload"))),
           wb_vignette_link("wb_training_vignettes", "Training and plotting guides in Vignettes"),
           shiny::div(class = "wb-training-actions",
@@ -1110,8 +1119,7 @@ wb_server <- function(input, output, session, helper) {
         fit <- shiny::isolate(saved_fit()); fit$history <- h; fit$log <- read_job_log(active); saved_fit(fit)
       } else {
         history(h)
-        elapsed <- as.integer(difftime(Sys.time(), active$started, units = "secs"))
-        status(sprintf("Run %s · Running · %s seconds · %s of %s epochs logged", active$run_id, elapsed,
+        status(sprintf("Run %s · Running · %s · %s of %s epochs logged", active$run_id, wb_elapsed_text(active$started),
           if (nrow(h)) max(h$epoch) else 0L, active$epochs))
       }
       if (!active$process$is_alive()) {
@@ -1219,8 +1227,13 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_saved_fit_status <- shiny::renderText({
     fit <- saved_fit(); if (is.null(fit)) return("No additional training started. Choose the number of extra epochs, then click Start additional training.")
+    active <- job()
+    elapsed <- if (identical(active$destination, "saved")) {
+      shiny::invalidateLater(1000, session)
+      paste0(" · ", wb_elapsed_text(active$started))
+    }
     paste0(fit$state, " · additional training from saved model: ", fit$parent,
-      if (fit$state == "Running") paste0(" · ", if (nrow(fit$history)) max(fit$history$epoch) else 0, " epochs logged") else
+      if (fit$state == "Running") paste0(elapsed, " · ", if (nrow(fit$history)) max(fit$history$epoch) else 0, " epochs logged") else
         if (fit$state == "Completed") " · new copy ready; original unchanged" else " · original unchanged")
   })
   output$wb_saved_fit_error <- shiny::renderText(if (!is.null(saved_fit()$error)) saved_fit()$error else model_error())
