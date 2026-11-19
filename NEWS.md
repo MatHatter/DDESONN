@@ -1,3 +1,8 @@
+# DDESONN 7.5.5
+
+- Add an explanatory Split overlap panel for the selected completed run in
+  Shiny. List the Scenario B R example under Guides and examples.
+
 # DDESONN 7.5.4
 
 - Include elapsed time in selected R method trace end markers.
