@@ -1,3 +1,29 @@
+# DDESONN 7.5.6
+
+- Preserve help for both plot-directory functions when regenerating documentation.
+- Link to the changes since the latest CRAN release, 7.1.11, from the README.
+
+# DDESONN 7.5.5
+
+- Add an explanatory Split overlap panel for the selected completed run in
+  Shiny. List the Scenario B R example under Guides and examples.
+
+# DDESONN 7.5.4
+
+- Include elapsed time in selected R method trace end markers.
+- Display elapsed time consistently for new and continued Shiny training.
+- Highlight main fits and separate measured fit, prediction, and other run
+  time in the detailed report. Show network times within their parent fits.
+
+# DDESONN 7.5.3
+
+- Keep the Shiny split check and data help working when the loaded engine
+  lacks the overlap helpers.
+
+# DDESONN 7.5.2
+
+- Set weight and bias gradient reduction independently. Shiny defaults to Sum
+  for both and preserves the recorded reductions when loading a model.
 # DDESONN 7.5.1
 
 - Keep epoch trace settings in the Custom workflow's equivalent R code.

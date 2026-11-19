@@ -421,6 +421,8 @@ ddesonn_model <- function(input_size,
 #'   topology error (how well neighborhood structure is organized), not on the
 #'   supervised prediction-loss term.
 #' @param ... Named overrides for entries in [ddesonn_training_defaults()].
+#'   Set `gradient_reduction` to `"legacy_mixed"` to sum weight gradients
+#'   and average bias gradients, or `"mean_weights"` for the reverse.
 #'   Also accepts `trace_epochs` for per-method epoch markers. See [ddesonn_run()].
 #' @param verbose Logical; emit detailed progress output when TRUE.
 #' @param verboseLow Logical; emit important progress output when TRUE.
@@ -616,7 +618,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
-  cfg$average_gradients <- if (reduction == "legacy_mixed") NULL else reduction == "mean"
+  cfg$average_gradients <- if (reduction %in% c("sum", "mean")) reduction == "mean"
   if (identical(cfg$optimizer, "adagrad_x")) {
     stop('Optimizer adagrad_x has been removed. Use optimizer = "adagrad" with a new model; legacy optimizer state is incompatible.', call. = FALSE)
   }
@@ -1134,6 +1136,7 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
     verboseLow = verboseLow                                                                            
   )                                                                                                    
   
+  model$last_training$run_report_fit$elapsed <- proc.time()[["elapsed"]] - fit_started
   invisible(model)
 }
 
@@ -3431,7 +3434,8 @@ ddesonn_predict <- function(model, new_data,
 #' `trace_epochs` selects begin/end markers for four R6 methods in
 #' `R/DDESONN.R`: `DDESONN$train()` during batch preparation, and
 #' `SONN$train_network()`, `SONN$learn()`, and `SONN$predict()` inside the
-#' training epoch loop.
+#' training epoch loop. Selected end markers include elapsed wall-clock time.
+#' The durations can include calls to other traced methods.
 #'
 #' For example, set
 #' `training_overrides = list(trace_epochs = list(all = FALSE, train = 5:10, learn = 10:15))`.
@@ -3691,6 +3695,13 @@ ddesonn_run <- function(x,
                         sequence_length = 48L, ssm_state_dim = 16L, ssm_conv = 4L,
                         prediction_sequence_data = NULL, dataset_name = NULL) {
   run_started <- proc.time()[["elapsed"]]
+  prediction_elapsed <- 0
+  time_prediction <- function(expr) {
+    started <- proc.time()[["elapsed"]]
+    value <- force(expr)
+    prediction_elapsed <<- prediction_elapsed + (proc.time()[["elapsed"]] - started)
+    value
+  }
   # [SSM] END: run-level sequence bridge arguments.
   classification_mode <- match.arg(classification_mode)
   aggregate <- match.arg(aggregate)
@@ -3745,6 +3756,9 @@ ddesonn_run <- function(x,
   # ============================================================
   base_train_overrides <- ddesonn_training_defaults(classification_mode, hidden_sizes)
   base_train_overrides <- utils::modifyList(base_train_overrides, training_overrides, keep.null = TRUE)
+  if (!is.null(training_overrides$gradient_reduction) &&
+      !"average_gradients" %in% names(training_overrides))
+    base_train_overrides$average_gradients <- NULL
   if (is.null(base_train_overrides$verbose)) base_train_overrides$verbose <- verbose  
   if (is.null(base_train_overrides$verboseLow)) base_train_overrides$verboseLow <- verboseLow  
   if (is.null(base_train_overrides$debug)) base_train_overrides$debug <- debug  
@@ -4036,7 +4050,7 @@ ddesonn_run <- function(x,
       run_index = run_idx                                                                                 
     )                                                                                                     
     
-    pr <- try(                                                                                               
+    pr <- time_prediction(try(
       ddesonn_predict(                                                                                       
         model,                                                                                                
         new_data,                                                                                             
@@ -4048,7 +4062,7 @@ ddesonn_run <- function(x,
         sequence_data = split_sequence_data # [SSM] Never substitute the train sequence.
       ),                                                                                                      
       silent = TRUE                                                                                           
-    )                                                                                                         
+    ))
     
     .evoke_predict_end(                                                                                   
       where = sprintf("ddesonn_run::build_split_predictions(split=%s)", tolower(split_label)),            
@@ -4421,7 +4435,7 @@ ddesonn_run <- function(x,
         )
       }                                                                                 # 
       
-      preds <- ddesonn_predict(                                                         
+      preds <- time_prediction(ddesonn_predict(
         mdl,                                                                            
         prediction_matrix,                                                              
         aggregate = aggregate,                                                          
@@ -4431,7 +4445,7 @@ ddesonn_run <- function(x,
         verboseLow = verboseLow,                                                        
         debug = debug,
         sequence_data = prediction_sequence_data # [SSM] Explicit prediction sequence.
-      )                                                                                 
+      ))
       main_pred <- preds
       
       if (isTRUE(debug)) {                                                              # 
@@ -4513,7 +4527,7 @@ ddesonn_run <- function(x,
             )
           }                                                                             # 
           
-          tpred <- ddesonn_predict(                                                     
+          tpred <- time_prediction(ddesonn_predict(
             tmp_model,                                                                  
             prediction_matrix,                                                          
             aggregate = "none",                                                         
@@ -4522,7 +4536,7 @@ ddesonn_run <- function(x,
             verboseLow = verboseLow,                                                    
             debug = debug,
             sequence_data = prediction_sequence_data # [SSM] TEMP prediction sequence.
-          )                                                                             
+          ))
           per_seed <- tpred$per_model
           aggregate_tmp <- .aggregate_predictions(per_seed, aggregate)
           
@@ -4575,7 +4589,7 @@ ddesonn_run <- function(x,
           )
         }                                                                               # 
         
-        preds <- ddesonn_predict(                                                       
+        preds <- time_prediction(ddesonn_predict(
           mdl,                                                                          
           prediction_matrix,                                                            
           aggregate = aggregate,                                                        
@@ -4585,7 +4599,7 @@ ddesonn_run <- function(x,
           verboseLow = verboseLow,                                                      
           debug = debug,
           sequence_data = prediction_sequence_data # [SSM] Post-TEMP prediction sequence.
-        )                                                                               
+        ))
         main_pred <- preds
         
         if (isTRUE(debug)) {                                                            # 
@@ -4760,7 +4774,7 @@ ddesonn_run <- function(x,
   counts <- c(Training = nrow(x_matrix), Validation = validation_rows, Test = NROW(test_matrix))
   scenario <- .report_scenario(do_ensemble, base_model_args$num_networks, length(runs[[1L]]$temp_iterations))
   temp_fits <- unlist(lapply(runs, function(run) run$report_fits[-1L]), recursive = FALSE)
-  stage <- list(fits = fits, elapsed = proc.time()[["elapsed"]] - run_started,
+  stage <- list(fits = fits, prediction_elapsed = prediction_elapsed, timing_scope = "Through run preparation, before final evaluation tables",
     overview = .report_field_lines(list(`Seed runs` = length(runs),
       `Prediction models per seed` = .report_epoch_range(retained),
       `Prediction-only rows` = NROW(prediction_matrix),
@@ -4772,6 +4786,8 @@ ddesonn_run <- function(x,
       `TEMP selection metric` = if (length(temp_fits)) target_metric else "Disabled"))
   overlap <- .split_overlap(x_matrix, validation_data$x %||% base_train_overrides$X_validation,
     test_matrix)
+  stage$elapsed <- proc.time()[["elapsed"]] - run_started
+  result$timing <- list(prediction_elapsed = prediction_elapsed)
   result$run_report <- .report_format(classification_mode, scenario, .report_dataset(dataset_name),
     counts, list(stage), list(`DDESONN version` = as.character(utils::packageVersion("DDESONN")),
       `R version` = as.character(getRversion()), `RNG kind` = RNGkind()),

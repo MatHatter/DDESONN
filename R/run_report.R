@@ -49,7 +49,7 @@
       batch <- model$calculate_batch_size(data)
       if (batch %% 1 == 0) min(nrow(data), batch) else paste("Up to", ceiling(batch))
     } else "Disabled",
-    `Gradient reduction` = reduction,
+    `Gradient reduction` = .ddesonn_gradient_label(reduction),
     `Training loss` = cfg$loss_type,
     Regularization = if (!length(cfg$reg_type) || isTRUE(lambda == 0)) "Disabled" else
       sprintf("%s (lambda %s)", .report_value(cfg$reg_type), .report_value(lambda)),
@@ -125,6 +125,35 @@
 
 .report_heading <- function(title) paste("=====", title, "=====")
 
+# Fit intervals include training-time validation, and prediction_elapsed counts
+# only separately measured prediction or scoring work outside those intervals.
+.report_timing <- function(stage) {
+  fits <- stage$fits
+  if (!length(fits) || !length(stage$elapsed) || !length(stage$prediction_elapsed))
+    return(character())
+  finite_seconds <- function(x) length(x) == 1L && is.finite(x) && x >= 0
+  times <- lapply(fits, `[[`, "elapsed")
+  if (!all(vapply(c(times, list(stage$elapsed, stage$prediction_elapsed)), finite_seconds, logical(1))))
+    return(character())
+  times <- unlist(times, use.names = FALSE)
+  labels <- vapply(fits, `[[`, character(1), "label")
+  other <- stage$elapsed - sum(times) - stage$prediction_elapsed
+  if (other < -1e-8) return(character())
+  main <- grepl(" MAIN$", labels)
+  temp <- grepl(" TEMP ", labels, fixed = TRUE)
+  lines <- function(label, seconds) sprintf("%s: %.2f s", label, seconds)
+  c(
+    stage$timing_scope,
+    if (any(main)) lines("**MAIN fits**", sum(times[main])),
+    if (any(temp)) lines("TEMP fits", sum(times[temp])),
+    if (any(!(main | temp))) lines("**Model fits**", sum(times[!(main | temp)])),
+    lines("Measured prediction / scoring outside fits", stage$prediction_elapsed),
+    lines("Other run work", max(0, other)),
+    lines("Total measured", stage$elapsed),
+    "Fits include any prediction and validation performed inside training."
+  )
+}
+
 .report_format <- function(mode, scenario, dataset, counts, stages, provenance,
                            preprocessing = list(), excluded = NULL, overlap = NULL) {
   task <- switch(mode %||% "", binary = "Binary classification",
@@ -154,15 +183,17 @@
   checkpoint <- latest$checkpoint %||% unique(vapply(fits, `[[`, character(1), "checkpoint"))
   overlap_line <- paste("Split overlap:", .overlap_text(overlap))
   identity <- .report_field_lines(list(Scenario = scenario, Task = task, Dataset = dataset))
+  latest_timing <- .report_timing(latest)
   overview <- c(identity, "", .report_heading("Data splits"), split, excluded, overlap_line,
     "", .report_heading("Training and checkpoint"), latest$overview,
     .report_field_lines(list(
       `Epochs completed / requested per model (latest stage)` = epoch_pair,
       `Cumulative epochs per model across recorded stages` = cumulative,
-      `Elapsed time (latest stage)` = if (length(seconds) && is.finite(seconds)) sprintf("%.2f s", seconds),
       `Stopping reason` = stopping,
       `Best validation loss` = best_summary,
       `Prediction checkpoint` = checkpoint)),
+    if (length(latest_timing)) c("", .report_heading("Timing"), latest_timing)
+    else if (length(seconds) && is.finite(seconds)) sprintf("Elapsed time (latest stage): %.2f s", seconds),
     if (length(provenance)) c("", .report_heading("Provenance"), .report_field_lines(provenance)))
 
   details <- c(.report_heading("Effective configuration"),
@@ -171,9 +202,11 @@
     stage <- stages[[i]]
     stage_title <- stage$title %||%
       paste("Training stage", i, if (i == 1L) "(initial)" else "(continued)")
+    timing <- .report_timing(stage)
     details <- c(details, "", .report_heading(stage_title),
-      .report_field_lines(c(list(`Elapsed time` = if (length(stage$elapsed)) sprintf("%.2f s", stage$elapsed),
-        `DDESONN version` = stage$package_version, `R version` = stage$r_version), stage$settings)))
+      if (!length(timing) && length(stage$elapsed)) sprintf("Elapsed time: %.2f s", stage$elapsed),
+      .report_field_lines(c(list(`DDESONN version` = stage$package_version,
+        `R version` = stage$r_version), stage$settings)))
     settings <- lapply(stage$fits, `[[`, "settings")
     groups <- unique(settings)
     for (group in groups) {
@@ -181,14 +214,19 @@
       labels <- vapply(stage$fits[same], `[[`, character(1), "label")
       details <- c(details, paste(labels, collapse = ", "), .report_field_lines(group))
     }
+    if (i < length(stages) && length(timing))
+      details <- c(details, "", .report_heading("Timing"), timing)
     if (length(stage$fits)) details <- c(details, "", .report_heading("Per-model outcomes"))
     for (fit in stage$fits) {
-      details <- c(details, sprintf("%s \u2014 %s (fit time %.2f s)", fit$label, fit$checkpoint, fit$elapsed))
+      label <- if (grepl(" TEMP ", fit$label, fixed = TRUE)) fit$label else paste0("**", fit$label, "**")
+      details <- c(details, sprintf("%s \u2014 %s (fit time %.2f s)", label, fit$checkpoint, fit$elapsed))
       for (j in seq_along(fit$members)) {
         member <- fit$members[[j]]
         loss <- .report_value(.report_best_loss(member))
         details <- c(details, sprintf("  Model %s: %s / %s epochs | Best validation loss: %s | Retained weights from epoch: %s",
-          j, member$completed, fit$requested, loss, .report_value(member$prediction_epoch)))
+          j, member$completed, fit$requested, loss, .report_value(member$prediction_epoch)),
+          if (length(member$elapsed) && is.finite(member$elapsed))
+            sprintf("    Network fit: %.2f s (included in fit time above)", member$elapsed))
       }
     }
   }

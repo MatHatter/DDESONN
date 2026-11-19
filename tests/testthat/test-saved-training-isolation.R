@@ -11,6 +11,7 @@ test_that("saved-model training and cancellation preserve the new-model workspac
     expect_identical(task_flow(), "saved")
     expect_identical(job()$destination, "saved")
     expect_match(output$wb_saved_fit_status, "uploaded.rds", fixed = TRUE)
+    expect_match(output$wb_saved_fit_status, "Elapsed: [0-9]+m [0-9]{2}s")
     expect_identical(output$wb_running_flag, "no")
     for (flow in c("train", "saved", "train", "saved")) {
       session$setInputs(wb_task_flow = flow)
@@ -20,6 +21,7 @@ test_that("saved-model training and cancellation preserve the new-model workspac
     session$setInputs(wb_saved_cancel = 1)
     expect_null(job())
     expect_identical(saved_fit()$state, "Cancelled")
+    expect_false(grepl("Elapsed:", output$wb_saved_fit_status, fixed = TRUE))
     expect_identical(serialize(active_model(), NULL), original)
     expect_identical(serialize(list(result(), prepared(), completed_runs(), attempts(), status()), NULL), baseline)
     session$setInputs(wb_continue = 2)

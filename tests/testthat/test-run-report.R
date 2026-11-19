@@ -28,6 +28,9 @@ test_that("the console defaults to evaluation tables and preserves the full repo
   expect_false(anyNA(sections))
   expect_true(all(diff(sections) > 0))
   expect_lt(tail(sections, 1), grep("^  Model 1:", full)[1])
+  expect_true("===== Timing =====" %in% full)
+  expect_true(any(startsWith(full, "**Model fits**:")))
+  expect_true(any(grepl("included in fit time above", full, fixed = TRUE)))
   expect_length(render(report, FALSE, FALSE), 0L)
   expect_true(all(c("Scenario: A | Single model", "Task: Binary classification",
     "Dataset: cars.csv", "Training: 12 | 60%", "Validation: 4 | 20%", "Test: 4 | 20%",
@@ -113,4 +116,17 @@ test_that("recent details and downloads follow the recorded run and preserve sta
     expect_true("Model: First model" %in% selected_run_report()$overview)
     expect_false("Initial learning rate: 0.02" %in% selected_run_report()$details)
   })
+})
+
+
+test_that("stage timing keeps main and TEMP fits separate from prediction and other work", {
+  stage <- list(elapsed = 12, prediction_elapsed = 3, timing_scope = "Measured stage",
+    fits = list(list(label = "Seed 1 \u00b7 MAIN", elapsed = 4),
+      list(label = "Seed 1 \u00b7 TEMP 1", elapsed = 2)))
+  timing <- DDESONN:::.report_timing(stage)
+  expect_true(all(c("**MAIN fits**: 4.00 s", "TEMP fits: 2.00 s",
+    "Measured prediction / scoring outside fits: 3.00 s", "Other run work: 3.00 s",
+    "Total measured: 12.00 s") %in% timing))
+  stage$prediction_elapsed <- NULL
+  expect_length(DDESONN:::.report_timing(stage), 0L)
 })

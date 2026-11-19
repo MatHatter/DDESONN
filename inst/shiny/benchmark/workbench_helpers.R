@@ -103,7 +103,7 @@ wb_binary_split <- function(x, y, seed, train_fraction, validation_fraction, spl
     train_test = length(intersect(sets$train, sets$test)),
     validation_test = length(intersect(sets$validation, sets$test)))
   if (any(overlaps)) stop("Repeated predictor inputs cross the ordered split. ",
-    DDESONN:::.overlap_text(overlaps),
+    wb_overlap_details(overlaps)$text,
     ". Use Random grouped splitting or supply a chronological split with no shared groups.")
   list(ids = ids, audit = list(method = if (split == "random") "grouped_predictors" else "ordered_checked",
     unique_predictors = length(members), overlap_groups = overlaps,
@@ -183,12 +183,11 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
   scale <- if (standardize) apply(x[ids$train, , drop = FALSE], 2, stats::sd) else rep(1, ncol(x))
   scale[!is.finite(scale) | scale == 0] <- 1
   x <- sweep(sweep(x, 2, center, "-"), 2, scale, "/")
-  overlap <- do.call(DDESONN:::.split_overlap,
-    lapply(ids, function(i) x[i, , drop = FALSE]))
+  overlap <- wb_check_overlap(lapply(ids, function(i) x[i, , drop = FALSE]))
   if (mode == "binary") {
     # Keep the existing binary safeguards after imputation and encoding.
     if (any(overlap > 0L)) stop("Preprocessing created identical inputs across splits. ",
-      DDESONN:::.overlap_text(overlap),
+      wb_overlap_details(overlap)$text,
       ". Choose different predictors or preprocessing, or prepare a grouped split externally.")
     split_audit$transformed_overlap_groups <- overlap
   }
@@ -211,7 +210,8 @@ wb_prepare <- function(data, target, features, mode, seed = 42L,
 }
 
 wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
-                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation", average_gradients = FALSE) {
+                      optimizer = "adagrad", lambda = 0, reg = "none", self_org = FALSE, checkpoint = "best_validation", average_gradients = FALSE,
+                      gradient_reduction = NULL) {
   h <- if (!nzchar(trimws(hidden))) integer() else suppressWarnings(as.numeric(strsplit(hidden, ",", fixed = TRUE)[[1]]))
   if (length(h) > 5 || any(!is.finite(h) | h < 1 | h > 512 | h %% 1 != 0))
     stop("Use up to five hidden layers, each 1–512 units, separated by commas; leave blank for a single-layer model.")
@@ -225,9 +225,13 @@ wb_config <- function(hidden = "16,8", epochs = 50, lr = .01,
   checkpoint <- match.arg(checkpoint, c("best_validation", "final"))
   if (!is.logical(average_gradients) || length(average_gradients) != 1L || is.na(average_gradients))
     stop("Average gradients must be TRUE or FALSE.")
+  reduction <- if (is.null(gradient_reduction)) {
+    if (average_gradients) "mean" else "sum"
+  } else match.arg(gradient_reduction, c("sum", "mean", "legacy_mixed", "mean_weights"))
   list(hidden = as.integer(h), epochs = as.integer(epochs), lr = lr,
     optimizer = optimizer, lambda = lambda, reg = reg, self_org = self_org, checkpoint = checkpoint,
-    average_gradients = average_gradients, gradient_reduction = if (average_gradients) "mean" else "sum")
+    average_gradients = if (reduction %in% c("sum", "mean")) reduction == "mean",
+    gradient_reduction = reduction)
 }
 
 wb_predictions <- function(model, prepared, part) {
@@ -277,7 +281,16 @@ wb_gradient_mode <- function(config) {
     return(if (config$average_gradients) "mean" else "sum")
   }
   mode <- if (is.null(config$gradient_reduction)) "legacy_mixed" else config$gradient_reduction
-  match.arg(mode, c("sum", "mean", "legacy_mixed"))
+  match.arg(mode, c("sum", "mean", "legacy_mixed", "mean_weights"))
+}
+
+wb_gradient_selection <- function(weights, biases) {
+  if (is.null(weights)) weights <- "sum"
+  if (is.null(biases)) biases <- "sum"
+  weights <- match.arg(weights, c("sum", "mean"))
+  biases <- match.arg(biases, c("sum", "mean"))
+  if (weights == biases) return(weights)
+  if (weights == "sum") "legacy_mixed" else "mean_weights"
 }
 
 wb_run <- function(prepared, config, previous = NULL) {
@@ -321,15 +334,17 @@ wb_run <- function(prepared, config, previous = NULL) {
     network$weights <- network$best_weights
     network$biases <- network$best_biases
   }
+  scoring_started <- proc.time()[["elapsed"]]
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_predictions(model, prepared, part)))
+  scoring_elapsed <- proc.time()[["elapsed"]] - scoring_started
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = model, prepared = prepared, config = config, self_org_applied = self_org_applied,
     evaluation = evaluation, selected_epoch = as.integer(selected_epoch),
     report_r_version = as.character(getRversion()),
     report_stages = wb_record_report_stage(previous, config, list(DDESONN:::.report_model_fit(
       model, paste("Seed", prepared$seed), wb_report_checkpoint(config$checkpoint))),
-      proc.time()[["elapsed"]] - started, 1L, prepared$mode),
+      proc.time()[["elapsed"]] - started, 1L, prepared$mode, scoring_elapsed),
     recipe = if (!is.null(previous$recipe)) paste(previous$recipe,
       "\n# Additional fit from the previously selected weights\n", wb_fit_code(prepared, config, FALSE),
       wb_evaluation_code(prepared, "test"), sep = "\n") else if (!is.null(previous))
@@ -351,7 +366,7 @@ wb_checkpoint <- function(bundle) {
 
 wb_checkpoint_summary <- function(bundle) {
   if (is.null(bundle)) return("No completed checkpoint yet.")
-  reduction_label <- switch(wb_gradient_mode(bundle$config), sum = "summed gradients", mean = "averaged gradients", legacy_mixed = "historical summed weights / averaged biases")
+  reduction_label <- DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(bundle$config))
   if (identical(bundle$config$workflow, "custom")) return(paste(
     if (identical(bundle$config$checkpoint, "best_validation")) "Each member uses its own best validation checkpoint (weights and biases)." else "Each member uses the final epoch.",
     paste0("All requested epochs ran; results combine members within seeds, then across seeds. ", reduction_label, ".")))
@@ -426,6 +441,11 @@ wb_log_history <- function(path) {
   if (!length(epochs)) return(data.frame(epoch = integer(), loss = numeric(), fit = integer(), fit_epoch = integer()))
   data.frame(epoch = if (max(fit) > 1) seq_along(epochs) else epochs,
     loss = as.numeric(sub(".*Loss: ([-+0-9.eE]+).*", "\\1", lines)), fit = fit, fit_epoch = epochs)
+}
+
+wb_elapsed_text <- function(started, now = Sys.time()) {
+  seconds <- max(0, floor(as.numeric(difftime(now, started, units = "secs"))))
+  sprintf("Elapsed: %dm %02ds", seconds %/% 60, seconds %% 60)
 }
 
 wb_start <- function(helper, prepared, config, previous = NULL) {
@@ -563,9 +583,9 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
   }
   best <- identical(cfg$checkpoint, "best_validation")
   reduction <- wb_gradient_mode(cfg)
-  gradient_argument <- if (reduction == "legacy_mixed")
-    'gradient_reduction = "legacy_mixed"' else
-    paste0("average_gradients = ", wb_literal(reduction == "mean"))
+  gradient_argument <- if (reduction %in% c("sum", "mean"))
+    paste0("average_gradients = ", wb_literal(reduction == "mean")) else
+    paste0("gradient_reduction = ", wb_literal(reduction))
   start <- paste0("# Reproduce model initialization and training randomness.\nset.seed(", p$seed, ")\n\n")
   if (create) start <- paste0(start,
     "# Create a new, untrained model.\nmodel <- ddesonn_model(input_size = ncol(parts$train$x), output_size = ",
@@ -945,6 +965,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     validation_metrics = best, best_weights_on_latest_weights_off = best,
     threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics,
     trace_epochs = config$trace_epochs)
+  run_prediction_elapsed <- 0
   if (is.null(previous)) {
     run <- DDESONN::ddesonn_run(tr$x, tr$y, classification_mode = prepared$mode,
       hidden_sizes = config$hidden, seeds = config$seeds,
@@ -954,6 +975,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
         activation_functions = acts, activation_functions_predict = acts, init_method = config$init),
       training_overrides = train, save_models = FALSE, verboseLow = TRUE,
       verbose = config$diagnostics)
+    run_prediction_elapsed <- run$timing$prediction_elapsed
     models <- lapply(run$runs, function(r) r$main$model)
     orchestration <- lapply(run$runs, `[[`, "tables")
     fits <- unlist(lapply(run$runs, `[[`, "report_fits"), recursive = FALSE)
@@ -982,6 +1004,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
       stop("A member has no valid validation checkpoint; no completed model was replaced.")
     network$weights <- network$best_weights; network$biases <- network$best_biases
   }
+  scoring_started <- proc.time()[["elapsed"]]
   weights <- lapply(models, function(model) {
     preds <- DDESONN::ddesonn_predict(model, va$x, aggregate = "none")$per_model
     score <- vapply(preds, function(p) {
@@ -997,12 +1020,15 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     m <- wb_evaluate(prepared, va, p)$metrics
     data.frame(seed = config$seeds[i], m)
   })
+  scoring_elapsed <- proc.time()[["elapsed"]] - scoring_started
   # Keep the root model API-compatible; serialize the other seeds as model state.
   root <- wb_clone_model(models[[1]])
   attr(root, "workbench_custom") <- list(models = models, weights = weights,
     fusion = config$fusion, seed_aggregate = config$seed_aggregate)
+  scoring_started <- proc.time()[["elapsed"]]
   evaluation <- lapply(prepared$parts, function(part)
     wb_evaluate(prepared, part, wb_custom_predictions(root, prepared, part)))
+  scoring_elapsed <- run_prediction_elapsed + scoring_elapsed + (proc.time()[["elapsed"]] - scoring_started)
   list(format = "DDESONN-workbench-1", package_version = as.character(utils::packageVersion("DDESONN")),
     model = root, prepared = prepared, config = config, evaluation = evaluation,
     self_org_applied = is.null(previous) && config$self_org,
@@ -1011,7 +1037,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     report_r_version = as.character(getRversion()),
     report_stages = wb_record_report_stage(previous, config, fits,
       proc.time()[["elapsed"]] - started, vapply(models, function(model) length(model$ensemble), integer(1)),
-      prepared$mode),
+      prepared$mode, scoring_elapsed),
     recipe = if (is.null(previous)) wb_recipe(prepared, config) else wb_resume_recipe(prepared, config), completed = format(Sys.time(), tz = "UTC", usetz = TRUE),
     fit_runs = if (is.null(previous)) 1L else previous$fit_runs + 1L)
 }
@@ -1054,10 +1080,10 @@ wb_legacy_report_stage <- function(bundle) {
       `Minimum learning rate` = cfg$minimum, Dropout = cfg$dropout,
       Regularization = cfg$reg, `Regularization strength` = cfg$lambda,
       `Self-organization applied` = bundle$self_org_applied,
-      `Gradient reduction` = cfg$gradient_reduction)))
+      `Gradient reduction` = DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(cfg)))))
 }
 
-wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode) {
+wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mode, scoring_elapsed) {
   old <- previous$report_stages
   if (is.null(old) && !is.null(previous)) old <- list(wb_legacy_report_stage(previous))
   fits <- Filter(Negate(is.null), fits)
@@ -1070,6 +1096,7 @@ wb_record_report_stage <- function(previous, config, fits, elapsed, retained, mo
   }
   temp <- fits[grepl("\u00b7 TEMP ", vapply(fits, `[[`, character(1), "label"), fixed = TRUE)]
   stage <- list(fits = fits, elapsed = elapsed, cumulative = previous_epochs + epochs,
+    prediction_elapsed = scoring_elapsed, timing_scope = "Fit and scoring work in this Shiny training stage",
     checkpoint = if (length(fits)) wb_report_checkpoint(config$checkpoint),
     r_version = as.character(getRversion()),
     package_version = as.character(utils::packageVersion("DDESONN")),
@@ -1091,14 +1118,38 @@ wb_recorded_overlap <- function(prepared) {
   if (!is.null(prepared$overlap)) prepared$overlap else prepared$split_audit$transformed_overlap_groups
 }
 
-wb_overlap_ui <- function(overlap) {
-  status <- DDESONN:::.overlap_status(overlap)
-  tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
-  shiny::tagList(
-    shiny::p(class = tone, shiny::strong("Split overlap: "), DDESONN:::.overlap_text(overlap)),
-    if (identical(status, "detected")) shiny::p(
-      "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs.")
-  )
+wb_check_overlap <- function(splits) {
+  check <- get0(".split_overlap", envir = asNamespace("DDESONN"), inherits = FALSE)
+  if (is.function(check)) return(do.call(check, splits))
+
+  # A source checkout can run with an older installed runtime in RStudio.
+  # Every prepared part uses the same numeric predictor columns.
+  keys <- lapply(splits, function(part) unique(apply(part, 1L, function(row) {
+    values <- as.double(row)
+    values[which(values == 0)] <- 0
+    digest::digest(values, algo = "sha256")
+  })))
+  c(train_validation = length(intersect(keys$train, keys$validation)),
+    train_test = length(intersect(keys$train, keys$test)),
+    validation_test = length(intersect(keys$validation, keys$test)))
+}
+
+wb_overlap_details <- function(overlap) {
+  ns <- asNamespace("DDESONN")
+  status_for <- get0(".overlap_status", envir = ns, inherits = FALSE)
+  describe <- get0(".overlap_text", envir = ns, inherits = FALSE)
+  if (is.function(status_for) && is.function(describe))
+    return(list(status = status_for(overlap), text = describe(overlap)))
+  if (!length(overlap) || all(is.na(overlap)))
+    return(list(status = "unavailable", text = "Check unavailable"))
+  status <- if (any(overlap > 0L, na.rm = TRUE)) "detected" else if (anyNA(overlap)) "partial" else "clear"
+  label <- switch(status, detected = "Exact predictor overlap detected",
+    partial = "No exact predictor overlap in comparable splits",
+    clear = "No exact predictor overlap detected")
+  pairs <- c("Train-Validation", "Train-Test", "Validation-Test")
+  counts <- paste(pairs, ifelse(is.na(overlap), "unavailable", overlap))
+  list(status = status, text = paste0(label, " (distinct shared vectors: ",
+    paste(counts, collapse = ", "), ")"))
 }
 
 wb_run_report <- function(bundle, record = NULL) {

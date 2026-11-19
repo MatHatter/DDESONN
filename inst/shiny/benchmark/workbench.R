@@ -47,6 +47,24 @@ wb_heading <- function(title, help, level = 3) {
     if (level == 3) shiny::h3(title) else shiny::h4(title), wb_help(title, help))
 }
 
+wb_overlap_ui <- function(overlap) {
+  details <- wb_overlap_details(overlap)
+  status <- details$status
+  tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
+  shiny::div(class = "wb-overlap-report",
+    shiny::div(class = "wb-title-row",
+      shiny::h4("Split overlap"),
+      wb_help("Split overlap",
+        paste("This check compares predictor values after preparation across training, validation and test.",
+          "Each distinct combination of matching predictor values is counted once per split pair.",
+          "Matches can make held-out scores look better than they would on unseen inputs.",
+          "Identical values alone cannot establish whether two rows come from the same subject."),
+        show_code = FALSE)),
+    shiny::p(class = tone, details$text),
+    if (identical(status, "detected")) shiny::p(
+      "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs."))
+}
+
 wb_field <- function(id, title, help, control, api = NULL) {
   shiny::div(class = "wb-field",
     shiny::div(class = "wb-control-title",
@@ -148,7 +166,13 @@ wb_ui <- function() {
           shiny::actionButton("wb_use_trained_model", "Evaluate or predict with this trained model", class = "btn-primary")))))
   recent <- shiny::tabPanel("Recent runs", value = "recent",
     shiny::div(class = "panel-body-custom",
-      shiny::h3("Global recent runs — this session"),
+      shiny::div(class = "wb-title-row",
+        shiny::h3("Global recent runs — this session"),
+        wb_help("Recent runs timing",
+          paste("Select a run to see fit, scoring and network times in Run details.",
+            "For timing specific methods and epochs, open Equivalent R code for Custom training,",
+            "uncomment one trace_epochs example and run the recipe in R."),
+          show_code = FALSE)),
       shiny::p("Keeps the latest 10 completed training models, loaded models and CSV evaluation/prediction runs in memory for this Shiny session. Nothing here is automatically saved to disk. Restore a model and use Save & export to download its .rds before ending the session."),
       shiny::p("Clear saved-model workspace does not remove this history. Remove selected item and Clear recent history remove only archive entries: they do not close an active model, erase training results or delete files."),
       shiny::uiOutput("wb_recent_items"),
@@ -391,9 +415,21 @@ wb_ui <- function() {
             shiny::numericInput("wb_epochs", NULL, 50, min = 1, max = 5000, step = 1)),
           wb_field("wb_optimizer", "Optimizer", "The optimizer is the rule used to update model weights from prediction errors. Different rules can learn at different speeds; compare them using validation data.",
             shiny::selectInput("wb_optimizer", NULL, wb_optimizer_choices(), selected = "adagrad")),
-          wb_switch("wb_average_gradients", "Average weight and bias gradients",
-            "Off (default) sums both over the batch. On averages both. This changes training before clipping and regularization; neither option guarantees higher accuracy. Saved models retain their original setting.",
-            api = "average_gradients <- FALSE # TRUE averages both; FALSE sums both"),
+          shiny::div(class = "wb-field", role = "group", `aria-labelledby` = "wb-gradient-reduction-label",
+            shiny::div(class = "wb-control-title",
+              shiny::tags$span(id = "wb-gradient-reduction-label", "Gradient reduction"),
+              wb_help("Gradient reduction",
+                paste("Gradient reduction combines per-example gradients into the update signal the optimizer uses for weights and biases.",
+                  "DDESONN defaults to Sum for both. Keras binary cross-entropy defaults to averaging over the batch.",
+                  "In the clean 100-seed binary study, DDESONN averaged 91.36% test accuracy with Sum for both and 90.39% with Average for both.",
+                  "Its advantage over Keras under the matching reduction was 3.88 and 2.77 percentage points, respectively.",
+                  "That study used one dataset split. Mixed settings and other datasets still need testing."),
+                show_code = FALSE)),
+            shiny::div(class = "wb-workflow-pills wb-gradient-pills",
+              shiny::radioButtons("wb_weight_reduction", "Weight gradients",
+                c(Sum = "sum", Average = "mean"), selected = "sum", inline = TRUE),
+              shiny::radioButtons("wb_bias_reduction", "Bias gradients",
+                c(Sum = "sum", Average = "mean"), selected = "sum", inline = TRUE))),
           wb_field("wb_lr", "Learning rate", "The learning rate sets the size of each weight update. Too large can make training unstable; too small can make learning slow. It interacts with the optimizer and data scaling. Basic keeps it fixed. Custom also offers exponential decay in Learning-rate scheduling.",
             shiny::numericInput("wb_lr", NULL, .01, min = .000001, max = 1, step = .001)),
           wb_switch("wb_self_org", "Self-organize before initial training",
@@ -459,7 +495,10 @@ wb_ui <- function() {
             shiny::tags$details(class = "wb-settings-section", shiny::tags$summary("Diagnostics"),
               wb_switch("wb_diagnostics", "Detailed training diagnostics",
                 paste("Show tensor, gradient, optimizer and training summaries in the Training log.",
-                  "For specific methods and epochs, open Equivalent R code and uncomment a trace example to run in R.")))),
+                  "DDESONN$train() coordinates the fit and calls SONN$train_network() for each network member.",
+                  "SONN$train_network() runs one member's epochs, applies updates and tracks checkpoints.",
+                  "SONN$learn() computes the gradients for a learning step. SONN$predict() uses the current weights and biases to make predictions, including during validation.",
+                  "See Run details for fit and network times. To trace specific methods and epochs, uncomment an example in Equivalent R code and run it in R.")))),
           shiny::conditionalPanel("input.wb_workflow === 'custom'", shiny::div(class = "wb-workload-explanation", shiny::textOutput("wb_workload"))),
           wb_vignette_link("wb_training_vignettes", "Training and plotting guides in Vignettes"),
           shiny::div(class = "wb-training-actions",
@@ -467,7 +506,6 @@ wb_ui <- function() {
             shiny::actionButton("wb_start", "Train new model", class = "btn-primary", disabled = "disabled", `aria-disabled` = "true"))),
         shiny::mainPanel(
           shiny::div(class = "wb-guidance", shiny::textOutput("wb_training_context")),
-          shiny::uiOutput("wb_split_overlap"),
           shiny::conditionalPanel("output.wb_running_flag !== 'yes' || output.wb_error_flag === 'yes'",
             shiny::div(class = "wb-latest-attempt wb-attempt-above", role = "status",
               shiny::conditionalPanel("output.wb_running_flag !== 'yes'",
@@ -510,6 +548,7 @@ wb_ui <- function() {
             wb_vignette_link("wb_community_vignettes", "Share results or contribute"),
             shiny::textOutput("wb_model_info"),
             shiny::textOutput("wb_checkpoint_summary"),
+            shiny::uiOutput("wb_split_overlap"),
             wb_code_panel("wb_training_code", "Equivalent R code — next new model"),
             shiny::uiOutput("wb_next_recipe_button"),
             shiny::br(), shiny::br(), shiny::actionButton("wb_review_results", "View selected results", disabled = "disabled", `aria-disabled` = "true"),
@@ -681,7 +720,9 @@ wb_server <- function(input, output, session, helper) {
     shiny::updateNumericInput(session, "wb_epochs", value = cfg$epochs)
     shiny::updateNumericInput(session, "wb_lr", value = cfg$lr)
     shiny::updateSelectInput(session, "wb_optimizer", choices = wb_optimizer_choices(), selected = cfg$optimizer)
-    shiny::updateCheckboxInput(session, "wb_average_gradients", value = identical(wb_gradient_mode(cfg), "mean"))
+    reduction <- DDESONN:::.ddesonn_gradient_choices(wb_gradient_mode(cfg))
+    shiny::updateRadioButtons(session, "wb_weight_reduction", selected = reduction[["weights"]])
+    shiny::updateRadioButtons(session, "wb_bias_reduction", selected = reduction[["biases"]])
     shiny::updateSelectInput(session, "wb_checkpoint", selected = cfg$checkpoint)
     shiny::updateSelectInput(session, "wb_reg", choices = c("L2", "L1", "L1_L2", "Group_Lasso", "Max_Norm"), selected = if (identical(cfg$reg, "none")) "L2" else cfg$reg)
     shiny::updateNumericInput(session, "wb_lambda", value = if (identical(cfg$reg, "none") && cfg$lambda == 0) .0001 else cfg$lambda)
@@ -941,7 +982,7 @@ wb_server <- function(input, output, session, helper) {
       input$wb_optimizer, if (regularize) input$wb_lambda else 0,
       if (regularize) input$wb_reg else "none", self_org = isTRUE(input$wb_self_org),
       checkpoint = if (is.null(input$wb_checkpoint)) "best_validation" else input$wb_checkpoint,
-      average_gradients = isTRUE(input$wb_average_gradients))
+      gradient_reduction = wb_gradient_selection(input$wb_weight_reduction, input$wb_bias_reduction))
     if (!identical(input$wb_workflow, "custom")) return(cfg)
     wb_custom_config(cfg, input$wb_structure, input$wb_members, input$wb_seeds,
       input$wb_temp, input$wb_activation, input$wb_init,
@@ -1096,8 +1137,7 @@ wb_server <- function(input, output, session, helper) {
         fit <- shiny::isolate(saved_fit()); fit$history <- h; fit$log <- read_job_log(active); saved_fit(fit)
       } else {
         history(h)
-        elapsed <- as.integer(difftime(Sys.time(), active$started, units = "secs"))
-        status(sprintf("Run %s · Running · %s seconds · %s of %s epochs logged", active$run_id, elapsed,
+        status(sprintf("Run %s · Running · %s · %s of %s epochs logged", active$run_id, wb_elapsed_text(active$started),
           if (nrow(h)) max(h$epoch) else 0L, active$epochs))
       }
       if (!active$process$is_alive()) {
@@ -1168,7 +1208,12 @@ wb_server <- function(input, output, session, helper) {
         report = prediction_report(), predictions = new_predictions(), provenance = prediction_provenance()))
   }, model_error))
   output$wb_load_error <- shiny::renderText(if (!is.null(load_error())) paste0("Saved-model action failed: ", load_error(), " The previous active model, if any, is still selected."))
-  output$wb_active_model <- shiny::renderText(if (is.null(active_model())) "No model selected. Upload a .rds file first." else paste("Trained model loaded:", active_model()$model_name))
+  output$wb_active_model <- shiny::renderText({
+    bundle <- active_model()
+    if (is.null(bundle)) return("No model selected. Upload a .rds file first.")
+    paste("Trained model loaded:", bundle$model_name,
+      DDESONN:::.ddesonn_gradient_label(wb_gradient_mode(bundle$config)), sep = " ")
+  })
   output$wb_prediction_columns <- shiny::renderText({
     if (is.null(active_model())) return("Load a .rds model first. Its saved training inputs determine the CSV columns listed here.")
     paste0("Input columns saved in this model: ", paste(active_model()$prepared$features, collapse = ", "), if (csv_purpose() == "evaluate") paste0("; plus ", active_model()$prepared$target, " with known answers. Saved preprocessing is reused.") else ". Target labels are not evaluated in prediction-only mode. Saved preprocessing is reused.")
@@ -1200,8 +1245,13 @@ wb_server <- function(input, output, session, helper) {
   })
   output$wb_saved_fit_status <- shiny::renderText({
     fit <- saved_fit(); if (is.null(fit)) return("No additional training started. Choose the number of extra epochs, then click Start additional training.")
+    active <- job()
+    elapsed <- if (identical(active$destination, "saved")) {
+      shiny::invalidateLater(1000, session)
+      paste0(" · ", wb_elapsed_text(active$started))
+    }
     paste0(fit$state, " · additional training from saved model: ", fit$parent,
-      if (fit$state == "Running") paste0(" · ", if (nrow(fit$history)) max(fit$history$epoch) else 0, " epochs logged") else
+      if (fit$state == "Running") paste0(elapsed, " · ", if (nrow(fit$history)) max(fit$history$epoch) else 0, " epochs logged") else
         if (fit$state == "Completed") " · new copy ready; original unchanged" else " · original unchanged")
   })
   output$wb_saved_fit_error <- shiny::renderText(if (!is.null(saved_fit()$error)) saved_fit()$error else model_error())
@@ -1486,7 +1536,11 @@ wb_server <- function(input, output, session, helper) {
       paste0("· ", length(p$features), " source predictors → ", ncol(p$parts$train$x), " numeric model inputs"),
       if (p$mode == "binary") paste("· positive class:", p$classes[2]) else "")
   })
-  output$wb_split_overlap <- shiny::renderUI(wb_overlap_ui(wb_recorded_overlap(prepared())))
+  output$wb_split_overlap <- shiny::renderUI({
+    run <- result()
+    if (is.null(run)) return(NULL)
+    wb_overlap_ui(wb_recorded_overlap(run$prepared))
+  })
   output$wb_training_context <- shiny::renderText(training_context())
   output$wb_status <- shiny::renderText(status())
   output$wb_running_status <- shiny::renderText(status())
