@@ -1,3 +1,7 @@
+# DDESONN 7.5.7
+
+- Run Windows release checks in a dedicated directory with a copied package library.
+
 # DDESONN 7.5.6
 
 - Preserve help for both plot-directory functions when regenerating documentation.
