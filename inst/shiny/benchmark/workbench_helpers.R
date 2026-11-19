@@ -1152,17 +1152,6 @@ wb_overlap_details <- function(overlap) {
     paste(counts, collapse = ", "), ")"))
 }
 
-wb_overlap_ui <- function(overlap) {
-  details <- wb_overlap_details(overlap)
-  status <- details$status
-  tone <- switch(status, clear = "text-success", detected = "text-danger", "text-muted")
-  shiny::tagList(
-    shiny::p(class = tone, shiny::strong("Split overlap: "), details$text),
-    if (identical(status, "detected")) shiny::p(
-      "For unseen-input evaluation, keep identical inputs in the same split. Group related rows by subject ID before splitting when needed. If overlap is intentional, label the reported scores as evaluation on shared inputs.")
-  )
-}
-
 wb_run_report <- function(bundle, record = NULL) {
   p <- bundle$prepared
   cfg <- bundle$config

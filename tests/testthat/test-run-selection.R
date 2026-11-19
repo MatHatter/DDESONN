@@ -12,6 +12,8 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
   invisible(capture.output(best <- h$wb_run(p, cfg)))
   cfg$checkpoint <- "final"; cfg$lr <- .002
   invisible(capture.output(final <- h$wb_run(p, cfg)))
+  best$prepared$overlap <- c(train_validation = 1L, train_test = 0L, validation_test = 0L)
+  final$prepared$overlap <- c(train_validation = 0L, train_test = 0L, validation_test = 2L)
   best$history <- data.frame(epoch = 1:2, loss = c(.5, .3))
   final$history <- data.frame(epoch = 1:2, loss = c(.6, .4))
   failure <- tempfile(fileext = ".R"); success <- tempfile(fileext = ".R")
@@ -38,6 +40,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_identical(result()$config$checkpoint, "final")
     expect_identical(plot_history()[names(final$history)], final$history)
     expect_match(output$wb_chart_model, "Run 2")
+    expect_match(output$wb_split_overlap$html, "Validation-Test 2", fixed = TRUE)
     expect_match(output$wb_run_choices$html, "radio")
     original <- lapply(completed_runs(), serialize, connection = NULL)
     session$setInputs(wb_selected_run = "1")
@@ -46,6 +49,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_identical(plot_history()[names(best$history)], best$history)
     expect_match(output$wb_settings_origin, "Run 1")
     expect_match(output$wb_chart_model, "Run 1")
+    expect_match(output$wb_split_overlap$html, "Train-Validation 1", fixed = TRUE)
     # Browser radio rebinding echoes its current value; this is not a new selection.
     new_predictions(data.frame(prediction = 1))
     select_completed("1")
