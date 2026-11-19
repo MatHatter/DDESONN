@@ -1,25 +1,10 @@
-# DDESONN changes since 7.1.1.1
+# DDESONN changes since 7.1.11
 
-This summary uses 7.1.1.1 as the requested baseline. It covers the changes
-recorded in GitHub tags, merged pull requests, and the package NEWS. GitHub
-versions and CRAN publication are separate. The CRAN Git mirror lists
-7.1.9 and 7.1.11 in the 7.x series. There is no exact 7.1.1.1 tag in either
-repository. If 7.1.11 was the intended baseline, the changes that follow it
-start in the 7.2 section.
+This summary covers changes after the 7.1.11 CRAN release, as recorded in
+GitHub tags, merged pull requests, and the package NEWS. GitHub versions
+and CRAN publication are separate.
 [Package NEWS](../NEWS.md) · [GitHub tags](https://github.com/MatHatter/DDESONN/tags) ·
 [CRAN Git mirror tags](https://github.com/cran/DDESONN/tags)
-
-## 7.1 series
-
-- **7.1.2–7.1.5** refined documentation, examples, package structure, and CRAN
-  preflight checks.
-- **7.1.6–7.1.7** addressed vignette rendering and index feasibility, and
-  clarified metadata in the logs.
-- **7.1.8–7.1.9** reduced default diagnostic output and hardened artifact path
-  handling, with a temporary directory as the default artifact location.
-- **7.1.10–7.1.11** added reproducible artwork assets and made further changes to
-  the README, vignettes, and package documentation for submission. Some of
-  these Git tags point to a source tree with a different DESCRIPTION version.
 
 ## 7.2 series
 
