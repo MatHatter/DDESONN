@@ -1,7 +1,7 @@
 Package: DDESONN
 Type: Package
 Title: A Deep Dynamic Experimental Self-Organizing Neural Network Framework
-Version: 7.5.7
+Version: 7.5.8
 Authors@R: c(person("Mathew William Armitage", "Fok", email = "quiksilver67213@yahoo.com", role = c("aut", "cre")))
 Description: Provides a fully native R deep learning framework for
     constructing, training, evaluating, and inspecting Deep Dynamic Ensemble
@@ -50,7 +50,7 @@ Description: Provides a fully native R deep learning framework for
     Zeiler (2012) <doi:10.48550/arXiv.1212.5701> "ADADELTA: An Adaptive Learning Rate Method".
     Zhang et al. (2019) <doi:10.48550/arXiv.1907.08610> "Lookahead Optimizer: k steps forward, 1 step back".
     You et al. (2019) <doi:10.48550/arXiv.1904.00962> "Large Batch Optimization for Deep Learning: Training BERT in 76 minutes (LAMB)".
-    McMahan et al. (2013) <https://research.google.com/pubs/archive/41159.pdf> "Ad Click Prediction: a View from the Trenches (FTRL-Proximal)".
+    McMahan et al. (2013) <https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41159.pdf> "Ad Click Prediction: a View from the Trenches (FTRL-Proximal)".
     Klambauer et al. (2017) <https://proceedings.neurips.cc/paper/6698-self-normalizing-neural-networks.pdf> "Self-Normalizing Neural Networks (SELU)".
     Maas et al. (2013) <https://ai.stanford.edu/~amaas/papers/relu_hybrid_icml2013_final.pdf> "Rectifier Nonlinearities Improve Neural Network Acoustic Models (Leaky ReLU / rectifiers)".
 License: MIT + file LICENSE

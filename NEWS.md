@@ -1,3 +1,8 @@
+# DDESONN 7.5.8
+
+- Use the direct Google Research URL for the FTRL-Proximal paper.
+- Report release checks that finish with notes without raising an R error.
+
 # DDESONN 7.5.7
 
 - Run Windows release checks in a dedicated directory with a copied package library.
