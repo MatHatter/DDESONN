@@ -1580,7 +1580,7 @@ See [LICENSE.md](LICENSE.md) for the full license text.
 The author also maintains additional modeling projects in R and Python, including:
 
 - **OLR - Optimal Linear Regression**  
-  CRAN: [olr on CRAN](https://CRAN.R-project.org/package=olr)
+  CRAN: [olr on CRAN](https://CRAN.R-project.org/package=olr) | PyPI: [olr on PyPI](https://pypi.org/project/olr/)
 
 ---
 
