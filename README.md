@@ -1354,15 +1354,16 @@ rarely executed debug paths to ensure all table-like emissions route through
 the same helper.
 
 #### R-08 - Vignettes expansion and optional interactive diagnostics  
-**Status:** Forward-looking consideration  
+**Status:** Implemented in part, with further expansion planned
+
 **Related To-Do:** T-09
 
-The project includes a consolidated research vignette:
-`vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd` (new standard-AdaGrad results, historical comparison and overlap limitations).
+The vignette suite includes the Shiny workbench guide, the clean matched
+100-seed benchmark, and the historical 1,000-seed AdaGrad comparison. The
+optional Shiny workbench provides interactive training and diagnostics.
 
-Future releases may expand the vignette suite (more datasets, more experiments,
-more reproducible walkthroughs) and optionally explore interactive diagnostics
-(e.g., Shiny) as a non-core layer.
+Further vignette expansion could cover additional datasets, experiments, and
+reproducible walkthroughs.
 
 #### R-09 - Techila-scale experimentation patterns  
 **Status:** Forward-looking consideration  
@@ -1423,6 +1424,10 @@ randomly around the network.
 ---
 
 ## To-Do (Design-Linked)
+
+See [changes since the 7.1.11 CRAN release](dev/release-summary-since-7.1.11.md)
+for work completed since that release, including improvements that were never
+listed below or in the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
 
 #### T-01 - Hyperparameter sweep utilities  
 Linked from: **R-01**
@@ -1494,7 +1499,8 @@ consistency sweep, not a redesign
 #### T-09 - Expand vignettes and research demos  
 Linked from: **R-08**
 
-- Add additional polished vignettes for guided exploration (beyond `heart-failure-standard-adagrad-1000-seeds.Rmd`)
+- Continue expanding guided examples. The workbench guide and clean 100-seed
+  benchmark are now available as package vignettes.
 - Keep demos reproducible and artifact-backed
 - Treat vignettes as the primary-user education layer for v1+ releases
 
