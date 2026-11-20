@@ -18,7 +18,7 @@ python harness/supervise.py --workers 4
 
 The second command resumes this new run: every checksum-valid completed seed is preserved. Invalid output directories are moved to `quarantine/`; missing or invalid seeds rerun. `progress.json`, `run.log`, per-seed `status.json`/`FAILURE.json`, SHA256 `manifest.json` and atomically written `COMPLETE.json` distinguish completion from failure. The freeze hash must match. A failure does not count as complete; rerun the same resume command after diagnosing it. Do not run two supervisors concurrently.
 
-The cgroup has four CPUs and 32 GiB; four single-threaded workers fit measured pilot memory. Each seed starts a fresh R process and then a separate saved-model reload process. The validated pilot is a production prerequisite. Production includes seeds 1 and above from scratch; pilot directories are excluded from production counts.
+The cgroup has four CPUs and 32 GiB; four single-threaded workers fit measured pilot memory. Each seed starts a fresh R process and then a separate saved-model reload process. The validated pilot is a production prerequisite. Production includes seeds 1 and above from the ground up; pilot directories are excluded from production counts.
 
 ## Fresh reproduction from the bundle
 

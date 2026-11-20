@@ -146,7 +146,7 @@ So I built DDESONN to be **inspectable**, **transparent**, and **architecturally
 
 This package took an extreme amount of time and emotional energy to build.
 
-There were long stretches where I thought it was correct, but still didn't fully trust it, and that uncertainty is hard because when you're building the full architecture from scratch, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
+There were long stretches where I thought it was correct, but still didn't fully trust it, and that uncertainty is hard because when you're building the full architecture from the ground up, bugs aren't obvious. They can hide inside dimension handling, layer wiring, activation derivatives, error propagation, weight updates, and edge cases that only appear under certain random seeds or training paths.
 
 I nearly gave up twice.
 
@@ -173,7 +173,7 @@ I mean repeated evaluation across large numbers of randomized initializations (s
 
 At that point, it stopped feeling like "maybe this works" and started feeling like "this is now a stable, correct implementation that competes."
 
-The broader acceleration of AI made this kind of from-scratch, fully inspectable work feel even more important - not as a trend to follow, but as a way to understand what these systems are actually doing.
+The broader acceleration of AI made fully inspectable work built from the ground up feel even more important - not as a trend to follow, but as a way to understand what these systems are actually doing.
 
 ### Transparency is the point
 
@@ -333,7 +333,7 @@ This design keeps low-verbosity runs practical, while still allowing deeper trac
 
 #### Optimization & Regularization
 
-- Optimizers implemented from scratch:
+- Optimizers implemented from the ground up:
   - SGD  
   - RMSProp  
   - Adam  
