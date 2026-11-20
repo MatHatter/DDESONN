@@ -91,6 +91,9 @@ and CRAN publication are separate.
   link and Shiny quick start, and moves the detailed version entries to this
   page.
 
+- **7.5.11** clarifies how to enable the experimental native-R SSM encoder
+  and describes the exploratory NQ benchmark as inconclusive.
+
 ## Detailed version history
 
 ### Version 7.4.0 - clean-split evaluation preparation

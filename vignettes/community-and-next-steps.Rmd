@@ -47,10 +47,12 @@ use this workbench.
 
 ## If you find a useful SSM application
 
-The optional state-space/sequence encoder remains experimental and off by
-default. Our current benchmarks have not shown a meaningful improvement over the
-baseline. If you find a useful SSM application or a reproducible benefit, please
-let me know. Independent results showing no benefit are welcome as well.
+DDESONN includes an experimental native-R state-space model (SSM) encoder.
+Enable it with `sequence_encoder = "ssm"`. The default is
+`sequence_encoder = "none"`. The exploratory NQ evaluation found small,
+inconclusive changes relative to the baseline. Please share reproducible
+applications and comparison results, including cases where the encoder had
+little or no effect.
 
 For comparisons, use matched data splits and settings, keep related or repeated
 inputs out of opposing partitions, repeat seeds where practical and report the

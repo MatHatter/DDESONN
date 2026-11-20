@@ -570,10 +570,14 @@ experiment-dependent rather than universally beneficial.
 
 ### Optional native-R sequence encoder
 
-> An experimental SSM extension is available separately. Our current benchmarks show no meaningful improvement over the baseline. Independent evaluations and reproducible examples of useful applications are welcome.
+DDESONN includes an experimental native-R state-space model (SSM) encoder for
+sequence inputs. Enable it with `sequence_encoder = "ssm"`. The default is
+`sequence_encoder = "none"`.
 
-The extension is included in this package as an opt-in component;
-`sequence_encoder = "none"` remains the default.
+In the exploratory NQ evaluation, adding the encoder produced small,
+inconclusive changes relative to the baseline. Independent comparisons and
+reproducible examples are welcome.
+[SSM verification and benchmark notes](NEWS.md#verification-and-evidence)
 
 Reproducible SSM evaluations, useful applications, fixes and documentation
 improvements are strongly encouraged through [GitHub issues](https://github.com/MatHatter/DDESONN/issues)
@@ -1594,10 +1598,10 @@ connection request. You can also share applications, issues and ideas through
 request. I appreciate hearing how people use the model and what we could build next.
 
 I still want to explore the neural-network/equation visualization idea described
-in the roadmap, and I plan to refresh my separate OLR modeling package. If you find
-a useful SSM application, please let me know: current benchmarks have not shown a
-meaningful improvement over the baseline, and independent reproducible evidence
-is welcome. I welcome suggestions and help with these future directions.
+in the roadmap, and I plan to refresh my separate OLR modeling package. If you
+try the [experimental SSM encoder](#optional-native-r-sequence-encoder), I would
+welcome a reproducible example and the results of your baseline comparison.
+Suggestions and help with these future directions are welcome.
 
 See the [community and next-steps guide](vignettes/community-and-next-steps.Rmd).
 

@@ -1,3 +1,9 @@
+# DDESONN 7.5.11
+
+- Clarify that the experimental native-R state-space encoder ships with the
+  package and is off by default. Describe the exploratory benchmark results
+  as inconclusive and invite reproducible comparisons.
+
 # DDESONN 7.5.10
 
 - Bring the artwork and table of contents up below the benchmark link and
