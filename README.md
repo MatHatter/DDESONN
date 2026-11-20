@@ -21,7 +21,10 @@ historical side-by-side comparison on the original split. Because **738 of 750
 test rows** had inputs identical to training rows, the test scores are
 unreliable estimates of either model's accuracy on unseen inputs. That overlap
 motivated the 100-seed follow-up, which evaluated both frameworks on the same
-split with no exact input matches across training, validation, and test sets.
+split with no exact input matches across training, validation, and test sets. See the
+[seed-count rationale](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/SEED_COUNT_RATIONALE.md)
+for why we reported 100 seeds per condition and how future studies could plan
+their seed counts.
 
 ## Recommended Shiny GUI: launch and first steps
 
