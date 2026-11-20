@@ -8,7 +8,10 @@ Learning notes, startup material and DDESONN modeling updates:
 See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
 for a summary of the updates available on GitHub.
 
-[**100-seed benchmark: DDESONN vs. Keras on a clean split**](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd)
+**Great news!** [**100-seed benchmark: DDESONN vs. Keras on a clean split**](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd)
+
+DDESONN had higher mean held-out accuracy than Keras under both matched gradient
+reductions on this split.
 
 ## Recommended Shiny GUI: launch and first steps
 
