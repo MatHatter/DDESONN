@@ -87,13 +87,9 @@ and CRAN publication are separate.
   [7.5.5 PR](https://github.com/MatHatter/DDESONN/pull/82)
 - **7.5.6** keeps the help page for both plot-directory functions when
   regenerating package documentation and links to this summary from the README.
-
-## 7.6 series
-
-- **7.6.0** brings the artwork and table of contents up below the benchmark
+- **7.5.10** brings the artwork and table of contents up below the benchmark
   link and Shiny quick start, and moves the detailed version entries to this
-  page. We chose 7.6.0 to mark the documentation cleanup and because 7.5.10 can
-  look like 7.5.1 at a glance.
+  page.
 
 ## Detailed version history
 

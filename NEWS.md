@@ -1,7 +1,4 @@
-# DDESONN 7.6.0
-
-We chose 7.6.0 to mark the documentation cleanup and give this release a
-version that's easy to read. At a glance, 7.5.10 can look like 7.5.1.
+# DDESONN 7.5.10
 
 - Bring the artwork and table of contents up below the benchmark link and
   recommended Shiny quick start.
