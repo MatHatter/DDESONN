@@ -1,3 +1,10 @@
+# DDESONN 7.5.12
+
+- Highlight the 100-seed benchmark and document progress on the vignette roadmap.
+- Link the To-Do section to the release summary and correct the summary's
+  filename to match CRAN version 7.1.11.
+- Add the OLR PyPI link alongside its CRAN link.
+
 # DDESONN 7.5.11
 
 - Clarify that the experimental native-R state-space encoder ships with the

@@ -94,6 +94,9 @@ and CRAN publication are separate.
 - **7.5.11** clarifies how to enable the experimental native-R SSM encoder
   and describes the exploratory NQ benchmark as inconclusive.
 
+- **7.5.12** highlights the 100-seed benchmark, records vignette progress,
+  and links to the release summary from To-Do and to OLR on PyPI.
+
 ## Detailed version history
 
 ### Version 7.4.0 - clean-split evaluation preparation

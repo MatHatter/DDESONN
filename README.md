@@ -5,10 +5,27 @@ Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
 Learning notes, startup material and DDESONN modeling updates:
 [Follow on Substack](https://substack.com/@alphalion).
 
-See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.1.1.md)
+See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
 for a summary of the updates available on GitHub.
 
-[**100-seed benchmark: DDESONN vs. Keras on a clean split**](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd)
+**Research highlight: A win for DDESONN.** Its mean held-out accuracy was higher
+than Keras's in a matched comparison across 100 seeds on one clean split. With summed gradients,
+mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
+**90.39% vs. 87.62%**.
+[Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
+
+In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
+the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
+for Keras**, with less variation across seeds. The results are useful as a
+historical side-by-side comparison on the original split. Because **738 of 750
+test rows** had inputs identical to training rows, the test scores are
+unreliable estimates of either model's accuracy on unseen inputs. That overlap
+motivated the 100-seed follow-up, which evaluated both frameworks on the same
+split with no exact input matches across training, validation, and test sets. See the
+[seed-count rationale](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/SEED_COUNT_RATIONALE.md)
+for why we reported 100 seeds per condition and how to choose a seed count for
+future modeling experiments, tests, and case studies in DDESONN or other data
+science projects.
 
 ## Recommended Shiny GUI: launch and first steps
 
@@ -1354,15 +1371,16 @@ rarely executed debug paths to ensure all table-like emissions route through
 the same helper.
 
 #### R-08 - Vignettes expansion and optional interactive diagnostics  
-**Status:** Forward-looking consideration  
+**Status:** Implemented in part, with further expansion planned
+
 **Related To-Do:** T-09
 
-The project includes a consolidated research vignette:
-`vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd` (new standard-AdaGrad results, historical comparison and overlap limitations).
+The vignette suite includes the Shiny workbench guide, the clean matched
+100-seed benchmark, and the historical 1,000-seed AdaGrad comparison. The
+optional Shiny workbench provides interactive training and diagnostics.
 
-Future releases may expand the vignette suite (more datasets, more experiments,
-more reproducible walkthroughs) and optionally explore interactive diagnostics
-(e.g., Shiny) as a non-core layer.
+Further vignette expansion could cover additional datasets, experiments, and
+reproducible walkthroughs.
 
 #### R-09 - Techila-scale experimentation patterns  
 **Status:** Forward-looking consideration  
@@ -1423,6 +1441,10 @@ randomly around the network.
 ---
 
 ## To-Do (Design-Linked)
+
+See [changes since the 7.1.11 CRAN release](dev/release-summary-since-7.1.11.md)
+for work completed since that release, including improvements that were never
+listed below or in the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
 
 #### T-01 - Hyperparameter sweep utilities  
 Linked from: **R-01**
@@ -1494,7 +1516,8 @@ consistency sweep, not a redesign
 #### T-09 - Expand vignettes and research demos  
 Linked from: **R-08**
 
-- Add additional polished vignettes for guided exploration (beyond `heart-failure-standard-adagrad-1000-seeds.Rmd`)
+- Continue expanding guided examples. The workbench guide and clean 100-seed
+  benchmark are now available as package vignettes.
 - Keep demos reproducible and artifact-backed
 - Treat vignettes as the primary-user education layer for v1+ releases
 
@@ -1580,7 +1603,7 @@ See [LICENSE.md](LICENSE.md) for the full license text.
 The author also maintains additional modeling projects in R and Python, including:
 
 - **OLR - Optimal Linear Regression**  
-  CRAN: [olr on CRAN](https://CRAN.R-project.org/package=olr)
+  CRAN: [olr on CRAN](https://CRAN.R-project.org/package=olr) | PyPI: [olr on PyPI](https://pypi.org/project/olr/)
 
 ---
 
