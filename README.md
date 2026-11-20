@@ -8,7 +8,7 @@ Learning notes, startup material and DDESONN modeling updates:
 See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
 for a summary of the updates available on GitHub.
 
-**Research highlight: DDESONN achieved higher mean held-out accuracy than Keras**
+**Win: DDESONN achieved higher mean held-out accuracy than Keras**
 in a matched comparison across 100 seeds on one clean split. With summed gradients,
 mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
 **90.39% vs. 87.62%**.
