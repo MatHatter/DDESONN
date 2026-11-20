@@ -119,7 +119,7 @@ evidence, not silently repaired or reused as a verified baseline. Both Keras
 conditions are rerun here from the original script.
 
 Before acceptance, 200 initial native fits with mathematically row-independent
-unbatched inference were superseded and rerun from scratch to match the original
+unbatched inference were superseded and rerun from the ground up to match the original
 evaluation batch size 32 exactly. Those files are preserved outside Git in
 `/workspace/keras-original-100/superseded-unbatched-inference` and excluded from
 the summarizer. Training settings were unchanged.

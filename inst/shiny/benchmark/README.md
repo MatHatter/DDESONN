@@ -401,6 +401,13 @@ Artwork SHA-256: `751d6675a10c8318b69268eb9c5e013d94508ab4e4870f82005c46f4b75dc1
 
 ## Model workbench
 
+From a source checkout, launch with `shiny::runApp("inst/shiny/benchmark")`.
+
+Training runs in a cancellable background R process. Basic and Custom support
+binary/multiclass classification and regression; review the preprocessing plan
+for categorical predictors and missing values. Custom adds member, seed and
+MAIN/TEMP orchestration. The optional sequence/SSM workflow uses the R API.
+
 The app opens on **1. Data**, followed by **2. Features**, **3. Build & Train**
 and **4. Model / Results**. These four steps share a color treatment;
 **Experiments** is separate. Model / Results contains **Performance** and

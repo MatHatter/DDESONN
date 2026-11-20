@@ -88,7 +88,7 @@ configuration files or DDESONN (speech transcription); no answer received yet.
 - Original-protocol review caught native inference using one full matrix. The
   native adapter now predicts in original per-partition batches of 32. All 200
   initial native fits were preserved in `superseded-unbatched-inference` and
-  rerun from scratch, not mixed into accepted metrics. TensorFlow/native checks
+  rerun from the ground up, not mixed into accepted metrics. TensorFlow/native checks
   were rerun with multi-batch inference; all 146 passed.
 
 ## Completed matched original-Keras comparison (2026-11-16)
