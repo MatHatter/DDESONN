@@ -14,11 +14,12 @@ mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
 **90.39% vs. 87.62%**.
 [Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
 
-The earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd)
-is a useful historical reference for comparing the reported results on that
-dataset. Train/test input overlap limits what the scores tell us about accuracy
-on new data or the relative performance of DDESONN and Keras under matched
-conditions.
+In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
+the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
+for Keras**, with less variation across seeds. The results are useful as a
+historical side-by-side comparison on the original split. Substantial overlap
+between training and test inputs affected both models and limits what these
+scores tell us about accuracy on new data.
 
 ## Recommended Shiny GUI: launch and first steps
 
