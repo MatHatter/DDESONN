@@ -8,7 +8,9 @@ Learning notes, startup material and DDESONN modeling updates:
 See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.1.1.md)
 for a summary of the updates available on GitHub.
 
-## Optional Shiny GUI: launch and first steps
+[**100-seed benchmark: DDESONN vs. Keras on a clean split**](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd)
+
+## Recommended Shiny GUI: launch and first steps
 
 DDESONN includes a Shiny graphical user interface (GUI) for preparing data,
 training and evaluating models, using saved models, and browsing research results.
@@ -478,7 +480,7 @@ changes](#historical-1000-seed-research) for the affected paths and archive link
 
 ## Optional Shiny model workbench
 
-See [launch and first steps](#optional-shiny-gui-launch-and-first-steps) near the
+See [launch and first steps](#recommended-shiny-gui-launch-and-first-steps) near the
 top of this README for the GUI quick start. From a source checkout, launch with
 `shiny::runApp("inst/shiny/benchmark")`.
 
