@@ -8,10 +8,14 @@ Learning notes, startup material and DDESONN modeling updates:
 See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
 for a summary of the updates available on GitHub.
 
-**Great news!** [**100-seed benchmark: DDESONN vs. Keras on a clean split**](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd)
+**Research highlight: DDESONN achieved higher mean held-out accuracy than Keras**
+in a matched comparison across 100 seeds on one clean split. With summed gradients,
+mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
+**90.39% vs. 87.62%**.
+[Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
 
-DDESONN had higher mean held-out accuracy than Keras under both matched gradient
-reductions on this split.
+The earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd)
+documents the historical results and their train/test input overlap.
 
 ## Recommended Shiny GUI: launch and first steps
 
