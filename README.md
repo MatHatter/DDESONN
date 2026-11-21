@@ -14,6 +14,9 @@ mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
 **90.39% vs. 87.62%**.
 [Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
 
+- [Per-seed accuracy results (CSV)](https://github.com/MatHatter/DDESONN/blob/main/inst/shiny/benchmark/data/clean-matched-100.csv) for all 400 original fits.
+- [Reproduced study results (RDS)](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/reproduced-study-results.rds) for all 400 rerun fits, with metrics, run metadata, and a comparison with the original results.
+
 In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
 the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
 for Keras**, with less variation across seeds. The results are useful as a
@@ -26,6 +29,10 @@ split with no exact input matches across training, validation, and test sets. Se
 for why we reported 100 seeds per condition and how to choose a seed count for
 future modeling experiments, tests, and case studies in DDESONN or other data
 science projects.
+
+The older 1,000-seed study is kept as a historical record. Its archived RDS
+metrics files are [available on GitHub](https://github.com/MatHatter/DDESONN/tree/main/inst/extdata/heart_failure_runs)
+and are excluded from the package to keep the download smaller.
 
 ## Recommended Shiny GUI: launch and first steps
 
