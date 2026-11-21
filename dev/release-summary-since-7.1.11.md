@@ -1,4 +1,4 @@
-# DDESONN CRAN release delta file Δ — 7.1.11
+# DDESONN CRAN release delta file Δ since 7.1.11
 
 Each CRAN release has one delta file. This file uses CRAN release 7.1.11
 as its baseline and summarizes subsequent GitHub changes recorded in tags,
