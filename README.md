@@ -41,15 +41,17 @@ and are excluded from the package to keep the download smaller.
 
 DDESONN includes a Shiny graphical user interface (GUI) for preparing data,
 training and evaluating models, using saved models, and browsing research results.
-After installing DDESONN, install the two optional app dependencies once and
-launch it from an interactive R session:
+Install DDESONN and its optional workbench dependencies, then launch the app
+from an interactive R session:
 
 For dependency updates on Windows, close other R/RStudio sessions and install
 from a fresh R session before loading development tools or starting the app.
 This lets Windows replace package DLLs that would otherwise be in use.
 
 ```r
-install.packages(c("shiny", "callr")) # once, if needed
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+remotes::install_github("MatHatter/DDESONN")
+install.packages(c("shiny", "callr"))
 shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN",
                           mustWork = TRUE))
 ```
