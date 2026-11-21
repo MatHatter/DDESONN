@@ -2,7 +2,7 @@ study_fixture <- function() {
   app <- system.file("shiny", "benchmark", package = "DDESONN", mustWork = TRUE)
   env <- new.env(parent = globalenv())
   sys.source(file.path(app, "studies.R"), env)
-  list(h = env, data = utils::read.csv(file.path(app, "data", "clean-matched-100.csv")), app = app)
+  list(h = env, data = utils::read.csv(file.path(app, "data", "clean-100-no-overlap.csv")), app = app)
 }
 
 test_that("packaged clean results retain all conditions and reproduce paired evidence", {

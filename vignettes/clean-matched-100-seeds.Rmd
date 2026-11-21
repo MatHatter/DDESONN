@@ -35,7 +35,7 @@ library(ggplot2)
 study_dir <- system.file("shiny", "benchmark", package = "DDESONN", mustWork = TRUE)
 study <- new.env()
 sys.source(file.path(study_dir, "studies.R"), envir = study)
-results <- read.csv(file.path(study_dir, "data", "clean-matched-100.csv"))
+results <- read.csv(file.path(study_dir, "data", "clean-100-no-overlap.csv"))
 reductions <- c("Sum vs. sum" = "sum", "Mean vs. mean" = "mean")
 cumulative <- do.call(rbind, lapply(names(reductions), function(label) {
   pairs <- study$study_clean_pairs(results, reductions[[label]])
