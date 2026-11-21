@@ -652,9 +652,9 @@ wb_bundle_code <- function() {
     "# Purpose: reload a saved model with its original settings and use it again.\n# This began as a standalone script before the package API existed.\n# This example uses the current API; no training runs here.\n# A bundle is the .rds file from Save model in this workbench.\n# It contains the model, feature names and training preprocessing settings.",
     "library(DDESONN)",
     "# 1. Load the saved bundle (replace this path with your downloaded file).\nbundle <- readRDS('ddesonn-workbench-model.rds')\nmodel <- bundle$model",
-    "# 2. Read new rows to predict (replace this path with your CSV).\n# Include the original predictor column names; the target is not required.\nnew_data <- read.csv('new-data.csv', check.names = FALSE)",
-    "# 3. Reuse saved encoding, imputation, predictor order and training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nsettings <- bundle$prepared\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\nx_new <- workbench$wb_prediction_inputs(new_data, settings)",
-    "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\n# This preserves Custom member/seed combination and Basic behavior.\nprobabilities <- workbench$wb_predictions(model, settings, list(x = x_new))\nprint(probabilities)",
+    "# 2. Read new rows using the saved column types (replace this path with your CSV).\n# Include the original predictor column names; the target is not required.\nsettings <- bundle$prepared\nworkbench <- new.env(parent = globalenv())\nsys.source(system.file('shiny', 'benchmark', 'workbench_helpers.R', package = 'DDESONN'), workbench)\nnew_data <- workbench$wb_read_prediction_csv('new-data.csv', settings)",
+    "# 3. Reuse saved encoding, imputation, predictor order and training scaling.\n# Do not calculate new means or SDs from the prediction rows.\nx_new <- workbench$wb_prediction_inputs(new_data, settings)",
+    "# 4. Predict without changing or retraining the saved model.\n# Classification returns class probabilities; regression returns numbers.\n# This preserves Custom member/seed combination and Basic behavior.\nprobabilities <- workbench$wb_predictions(model, settings, list(x = x_new))\nprint(probabilities)",
     "# Optional: save a copy of the whole bundle for use again later.\n# This retains the model AND its preprocessing, split and settings.\nsaveRDS(bundle, 'my-workbench-model.rds')",
     "# Optional: export only the API model.\n# This file omits preprocessing and the Custom orchestration workflow; keep the bundle.\nsaveRDS(model, 'api-model.rds')", sep = "\n\n")
 }
@@ -1379,6 +1379,42 @@ wb_pp_apply <- function(data, preprocessing) {
 wb_pp_code <- function() {
   functions <- c("wb_pp_config", "wb_pp_plan", "wb_pp_fit", "wb_pp_apply")
   paste(vapply(functions, function(name) paste0(name, " <- ", paste(deparse(get(name)), collapse = "\n")), character(1)), collapse = "\n\n")
+}
+
+wb_read_prediction_csv <- function(file, prepared) {
+  # Read text first so numeric-looking categories keep their original spelling.
+  data <- utils::read.csv(file, check.names = FALSE, colClasses = "character")
+  category_levels <- list()
+  numeric_features <- prepared$features
+  specs <- prepared$preprocessing$specs
+  if (!is.null(specs)) {
+    columns <- vapply(specs, `[[`, character(1), "name")
+    types <- vapply(specs, `[[`, character(1), "type")
+    is_category <- types == "categorical"
+    category_levels <- setNames(lapply(specs[is_category], `[[`, "levels"), columns[is_category])
+    numeric_features <- columns[types == "numeric"]
+  }
+  actual <- prepared$parts$train$actual
+  if (prepared$mode != "regression" && (is.character(actual) || is.factor(actual)))
+    category_levels[[prepared$target]] <- prepared$classes
+  for (i in seq_along(data)) {
+    column <- names(data)[i]
+    known_levels <- category_levels[[column]]
+    if (!is.null(known_levels)) {
+      # Retain CSV logical aliases for categories trained as TRUE/FALSE.
+      if (length(known_levels) && all(known_levels %in% c("TRUE", "FALSE"))) {
+        values <- utils::type.convert(data[[i]], as.is = TRUE)
+        if (is.logical(values)) data[[i]] <- as.character(values)
+      }
+      next
+    }
+    values <- utils::type.convert(data[[i]], as.is = TRUE)
+    # CSV type inference yields logical when every value in a column is missing.
+    if (column %in% numeric_features && is.logical(values) && all(is.na(values)))
+      values <- as.numeric(values)
+    data[[i]] <- values
+  }
+  data
 }
 
 wb_prediction_inputs <- function(data, p) {

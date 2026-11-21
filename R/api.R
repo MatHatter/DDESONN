@@ -273,6 +273,74 @@ ddesonn_training_defaults <- function(mode = c("binary", "multiclass", "regressi
   m
 }
 
+# Derive class order from training labels and reuse it for every held-out split.
+.ddesonn_encode_labels <- function(y, mode, encoding = NULL, split = "Training") {
+  if (is.list(y) && !is.data.frame(y)) y <- unlist(y, use.names = FALSE)
+  if (mode == "regression") {
+    if (is.factor(y)) y <- as.numeric(as.character(y))
+    return(list(labels = .as_numeric_matrix(y), encoding = NULL))
+  }
+  if (!mode %in% c("binary", "multiclass")) stop("Unknown classification_mode.", call. = FALSE)
+
+  binary <- mode == "binary"
+  tabular <- is.matrix(y) || is.data.frame(y)
+  if (tabular && ncol(y) > 1L) {
+    labels <- .as_numeric_matrix(y)
+    width <- if (binary) 2L else ncol(labels)
+    if (ncol(labels) != width || !all(labels %in% 0:1) || any(rowSums(labels) != 1L)) {
+      stop(split, " labels must be a single class column or a one-hot matrix.", call. = FALSE)
+    }
+    if (is.null(encoding)) {
+      encoding <- list(classes = if (binary) 0:1 else seq_len(width),
+                       column_names = colnames(labels))
+    } else {
+      if (width != length(encoding$classes)) {
+        stop(split, " one-hot labels must have one column per training class.", call. = FALSE)
+      }
+      class_columns <- encoding$column_names %||% as.character(encoding$classes)
+      if (!anyDuplicated(class_columns) && setequal(class_columns, colnames(labels))) {
+        labels <- labels[, class_columns, drop = FALSE]
+      }
+    }
+    if (binary) labels <- labels[, 2L, drop = FALSE]
+    return(list(labels = labels, encoding = encoding))
+  }
+
+  if (tabular) y <- if (is.data.frame(y)) y[[1L]] else y[, 1L]
+  if (is.null(encoding)) {
+    classes <- if (is.factor(y)) {
+      levels(y)
+    } else if (binary && (is.logical(y) || all(y %in% 0:1))) {
+      0:1
+    } else {
+      sort(unique(y))
+    }
+    if (length(classes) < 2L || (binary && length(classes) != 2L)) {
+      stop(if (binary) "Binary labels must have exactly two classes." else
+        "Multiclass labels must have at least two classes.", call. = FALSE)
+    }
+    encoding <- list(classes = classes, column_names = NULL)
+  }
+
+  classes <- encoding$classes
+  if (is.character(y) || is.factor(y)) {
+    classes <- encoding$column_names %||% classes
+  }
+  indices <- match(y, classes)
+  if (anyNA(indices) && (is.numeric(y) || (binary && is.logical(y))) &&
+      is.character(classes) &&
+      all(is.na(suppressWarnings(as.numeric(classes))))) {
+    # Numeric labels can contain indices for classes with nonnumeric names.
+    indices <- match(y, if (binary) 0:1 else seq_along(encoding$classes))
+  }
+  if (!length(indices) || anyNA(y) || anyNA(indices)) {
+    stop(split, " labels contain missing values or classes absent from training.", call. = FALSE)
+  }
+  labels <- if (binary) matrix(indices - 1, ncol = 1L) else
+    one_hot_from_ids(indices, length(encoding$classes))
+  list(labels = labels, encoding = encoding)
+}
+
 #' @title Create a high-level DDESONN model wrapper
 #' @description Initialise a `ddesonn_model` (R6) instance backed by the legacy
 #'   `DDESONN` class, while handling sensible defaults for activations and node
@@ -414,6 +482,8 @@ ddesonn_model <- function(input_size,
 #' @param x Training features.
 #' @param y Training targets/labels.
 #' @param validation Optional list containing `x` and `y` elements for validation.
+#'   Validation labels use the training class order. Validation metrics are
+#'   disabled when neither this list nor validation data in `...` is supplied.
 #' @param self_org Optional logical override for the legacy self-organization
 #'   phase. `TRUE` enables `self_organize()` during training and `FALSE`
 #'   disables it. `NULL` keeps the configured default (`self_org = FALSE` in
@@ -544,78 +614,9 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   mode <- tolower(overrides$classification_mode %||% attr(model, "classification_mode") %||% "binary")
   hidden_sizes <- attr(model, "hidden_sizes") %||% NULL
   
-  # --- Coerce TRAIN labels by mode (no external helpers) ---
-  y_in <- if (is.list(y) && !is.data.frame(y)) unlist(y, use.names = FALSE) else y
-  labels <- NULL
-  if (mode == "regression") {
-    if (is.factor(y_in)) y_in <- as.numeric(as.character(y_in))
-    labels <- .as_numeric_matrix(y_in)
-  } else if (mode == "binary") {
-    if (is.matrix(y_in) || is.data.frame(y_in)) {
-      yy <- as.matrix(y_in); storage.mode(yy) <- "double"
-      if (ncol(yy) == 2L && all(yy %in% c(0,1), na.rm = TRUE)) {
-        labels <- yy[, 2, drop = FALSE]
-      } else if (ncol(yy) == 1L) {
-        v <- yy[,1]
-        u <- sort(unique(as.numeric(v)))
-        if (length(u) == 2L && !all(u %in% c(0,1))) {
-          map <- setNames(c(0,1), u)
-          v <- as.numeric(map[as.character(as.numeric(v))])
-        }
-        labels <- matrix(as.numeric(v), ncol = 1L)
-      } else {
-        stop("Binary labels must be a single column (or 2-col one-hot).", call. = FALSE)
-      }
-    } else {
-      if (is.logical(y_in)) {
-        v <- ifelse(y_in, 1, 0)
-      } else if (is.factor(y_in) || is.character(y_in)) {
-        lvls <- if (is.factor(y_in)) levels(y_in) else sort(unique(y_in))
-        if (length(lvls) != 2L) stop("Binary labels must have exactly 2 levels.", call. = FALSE)
-        map <- setNames(c(0,1), lvls)
-        v <- as.numeric(map[as.character(if (is.factor(y_in)) as.character(y_in) else y_in)])
-      } else {
-        v0 <- as.numeric(y_in); u <- sort(unique(v0))
-        if (length(u) != 2L) stop("Binary numeric labels must have exactly two unique values.", call. = FALSE)
-        map <- setNames(c(0,1), u)
-        v <- as.numeric(map[as.character(v0)])
-      }
-      labels <- matrix(v, ncol = 1L)
-    }
-  } else if (mode == "multiclass") {
-    if (is.matrix(y_in) || is.data.frame(y_in)) {
-      yy <- as.matrix(y_in); storage.mode(yy) <- "double"
-      vals_ok <- all(yy %in% c(0,1), na.rm = TRUE)
-      row_ok  <- all(rowSums(yy, na.rm = TRUE) >= 0.99 & rowSums(yy, na.rm = TRUE) <= 1.01)
-      if (ncol(yy) >= 2L && vals_ok && row_ok) {
-        labels <- yy
-      } else if (ncol(yy) == 1L) {
-        cls <- as.vector(yy[,1])
-        u <- sort(unique(as.numeric(cls)))
-        K <- length(u)
-        idx <- match(as.numeric(cls), u)
-        if (any(is.na(idx))) stop("Multiclass labels contain NA/unknown.", call. = FALSE)
-        M <- matrix(0, nrow = length(idx), ncol = K); M[cbind(seq_along(idx), idx)] <- 1
-        labels <- M
-      } else {
-        stop("Multiclass labels must be one-hot or a single class column.", call. = FALSE)
-      }
-    } else {
-      if (is.factor(y_in)) {
-        lvls <- levels(y_in); idx <- as.integer(y_in); K <- length(lvls)
-      } else if (is.character(y_in)) {
-        lvls <- sort(unique(y_in)); idx <- match(y_in, lvls); K <- length(lvls)
-      } else {
-        v0 <- as.numeric(y_in); u <- sort(unique(v0)); idx <- match(v0, u); K <- length(u)
-      }
-      if (any(is.na(idx))) stop("Multiclass labels contain NA/unknown.", call. = FALSE)
-      M <- matrix(0, nrow = length(idx), ncol = K); M[cbind(seq_along(idx), idx)] <- 1
-      labels <- M
-    }
-  } else {
-    stop("Unknown classification_mode.", call. = FALSE)
-  }
-  
+  training_labels <- .ddesonn_encode_labels(y, mode)
+  labels <- training_labels$labels
+
   defaults <- ddesonn_training_defaults(mode, hidden_sizes)
   cfg <- utils::modifyList(defaults, overrides, keep.null = TRUE)
   cfg$average_gradients <- if (reduction %in% c("sum", "mean")) reduction == "mean"
@@ -669,68 +670,16 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   cfg$ML_NN <- isTRUE(cfg$ML_NN %||% attr(model, "ML_NN"))
   cfg$ensemble_number <- overrides$ensemble_number %||% cfg$ensemble_number %||% 0L
   
-  # VALID labels (if present) — coerce by mode
   if (!is.null(validation)) {
     cfg$X_validation <- .as_numeric_matrix(validation$x)
-    yv_in <- validation$y
-    if (is.list(yv_in) && !is.data.frame(yv_in)) yv_in <- unlist(yv_in, use.names = FALSE)
-    
-    if (mode == "regression") {
-      if (is.factor(yv_in)) yv_in <- as.numeric(as.character(yv_in))
-      cfg$y_validation <- .as_numeric_matrix(yv_in)
-    } else if (mode == "binary") {
-      if (is.matrix(yv_in) || is.data.frame(yv_in)) {
-        yy <- as.matrix(yv_in); storage.mode(yy) <- "double"
-        if (ncol(yy) == 2L && all(yy %in% c(0,1), na.rm = TRUE)) {
-          cfg$y_validation <- yy[, 2, drop = FALSE]
-        } else if (ncol(yy) == 1L) {
-          v <- yy[,1]
-          u <- sort(unique(as.numeric(v)))
-          if (length(u) == 2L && !all(u %in% c(0,1))) {
-            map <- setNames(c(0,1), u); v <- as.numeric(map[as.character(as.numeric(v))])
-          }
-          cfg$y_validation <- matrix(as.numeric(v), ncol = 1L)
-        } else stop("Binary validation labels must be 1 col (or 2-col one-hot).", call. = FALSE)
-      } else {
-        if (is.logical(yv_in)) {
-          v <- ifelse(yv_in, 1, 0)
-        } else if (is.factor(yv_in) || is.character(yv_in)) {
-          lvls <- if (is.factor(yv_in)) levels(yv_in) else sort(unique(yv_in))
-          if (length(lvls) != 2L) stop("Binary validation labels must have exactly 2 levels.", call. = FALSE)
-          map <- setNames(c(0,1), lvls)
-          v <- as.numeric(map[as.character(if (is.factor(yv_in)) as.character(yv_in) else yv_in)])
-        } else {
-          v0 <- as.numeric(yv_in); u <- sort(unique(v0))
-          if (length(u) != 2L) stop("Binary numeric validation labels must have exactly two unique values.", call. = FALSE)
-          map <- setNames(c(0,1), u); v <- as.numeric(map[as.character(v0)])
-        }
-        cfg$y_validation <- matrix(v, ncol = 1L)
-      }
-    } else if (mode == "multiclass") {
-      if (is.matrix(yv_in) || is.data.frame(yv_in)) {
-        yy <- as.matrix(yv_in); storage.mode(yy) <- "double"
-        vals_ok <- all(yy %in% c(0,1), na.rm = TRUE)
-        row_ok  <- all(rowSums(yy, na.rm = TRUE) >= 0.99 & rowSums(yy, na.rm = TRUE) <= 1.01)
-        if (ncol(yy) >= 2L && vals_ok && row_ok) {
-          cfg$y_validation <- yy
-        } else if (ncol(yy) == 1L) {
-          cls <- as.vector(yy[,1]); u <- sort(unique(as.numeric(cls))); K <- length(u)
-          idx <- match(as.numeric(cls), u)
-          if (any(is.na(idx))) stop("Multiclass validation labels contain NA/unknown.", call. = FALSE)
-          M <- matrix(0, nrow = length(idx), ncol = K); M[cbind(seq_along(idx), idx)] <- 1
-          cfg$y_validation <- M
-        } else stop("Multiclass validation labels must be one-hot or a single class column.", call. = FALSE)
-      } else {
-        if (is.factor(yv_in))        { lvls <- levels(yv_in); idx <- as.integer(yv_in); K <- length(lvls) }
-        else if (is.character(yv_in)){ lvls <- sort(unique(yv_in)); idx <- match(yv_in, lvls); K <- length(lvls) }
-        else                         { v0 <- as.numeric(yv_in); u <- sort(unique(v0)); idx <- match(v0, u); K <- length(u) }
-        if (any(is.na(idx))) stop("Multiclass validation labels contain NA/unknown.", call. = FALSE)
-        M <- matrix(0, nrow = length(idx), ncol = K); M[cbind(seq_along(idx), idx)] <- 1
-        cfg$y_validation <- M
-      }
-    }
+    cfg$y_validation <- .ddesonn_encode_labels(
+      validation$y, mode, training_labels$encoding, split = "Validation"
+    )$labels
   }
-  
+  if (is.null(cfg$X_validation) && is.null(cfg$y_validation)) {
+    cfg$validation_metrics <- FALSE
+  }
+
   # derive from model unless overridden
   model_num_networks <- tryCatch(model$num_networks, error = function(e) NULL)
   cfg$num_networks   <- overrides$num_networks %||% model_num_networks %||% 1L
@@ -1415,9 +1364,6 @@ ddesonn_fit <- function(model, x, y, validation = NULL, self_org = NULL, ..., ve
   if (!is.finite(n) || n < 1L) return(NULL)
   y_true <- as.integer(y_true[seq_len(n)])
   p_pos <- as.numeric(p_pos[seq_len(n)])
-  if (all(y_true %in% c(1, 2), na.rm = TRUE) && !any(y_true %in% c(0), na.rm = TRUE)) {
-    y_true <- y_true - 1L
-  }
   keep <- is.finite(y_true) & is.finite(p_pos)
   y_true <- y_true[keep]
   p_pos <- p_pos[keep]
@@ -3339,7 +3285,8 @@ ddesonn_predict <- function(model, new_data,
 #' [ddesonn_predict()] to surface aggregated predictions.
 #'
 #' @param x Training features (the training split) as a data frame, matrix, or tibble.
-#' @param y Training labels/targets (the training split).
+#' @param y Training labels or targets. Classification accepts class labels or
+#'   a one-hot matrix. Validation and test labels use the training class order.
 #' @param classification_mode Overall problem mode. One of `"binary"`,
 #'   `"multiclass"`, or `"regression"`.
 #' @param hidden_sizes Integer vector describing the hidden layer widths.
@@ -3734,7 +3681,8 @@ ddesonn_run <- function(x,
   }
   
   x_matrix <- .as_numeric_matrix(x)
-  y_matrix <- .as_numeric_matrix(y)
+  training_labels <- .ddesonn_encode_labels(y, classification_mode)
+  y_matrix <- training_labels$labels
   
   input_size <- ncol(x_matrix)
   output_size <- ncol(y_matrix)
@@ -3889,6 +3837,10 @@ ddesonn_run <- function(x,
       sequence_data = validation_data$sequence_data %||% NULL
     )
   }
+  validation_labels <- if (!is.null(validation_data$y)) {
+    .ddesonn_encode_labels(validation_data$y, classification_mode,
+                           training_labels$encoding, split = "Validation")$labels
+  }
   test_data <- test
   if (!is.null(x_test) || !is.null(y_test)) {
     if (is.null(x_test) || is.null(y_test)) {
@@ -3919,7 +3871,10 @@ ddesonn_run <- function(x,
   if (!is.null(test_data)) {
     if (is.list(test_data) && !is.null(test_data$x)) {
       test_matrix <- .as_numeric_matrix(test_data$x)
-      test_labels <- test_data$y %||% NULL
+      if (!is.null(test_data$y)) {
+        test_labels <- .ddesonn_encode_labels(test_data$y, classification_mode,
+                                             training_labels$encoding, split = "Test")$labels
+      }
       test_sequence_data <- test_data$sequence_data %||% NULL
     }
   }
@@ -4400,7 +4355,7 @@ ddesonn_run <- function(x,
     if(sequence_encoder=="ssm" && !is.null(val) && is.null(val$sequence_data)) stop("validation$sequence_data is required for SSM runs.",call.=FALSE)
     # [SSM] Fit receives only the aligned training sequence plus validation's own list.
     # [SSM] BEGIN: retain the fitted encoder returned with the trained model.
-    mdl <- do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), base_train_overrides))
+    mdl <- do.call(ddesonn_fit, c(list(model = mdl, x = x_matrix, y = y, validation = val, sequence_data=sequence_data), base_train_overrides))
     # [SSM] END: all subsequent split and saved-model predictions use it.
     main_fit <- .report_model_fit(mdl, sprintf("Seed %s \u00b7 %s", seed_i,
       if (isTRUE(do_ensemble)) "MAIN" else "Independent fit"))
@@ -4494,7 +4449,7 @@ ddesonn_run <- function(x,
         
         # [SSM] TEMP models use the same aligned train/validation bridge as MAIN.
         # [SSM] BEGIN: retain each TEMP candidate's fitted Train-only scaler.
-        tmp_model <- do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y_matrix, validation = val, sequence_data=sequence_data), tmp_overrides))
+        tmp_model <- do.call(ddesonn_fit, c(list(model = tmp_model, x = x_matrix, y = y, validation = val, sequence_data=sequence_data), tmp_overrides))
         # [SSM] END: candidate evaluation must not use an unfitted initializer.
         
         if (isTRUE(debug)) {                                                            # 
@@ -4617,7 +4572,7 @@ ddesonn_run <- function(x,
     run_predictions <- list(
       train = build_split_predictions(mdl, x_matrix, y_matrix, sequence_data, "train", i, seed_i),
       validation = if (!is.null(validation_data) && !is.null(validation_data$x)) {
-        build_split_predictions(mdl, validation_data$x, validation_data$y, validation_data$sequence_data %||% NULL, "validation", i, seed_i)
+        build_split_predictions(mdl, validation_data$x, validation_labels, validation_data$sequence_data %||% NULL, "validation", i, seed_i)
       } else {
         NULL
       },
@@ -4792,7 +4747,7 @@ ddesonn_run <- function(x,
     counts, list(stage), list(`DDESONN version` = as.character(utils::packageVersion("DDESONN")),
       `R version` = as.character(getRversion()), `RNG kind` = RNGkind()),
     preprocessing = list(`Data split` = "Supplied by caller", Predictors = colnames(x_matrix),
-      Targets = colnames(y_matrix)), overlap = overlap)
+      Targets = colnames(y)), overlap = overlap)
 
   class(result) <- unique(c("ddesonn_run_result", class(result)))
   
@@ -4879,7 +4834,7 @@ ddesonn_run <- function(x,
       # [SSM] Validation report uses validation's sequence array.
       val_probs <- try(ddesonn_predict(final_model, validation_data$x, aggregate = aggregate, type = "response", verbose = verbose, verboseLow = verboseLow, debug = debug, sequence_data = validation_data$sequence_data %||% NULL), silent = TRUE)
       if (!inherits(val_probs, "try-error") && !is.null(val_probs$prediction)) {
-        y_val_vec <- .coerce_binary_labels(validation_data$y)
+        y_val_vec <- .coerce_binary_labels(validation_labels)
         .emit_binary_classification_report(
           "Validation", y_val_vec, val_probs$prediction, thr_used,
           final_summary_decimals = dec_out,

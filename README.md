@@ -1,18 +1,25 @@
 # DDESONN: Deep Dynamic Experimental Self-Organizing Neural Network
 
-Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
+Mathew William Armitage Fok — <quiksilver67213@yahoo.com>
 
 Learning notes, startup material and DDESONN modeling updates:
 [Follow on Substack](https://substack.com/@alphalion).
 
-See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
-for a summary of the updates available on GitHub.
+For each CRAN release, we keep one **CRAN release delta file Δ** that summarizes
+GitHub changes since that release.
+[CRAN release delta file Δ since 7.1.11](dev/release-summary-since-7.1.11.md)
 
 **Research highlight: A win for DDESONN.** Its mean held-out accuracy was higher
 than Keras's in a matched comparison across 100 seeds on one clean split. With summed gradients,
 mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
 **90.39% vs. 87.62%**.
 [Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
+
+The CSV and RDS report the same held-out accuracy for all 400 runs across
+100 seeds and four benchmark conditions.
+
+- [Benchmark results (CSV)](inst/shiny/benchmark/data/100SeedsDDESONNvsKerasCleanSplit.csv) contains the per-seed scores.
+- [Benchmark results (RDS)](dev/research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds) contains the same scores plus run details. In R, use `readRDS(path)$results` to extract the score table.
 
 In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
 the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
@@ -27,22 +34,27 @@ for why we reported 100 seeds per condition and how to choose a seed count for
 future modeling experiments, tests, and case studies in DDESONN or other data
 science projects.
 
+The [archived RDS metrics for the 1,000-seed study](inst/extdata/heart_failure_runs)
+are available on GitHub and excluded from the package download.
+
 ## Recommended Shiny GUI: launch and first steps
 
 DDESONN includes a Shiny graphical user interface (GUI) for preparing data,
 training and evaluating models, using saved models, and browsing research results.
-After installing DDESONN, install the two optional app dependencies once and
-launch it from an interactive R session:
+Install DDESONN and its optional workbench dependencies, then launch the app
+from an interactive R session:
+
+```r
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+remotes::install_github("MatHatter/DDESONN")
+install.packages(c("shiny", "callr"))
+shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN",
+                          mustWork = TRUE))
+```
 
 For dependency updates on Windows, close other R/RStudio sessions and install
 from a fresh R session before loading development tools or starting the app.
 This lets Windows replace package DLLs that would otherwise be in use.
-
-```r
-install.packages(c("shiny", "callr")) # once, if needed
-shiny::runApp(system.file("shiny", "benchmark", package = "DDESONN",
-                          mustWork = TRUE))
-```
 
 - **Train a new model:** start with Iris on **1. Data**, review the target,
   predictors and preprocessing on **2. Features**, click **Prepare data**, then
@@ -1442,9 +1454,9 @@ randomly around the network.
 
 ## To-Do (Design-Linked)
 
-See [changes since the 7.1.11 CRAN release](dev/release-summary-since-7.1.11.md)
-for work completed since that release, including improvements that were never
-listed below or in the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
+The [CRAN release delta file Δ since 7.1.11](dev/release-summary-since-7.1.11.md)
+lists work completed since that release, including improvements outside this
+list and the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
 
 #### T-01 - Hyperparameter sweep utilities  
 Linked from: **R-01**

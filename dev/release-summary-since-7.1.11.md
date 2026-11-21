@@ -1,8 +1,9 @@
-# DDESONN changes since 7.1.11
+# DDESONN CRAN release delta file Δ since 7.1.11
 
-This summary covers changes after the 7.1.11 CRAN release, as recorded in
-GitHub tags, merged pull requests, and the package NEWS. GitHub versions
-and CRAN publication are separate.
+Each CRAN release has one delta file. This file uses CRAN release 7.1.11
+as its baseline and summarizes subsequent GitHub changes recorded in tags,
+merged pull requests, and the package NEWS. GitHub versions and CRAN
+publication are separate.
 [Package NEWS](../NEWS.md) · [GitHub tags](https://github.com/MatHatter/DDESONN/tags) ·
 [CRAN Git mirror tags](https://github.com/cran/DDESONN/tags)
 
@@ -95,7 +96,31 @@ and CRAN publication are separate.
   and describes the exploratory NQ benchmark as inconclusive.
 
 - **7.5.12** highlights the 100-seed benchmark, records vignette progress,
-  and links to the release summary from To-Do and to OLR on PyPI.
+  and links to the release delta file from To-Do and to OLR on PyPI.
+- **7.5.14** reduces the package download size by storing the Shiny brain artwork
+  as lossless WebP with the original image dimensions.
+
+The [100-seed benchmark reproduction results](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
+include per-seed scores, raw fits, and a split-overlap audit.
+
+### Changes on GitHub after 7.5.14
+
+- **Making predictions with a saved model.** Shiny reads your new CSV before
+  making predictions with the saved weights. If the model learned `01` as a
+  category, Shiny keeps the leading zero. If an entire numeric column is blank
+  and the model learned a fill value during training, Shiny uses that value.
+  Downloaded prediction recipes read the CSV the same way.
+- **Checking how accurate a model is.** DDESONN compares predictions with
+  the correct answers in your validation and test data. If the prediction is
+  “manual” and the correct answer is “manual,” it counts as correct even if
+  the categories are listed in a different order.
+- `ddesonn_fit()` supports training without a validation split by default,
+  and `ddesonn_run()` infers the output width from integer multiclass labels.
+- The clean benchmark vignette clarifies that its frozen training loops use
+  a single gradient reduction. Current DDESONN supports separate weight and
+  bias reductions.
+- The README links to the 100-seed benchmark scores in CSV and RDS and
+  includes package installation in the Shiny quickstart.
 
 ## Detailed version history
 

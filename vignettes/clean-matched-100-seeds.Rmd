@@ -35,7 +35,7 @@ library(ggplot2)
 study_dir <- system.file("shiny", "benchmark", package = "DDESONN", mustWork = TRUE)
 study <- new.env()
 sys.source(file.path(study_dir, "studies.R"), envir = study)
-results <- read.csv(file.path(study_dir, "data", "clean-matched-100.csv"))
+results <- read.csv(file.path(study_dir, "data", "100SeedsDDESONNvsKerasCleanSplit.csv"))
 reductions <- c("Sum vs. sum" = "sum", "Mean vs. mean" = "mean")
 cumulative <- do.call(rbind, lapply(names(reductions), function(label) {
   pairs <- study$study_clean_pairs(results, reductions[[label]])
@@ -105,12 +105,14 @@ both of these reductions for the dense-layer data-loss gradients.
 | Average | Sum | DDESONN and Keras |
 
 Compare DDESONN with Keras within each mixed setting using matched seeds
-and the same split. These four proposed conditions are separate from the
-completed benchmark. They require changes to the training loops because
-the current control applies a single reduction to every parameter. Document
-how batch-normalization parameters are reduced and add the dense-kernel L1
-gradient once, after reducing the data-loss gradient. Use the actual batch
-size for averaging, including the smaller final batch.
+and the same split. These four conditions are proposed follow-ups. The
+frozen benchmark training loops apply one reduction to all parameters and
+need changes to run mixed settings. Current DDESONN supports separate
+weight and bias reductions, including in the Shiny workbench.
+
+For the follow-up, document how batch-normalization parameters are reduced.
+Add the dense-kernel L1 gradient once, after reducing the data-loss gradient.
+Use the actual batch size for averaging, including the smaller final batch.
 
 See the [contribution instructions](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/CONTRIBUTING_SEEDS.md)
 for the baseline launchers and what to include when sharing a follow-up.

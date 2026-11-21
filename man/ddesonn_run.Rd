@@ -51,7 +51,8 @@ ddesonn_run(
 
 \item{x}{Training features (the training split) as a data frame, matrix, or tibble.}
 
-\item{y}{Training labels/targets (the training split).}
+\item{y}{Training labels or targets. Classification accepts class labels or
+a one-hot matrix. Validation and test labels use the training class order.}
 
 \item{classification_mode}{Overall problem mode. One of \code{"binary"},
 \code{"multiclass"}, or \code{"regression"}.}

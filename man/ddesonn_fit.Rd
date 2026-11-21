@@ -38,7 +38,9 @@ Also accepts \code{trace_epochs} for per-method epoch markers. See \code{\link[=
 
 \item{y}{Training targets/labels.}
 
-\item{validation}{Optional list containing \code{x} and \code{y} elements for validation.}
+\item{validation}{Optional list containing \code{x} and \code{y} elements for validation.
+Validation labels use the training class order. Validation metrics are
+disabled when neither this list nor validation data in \code{...} is supplied.}
 
 \item{self_org}{Optional logical override for the legacy self-organization
 phase. \code{TRUE} enables \code{self_organize()} during training and \code{FALSE}
