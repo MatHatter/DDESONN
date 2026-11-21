@@ -1,6 +1,6 @@
 # DDESONN: Deep Dynamic Experimental Self-Organizing Neural Network
 
-Mathew William Armitage Fok (<quiksilver67213@yahoo.com>)
+Mathew William Armitage Fok — <quiksilver67213@yahoo.com>
 
 Learning notes, startup material and DDESONN modeling updates:
 [Follow on Substack](https://substack.com/@alphalion).
