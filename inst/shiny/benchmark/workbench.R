@@ -923,9 +923,10 @@ wb_server <- function(input, output, session, helper) {
   })
   shiny::observe(session$sendCustomMessage("wb-action-states", action_states()))
   busy <- function() if (!is.null(job())) stop("Finish or cancel the running job first.")
-  read_csv <- function(upload, limit = 10 * 1024^2) {
+  read_csv <- function(upload, limit = 10 * 1024^2, settings = NULL) {
     shiny::req(upload)
     if (upload$size > limit) stop("File exceeds the upload limit.")
+    if (!is.null(settings)) return(wb_read_prediction_csv(upload$datapath, settings))
     utils::read.csv(upload$datapath, check.names = FALSE)
   }
   output$wb_columns <- shiny::renderUI({
@@ -1189,7 +1190,7 @@ wb_server <- function(input, output, session, helper) {
   shiny::observeEvent(input$wb_new_data, attempt({
     workspace_notice(NULL)
     new_predictions(NULL); prediction_provenance(NULL); prediction_report(NULL); prediction_data(NULL); prediction_source(NULL)
-    prediction_data(read_csv(input$wb_new_data))
+    prediction_data(read_csv(input$wb_new_data, settings = active_model()$prepared))
     prediction_source(basename(input$wb_new_data$name))
   }, model_error))
   shiny::observeEvent(input$wb_predict, attempt({

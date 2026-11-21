@@ -100,7 +100,7 @@ publication are separate.
 - **7.5.14** reduces the package download size by storing the Shiny brain artwork
   as lossless WebP with the original image dimensions.
 
-The [100-seed benchmark reproduction bundle](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
+The [100-seed benchmark reproduction results](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
 includes per-seed scores, raw fits, and a split-overlap audit.
 
 ## Detailed version history
