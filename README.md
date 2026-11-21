@@ -14,8 +14,11 @@ mean accuracy was **91.36% vs. 87.48%**. With averaged gradients, it was
 **90.39% vs. 87.62%**.
 [Read the 100-seed benchmark](https://github.com/MatHatter/DDESONN/blob/main/vignettes/clean-matched-100-seeds.Rmd).
 
-- [Original benchmark results (CSV)](https://github.com/MatHatter/DDESONN/blob/main/inst/shiny/benchmark/data/clean-matched-100.csv) list per-seed accuracy for the 400 original fits.
-- [Reproduction results (RDS)](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/reproduced-study-results.rds) contain metrics and run details from a separate rerun of the same 400 seed-and-condition combinations, plus a comparison with the original results. Open in R with `readRDS()`.
+Both files report the same held-out accuracy for all 400 seed-and-condition
+combinations in the clean benchmark.
+
+- [Benchmark results (CSV)](https://github.com/MatHatter/DDESONN/blob/main/inst/shiny/benchmark/data/clean-matched-100.csv) lists the per-seed scores in a table.
+- [Benchmark results (RDS)](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/reproduced-study-results.rds) includes the same scores plus run details. Open it in R with `readRDS()`.
 
 In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
 the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
