@@ -105,11 +105,15 @@ includes per-seed scores, raw fits, and a split-overlap audit.
 
 ### Changes on GitHub after 7.5.14
 
-- Saved-model CSV uploads and prediction recipes preserve categorical values
-  such as `01` and apply learned fill values to all-missing numeric columns.
-- Validation and test labels use the class mapping established during training.
-  Changing the factor level order or omitting a class in a held-out split
-  preserves the meaning of each label.
+- **Making predictions with a saved model.** Shiny reads your new CSV before
+  making predictions with the saved weights. If the model learned `01` as a
+  category, Shiny keeps the leading zero. If an entire numeric column is blank
+  and the model learned a fill value during training, Shiny uses that value.
+  Downloaded prediction recipes read the CSV the same way.
+- **Checking how accurate a model is.** DDESONN compares predictions with
+  the correct answers in your validation and test data. If the prediction is
+  “manual” and the correct answer is “manual,” it counts as correct even if
+  the categories are listed in a different order.
 - `ddesonn_fit()` supports training without a validation split by default,
   and `ddesonn_run()` infers the output width from integer multiclass labels.
 - The clean benchmark vignette clarifies that its frozen training loops use
