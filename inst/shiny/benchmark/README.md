@@ -392,12 +392,13 @@ the included benchmark's limitations; uploaded studies need their own provenance
 
 Click the header thumbnail to open an enlarged view, then use Close or Escape
 to return. The full-resolution link supports viewing the original image.
-The artwork is bundled locally as `www/DDESONN_brain.png`, copied unchanged from
+The artwork is bundled locally as lossless WebP at `www/DDESONN_brain.webp`. It
+retains the pixel values and dimensions of the original PNG from
 `MatHatter/ddesonn-assets` revision `1b6d45806009ae28cfaab5380ff6bfec045db162`
 (path `DDESONN_brain.png`), the image linked in the repository README.
 It is project artwork rather than a diagram of an individual model.
 
-Artwork SHA-256: `751d6675a10c8318b69268eb9c5e013d94508ab4e4870f82005c46f4b75dc1e5`.
+Bundled artwork SHA-256: `b56184d564fdb897937a486d12d9e7eae14cac4ec2e12e80dfc42a50bc42537b`.
 
 ## Model workbench
 
