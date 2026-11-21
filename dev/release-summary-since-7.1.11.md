@@ -96,7 +96,12 @@ publication are separate.
   and describes the exploratory NQ benchmark as inconclusive.
 
 - **7.5.12** highlights the 100-seed benchmark, records vignette progress,
-  and links to the release summary from To-Do and to OLR on PyPI.
+  and links to the release delta file from To-Do and to OLR on PyPI.
+- **7.5.14** reduces the package download size by storing the Shiny brain artwork
+  as lossless WebP with the original image dimensions.
+
+The [100-seed benchmark reproduction bundle](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
+includes per-seed scores, raw fits, and a split-overlap audit.
 
 ## Detailed version history
 
