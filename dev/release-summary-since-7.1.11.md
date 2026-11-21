@@ -1,8 +1,9 @@
-# DDESONN changes since 7.1.11
+# DDESONN CRAN release delta file (Δ) — 7.1.11
 
-This summary covers changes after the 7.1.11 CRAN release, as recorded in
-GitHub tags, merged pull requests, and the package NEWS. GitHub versions
-and CRAN publication are separate.
+Each CRAN release has one delta file. This file uses CRAN release 7.1.11
+as its baseline and summarizes subsequent GitHub changes recorded in tags,
+merged pull requests, and the package NEWS. GitHub versions and CRAN
+publication are separate.
 [Package NEWS](../NEWS.md) · [GitHub tags](https://github.com/MatHatter/DDESONN/tags) ·
 [CRAN Git mirror tags](https://github.com/cran/DDESONN/tags)
 

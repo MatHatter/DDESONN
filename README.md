@@ -5,8 +5,9 @@ Mathew William Armitage Fok — <quiksilver67213@yahoo.com>
 Learning notes, startup material and DDESONN modeling updates:
 [Follow on Substack](https://substack.com/@alphalion).
 
-See [changes since the latest CRAN release (7.1.11)](dev/release-summary-since-7.1.11.md)
-for a summary of the updates available on GitHub.
+Each CRAN release has one **CRAN release delta file (Δ)**. It uses that release
+as the baseline and summarizes subsequent changes available on GitHub.
+[CRAN release delta file (Δ) — 7.1.11](dev/release-summary-since-7.1.11.md)
 
 **Research highlight: A win for DDESONN.** Its mean held-out accuracy was higher
 than Keras's in a matched comparison across 100 seeds on one clean split. With summed gradients,
@@ -1454,9 +1455,9 @@ randomly around the network.
 
 ## To-Do (Design-Linked)
 
-See [changes since the 7.1.11 CRAN release](dev/release-summary-since-7.1.11.md)
-for work completed since that release, including improvements that were never
-listed below or in the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
+The [CRAN release delta file (Δ) — 7.1.11](dev/release-summary-since-7.1.11.md)
+lists work completed since that release, including improvements outside this
+list and the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
 
 #### T-01 - Hyperparameter sweep utilities  
 Linked from: **R-01**
