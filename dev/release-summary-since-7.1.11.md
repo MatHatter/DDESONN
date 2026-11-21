@@ -101,7 +101,7 @@ publication are separate.
   as lossless WebP with the original image dimensions.
 
 The [100-seed benchmark reproduction results](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
-includes per-seed scores, raw fits, and a split-overlap audit.
+include per-seed scores, raw fits, and a split-overlap audit.
 
 ### Changes on GitHub after 7.5.14
 
@@ -119,6 +119,8 @@ includes per-seed scores, raw fits, and a split-overlap audit.
 - The clean benchmark vignette clarifies that its frozen training loops use
   a single gradient reduction. Current DDESONN supports separate weight and
   bias reductions.
+- The README links to the 100-seed benchmark scores in CSV and RDS and
+  includes package installation in the Shiny quickstart.
 
 ## Detailed version history
 
