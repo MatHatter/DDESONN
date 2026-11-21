@@ -3,7 +3,7 @@ if (!requireNamespace("shiny", quietly = TRUE) || !requireNamespace("callr", qui
   stop("Install optional packages 'shiny' and 'callr' to use the workbench.")
 source("helpers.R", local = TRUE)
 source("studies.R", local = TRUE)
-clean_data <- utils::read.csv("data/ddesonn-vs-keras-100-seeds-clean-split.csv")
+clean_data <- utils::read.csv("data/100SeedsDDESONNvsKerasCleanSplit.csv")
 source("workbench_helpers.R", local = TRUE)
 source("workbench.R", local = TRUE)
 options(shiny.maxRequestSize = 50 * 1024^2)
