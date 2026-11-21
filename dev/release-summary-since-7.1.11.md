@@ -103,6 +103,19 @@ publication are separate.
 The [100-seed benchmark reproduction results](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
 includes per-seed scores, raw fits, and a split-overlap audit.
 
+### Changes on GitHub after 7.5.14
+
+- Saved-model CSV uploads and prediction recipes preserve categorical values
+  such as `01` and apply learned fill values to all-missing numeric columns.
+- Validation and test labels use the class mapping established during training.
+  Changing the factor level order or omitting a class in a held-out split
+  preserves the meaning of each label.
+- `ddesonn_fit()` supports training without a validation split by default,
+  and `ddesonn_run()` infers the output width from integer multiclass labels.
+- The clean benchmark vignette clarifies that its frozen training loops use
+  a single gradient reduction. Current DDESONN supports separate weight and
+  bias reductions.
+
 ## Detailed version history
 
 ### Version 7.4.0 - clean-split evaluation preparation
