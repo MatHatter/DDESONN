@@ -103,7 +103,7 @@ publication are separate.
 The [100-seed benchmark reproduction results](research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds)
 include per-seed scores, raw fits, and a split-overlap audit.
 
-### Changes on GitHub after 7.5.14
+### 7.5.15 GitHub release changes
 
 - **Making predictions with a saved model.** Shiny reads your new CSV before
   making predictions with the saved weights. If the model learned `01` as a

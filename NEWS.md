@@ -1,3 +1,13 @@
+# DDESONN 7.5.15
+
+- Preserve text categories and trained fill values when reading prediction CSVs
+  for saved Shiny models and downloaded recipes.
+- Use the training class mapping for validation and test labels.
+- Allow `ddesonn_fit()` to omit validation and infer the number of outputs from
+  integer multiclass labels in `ddesonn_run()`.
+- Link the clean 100-seed benchmark results and clarify the scope of the
+  benchmark's gradient-reduction settings.
+
 # DDESONN 7.5.14
 
 - Bundle the Shiny brain artwork as lossless WebP to reduce package size.
