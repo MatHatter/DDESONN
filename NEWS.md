@@ -1,3 +1,8 @@
+# DDESONN 7.5.14
+
+- Bundle the Shiny brain artwork as lossless WebP to reduce package size.
+  The thumbnail and enlarged view retain the original image dimensions.
+
 # DDESONN 7.5.12
 
 - Highlight the 100-seed benchmark and document progress on the vignette roadmap.

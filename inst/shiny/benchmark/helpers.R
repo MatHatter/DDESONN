@@ -129,10 +129,10 @@ dashboard_server <- function(default_data) {
     shiny::observeEvent(input$brain_art, {
       dialog <- shiny::modalDialog(
         title = "DDESONN brain artwork", size = "l", easyClose = TRUE,
-        shiny::tags$img(src = "DDESONN_brain.png", class = "brain-full",
+        shiny::tags$img(src = "DDESONN_brain.webp", class = "brain-full",
           alt = "DDESONN brain artwork with glowing neural connections and equations"),
         shiny::p("Project artwork; not a diagram of the selected benchmark model."),
-        shiny::tags$a(href = "DDESONN_brain.png", target = "_blank", rel = "noopener",
+        shiny::tags$a(href = "brain-artwork.html", target = "_blank", rel = "noopener",
           "Open full-resolution image"),
         footer = shiny::modalButton("Close"))
       dialog$attribs$role <- "dialog"

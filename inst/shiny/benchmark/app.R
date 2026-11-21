@@ -403,7 +403,7 @@ ui <- shiny::fluidPage(
       shiny::h1("Train or use a saved model"),
       shiny::p("Choose a new training workflow or use a completed model to predict new rows.")),
     shiny::actionButton("brain_art", label = shiny::tagList(
-      shiny::tags$img(src = "DDESONN_brain.png", alt = "DDESONN brain artwork with glowing neural connections and equations")), class = "brain-preview",
+      shiny::tags$img(src = "DDESONN_brain.webp", alt = "DDESONN brain artwork with glowing neural connections and equations")), class = "brain-preview",
       title = "Open enlarged brain artwork", `aria-label` = "Enlarge DDESONN brain artwork")),
   shiny::div(class = "wb-flow-picker",
     shiny::radioButtons("wb_task_flow", "Choose your workflow",
