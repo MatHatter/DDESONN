@@ -7,7 +7,7 @@ Learning notes, startup material and DDESONN modeling updates:
 
 For each CRAN release, we keep one **CRAN release delta file Δ** that summarizes
 GitHub changes since that release.
-[CRAN release delta file Δ since 7.1.11](dev/release-summary-since-7.1.11.md)
+[CRAN release delta file Δ since 7.1.11](https://github.com/MatHatter/DDESONN/blob/main/dev/release-summary-since-7.1.11.md)
 
 **Research highlight: A win for DDESONN.** Its mean held-out accuracy was higher
 than Keras's in a matched comparison across 100 seeds on one clean split. With summed gradients,
@@ -19,7 +19,7 @@ The CSV and RDS report the same held-out accuracy for all 400 runs across
 100 seeds and four benchmark conditions.
 
 - [Benchmark results (CSV)](inst/shiny/benchmark/data/100SeedsDDESONNvsKerasCleanSplit.csv) contains the per-seed scores.
-- [Benchmark results (RDS)](dev/research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds) contains the same scores plus run details. In R, use `readRDS(path)$results` to extract the score table.
+- [Benchmark results (RDS)](https://github.com/MatHatter/DDESONN/blob/main/dev/research/keras-clean-reference/100SeedsDDESONNvsKerasCleanSplit.rds) contains the same scores plus run details. In R, use `readRDS(path)$results` to extract the score table.
 
 In the earlier [1,000-seed case study](https://github.com/MatHatter/DDESONN/blob/main/vignettes/heart-failure-standard-adagrad-1000-seeds.Rmd),
 the archived results show that DDESONN averaged **99.92% test accuracy vs. 99.68%
@@ -34,7 +34,7 @@ for why we reported 100 seeds per condition and how to choose a seed count for
 future modeling experiments, tests, and case studies in DDESONN or other data
 science projects.
 
-The [archived RDS metrics for the 1,000-seed study](inst/extdata/heart_failure_runs)
+The [archived RDS metrics for the 1,000-seed study](https://github.com/MatHatter/DDESONN/tree/main/inst/extdata/heart_failure_runs)
 are available on GitHub and excluded from the package download.
 
 ## Recommended Shiny GUI: launch and first steps
@@ -1121,7 +1121,7 @@ versus 99.921867% for probability-recomputed archived legacy results. Repeated
 seed-by-row errors total 221 versus 586. This descriptive comparison retains
 substantial train/test feature overlap and does not isolate the optimizer's
 causal effect or establish performance on new patients.
-See the [consolidated report](dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
+See the [consolidated report](https://github.com/MatHatter/DDESONN/blob/main/dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
 for every seed, all metrics, graphs, provenance and limitations. The earlier
 100-seed intermediate report is superseded; it remains in Git history and the
 standalone archive rather than as a separate current guide.
@@ -1129,7 +1129,7 @@ standalone archive rather than as a separate current guide.
 #### How this relates to the historical Keras comparison
 
 The historical 1,000-seed Keras comparison used the legacy DDESONN path.
-A separate [new 1,000-seed standard-AdaGrad reconstruction](dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
+A separate [new 1,000-seed standard-AdaGrad reconstruction](https://github.com/MatHatter/DDESONN/blob/main/dev/research/heart-failure-adagrad-new-seeds-1-1000/REPORT.md)
 now records all fresh seed results. It does not rerun Keras or establish a fully
 matched comparison. Correcting AdaGrad leaves the historical dataset's substantial
 train/test feature overlap in place: both sides of the historical comparison
@@ -1212,7 +1212,7 @@ research evidence, not as proof of standard AdaGrad outperforming Keras.
 The committed scripts contain master/per-run seeds, but the exact original
 execution configuration cannot be reconstructed from the saved outputs.
 
-See [the provenance audit](dev/research/legacy-adagrad-benchmarks.md) for source
+See [the provenance audit](https://github.com/MatHatter/DDESONN/blob/main/dev/research/legacy-adagrad-benchmarks.md) for source
 evidence, seed-history limitations, file hashes and archive retrieval commands.
 The verified archive revision is
 [`0d1b557098b56b39ed2357b30716dcddc25871b3`](https://github.com/MatHatter/DDESONN/tree/0d1b557098b56b39ed2357b30716dcddc25871b3).
@@ -1249,8 +1249,8 @@ was already absent from the verified 7.1.11 archive. It remains recoverable at
 it is not an additional removal in 7.3.0.
 
 Input datasets, current example scripts and reporting helpers remain in the
-package. The [file inventory](dev/research/legacy-benchmark-inventory.csv) records
-sizes and checksums; the [archive guide](dev/research/legacy-adagrad-benchmarks.md)
+package. The [file inventory](https://github.com/MatHatter/DDESONN/blob/main/dev/research/legacy-benchmark-inventory.csv) records
+sizes and checksums; the [archive guide](https://github.com/MatHatter/DDESONN/blob/main/dev/research/legacy-adagrad-benchmarks.md)
 provides retrieval commands. This versioned record remains the reference for
 these exclusions; future release notes need only describe new file changes.
 
@@ -1454,7 +1454,7 @@ randomly around the network.
 
 ## To-Do (Design-Linked)
 
-The [CRAN release delta file Δ since 7.1.11](dev/release-summary-since-7.1.11.md)
+The [CRAN release delta file Δ since 7.1.11](https://github.com/MatHatter/DDESONN/blob/main/dev/release-summary-since-7.1.11.md)
 lists work completed since that release, including improvements outside this
 list and the [exploration guide](vignettes/community-and-next-steps.Rmd#ideas-i-still-want-to-explore).
 
@@ -1606,7 +1606,7 @@ If you are interested in helping move the project toward a cleaner and more stab
 ## License
 
 DDESONN is released under the MIT License, which permits commercial use.
-See [LICENSE.md](LICENSE.md) for the full license text.
+See [LICENSE.md](https://github.com/MatHatter/DDESONN/blob/main/LICENSE.md) for the full license text.
 
 ---
 

@@ -34,7 +34,8 @@
 NULL
 
 utils::globalVariables(c(
-  "Actual","Count","ML_NN","Predicted","RUN_INDEX","SEED","Type",
+  "Actual","Count","ML_NN","Metric","Model_Name_Outlier","Predicted",
+  "RUN_INDEX","SEED","Type","Value",
   "actual_rate","bin_mid","dropout_rates","errors","fpr","label",
   "lambda","lookahead_step","prob","prob_bin","run_index","seed",
   "tpr","beta1", ".BM_DIR"

@@ -5067,23 +5067,8 @@ DDESONN <- R6::R6Class(
           }
           plot_data_high$Title <- ddesonn_wrap_plot_title(plot_data_high$Title[1], width = 52L)
           
-          high_mean_plot <- ggplot2::ggplot(plot_data_high, ggplot2::aes(x = Metric, y = Value)) +
-            ggplot2::geom_boxplot() +
-            ggplot2::labs(
-              x = "Metric",
-              y = "Value"
-            ) +
-            ggplot2::ggtitle(unique(plot_data_high$Title)[1]) +                      
-            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 
-            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  
-          
-          high_mean_plot <- high_mean_plot +
-            ggplot2::geom_text(
-              ggplot2::aes(label = Model_Name_Outlier),
-              na.rm = TRUE,
-              hjust = -0.3
-            )
-          
+          high_mean_plot <- .ddesonn_metric_boxplot(plot_data_high)
+
           high_mean_plots[[metric]] <- high_mean_plot
           
           # ============================================================
@@ -5199,23 +5184,8 @@ DDESONN <- R6::R6Class(
           }
           plot_data_low$Title <- ddesonn_wrap_plot_title(plot_data_low$Title[1], width = 52L)
           
-          low_mean_plot <- ggplot2::ggplot(plot_data_low, ggplot2::aes(x = Metric, y = Value)) +
-            ggplot2::geom_boxplot() +
-            ggplot2::labs(
-              x = "Metric",
-              y = "Value"
-            ) +
-            ggplot2::ggtitle(unique(plot_data_low$Title)[1]) +                       
-            ddesonn_boxplot_theme(base_size = 12, title_size = 12) +                 
-            ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))  
-          
-          low_mean_plot <- low_mean_plot +
-            ggplot2::geom_text(
-              ggplot2::aes(label = Model_Name_Outlier),
-              na.rm = TRUE,
-              hjust = -0.3
-            )
-          
+          low_mean_plot <- .ddesonn_metric_boxplot(plot_data_low)
+
           low_mean_plots[[metric]] <- low_mean_plot
           
           # ============================================================

@@ -13,7 +13,8 @@ vignette: >
 
 ```{r setup, include=FALSE}
 is_check_env <- nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
-vignette_epochs <- if (is_check_env) 2L else 360L
+full_example <- identical(tolower(Sys.getenv("DDESONN_VIGNETTE_FULL")), "true")
+vignette_epochs <- if (full_example) 360L else 2L
 .vig_tmp_root <- file.path(tempdir(), "ddesonn-vig-logs")
 dir.create(.vig_tmp_root, recursive = TRUE, showWarnings = FALSE)
 options(DDESONN_OUTPUT_ROOT = .vig_tmp_root)
@@ -181,10 +182,8 @@ y_test  <- y_all[i_te, ]
 
 ## Scenario D - Ensemble runs (TEMP iterations only)
 
-This example normally uses 360 epochs per fit, including when rendered with
-`R CMD build`. During `R CMD check`, it uses two epochs to keep package checks
-short. Output generated during that shortened check run demonstrates the log
-structure, not convergence or realistic model performance.
+This example uses two epochs per fit to demonstrate the log structure.
+For the original 360-epoch fits, set `DDESONN_VIGNETTE_FULL=true` before rendering.
 
 ```{r scenario-d-run}
 res_D <- ddesonn_run(

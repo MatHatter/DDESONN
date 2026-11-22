@@ -1,3 +1,10 @@
+# DDESONN 7.5.16
+
+- Use GitHub links for README resources omitted from the source package.
+- Keep training state out of serialized performance and relevance plots.
+- Run short plotting and logging examples when building vignettes by default.
+  Set `DDESONN_VIGNETTE_FULL=true` to render the original 360-epoch examples.
+
 # DDESONN 7.5.15
 
 - Preserve text categories and trained fill values when reading prediction CSVs
