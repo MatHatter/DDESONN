@@ -15,11 +15,9 @@ vignette: >
 
 This vignette demonstrates two supported plot configuration interfaces in DDESONN.
 
-The first example normally uses 360 epochs per fit; the second uses one epoch.
-During `R CMD check`, the first example uses two epochs to keep package checks
-short. Output generated during that shortened check run illustrates the plotting
-interface, not convergence or model performance. Normal rendering, including
-`R CMD build`, retains the original 360-epoch budget for the first example.
+The first example uses two epochs per fit, and the second uses one.
+These short fits illustrate the plotting interface. For the original 360-epoch
+first example, set `DDESONN_VIGNETTE_FULL=true` before rendering.
 
 ---
 
@@ -54,7 +52,8 @@ For comparison with the three-call-site structure (Scenario 1), see:
 
 ```{r setup, include=FALSE}
 is_check_env <- nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
-vignette_epochs <- if (is_check_env) 2L else 360L
+full_example <- identical(tolower(Sys.getenv("DDESONN_VIGNETTE_FULL")), "true")
+vignette_epochs <- if (full_example) 360L else 2L
 .vig_tmp_root <- file.path(tempdir(), "ddesonn-vig-s1-s2")
 dir.create(.vig_tmp_root, recursive = TRUE, showWarnings = FALSE)
 options(DDESONN_OUTPUT_ROOT = .vig_tmp_root)

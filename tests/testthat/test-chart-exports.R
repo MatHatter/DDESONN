@@ -53,3 +53,21 @@ test_that("all preprocessing controls have explained, parseable focused help", {
     expect_identical(h$wb_help_code(item$title), item$code)
   }
 })
+
+test_that("performance plots serialize independently of the trained model", {
+  model <- ddesonn_model(2, 1, hidden_sizes = 2)
+  data <- data.frame(Metric = "Accuracy", Value = c(0.7, 0.8), Model_Name = c("A", "B"))
+  plots <- list(
+    model$update_performance_and_relevance_high(data, FALSE, FALSE),
+    model$update_performance_and_relevance_low(data, FALSE, FALSE)
+  )
+  serialized <- lapply(plots, serialize, connection = NULL)
+  attr(model, "unrelated_training_state") <- raw(1024L * 1024L)
+  expect_identical(lapply(plots, serialize, connection = NULL), serialized)
+
+  for (entry in serialized) {
+    plot <- unserialize(entry)[["Accuracy"]]
+    expect_identical(plot$labels$title, "Boxplot for Accuracy")
+    expect_equal(ggplot2::layer_data(plot, 1L)$middle, 0.75)
+  }
+})

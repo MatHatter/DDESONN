@@ -124,6 +124,16 @@ ddesonn_boxplot_theme <- function(base_size = 12, title_size = 14) {
     )  
 }  
 
+# Keep the plot's aesthetic environments separate from the R6 training state.
+.ddesonn_metric_boxplot <- function(plot_data) {
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value)) +
+    ggplot2::geom_boxplot() +
+    ggplot2::labs(x = "Metric", y = "Value", title = plot_data$Title[1L]) +
+    ddesonn_boxplot_theme(base_size = 12, title_size = 12) +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+    ggplot2::geom_text(ggplot2::aes(label = Model_Name_Outlier), na.rm = TRUE, hjust = -0.3)
+}
+
 ddesonn_wrap_plot_title <- function(title, width = 55L) {  
   if (is.null(title) || !length(title) || !nzchar(title[1])) return(title)  
   paste(strwrap(as.character(title[1]), width = as.integer(width)), collapse = "\n")  

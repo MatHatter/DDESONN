@@ -1,3 +1,20 @@
+# DDESONN 7.5.16
+
+- Use GitHub links for README resources omitted from the source package.
+- Keep training state out of serialized performance and relevance plots.
+- Run short plotting and logging examples when building vignettes by default.
+  Set `DDESONN_VIGNETTE_FULL=true` to render the original 360-epoch examples.
+
+# DDESONN 7.5.15
+
+- Preserve text categories and trained fill values when reading prediction CSVs
+  for saved Shiny models and downloaded recipes.
+- Use the training class mapping for validation and test labels.
+- Allow `ddesonn_fit()` to omit validation and infer the number of outputs from
+  integer multiclass labels in `ddesonn_run()`.
+- Link the clean 100-seed benchmark results and clarify the scope of the
+  benchmark's gradient-reduction settings.
+
 # DDESONN 7.5.14
 
 - Bundle the Shiny brain artwork as lossless WebP to reduce package size.
