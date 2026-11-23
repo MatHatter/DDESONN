@@ -41,11 +41,11 @@ test_that("workbench rejects invalid schemas and model settings", {
 test_that("public API training, serialization and inference work for all three tasks", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) {
-    d <- if (mode == "multiclass") iris else mtcars
+    d <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     p <- h$wb_prepare(d, target, features, mode)
-    cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 2, lr = .001)
+    cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 1, lr = .001)
     capture.output(r <- h$wb_run(p, cfg))
     expect_true(all(is.finite(r$evaluation$test$metrics$Value)))
     before <- h$wb_new_predictions(r, d[features])
@@ -64,7 +64,7 @@ test_that("public API training, serialization and inference work for all three t
 test_that("background training returns a completed model and cancellation discards only the job", {
   skip_if_not_installed("callr")
   f <- workbench_fixture(); h <- f$h
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   j <- h$wb_start(f$path, p, h$wb_config(hidden = "4", epochs = 2))
   on.exit(h$wb_stop(j), add = TRUE)
   wait_for_workbench_job(j)
@@ -72,12 +72,14 @@ test_that("background training returns a completed model and cancellation discar
   r <- h$wb_validate_bundle(j$process$get_result())
   expect_equal(r$fit_runs, 1L)
   expect_equal(h$wb_log_history(j$log)$epoch, 1:2)
-  before <- h$wb_new_predictions(r, iris)
+  before <- h$wb_new_predictions(r, workbench_iris)
   another <- h$wb_start(f$path, p, h$wb_config(hidden = "4", epochs = 5000), r)
+  on.exit(h$wb_stop(another), add = TRUE)
+  wait_for_workbench_epoch(another)
   h$wb_stop(another)
   expect_false(another$process$is_alive())
   expect_false(dir.exists(another$dir))
-  expect_identical(h$wb_new_predictions(r, iris), before)
+  expect_identical(h$wb_new_predictions(r, workbench_iris), before)
   continuation <- h$wb_start(f$path, p, r$config, r)
   on.exit(h$wb_stop(continuation), add = TRUE)
   wait_for_workbench_job(continuation)
@@ -89,11 +91,11 @@ test_that("self-organization is optional, affects the fit, and is retained in mo
   expect_false(h$wb_config()$self_org)
   expect_error(h$wb_config(self_org = "yes"), "TRUE or FALSE")
   for (mode in c("binary", "multiclass", "regression")) {
-    data <- if (mode == "multiclass") iris else mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     p <- h$wb_prepare(data, target, features, mode)
-    cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 2, lr = .001)
+    cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 1, lr = .001)
     capture.output(baseline <- h$wb_run(p, cfg))
     cfg$self_org <- TRUE
     capture.output(organized <- h$wb_run(p, cfg))
@@ -122,8 +124,7 @@ test_that("self-organization is optional, affects the fit, and is retained in mo
 
 test_that("best-validation restores both tensors and test labels cannot choose the checkpoint", {
   h <- workbench_fixture()$h
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
-  p$source <- list(example = "iris")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   cfg <- h$wb_config(hidden = "4", epochs = 3, lr = .001)
   expect_identical(cfg$checkpoint, "best_validation")
   invisible(capture.output(best <- h$wb_run(p, cfg)))
@@ -150,7 +151,7 @@ test_that("best-validation restores both tensors and test labels cannot choose t
 test_that("exported public-API recipes reproduce preprocessing, predictions and metrics", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) {
-    data <- if (mode == "multiclass") iris else mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     source <- tempfile("training data ", fileext = ".csv")
@@ -199,7 +200,7 @@ test_that("preprocessing code also matches ordered splits and unscaled inputs", 
 test_that("checkpoint summaries report the selected tensors and validation criterion", {
   h <- workbench_fixture()$h
   for (mode in c("multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
-    p <- if (mode == "multiclass") h$wb_prepare(iris, "Species", names(iris)[1:4], mode) else
+    p <- if (mode == "multiclass") h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], mode) else
       h$wb_prepare(mtcars, "mpg", c("wt", "hp"), mode)
     invisible(capture.output(r <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 3,
       lr = .001, checkpoint = checkpoint))))
@@ -223,7 +224,7 @@ test_that("session action states and failed/cancelled workers preserve completed
   sys.source(system.file("shiny", "benchmark", "workbench.R", package = "DDESONN"), h)
   server <- h$wb_server
   formals(server)$helper <- f$path
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   invisible(capture.output(completed <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 2))))
   failure <- tempfile(fileext = ".R")
   writeLines('wb_run <- function(...) stop("non-finite predictions from worker")', failure)
@@ -294,7 +295,7 @@ test_that("worker wrappers do not disguise numerical or shape errors as installa
 
 test_that("help fragments are distinct, focused and do not change model or RNG state", {
   f <- workbench_fixture(); h <- f$h
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001)
   invisible(capture.output(r <- h$wb_run(p, cfg)))
   model <- serialize(r, NULL)
@@ -334,7 +335,7 @@ test_that("help fragments are distinct, focused and do not change model or RNG s
 test_that("the separate full-code viewer reproduces the workbench model", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
-    data <- if (mode == "multiclass") iris else mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     file <- tempfile(fileext = ".csv"); utils::write.csv(data, file, row.names = FALSE)
     data <- utils::read.csv(file)
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")

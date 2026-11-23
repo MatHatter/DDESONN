@@ -1,20 +1,21 @@
 test_that("uploaded CSV evaluation requires compatible target labels and reports overlap", {
   f <- prediction_flow_fixture()
-  x <- iris[1:8, 1:4]
+  data <- head(workbench_iris, 8)
+  x <- data[1:4]
   report <- f$h$wb_prediction_report(f$bundle, x)
   expect_equal(report$rows, 8)
   expect_equal(report$matched_rows, 8)
   expect_null(report$metrics)
   expect_match(report$evaluation_note, "no accuracy", fixed = TRUE)
-  report <- f$h$wb_prediction_report(f$bundle, iris[1:8, ])
-  predictions <- f$h$wb_new_predictions(f$bundle, iris[1:8, ])
-  expect_equal(report$metrics$Value[report$metrics$Metric == "Accuracy"], mean(predictions$predicted == iris$Species[1:8]))
+  report <- f$h$wb_prediction_report(f$bundle, data)
+  predictions <- f$h$wb_new_predictions(f$bundle, data)
+  expect_equal(report$metrics$Value[report$metrics$Metric == "Accuracy"], mean(predictions$predicted == data$Species))
   expect_match(report$evaluation_note, "not an independent", fixed = TRUE)
-  bad <- iris[1:8, ]; bad$Species <- as.character(bad$Species); bad$Species[1] <- "unknown"
+  bad <- data; bad$Species <- as.character(bad$Species); bad$Species[1] <- "unknown"
   invalid <- f$h$wb_prediction_report(f$bundle, bad)
   expect_null(invalid$metrics)
   expect_match(invalid$evaluation_note, "incomplete or incompatible", fixed = TRUE)
-  novel <- iris[1:8, ]; novel$Sepal.Length <- novel$Sepal.Length + 100
+  novel <- data; novel$Sepal.Length <- novel$Sepal.Length + 100
   report <- f$h$wb_prediction_report(f$bundle, novel)
   expect_equal(report$matched_rows, 0)
   expect_true(all(report$overlap[[2]] == 0))

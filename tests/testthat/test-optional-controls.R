@@ -71,7 +71,7 @@ test_that("Basic training applies shared penalties and retains them in saved bun
   withr::local_options(DDESONN_OUTPUT_ROOT = root)
   withr::local_envvar(DDESONN_ARTIFACTS_ROOT = root)
   on.exit(unlink(root, recursive = TRUE), add = TRUE)
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   base <- h$wb_config(hidden = "2", epochs = 2, lr = .01, checkpoint = "final")
   invisible(capture.output(off <- h$wb_run(p, base)))
   for (penalty in c("L1", "L2", "L1_L2", "Group_Lasso", "Max_Norm")) {
