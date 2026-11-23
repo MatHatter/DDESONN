@@ -6,8 +6,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
   sys.source(file.path(path, "workbench.R"), h)
   server <- h$wb_server
   formals(server)$helper <- file.path(path, "workbench_helpers.R")
-  p <- h$wb_prepare(iris, "Species", names(iris)[1:4], "multiclass")
-  p$source <- list(example = "iris")
+  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
   cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001)
   invisible(capture.output(best <- h$wb_run(p, cfg)))
   cfg$checkpoint <- "final"; cfg$lr <- .002
