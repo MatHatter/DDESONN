@@ -48,6 +48,9 @@ test_that("public API training, serialization and inference work for all three t
     cfg <- h$wb_config(hidden = if (mode == "binary") "" else "4", epochs = 1, lr = .001)
     capture.output(r <- h$wb_run(p, cfg))
     expect_true(all(is.finite(r$evaluation$test$metrics$Value)))
+    plots <- r$model$last_training$performance_relevance_data
+    expect_true(all(vapply(plots[c("performance_high_mean_plots", "performance_low_mean_plots",
+      "relevance_high_mean_plots", "relevance_low_mean_plots")], is.null, logical(1))))
     before <- h$wb_new_predictions(r, d[features])
     file <- tempfile(fileext = ".rds"); saveRDS(r, file)
     restored <- h$wb_validate_bundle(readRDS(file))
@@ -71,6 +74,7 @@ test_that("background training returns a completed model and cancellation discar
   expect_false(j$process$is_alive())
   r <- h$wb_validate_bundle(j$process$get_result())
   expect_equal(r$fit_runs, 1L)
+  expect_identical(r$package_version, as.character(getNamespaceVersion("DDESONN")))
   expect_equal(h$wb_log_history(j$log)$epoch, 1:2)
   before <- h$wb_new_predictions(r, workbench_iris)
   another <- h$wb_start(f$path, p, h$wb_config(hidden = "4", epochs = 5000), r)
@@ -224,8 +228,8 @@ test_that("session action states and failed/cancelled workers preserve completed
   sys.source(system.file("shiny", "benchmark", "workbench.R", package = "DDESONN"), h)
   server <- h$wb_server
   formals(server)$helper <- f$path
-  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
-  invisible(capture.output(completed <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 2))))
+  completed <- workbench_model_fixture(h, checkpoint = "best_validation", lr = .001)
+  p <- completed$prepared
   failure <- tempfile(fileext = ".R")
   writeLines('wb_run <- function(...) stop("non-finite predictions from worker")', failure)
   on.exit(unlink(failure), add = TRUE)
@@ -258,8 +262,8 @@ test_that("session action states and failed/cancelled workers preserve completed
     expect_match(output$wb_train_error$html, "Technical details")
     expect_match(output$wb_train_error$html, "smaller learning rate")
     expect_match(output$wb_train_error$html, "non-finite")
-    # A cancelled real worker cannot mutate the saved R6 model in this session.
-    h$wb_start <- start
+    # Cancelling a pending fit leaves the saved R6 model intact.
+    h$wb_start <- function(helper, prepared, config, previous) workbench_ui_job(config)
     cfg <- completed$config; cfg$epochs <- 5000L
     launch(p, cfg, result()); session$flushReact()
     session$setInputs(wb_cancel = 1)
@@ -291,6 +295,9 @@ test_that("worker wrappers do not disguise numerical or shape errors as installa
   expect_match(numerical$message, "smaller learning rate")
   missing <- h$wb_training_error(simpleError("in callr subprocess: there is no package called DDESONN"))
   expect_match(missing$message, "same R library")
+  mismatch <- h$wb_training_error(simpleError("DDESONN worker engine version mismatch: expected 7.5.18, loaded 7.5.16"))
+  expect_match(mismatch$message, "same installed DDESONN version")
+  expect_match(mismatch$details, "expected 7.5.18, loaded 7.5.16", fixed = TRUE)
 })
 
 test_that("help fragments are distinct, focused and do not change model or RNG state", {

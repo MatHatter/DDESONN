@@ -25,8 +25,7 @@ test_that("supplied binary and regression targets produce their own CSV metrics"
   f <- prediction_flow_fixture()
   for (mode in c("binary", "regression")) {
     target <- if (mode == "binary") "am" else "mpg"
-    p <- f$h$wb_prepare(mtcars, target, c("wt", "hp"), mode)
-    invisible(capture.output(bundle <- f$h$wb_run(p, f$h$wb_config(hidden = "2", epochs = 1, checkpoint = "final"))))
+    bundle <- workbench_model_fixture(f$h, mode)
     d <- head(mtcars, 6)
     report <- f$h$wb_prediction_report(bundle, d)
     predictions <- f$h$wb_new_predictions(bundle, d)

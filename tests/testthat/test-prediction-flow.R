@@ -4,7 +4,7 @@ test_that("loaded model and CSV have an explicit prediction step and provenance"
   other <- f$bundle; other$model_name <- "different file"; saveRDS(other, model2)
   saveRDS(f$bundle, model); write.csv(head(iris, 8)[1:4], csv, row.names = FALSE)
   on.exit(unlink(c(model, model2, csv)), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     expect_false(action_states()$wb_predict)
     session$flushReact()
     before <- serialize(list(raw(), prepared()), NULL)
@@ -86,6 +86,7 @@ test_that("extra epochs create a named new model without replacing the upload", 
     expect_length(completed_runs(), 0)
     expect_null(result())
     expect_null(prepared())
+    expect_true(identical(saved_fit()$state, "Completed"), info = saved_fit()$error)
     expect_true(any(vapply(recent_runs(), function(record) record$kind == "Further-trained saved model", logical(1))))
     expect_match(output$wb_saved_fit_status, "Completed", fixed = TRUE)
     expect_length(attempts(), 0)
@@ -106,11 +107,10 @@ test_that("binary and regression uploads render their prediction charts", {
   f <- prediction_flow_fixture()
   for (mode in c("binary", "regression")) {
     target <- if (mode == "binary") "am" else "mpg"
-    p <- f$h$wb_prepare(mtcars, target, c("wt", "hp"), mode)
-    invisible(capture.output(bundle <- f$h$wb_run(p, f$h$wb_config(hidden = "2", epochs = 1, checkpoint = "final"))))
+    bundle <- workbench_model_fixture(f$h, mode)
     model <- tempfile(fileext = ".rds"); csv <- tempfile(fileext = ".csv")
     saveRDS(bundle, model); write.csv(head(mtcars, 4)[c("wt", "hp")], csv, row.names = FALSE)
-    shiny::testServer(f$server, {
+    workbench_test_server(f$server, {
       session$setInputs(wb_load = list(name = paste0(mode, ".rds"), datapath = model, size = file.info(model)$size))
       session$setInputs(wb_csv_purpose = "predict")
       session$setInputs(wb_new_data = list(name = "cars.csv", datapath = csv, size = file.info(csv)$size), wb_predict = 1)
@@ -134,7 +134,7 @@ test_that("saved uploads preserve an existing training workspace and model", {
   f <- prediction_flow_fixture()
   path <- tempfile(fileext = ".rds"); saveRDS(f$bundle, path)
   on.exit(unlink(path), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     prepared(f$bundle$prepared); begin_attempt(f$bundle$config); add_completed(f$bundle); finish_attempt("Completed")
     session$flushReact()
     before <- serialize(list(raw(), prepared(), result(), completed_runs(), attempts(), status()), NULL)
@@ -156,7 +156,7 @@ test_that("evaluation is the default and requires known answers before showing a
   model <- tempfile(fileext = ".rds"); csv <- tempfile(fileext = ".csv")
   saveRDS(f$bundle, model); write.csv(head(iris, 8)[1:4], csv, row.names = FALSE)
   on.exit(unlink(c(model, csv)), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     session$setInputs(wb_load = list(name = "flowers.rds", datapath = model, size = file.info(model)$size))
     expect_identical(csv_purpose(), "evaluate")
     session$setInputs(wb_new_data = list(name = "unlabeled.csv", datapath = csv, size = file.info(csv)$size))
@@ -212,7 +212,7 @@ test_that("saved-model CSV uploads and recipes reuse saved column types", {
   upload <- function(path) list(name = basename(path), datapath = path, size = file.info(path)$size)
   expected <- data.frame(height = c(NA_real_, NA_real_), postal_code = c("01", "01"),
     target = c("001", "001"))
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     session$setInputs(wb_load = upload(model))
     session$setInputs(wb_new_data = upload(csv), wb_predict = 1)
     expect_identical(prediction_data(), expected)

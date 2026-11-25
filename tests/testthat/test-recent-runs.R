@@ -3,7 +3,7 @@ test_that("recent CSV runs survive workspace clear and restore independently", {
   model <- tempfile(fileext = ".rds"); csv <- tempfile(fileext = ".csv")
   saveRDS(f$bundle, model); write.csv(head(iris), csv, row.names = FALSE)
   on.exit(unlink(c(model, csv)), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     prepared(f$bundle$prepared); begin_attempt(f$bundle$config); add_completed(f$bundle); finish_attempt("Completed")
     session$flushReact()
     training <- serialize(list(raw(), prepared(), result(), completed_runs(), attempts()), NULL)
@@ -50,7 +50,7 @@ test_that("recent CSV runs survive workspace clear and restore independently", {
 })
 test_that("recent history is bounded and duplicate model uploads refresh one entry", {
   f <- prediction_flow_fixture()
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     for (i in 1:12) remember_recent(f$bundle, "Loaded model", key = paste0("key-", i))
     expect_length(recent_runs(), 10)
     expect_false(any(c("recent-1", "recent-2") %in% names(recent_runs())))

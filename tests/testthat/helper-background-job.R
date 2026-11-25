@@ -24,3 +24,24 @@ wait_for_workbench_epoch <- function(job, timeout = 60) {
     Sys.sleep(.05)
   }
 }
+
+# Give Shiny polling a deterministic worker lifecycle for tests of UI state.
+workbench_ui_job <- function(config, result = NULL, failure = NULL, log_lines = character()) {
+  dir <- tempfile("workbench-ui-job-")
+  dir.create(dir)
+  log <- file.path(dir, "training.log")
+  writeLines(log_lines, log)
+  running <- TRUE
+  finish <- function() running <<- FALSE
+  process <- list(
+    is_alive = function() running,
+    kill_tree = finish,
+    wait = function(timeout) invisible(NULL),
+    get_result = function() {
+      if (!is.null(failure)) stop(failure)
+      result
+    }
+  )
+  list(process = process, finish = finish, dir = dir, log = log,
+    error = file.path(dir, "stderr.log"), started = Sys.time(), epochs = config$epochs)
+}

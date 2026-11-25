@@ -1,3 +1,12 @@
+# DDESONN 7.5.18
+
+- Keep unused legacy performance/relevance boxplots out of workbench fits and
+  generated recipes; the workbench retains its own diagnostic charts.
+- Reduce CRAN test runtime with smaller fixtures, independent copies of trained
+  test models and on-demand rendering in UI state tests.
+- Ensure background training uses the corresponding installed DDESONN engine and
+  report mismatched engine versions before resuming a saved model.
+
 # DDESONN 7.5.16
 
 - Use GitHub links for README resources omitted from the source package.

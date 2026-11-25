@@ -12,7 +12,7 @@ test_that("saved training pages preserve every row and clamp boundaries", {
 
 test_that("saved loss and log navigation is independent and checkpoint details are explicit", {
   f <- prediction_flow_fixture()
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     b <- f$bundle; b$config$epochs <- 60; b$config$checkpoint <- "best_validation"; b$selected_epoch <- 17
     saved_fit(list(parent = "fixture.rds", state = "Completed", config = b$config,
       history = data.frame(epoch = 1:60, loss = 60:1), bundle = b, log = paste("line", 1:60)))

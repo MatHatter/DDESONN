@@ -5,7 +5,7 @@ test_that("optional controls disable their backend effects and restore saved ena
   sys.source(file.path(path, "workbench_helpers.R"), h)
   sys.source(file.path(path, "workbench.R"), h)
   server <- h$wb_server; formals(server)$helper <- file.path(path, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$setInputs(wb_hidden = "2", wb_epochs = 2, wb_lr = .01,
       wb_optimizer = "adagrad", wb_reg = "L2", wb_lambda = .002,
       wb_workflow = "custom", wb_structure = "members", wb_members = 2,
