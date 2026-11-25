@@ -14,6 +14,8 @@ check_ddesonn_release <- function(package = ".",
 
   # Keep child process files outside RStudio's session-owned temporary directory.
   env <- c(TMPDIR = scratch, TMP = scratch, TEMP = scratch, "_R_CHECK_TIMINGS_" = "0")
+  test_timings_file <- file.path(run_dir, "testthat-file-timings.csv")
+  env <- c(env, DDESONN_TEST_TIMINGS_FILE = test_timings_file)
   if (.Platform$OS.type == "windows") {
     # Keep the restricted check library, using copies instead of NTFS junctions.
     env <- c(env, R_WIN_NO_JUNCTIONS = "true")
@@ -52,6 +54,10 @@ check_ddesonn_release <- function(package = ".",
     check_seconds = check_seconds, build_seconds = build_seconds,
     build_plus_check_seconds = build_seconds + check_seconds,
     check_exit_status = check_status), 2))
+  if (file.exists(test_timings_file)) {
+    message("Test file timings, seconds, from ", test_timings_file)
+    print(read.csv(test_timings_file, stringsAsFactors = FALSE))
+  }
   log <- file.path(run_dir, "DDESONN.Rcheck", "00check.log")
   status <- if (file.exists(log)) {
     grep("^Status: ", trimws(readLines(log, warn = FALSE)), value = TRUE)

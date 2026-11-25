@@ -1,3 +1,8 @@
+# DDESONN 7.5.19
+
+- Add opt-in per-test-file elapsed-time reporting to the release check workflow
+  so Windows test runtime reductions can target the slowest remaining tests.
+
 # DDESONN 7.5.18
 
 - Keep unused legacy performance/relevance boxplots out of workbench fits and
