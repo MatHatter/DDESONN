@@ -293,6 +293,14 @@ wb_gradient_selection <- function(weights, biases) {
   if (weights == "sum") "legacy_mixed" else "mean_weights"
 }
 
+# The workbench generates its own diagnostic charts from the scored predictions.
+# Omit the engine's separate performance/relevance boxplots from workbench bundles.
+wb_engine_plot_controls <- function() {
+  list(performance_relevance = list(
+    performance_high_mean_plots = FALSE, performance_low_mean_plots = FALSE,
+    relevance_high_mean_plots = FALSE, relevance_low_mean_plots = FALSE))
+}
+
 wb_run <- function(prepared, config, previous = NULL) {
   started <- proc.time()[["elapsed"]]
   config$gradient_reduction <- wb_gradient_mode(config)
@@ -321,6 +329,7 @@ wb_run <- function(prepared, config, previous = NULL) {
     dropout_rates = NULL, numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
     validation_metrics = use_best, best_weights_on_latest_weights_off = use_best,
     threshold = .5,
+    plot_controls = wb_engine_plot_controls(),
     viewTables = FALSE, verboseLow = TRUE)
   selected_epoch <- config$epochs
   if (use_best) {
@@ -384,7 +393,9 @@ wb_checkpoint_summary <- function(bundle) {
 
 wb_training_error <- function(error, stderr = character()) {
   details <- conditionMessage(error)
-  guidance <- if (grepl("Binary mode expects 1-column probabilities", details, fixed = TRUE))
+  guidance <- if (grepl("DDESONN worker engine version mismatch", details, fixed = TRUE))
+    "The training worker must use the same installed DDESONN version as this session. Install the current source package and restart R, then try again." else
+    if (grepl("Binary mode expects 1-column probabilities", details, fixed = TRUE))
     "The installed training engine treated multiclass predictions as binary. Reinstall DDESONN from the same updated source as this app, then restart R. Check packageVersion('DDESONN'); this is a task-type mismatch, not a learning-rate problem." else
     if (grepl("No valid validation checkpoint", details, ignore.case = TRUE))
     "No usable validation checkpoint was recorded. Review the technical details and validation data. Try a smaller learning rate, or choose Final epoch explicitly for a separate run; it may succeed with its last weights. No checkpoint is substituted automatically." else
@@ -449,14 +460,29 @@ wb_elapsed_text <- function(started, now = Sys.time()) {
 }
 
 wb_start <- function(helper, prepared, config, previous = NULL) {
+  engine <- loadNamespace("DDESONN")
+  engine_version <- as.character(getNamespaceVersion(engine))
+  engine_path <- getNamespaceInfo(engine, "path")
+  # A package loaded with lib.loc can be outside the current library search path.
+  # A development namespace loaded from source has no installed Meta directory.
+  libpath <- .libPaths()
+  if (file.exists(file.path(engine_path, "Meta", "package.rds")))
+    libpath <- unique(c(dirname(engine_path), libpath))
+
   dir <- tempfile("ddesonn-session-"); dir.create(dir)
   log <- file.path(dir, "training.log")
   error <- file.path(dir, "stderr.log")
-  process <- tryCatch(callr::r_bg(function(helper, prepared, config, previous) {
+  process <- tryCatch(callr::r_bg(function(helper, prepared, config, previous, engine_version) {
+    engine <- loadNamespace("DDESONN")
+    actual_version <- as.character(getNamespaceVersion(engine))
+    if (!identical(actual_version, engine_version))
+      stop(sprintf("DDESONN worker engine version mismatch: expected %s, loaded %s from %s.",
+        engine_version, actual_version, getNamespaceInfo(engine, "path")))
     env <- new.env(parent = globalenv()); sys.source(helper, envir = env)
-    env$wb_run(prepared, config, previous)
-  }, args = list(helper = helper, prepared = prepared, config = config, previous = previous),
-    libpath = .libPaths(), wd = dir, stdout = log, stderr = error, supervise = TRUE),
+    env$wb_run(prepared, config, unserialize(previous))
+  }, args = list(helper = helper, prepared = prepared, config = config,
+    previous = serialize(previous, NULL), engine_version = engine_version),
+    libpath = libpath, wd = dir, stdout = log, stderr = error, supervise = TRUE),
     error = function(e) { unlink(dir, recursive = TRUE); stop(e) })
   list(process = process, dir = dir, log = log, error = error,
     started = Sys.time(), epochs = if (identical(config$workflow, "custom"))
@@ -600,6 +626,7 @@ wb_fit_code <- function(p, cfg, create = TRUE) {
     "  reg_type = ", wb_literal(if (cfg$reg == "none") NULL else cfg$reg), ", dropout_rates = NULL,\n",
     "  numeric_columns = ", if (is.null(p$preprocessing)) "NULL" else "integer(0)", ", batch_normalize_data = FALSE, threshold = 0.5,\n",
     "  validation_metrics = ", wb_literal(best), ", best_weights_on_latest_weights_off = ", wb_literal(best), ",\n",
+    "  plot_controls = ", wb_literal(wb_engine_plot_controls()), ",\n",
     "  viewTables = FALSE, verboseLow = TRUE)\n")
   if (best) paste0(code,
     "\n# Explicitly restore both checkpoint tensors before inference.\n",
@@ -964,7 +991,7 @@ wb_custom_run <- function(prepared, config, previous = NULL) {
     numeric_columns = if (is.null(prepared$preprocessing)) NULL else integer(0), batch_normalize_data = FALSE,
     validation_metrics = best, best_weights_on_latest_weights_off = best,
     threshold = .5, viewTables = FALSE, verboseLow = TRUE, verbose = config$diagnostics,
-    trace_epochs = config$trace_epochs)
+    plot_controls = wb_engine_plot_controls(), trace_epochs = config$trace_epochs)
   run_prediction_elapsed <- 0
   if (is.null(previous)) {
     run <- DDESONN::ddesonn_run(tr$x, tr$y, classification_mode = prepared$mode,

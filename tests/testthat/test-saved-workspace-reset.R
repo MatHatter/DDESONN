@@ -3,7 +3,7 @@ test_that("clear and exact-file reload reset saved data without touching trainin
   model <- tempfile(fileext = ".rds"); duplicate <- tempfile(fileext = ".rds"); csv <- tempfile(fileext = ".csv"); bad <- tempfile(fileext = ".rds")
   saveRDS(f$bundle, model); file.copy(model, duplicate); write.csv(head(iris), csv, row.names = FALSE); saveRDS(list(wrong = TRUE), bad)
   on.exit(unlink(c(model, duplicate, csv, bad)), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     prepared(f$bundle$prepared); begin_attempt(f$bundle$config); add_completed(f$bundle); finish_attempt("Completed")
     session$flushReact()
     original <- serialize(list(raw(), prepared(), result(), completed_runs(), attempts()), NULL)

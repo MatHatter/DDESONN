@@ -1,8 +1,10 @@
 test_that("saved-model training and cancellation preserve the new-model workspace", {
   f <- prediction_flow_fixture()
+  f$h$wb_start <- function(helper, prepared, config, previous)
+    workbench_ui_job(config, failure = "Background worker exited")
   file <- tempfile(fileext = ".rds"); saveRDS(f$bundle, file)
   on.exit(unlink(file), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     session$setInputs(wb_load = list(name = "uploaded.rds", datapath = file, size = file.info(file)$size))
     result(f$bundle); prepared(f$bundle$prepared); status("Existing new-model status")
     baseline <- serialize(list(result(), prepared(), completed_runs(), attempts(), status()), NULL)
@@ -25,7 +27,7 @@ test_that("saved-model training and cancellation preserve the new-model workspac
     expect_identical(serialize(active_model(), NULL), original)
     expect_identical(serialize(list(result(), prepared(), completed_runs(), attempts(), status()), NULL), baseline)
     session$setInputs(wb_continue = 2)
-    job()$process$kill(); job()$process$wait(5000); session$elapse(400)
+    job()$finish(); session$elapse(400)
     expect_null(job())
     expect_identical(saved_fit()$state, "Failed")
     expect_true(nzchar(saved_fit()$error))

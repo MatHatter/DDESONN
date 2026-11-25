@@ -1,28 +1,21 @@
 test_that("completed run selection keeps controls, plots and outputs separate from attempts", {
-  skip_if_not_installed("shiny"); skip_if_not_installed("callr")
+  skip_if_not_installed("shiny")
   path <- system.file("shiny", "benchmark", package = "DDESONN")
   h <- new.env(parent = globalenv())
   sys.source(file.path(path, "workbench_helpers.R"), h)
   sys.source(file.path(path, "workbench.R"), h)
   server <- h$wb_server
   formals(server)$helper <- file.path(path, "workbench_helpers.R")
-  p <- h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], "multiclass")
-  cfg <- h$wb_config(hidden = "4", epochs = 2, lr = .001)
-  invisible(capture.output(best <- h$wb_run(p, cfg)))
-  cfg$checkpoint <- "final"; cfg$lr <- .002
-  invisible(capture.output(final <- h$wb_run(p, cfg)))
+  best <- workbench_model_fixture(h, checkpoint = "best_validation", lr = .001)
+  final <- workbench_model_fixture(h, lr = .002)
+  p <- best$prepared
   best$prepared$overlap <- c(train_validation = 1L, train_test = 0L, validation_test = 0L)
   final$prepared$overlap <- c(train_validation = 0L, train_test = 0L, validation_test = 2L)
   best$history <- data.frame(epoch = 1:2, loss = c(.5, .3))
   final$history <- data.frame(epoch = 1:2, loss = c(.6, .4))
-  failure <- tempfile(fileext = ".R"); success <- tempfile(fileext = ".R")
-  saved <- tempfile(fileext = ".rds"); saveRDS(final, saved)
-  writeLines('wb_run <- function(...) stop("No valid validation checkpoint was recorded")', failure)
-  writeLines(paste0('wb_run <- function(...) { cat("Epoch 1 Loss: 0.6\\nEpoch 2 Loss: 0.4\\n"); readRDS(',
-    deparse(saved), ') }'), success)
-  on.exit(unlink(c(failure, success, saved)), add = TRUE)
-  start <- h$wb_start
-  shiny::testServer(server, {
+  saved <- tempfile(fileext = ".rds")
+  on.exit(unlink(saved), add = TRUE)
+  workbench_test_server(server, {
     session$flushReact()
     expect_identical(output$wb_running_flag, "no")
     expect_identical(output$wb_chart_ready, "no")
@@ -64,14 +57,15 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_match(output$wb_loss_marker$html, "left:100.00px;top:100.00px", fixed = TRUE)
     expect_identical(lapply(completed_runs(), serialize, connection = NULL), original)
     expect_identical(selected_run(), "1")
-    # A failing real worker is an attempt, never a selectable completed model.
-    h$wb_start <- function(helper, ...) start(failure, ...)
+    # A failed attempt never becomes a selectable completed model.
+    h$wb_start <- function(helper, prepared, config, previous)
+      workbench_ui_job(config, failure = "No valid validation checkpoint was recorded")
     launch(p, best$config); session$flushReact()
     expect_identical(output$wb_running_flag, "yes")
     expect_identical(output$wb_error_flag, "no")
     history(final$history) # unrelated live output cannot replace the selected plot
     expect_identical(plot_history()[names(best$history)], best$history)
-    wait_for_workbench_job(job()); session$elapse(400)
+    job()$finish(); session$elapse(400)
     expect_null(job())
     expect_identical(attempts()[["3"]]$state, "Failed")
     expect_identical(output$wb_running_flag, "no")
@@ -90,7 +84,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     session$setInputs(wb_prepare = 1)
     expect_identical(status(), last_status)
     # Cancellation leaves both completed snapshots and the selected chart intact.
-    h$wb_start <- start
+    h$wb_start <- function(helper, prepared, config, previous) workbench_ui_job(config)
     long <- best$config; long$epochs <- 5000L
     launch(p, long, result()); session$setInputs(wb_cancel = 1)
     expect_null(job())
@@ -98,10 +92,12 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_identical(lapply(completed_runs(), serialize, connection = NULL), original)
     expect_identical(plot_history()[names(best$history)], best$history)
     # A later success clears the active warning but retains the failed record.
-    h$wb_start <- function(helper, ...) start(success, ...)
+    h$wb_start <- function(helper, prepared, config, previous)
+      workbench_ui_job(config, result = final,
+        log_lines = c("Epoch 1 training Loss: 0.6", "Epoch 2 training Loss: 0.4"))
     launch(p, final$config); session$flushReact()
     expect_null(training_error())
-    wait_for_workbench_job(job()); session$elapse(400)
+    job()$finish(); session$elapse(400)
     expect_null(job()); expect_null(training_error())
     expect_identical(attempts()[["5"]]$state, "Completed")
     expect_identical(attempts()[["3"]]$state, "Failed")
@@ -121,7 +117,7 @@ test_that("completed run selection keeps controls, plots and outputs separate fr
     expect_gt(nrow(plot_history()), 0)
     expect_null(training_error())
   })
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$flushReact()
     expect_length(completed_runs(), 0); expect_length(attempts(), 0)
     expect_null(selected_run()); expect_null(result()); expect_null(job())
@@ -137,7 +133,7 @@ test_that("failed and cancelled first attempts retain their loss curve without a
   sys.source(file.path(path, "workbench_helpers.R"), h)
   sys.source(file.path(path, "workbench.R"), h)
   server <- h$wb_server; formals(server)$helper <- file.path(path, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$flushReact()
     expect_equal(nrow(plot_history()), 0)
     for (state in c("Failed", "Cancelled")) {
