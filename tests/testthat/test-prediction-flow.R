@@ -234,7 +234,7 @@ test_that("saved-model CSV uploads and recipes reuse saved column types", {
   expect_equal(recipe$x_new[, "postal_code__01"], c(1, 1))
   expect_equal(recipe$x_new[, "postal_code__[Unknown]"], c(0, 0))
 
-  logical_model <- prepare(transform(training, postal_code = rep(c(TRUE, FALSE), 10)))
+  logical_model <- prepare(transform(training, postal_code = rep(c(TRUE, FALSE), length.out = nrow(training))))
   writeLines(c("height,postal_code", "3,T", "4,F"), csv)
   logical_data <- f$h$wb_read_prediction_csv(csv, logical_model)
   expect_identical(logical_data$postal_code, c("TRUE", "FALSE"))

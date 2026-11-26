@@ -41,7 +41,7 @@ test_that("workbench rejects invalid schemas and model settings", {
 test_that("public API training, serialization and inference work for all three tasks", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) {
-    d <- if (mode == "multiclass") workbench_iris else workbench_mtcars
+    d <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     p <- h$wb_prepare(d, target, features, mode)
@@ -95,7 +95,7 @@ test_that("self-organization is optional, affects the fit, and is retained in mo
   expect_false(h$wb_config()$self_org)
   expect_error(h$wb_config(self_org = "yes"), "TRUE or FALSE")
   for (mode in c("binary", "multiclass", "regression")) {
-    data <- if (mode == "multiclass") workbench_iris else workbench_mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     p <- h$wb_prepare(data, target, features, mode)
@@ -155,7 +155,7 @@ test_that("best-validation restores both tensors and test labels cannot choose t
 test_that("exported public-API recipes reproduce preprocessing, predictions and metrics", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) {
-    data <- if (mode == "multiclass") workbench_iris else workbench_mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
     features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
     source <- tempfile("training data ", fileext = ".csv")
@@ -193,9 +193,9 @@ test_that("exported public-API recipes reproduce preprocessing, predictions and 
 test_that("preprocessing code also matches ordered splits and unscaled inputs", {
   h <- workbench_fixture()$h
   for (split in c("ordered", "random")) for (standardize in c(TRUE, FALSE)) {
-    p <- h$wb_prepare(workbench_mtcars, "mpg", c("wt", "hp"), "regression", seed = 7,
+    p <- h$wb_prepare(mtcars, "mpg", c("wt", "hp"), "regression", seed = 7,
       train_fraction = .55, validation_fraction = .25, split = split, standardize = standardize)
-    env <- new.env(parent = globalenv()); env$data <- workbench_mtcars
+    env <- new.env(parent = globalenv()); env$data <- mtcars
     eval(parse(text = h$wb_features_code(p)), envir = env)
     expect_equal(env$parts, p$parts)
   }
@@ -205,7 +205,7 @@ test_that("checkpoint summaries report the selected tensors and validation crite
   h <- workbench_fixture()$h
   for (mode in c("multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
     p <- if (mode == "multiclass") h$wb_prepare(workbench_iris, "Species", names(iris)[1:4], mode) else
-      h$wb_prepare(workbench_mtcars, "mpg", c("wt", "hp"), mode)
+      h$wb_prepare(mtcars, "mpg", c("wt", "hp"), mode)
     invisible(capture.output(r <- h$wb_run(p, h$wb_config(hidden = "4", epochs = 3,
       lr = .001, checkpoint = checkpoint))))
     selected <- h$wb_checkpoint(r)
@@ -342,7 +342,7 @@ test_that("help fragments are distinct, focused and do not change model or RNG s
 test_that("the separate full-code viewer reproduces the workbench model", {
   h <- workbench_fixture()$h
   for (mode in c("binary", "multiclass", "regression")) for (checkpoint in c("best_validation", "final")) {
-    data <- if (mode == "multiclass") workbench_iris else workbench_mtcars
+    data <- if (mode == "multiclass") workbench_iris else mtcars
     file <- tempfile(fileext = ".csv"); utils::write.csv(data, file, row.names = FALSE)
     data <- utils::read.csv(file)
     target <- switch(mode, binary = "am", multiclass = "Species", regression = "mpg")
