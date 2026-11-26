@@ -1,3 +1,8 @@
+# DDESONN 7.5.20
+
+- Use smaller stratified training fixtures across workbench, API, prediction and
+  packaged-example tests to reduce repeat fitting while retaining all task types.
+
 # DDESONN 7.5.19
 
 - Add opt-in per-test-file elapsed-time reporting to the release check workflow

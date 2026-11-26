@@ -4,7 +4,7 @@ workbench_model_fixture <- local({
   function(h, mode = "multiclass", checkpoint = "final", lr = .01) {
     key <- paste(mode, checkpoint, lr)
     if (!exists(key, envir = bundles, inherits = FALSE)) {
-      data <- if (mode == "multiclass") workbench_iris else mtcars
+      data <- if (mode == "multiclass") workbench_iris else workbench_mtcars
       target <- switch(mode, multiclass = "Species", binary = "am", regression = "mpg")
       features <- if (mode == "multiclass") names(iris)[1:4] else c("wt", "hp")
       p <- h$wb_prepare(data, target, features, mode)

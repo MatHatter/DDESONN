@@ -1,6 +1,6 @@
 test_that("fit uses training factor levels to score validation", {
-  x <- mtcars[, c("wt", "hp")]
-  y <- factor(ifelse(mtcars$am == 1, "manual", "automatic"),
+  x <- workbench_mtcars[, c("wt", "hp")]
+  y <- factor(ifelse(workbench_mtcars$am == 1, "manual", "automatic"),
               levels = c("automatic", "manual"))
   valid <- seq.int(1L, nrow(x), by = 2L)
   fit_accuracy <- function(validation_y) {
@@ -15,14 +15,14 @@ test_that("fit uses training factor levels to score validation", {
   accuracy <- fit_accuracy(y[valid])
   expect_true(is.finite(accuracy))
   expect_equal(fit_accuracy(factor(y[valid], levels = rev(levels(y)))), accuracy)
-  expect_equal(fit_accuracy(mtcars$am[valid]), accuracy)
+  expect_equal(fit_accuracy(workbench_mtcars$am[valid]), accuracy)
 })
 
 test_that("fit can train without a validation split by default", {
-  x <- mtcars[, c("wt", "hp")]
+  x <- workbench_mtcars[, c("wt", "hp")]
   model <- ddesonn_model(2L, 1L, hidden_sizes = 2L,
                         classification_mode = "regression")
-  invisible(capture.output(ddesonn_fit(model, x, mtcars$mpg, num_epochs = 1L)))
+  invisible(capture.output(ddesonn_fit(model, x, workbench_mtcars$mpg, num_epochs = 1L)))
   expect_true(is.list(model$last_training))
   expect_equal(nrow(predict(model, x)$predicted_output), nrow(x))
 })
@@ -30,9 +30,9 @@ test_that("fit can train without a validation split by default", {
 test_that("run encodes multiclass indices using the training classes", {
   x <- iris[, 1:4]
   y <- 10L * as.integer(iris$Species)
-  train <- c(1:8, 51:58, 101:108)
-  valid <- c(59:62, 109:112)
-  test <- 113:116
+  train <- c(1:4, 51:54, 101:104)
+  valid <- c(5:6, 55:56, 105:106)
+  test <- 107:108
 
   invisible(capture.output(run <- ddesonn_run(
     x[train, ], y[train], classification_mode = "multiclass", hidden_sizes = 2L,
@@ -43,8 +43,8 @@ test_that("run encodes multiclass indices using the training classes", {
 
   splits <- run$runs[[1L]]$predictions
   expect_equal(ncol(predict(run$model, x[test, ])$predicted_output), 3L)
-  expect_equal(splits$validation$y_true, c(rep(2, 4), rep(3, 4)))
-  expect_equal(splits$test$y_true, rep(3, 4))
+  expect_equal(splits$validation$y_true, rep(1:3, each = 2))
+  expect_equal(splits$test$y_true, rep(3, 2))
   expect_true(run$test_metrics$ok)
   expect_equal(run$test_metrics$accuracy, mean(splits$test$y_pred == 3))
 
