@@ -188,14 +188,14 @@ test_that("evaluation is the default and requires known answers before showing a
 
 test_that("saved-model CSV uploads and recipes reuse saved column types", {
   f <- prediction_flow_fixture()
-  training <- data.frame(height = seq_len(20), postal_code = rep(c("01", "A2"), 10),
-    target = rep(c("001", "blue"), each = 10))
+  training <- data.frame(height = seq_len(12), postal_code = rep(c("01", "A2"), 6),
+    target = rep(c("001", "blue"), each = 6))
   features <- c("height", "postal_code")
   prepare <- function(data) f$h$wb_prepare(data, "target", features, "multiclass",
     standardize = FALSE, preprocessing = f$h$wb_pp_config())
   config <- f$h$wb_config(hidden = "2", epochs = 1, checkpoint = "final")
   text_model <- prepare(training)
-  number_model <- prepare(transform(training, postal_code = rep(1:2, 10)))
+  number_model <- prepare(transform(training, postal_code = rep(1:2, 6)))
   invisible(capture.output({
     text_bundle <- f$h$wb_run(text_model, config)
     number_bundle <- f$h$wb_run(number_model, config)

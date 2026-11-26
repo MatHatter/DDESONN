@@ -92,7 +92,7 @@ test_that("dataset changes preserve models, unlabeled prediction and guide navig
   on.exit(unlink(root, recursive = TRUE), add = TRUE)
   train <- h$wb_example("customer_train")
   rows <- unlist(lapply(split(seq_len(nrow(train$data)), train$data[[train$target]]),
-    head, n = 10L), use.names = FALSE)
+    head, n = 6L), use.names = FALSE)
   p <- h$wb_prepare(train$data[sort(rows), ], train$target, train$features, train$mode)
   invisible(capture.output(bundle <- h$wb_run(p, h$wb_config(hidden = "2", epochs = 2, checkpoint = "final"))))
   weights <- bundle$model$ensemble[[1]]$weights
