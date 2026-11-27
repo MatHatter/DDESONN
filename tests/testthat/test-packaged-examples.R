@@ -10,7 +10,7 @@ test_that("predictor defaults reset with dataset/target, but preserve manual edi
   skip_if_not_installed("shiny")
   f <- example_fixture(); h <- f$h
   server <- h$wb_server; formals(server)$helper <- file.path(f$path, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     messages <- new.env()
     session$sendInputMessage <- function(id, message) messages[[id]] <- message
     session$setInputs(wb_target = "Species")
@@ -97,7 +97,7 @@ test_that("dataset changes preserve models, unlabeled prediction and guide navig
   invisible(capture.output(bundle <- h$wb_run(p, h$wb_config(hidden = "2", epochs = 2, checkpoint = "final"))))
   weights <- bundle$model$ensemble[[1]]$weights
   server <- h$wb_server; formals(server)$helper <- file.path(f$path, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     begin_attempt(bundle$config)
     add_completed(bundle)
     session$setInputs(wb_example = "heart_failure", wb_demo = 1)
@@ -157,7 +157,7 @@ test_that("normalization preserves dimensions for one and multiple predictors", 
 test_that("loading examples synchronizes hidden Features controls and split defaults", {
   f <- example_fixture(); h <- f$h
   server <- h$wb_server; formals(server)$helper <- file.path(f$path, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     messages <- new.env()
     session$sendInputMessage <- function(id, message) messages[[id]] <- message
     session$setInputs(wb_example = "iris", wb_target = "Species", workspace = "data")

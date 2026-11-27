@@ -95,7 +95,7 @@ test_that("recent details and downloads follow the recorded run and preserve sta
   expect_true("Cumulative epochs per model across recorded stages: Unavailable" %in% legacy$overview)
   expect_false(any(grepl("Private", legacy$overview, fixed = TRUE)))
 
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     remember_recent(initial, "Newly trained model")
     remember_recent(continued, "Further-trained saved model")
     session$setInputs(wb_recent_id = "recent-2", wb_lr = .9, workspace = "recent")

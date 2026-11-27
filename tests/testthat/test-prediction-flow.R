@@ -71,7 +71,7 @@ test_that("extra epochs create a named new model without replacing the upload", 
   f <- prediction_flow_fixture()
   model <- tempfile(fileext = ".rds"); saveRDS(f$bundle, model)
   on.exit(unlink(model), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     session$setInputs(wb_load = list(name = "original.rds", datapath = model, size = file.info(model)$size))
     original_id <- selected_saved()
     original <- serialize(saved_models()[[original_id]], NULL)
@@ -234,7 +234,7 @@ test_that("saved-model CSV uploads and recipes reuse saved column types", {
   expect_equal(recipe$x_new[, "postal_code__01"], c(1, 1))
   expect_equal(recipe$x_new[, "postal_code__[Unknown]"], c(0, 0))
 
-  logical_model <- prepare(transform(training, postal_code = rep(c(TRUE, FALSE), 10)))
+  logical_model <- prepare(transform(training, postal_code = rep(c(TRUE, FALSE), length.out = nrow(training))))
   writeLines(c("height,postal_code", "3,T", "4,F"), csv)
   logical_data <- f$h$wb_read_prediction_csv(csv, logical_model)
   expect_identical(logical_data$postal_code, c("TRUE", "FALSE"))
