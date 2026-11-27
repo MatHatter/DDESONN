@@ -1,3 +1,8 @@
+# DDESONN 7.5.21
+
+- Compare complete optimizer trajectories in batches and render only inspected
+  Shiny outputs in workbench UI tests.
+
 # DDESONN 7.5.20
 
 - Use smaller stratified training fixtures across workbench, API, prediction and

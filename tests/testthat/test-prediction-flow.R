@@ -71,7 +71,7 @@ test_that("extra epochs create a named new model without replacing the upload", 
   f <- prediction_flow_fixture()
   model <- tempfile(fileext = ".rds"); saveRDS(f$bundle, model)
   on.exit(unlink(model), add = TRUE)
-  shiny::testServer(f$server, {
+  workbench_test_server(f$server, {
     session$setInputs(wb_load = list(name = "original.rds", datapath = model, size = file.info(model)$size))
     original_id <- selected_saved()
     original <- serialize(saved_models()[[original_id]], NULL)

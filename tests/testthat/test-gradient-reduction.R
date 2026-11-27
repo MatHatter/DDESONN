@@ -101,7 +101,7 @@ test_that("Shiny gradient choices are independent and reflected in the generated
   sys.source(helper,h)
   sys.source(system.file("shiny","benchmark","workbench.R",package="DDESONN"),h)
   server <- h$wb_server;formals(server)$helper <- helper
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$setInputs(wb_hidden="2",wb_epochs=1,wb_lr=.001,wb_optimizer="adagrad",
       wb_checkpoint="final",wb_workflow="basic")
     expect_identical(next_config()$gradient_reduction, "sum")

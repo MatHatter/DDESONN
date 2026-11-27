@@ -234,7 +234,7 @@ test_that("session action states and failed/cancelled workers preserve completed
   writeLines('wb_run <- function(...) stop("non-finite predictions from worker")', failure)
   on.exit(unlink(failure), add = TRUE)
   start <- h$wb_start
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$flushReact()
     expect_false(action_states()$wb_start)
     expect_false(action_states()$wb_cancel)
@@ -277,7 +277,7 @@ test_that("session action states and failed/cancelled workers preserve completed
     expect_true(action_states()$wb_save)
   })
   # A second session starts with no data preparation or completed-model state.
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$flushReact()
     expect_null(result()); expect_null(job()); expect_null(prepared())
     expect_false(action_states()$wb_save)

@@ -116,7 +116,7 @@ test_that("customer preprocessing survives Basic/Custom training, replay and sav
 test_that("Shiny prepares the full customer example automatically and invalidates changed rules", {
   f <- pp_fixture(); h <- f$h
   server <- h$wb_server; formals(server)$helper <- file.path(f$root, "workbench_helpers.R")
-  shiny::testServer(server, {
+  workbench_test_server(server, {
     session$setInputs(wb_example = "iris")
     session$setInputs(wb_example = "customer_train")
     session$setInputs(wb_target = "Segmentation", wb_features = setdiff(names(raw()), "Segmentation"),
